@@ -1,0 +1,87 @@
+{
+  "info": {
+    "name": "College ERP - Auth and Users",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "superAdminToken", "value": "" },
+    { "key": "principalToken", "value": "" },
+    { "key": "collegeId", "value": "1" },
+    { "key": "principalUserId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Login as Super Admin",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": { "mode": "raw", "raw": "{\"email\":\"admin@erp.com\",\"password\":\"Admin@12345\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": ["const json = pm.response.json();", "pm.collectionVariables.set('superAdminToken', json.data.token);"] }
+      }]
+    },
+    {
+      "name": "Create Principal",
+      "request": {
+        "method": "POST",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{superAdminToken}}", "type": "string" }] },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/super-admin/users/principals",
+        "body": { "mode": "raw", "raw": "{\"collegeId\":{{collegeId}},\"fullName\":\"Dr. Rajesh Patil\",\"email\":\"principal@abccollege.com\",\"phone\":\"9876543210\",\"password\":\"Principal@123\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": ["const json = pm.response.json();", "pm.collectionVariables.set('principalUserId', json.data.id);"] }
+      }]
+    },
+    {
+      "name": "Login as Principal",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": { "mode": "raw", "raw": "{\"email\":\"principal@abccollege.com\",\"password\":\"Principal@123\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": ["const json = pm.response.json();", "pm.collectionVariables.set('principalToken', json.data.token);"] }
+      }]
+    },
+    {
+      "name": "Principal Profile",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{principalToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/auth/profile"
+      }
+    },
+    {
+      "name": "Principal Forbidden From Super Admin",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{principalToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/super-admin/colleges"
+      }
+    },
+    {
+      "name": "Principal Access Departments",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{principalToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/principal/departments"
+      }
+    },
+    {
+      "name": "Deactivate Principal",
+      "request": {
+        "method": "PATCH",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{superAdminToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/super-admin/users/{{principalUserId}}/deactivate"
+      }
+    }
+  ]
+}

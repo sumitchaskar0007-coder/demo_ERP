@@ -1,0 +1,12 @@
+package com.jadhavr.erp.user.dto;
+
+import com.jadhavr.erp.user.entity.UserStatus;
+import java.time.LocalDateTime;
+import java.util.List;
+
+public record UserResponse(
+        Long id, Long collegeId, String collegeName, String collegeCode,
+        String fullName, String email, String phone, UserStatus status,
+        List<String> roles, LocalDateTime lastLoginAt,
+        LocalDateTime createdAt, LocalDateTime updatedAt
+) {}

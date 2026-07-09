@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "College ERP - Department Module",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "collegeId", "value": "1" },
+    { "key": "departmentId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Create BCA",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/principal/departments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"collegeId\": {{collegeId}},\n  \"name\": \"Bachelor of Computer Applications\",\n  \"code\": \"bca\",\n  \"description\": \"Undergraduate computer applications department\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create MCA",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/principal/departments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"collegeId\": {{collegeId}},\n  \"name\": \"Master of Computer Applications\",\n  \"code\": \"mca\",\n  \"description\": \"Postgraduate computer applications department\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create BBA",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/principal/departments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"collegeId\": {{collegeId}},\n  \"name\": \"Bachelor of Business Administration\",\n  \"code\": \"bba\",\n  \"description\": \"Business administration department\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Search departments",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/principal/departments/search?keyword=computer&page=0&size=10&sortBy=createdAt&sortDir=desc"
+      }
+    },
+    {
+      "name": "Departments by college",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/principal/departments/college/{{collegeId}}"
+      }
+    },
+    {
+      "name": "Deactivate department",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/principal/departments/{{departmentId}}/deactivate"
+      }
+    },
+    {
+      "name": "Activate department",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/principal/departments/{{departmentId}}/activate"
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "info": {
+    "name": "College ERP - College Module",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "collegeId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Create college",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/super-admin/colleges",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"ABC College of Computer Science\",\n  \"code\": \"abc001\",\n  \"address\": \"Main Road, Pune\",\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"411001\",\n  \"contactEmail\": \"admin@abccollege.com\",\n  \"contactPhone\": \"9876543210\",\n  \"logoUrl\": \"https://example.com/logo.png\",\n  \"qrCodeUrl\": \"https://example.com/qr.png\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get all colleges",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/super-admin/colleges" }
+    },
+    {
+      "name": "Get active colleges",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/super-admin/colleges/active" }
+    },
+    {
+      "name": "Update college",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/super-admin/colleges/{{collegeId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"ABC College of Computer Science - Pune\",\n  \"address\": \"New Main Road, Pune\",\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"411001\",\n  \"contactEmail\": \"office@abccollege.com\",\n  \"contactPhone\": \"9876543210\",\n  \"logoUrl\": \"https://example.com/logo.png\",\n  \"qrCodeUrl\": \"https://example.com/qr.png\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Deactivate college",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/super-admin/colleges/{{collegeId}}/deactivate"
+      }
+    },
+    {
+      "name": "Activate college",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/super-admin/colleges/{{collegeId}}/activate"
+      }
+    }
+  ]
+}
