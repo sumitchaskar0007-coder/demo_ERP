@@ -3,6 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/features/auth/authStore";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { ProfilePage } from "@/features/auth/ProfilePage";
+import { ChangePasswordPage } from "@/features/auth/ChangePasswordPage";
 import { CollegeDetailsPage } from "@/features/colleges/CollegeDetailsPage";
 import { CollegeListPage } from "@/features/colleges/CollegeListPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
@@ -16,8 +17,13 @@ import { StudentSectionDashboardPage } from "@/features/admissions/StudentSectio
 import { DepartmentDetailsPage } from "@/features/departments/DepartmentDetailsPage";
 import { DepartmentListPage } from "@/features/departments/DepartmentListPage";
 import { CreateStudentSectionStaffPage } from "@/features/staff/CreateStudentSectionStaffPage";
+import { CreateFeeSectionStaffPage } from "@/features/staff/CreateFeeSectionStaffPage";
+import { FeeStructureDetailsPage, FeeStructureFormPage, FeeStructureListPage } from "@/features/fees/FeeStructurePages";
+import { MyFeeTransactionsPage, MyPaymentsPage, StudentFeesPage, SubmitPaymentPage } from "@/features/fees/StudentFeePages";
+import { FeeAccountDetailsPage, FeeAccountsPage, FeeSectionDashboardPage, PaymentDetailsPage, PaymentsPage } from "@/features/fees/FeeSectionPages";
 import { StaffListPage } from "@/features/staff/StaffListPage";
 import { StudentAdmissionPage } from "@/features/student/StudentAdmissionPage";
+import { AdminStudentListPage } from "@/features/student/AdminStudentListPage";
 import { StudentDashboardPage } from "@/features/student/StudentDashboardPage";
 import { StudentProfilePage } from "@/features/student/StudentProfilePage";
 import { CreatePrincipalPage } from "@/features/users/CreatePrincipalPage";
@@ -45,6 +51,7 @@ export function AppRouter() {
       <Route path={ROUTES.serverError} element={<ServerErrorPage />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
         <Route element={<DashboardLayout />}>
           <Route path={ROUTES.profile} element={<ProfilePage />} />
 
@@ -54,6 +61,7 @@ export function AppRouter() {
             <Route path={ROUTES.users} element={<UserListPage />} />
             <Route path="/users/:id" element={<UserDetailsPage />} />
             <Route path={ROUTES.createPrincipal} element={<CreatePrincipalPage />} />
+            <Route path={ROUTES.students} element={<AdminStudentListPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
@@ -62,6 +70,10 @@ export function AppRouter() {
             <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
             <Route path={ROUTES.staff} element={<StaffListPage />} />
             <Route path={ROUTES.createStudentSectionStaff} element={<CreateStudentSectionStaffPage />} />
+            <Route path={ROUTES.createFeeSectionStaff} element={<CreateFeeSectionStaffPage />} />
+            <Route path={ROUTES.feeStructures} element={<FeeStructureListPage />} />
+            <Route path="/fee-structures/create" element={<FeeStructureFormPage />} />
+            <Route path="/fee-structures/:id" element={<FeeStructureDetailsPage />} />
             <Route path={ROUTES.principalReviewReady} element={<PrincipalReviewQueuePage />} />
             <Route path="/principal/admissions/:admissionId" element={<PrincipalAdmissionDetailPage />} />
           </Route>
@@ -77,6 +89,17 @@ export function AppRouter() {
             <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
             <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
             <Route path={ROUTES.studentAdmission} element={<StudentAdmissionPage />} />
+            <Route path={ROUTES.studentFees} element={<StudentFeesPage />} />
+            <Route path={ROUTES.studentPayments} element={<MyPaymentsPage />} />
+            <Route path="/student/fees/payments/new" element={<SubmitPaymentPage />} />
+            <Route path="/student/fees/transactions" element={<MyFeeTransactionsPage />} />
+          </Route>
+          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
+            <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
+            <Route path={ROUTES.feeAccounts} element={<FeeAccountsPage />} />
+            <Route path="/fee-section/fee-accounts/:feeAccountId" element={<FeeAccountDetailsPage />} />
+            <Route path={ROUTES.feePayments} element={<PaymentsPage />} />
+            <Route path="/fee-section/payments/:paymentId" element={<PaymentDetailsPage />} />
           </Route>
         </Route>
       </Route>

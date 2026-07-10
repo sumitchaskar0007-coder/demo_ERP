@@ -23,6 +23,8 @@ import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.fee.service.FeeService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -51,20 +53,29 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private final StudentSectionAdmissionMapper admissionMapper;
     private final AdmissionStatusHistoryMapper historyMapper;
     private final AdmissionPrintMapper printMapper;
+    private final FeeService feeService;
 
+    @Autowired
     public StudentSectionAdmissionServiceImpl(
             AdmissionFormRepository admissions,
             AdmissionStatusHistoryRepository histories,
             UserRepository users,
             StudentSectionAdmissionMapper admissionMapper,
             AdmissionStatusHistoryMapper historyMapper,
-            AdmissionPrintMapper printMapper) {
+            AdmissionPrintMapper printMapper, FeeService feeService) {
         this.admissions = admissions;
         this.histories = histories;
         this.users = users;
         this.admissionMapper = admissionMapper;
         this.historyMapper = historyMapper;
         this.printMapper = printMapper;
+        this.feeService = feeService;
+    }
+
+    public StudentSectionAdmissionServiceImpl(AdmissionFormRepository admissions, AdmissionStatusHistoryRepository histories,
+            UserRepository users, StudentSectionAdmissionMapper admissionMapper,
+            AdmissionStatusHistoryMapper historyMapper, AdmissionPrintMapper printMapper) {
+        this(admissions, histories, users, admissionMapper, historyMapper, printMapper, null);
     }
 
     @Override
@@ -113,6 +124,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         admission.setStudentSectionRemarks(trimToNull(request.remarks()));
         admission.getStudent().setStatus(StudentStatus.UNDER_REVIEW);
         AdmissionForm saved = admissions.save(admission);
+        if (feeService != null) feeService.createAccountForAdmission(saved);
         saveHistory(saved, oldStatus, saved.getStatus(),
                 AdmissionAction.STUDENT_SECTION_APPROVED, trimToNull(request.remarks()));
         return admissionMapper.toResponse(saved);

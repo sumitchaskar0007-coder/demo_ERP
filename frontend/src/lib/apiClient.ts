@@ -10,7 +10,10 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token = authToken.getToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const url = config.url || "";
+  const isPublicRequest = url === "/api/auth/login" || url.startsWith("/api/public/");
+  if (token && !isPublicRequest) config.headers.Authorization = `Bearer ${token}`;
+  else delete config.headers.Authorization;
   return config;
 });
 
@@ -20,9 +23,9 @@ apiClient.interceptors.response.use(
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const path = window.location.pathname;
-      if (status === 401 && path !== ROUTES.login) {
+      if (status === 401) {
         authToken.clear();
-        window.location.assign(ROUTES.login);
+        if (path !== ROUTES.login) window.location.assign(ROUTES.login);
       } else if (status === 403 && path !== ROUTES.forbidden) {
         window.location.assign(ROUTES.forbidden);
       }

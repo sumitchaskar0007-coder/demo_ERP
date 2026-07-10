@@ -10,7 +10,7 @@ import { Input } from "@/components/common/Input";
 import { useAuth } from "./authStore";
 import { handleApiError } from "@/lib/handleApiError";
 import { loginSchema } from "@/lib/validators";
-import { APP_NAME, defaultRouteForRoles, isRouteAllowedForRoles } from "@/lib/constants";
+import { APP_NAME, ROUTES, defaultRouteForRoles, isRouteAllowedForRoles } from "@/lib/constants";
 
 type LoginForm = z.infer<typeof loginSchema>;
 
@@ -28,6 +28,10 @@ export function LoginPage() {
     try {
       const user = await login(values);
       toast.success("Welcome back");
+      if (user.mustChangePassword) {
+        navigate(ROUTES.changePassword, { replace: true });
+        return;
+      }
       const from = (location.state as { from?: string } | null)?.from;
       const target = defaultRouteForRoles(user.roles);
       navigate(from && isRouteAllowedForRoles(from, user.roles) ? from : target, { replace: true });

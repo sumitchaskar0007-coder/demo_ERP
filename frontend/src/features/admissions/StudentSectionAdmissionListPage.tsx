@@ -41,7 +41,8 @@ export function StudentSectionAdmissionListPage() {
     if (!action) return;
     setActionLoading(true);
     try {
-      action.type === "start" ? await api.startAdmissionReview(action.admission.id) : await api.approveAdmission(action.admission.id, { remarks: "Student data verified successfully" });
+      if (action.type === "start") await api.startAdmissionReview(action.admission.id);
+      else await api.approveAdmission(action.admission.id, { remarks: "Student data verified successfully" });
       toast.success("Admission updated");
       setAction(null);
       await load();

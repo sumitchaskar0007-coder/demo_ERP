@@ -3,6 +3,7 @@ package com.jadhavr.erp.staff.controller;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
@@ -26,6 +27,11 @@ public class StaffController {
 
     public StaffController(StaffService staffService) {
         this.staffService = staffService;
+    }
+
+    @PostMapping("/fee-section")
+    public ResponseEntity<ApiResponse<StaffResponse>> createFeeSectionStaff(@Valid @RequestBody CreateFeeSectionStaffRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Fee Section staff created successfully", staffService.createFeeSectionStaff(request)));
     }
 
     @PostMapping("/student-section")

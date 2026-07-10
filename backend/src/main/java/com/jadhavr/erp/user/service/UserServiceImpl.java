@@ -71,7 +71,8 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.fullName().trim());
         user.setEmail(email);
         user.setPhone(request.phone());
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setPasswordHash(passwordEncoder.encode(request.phone().trim()));
+        user.setMustChangePassword(true);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(principalRole));
         return mapper.toResponse(users.save(user));

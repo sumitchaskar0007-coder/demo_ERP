@@ -59,6 +59,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/student-section/**").hasAnyRole("STUDENT_SECTION", "PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/fee-section/**").hasAnyRole("FEE_SECTION", "PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/staff/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/admissions/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")

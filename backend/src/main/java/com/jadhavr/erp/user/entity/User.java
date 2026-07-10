@@ -44,6 +44,9 @@ public class User extends BaseAuditEntity {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(name = "must_change_password", nullable = false, columnDefinition = "boolean default false")
+    private boolean mustChangePassword = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
@@ -69,6 +72,8 @@ public class User extends BaseAuditEntity {
     public void setPhone(String phone) { this.phone = phone; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
     public UserStatus getStatus() { return status; }
     public void setStatus(UserStatus status) { this.status = status; }
     public Set<Role> getRoles() { return roles; }

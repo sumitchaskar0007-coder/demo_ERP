@@ -47,15 +47,7 @@ export const createPrincipalSchema = z.object({
   collegeId: z.coerce.number().positive("College is required"),
   fullName: z.string().trim().min(2).max(150),
   email: z.string().email("Enter a valid email").max(150),
-  phone: z.string().max(20).optional().default(""),
-  password: z
-    .string()
-    .min(8)
-    .max(100)
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
-      "Include uppercase, lowercase, number, and special character",
-    ),
+  phone: z.string().min(1, "Phone is required").max(20),
 });
 
 export const publicAdmissionSchema = z.object({
@@ -72,27 +64,13 @@ export const publicAdmissionSchema = z.object({
   city: z.string().max(100).optional().default(""),
   state: z.string().max(100).optional().default(""),
   pincode: z.string().max(10).optional().default(""),
-  parentName: z.string().trim().min(2).max(150),
-  parentPhone: z.string().min(1, "Parent phone is required").max(20),
-  parentEmail: optionalEmail.optional().default(""),
-  previousSchoolName: z.string().max(200).optional().default(""),
-  previousClassName: z.string().max(100).optional().default(""),
-  previousPercentage: z.union([z.coerce.number().min(0).max(100), z.literal("")]).optional(),
 });
 
 export const createStudentSectionStaffSchema = z.object({
   collegeId: z.coerce.number().positive("College is required"),
   fullName: z.string().trim().min(2).max(150),
   email: z.string().email("Enter a valid email").max(150),
-  phone: z.string().max(20).optional().default(""),
-  password: z
-    .string()
-    .min(8)
-    .max(100)
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
-      "Include uppercase, lowercase, number, and special character",
-    ),
+  phone: z.string().min(1, "Phone is required").max(20),
   joiningDate: z.string().optional().default(""),
 });
 

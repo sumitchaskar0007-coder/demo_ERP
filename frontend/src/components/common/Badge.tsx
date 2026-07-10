@@ -19,6 +19,10 @@ export function Badge({ children, tone = "neutral" }: {
   );
 }
 
-export function StatusBadge({ status }: { status: "ACTIVE" | "INACTIVE" }) {
-  return <Badge tone={status === "ACTIVE" ? "success" : "danger"}>{status}</Badge>;
+export function StatusBadge({ status }: { status: string }) {
+  const tone = ["ACTIVE", "VERIFIED", "PAID", "PRINCIPAL_APPROVED", "STUDENT_SECTION_APPROVED"].includes(status)
+    ? "success" : ["REJECTED", "INACTIVE", "PRINCIPAL_REJECTED", "STUDENT_SECTION_REJECTED", "OVERDUE"].includes(status)
+      ? "danger" : ["PENDING", "SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(status)
+        ? "warning" : ["PARTIALLY_PAID", "PRINCIPAL_REVIEW_PENDING"].includes(status) ? "info" : "neutral";
+  return <Badge tone={tone}>{status.replaceAll("_", " ")}</Badge>;
 }

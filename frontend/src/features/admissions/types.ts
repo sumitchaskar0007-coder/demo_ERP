@@ -26,7 +26,7 @@ export interface PublicAdmissionInfoResponse {
 export interface SubmitAdmissionRequest {
   departmentId: number; firstName: string; middleName?: string; lastName: string; email: string; phone: string;
   dateOfBirth: string; gender: string; addressLine1?: string; addressLine2?: string; city?: string; state?: string;
-  pincode?: string; parentName: string; parentPhone: string; parentEmail?: string; previousSchoolName?: string;
+  pincode?: string; parentName?: string; parentPhone?: string; parentEmail?: string; previousSchoolName?: string;
   previousClassName?: string; previousPercentage?: number | "";
 }
 export interface SubmitAdmissionResponse {

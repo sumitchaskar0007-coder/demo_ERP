@@ -1,9 +1,13 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
-import type { CreateStudentSectionStaffRequest, StaffResponse, StaffStatus, StaffType } from "./types";
+import type { CreateFeeSectionStaffRequest, CreateStudentSectionStaffRequest, StaffResponse, StaffStatus, StaffType } from "./types";
 
 export async function createStudentSectionStaff(values: CreateStudentSectionStaffRequest) {
   const { data } = await apiClient.post<ApiResponse<StaffResponse>>("/api/principal/staff/student-section", values);
+  return data.data;
+}
+export async function createFeeSectionStaff(values: CreateFeeSectionStaffRequest) {
+  const { data } = await apiClient.post<ApiResponse<StaffResponse>>("/api/principal/staff/fee-section", values);
   return data.data;
 }
 export async function searchStaff(params: { keyword?: string; collegeId?: number; staffType?: StaffType | ""; status?: StaffStatus | ""; page?: number; size?: number; sortBy?: string; sortDir?: string }) {

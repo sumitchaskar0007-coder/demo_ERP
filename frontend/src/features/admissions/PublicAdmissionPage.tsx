@@ -25,7 +25,7 @@ export function PublicAdmissionPage() {
   const [error, setError] = useState("");
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(publicAdmissionSchema),
-    defaultValues: { gender: "", middleName: "", addressLine1: "", addressLine2: "", city: "", state: "", pincode: "", parentEmail: "", previousSchoolName: "", previousClassName: "", previousPercentage: "" },
+    defaultValues: { gender: "", middleName: "", addressLine1: "", addressLine2: "", city: "", state: "", pincode: "" },
   });
 
   useEffect(() => {
@@ -98,16 +98,6 @@ export function PublicAdmissionPage() {
             <Input label="City" error={errors.city?.message} {...register("city")} />
             <Input label="State" error={errors.state?.message} {...register("state")} />
             <Input label="Pincode" error={errors.pincode?.message} {...register("pincode")} />
-          </FormSection>
-          <FormSection title="Parent Details">
-            <Input label="Parent name" error={errors.parentName?.message} {...register("parentName")} />
-            <Input label="Parent phone" error={errors.parentPhone?.message} {...register("parentPhone")} />
-            <Input label="Parent email" type="email" error={errors.parentEmail?.message} {...register("parentEmail")} />
-          </FormSection>
-          <FormSection title="Previous Academic Details">
-            <Input label="Previous school" error={errors.previousSchoolName?.message} {...register("previousSchoolName")} />
-            <Input label="Previous class" error={errors.previousClassName?.message} {...register("previousClassName")} />
-            <Input label="Previous percentage" type="number" step="0.01" error={errors.previousPercentage?.message} {...register("previousPercentage")} />
           </FormSection>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><Link to="/login" className="inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">Already have credentials?</Link><Button type="submit" loading={isSubmitting}>Submit Admission Form</Button></div>
         </form>

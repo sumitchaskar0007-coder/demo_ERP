@@ -94,8 +94,9 @@ class StaffServiceImplTest {
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(users).save(userCaptor.capture());
         assertEquals(RoleName.STUDENT_SECTION, userCaptor.getValue().getRoles().iterator().next().getName());
-        assertNotEquals("Staff@123", userCaptor.getValue().getPasswordHash());
-        assertTrue(passwordEncoder.matches("Staff@123", userCaptor.getValue().getPasswordHash()));
+        assertNotEquals("9876543210", userCaptor.getValue().getPasswordHash());
+        assertTrue(passwordEncoder.matches("9876543210", userCaptor.getValue().getPasswordHash()));
+        assertTrue(userCaptor.getValue().isMustChangePassword());
     }
 
     @Test
@@ -159,7 +160,6 @@ class StaffServiceImplTest {
                 "Student Section Staff",
                 "Section@Example.com",
                 "9876543210",
-                "Staff@123",
                 LocalDate.of(2026, 7, 10)
         );
     }

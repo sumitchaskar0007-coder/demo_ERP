@@ -39,6 +39,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const isAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
+  const isFeeSection = isRole([ROLES.FEE_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
   const nav = isAdmin
     ? [
@@ -48,7 +49,12 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Users", to: ROUTES.users, icon: Users },
         { label: "Create Principal", to: ROUTES.createPrincipal, icon: UserPlus },
         { label: "Staff", to: ROUTES.staff, icon: Users },
+        { label: "Students", to: ROUTES.students, icon: GraduationCap },
         { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
+        { label: "Create Fee Section Staff", to: ROUTES.createFeeSectionStaff, icon: UserPlus },
+        { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
+        { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
+        { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
         { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
       ]
@@ -58,6 +64,10 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
         { label: "Staff", to: ROUTES.staff, icon: Users },
         { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
+        { label: "Create Fee Section Staff", to: ROUTES.createFeeSectionStaff, icon: UserPlus },
+        { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
+        { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
+        { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
         { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
@@ -68,16 +78,25 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
+    : isFeeSection
+    ? [
+        { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: LayoutDashboard },
+        { label: "Fee Accounts", to: ROUTES.feeAccounts, icon: WalletCards },
+        { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
+        { label: "Profile", to: ROUTES.profile, icon: UserRound },
+      ]
     : isStudent
     ? [
         { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
         { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
+        { label: "My Fees", to: ROUTES.studentFees, icon: WalletCards },
+        { label: "My Payments", to: ROUTES.studentPayments, icon: CreditCard },
         { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
       ]
     : [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
       ];
-  const sectionLabel = isAdmin ? "Admin" : isPrincipal ? "Principal" : isStudentSection ? "Student Section" : isStudent ? "Student" : "Menu";
+  const sectionLabel = isAdmin ? "Admin" : isPrincipal ? "Principal" : isStudentSection ? "Student Section" : isFeeSection ? "Accountant" : isStudent ? "Student" : "Menu";
   const roleFuture = isStudentSection
     ? [{ label: "Fee Verification", icon: CreditCard }, { label: "Documents", icon: FileText }, { label: "Reports", icon: BarChart3 }]
     : isStudent
@@ -85,10 +104,10 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       : futureItems;
 
   return (
-    <aside className={cn("flex h-full flex-col border-r bg-white transition-all", !mobile && (collapsed ? "w-20" : "w-64"))}>
+    <aside className={cn("flex h-full flex-col border-r border-blue-100/80 bg-white shadow-[8px_0_35px_rgba(37,99,235,0.04)] transition-all duration-300", !mobile && (collapsed ? "w-20" : "w-[260px]"))}>
       <div className={cn("flex h-20 items-center border-b px-5", collapsed && !mobile ? "justify-center" : "gap-3")}>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-indigo-700 text-white shadow-lg shadow-blue-200">
-          <GraduationCap className="h-6 w-6" />
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-lg font-black text-white shadow-lg shadow-blue-500/20">
+          J
         </div>
         {(!collapsed || mobile) && <div><p className="font-bold text-slate-900">{APP_NAME}</p><p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">College Management</p></div>}
       </div>
@@ -102,8 +121,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               onClick={onNavigate}
               title={collapsed && !mobile ? label : undefined}
               className={({ isActive }) => cn(
-                "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition",
-                isActive ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-200 ease-out",
+                isActive ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20" : "text-slate-600 hover:bg-blue-50 hover:text-blue-700",
                 collapsed && !mobile && "justify-center",
               )}
             >

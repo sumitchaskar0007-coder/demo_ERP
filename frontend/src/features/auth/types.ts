@@ -8,6 +8,7 @@ export interface AuthUser {
   phone: string | null;
   status: "ACTIVE" | "INACTIVE";
   roles: string[];
+  mustChangePassword: boolean;
 }
 
 export interface LoginRequest {

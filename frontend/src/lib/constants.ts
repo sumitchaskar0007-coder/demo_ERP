@@ -2,6 +2,7 @@ export const APP_NAME = "Jadhavr ERP";
 
 export const ROUTES = {
   login: "/login",
+  changePassword: "/change-password",
   dashboard: "/dashboard",
   profile: "/profile",
   colleges: "/colleges",
@@ -16,7 +17,15 @@ export const ROUTES = {
   studentSectionDashboard: "/student-section/dashboard",
   studentSectionAdmissions: "/student-section/admissions",
   staff: "/staff",
+  students: "/students",
   createStudentSectionStaff: "/staff/student-section/create",
+  createFeeSectionStaff: "/staff/fee-section/create",
+  feeStructures: "/fee-structures",
+  studentFees: "/student/fees",
+  studentPayments: "/student/fees/payments",
+  feeSectionDashboard: "/fee-section/dashboard",
+  feeAccounts: "/fee-section/fee-accounts",
+  feePayments: "/fee-section/payments",
   principalReviewReady: "/principal/admissions/review-ready",
   forbidden: "/forbidden",
   serverError: "/server-error",
@@ -26,6 +35,7 @@ export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN",
   PRINCIPAL: "PRINCIPAL",
   STUDENT_SECTION: "STUDENT_SECTION",
+  FEE_SECTION: "FEE_SECTION",
   STUDENT: "STUDENT",
 } as const;
 
@@ -34,6 +44,7 @@ export type AppRole = (typeof ROLES)[keyof typeof ROLES];
 export function defaultRouteForRoles(roles: string[] = []) {
   if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRINCIPAL)) return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
+  if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
   return ROUTES.dashboard;
 }
@@ -46,6 +57,7 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
   if (roles.includes(ROLES.STUDENT_SECTION)) {
     return path.startsWith("/student-section") || path === ROUTES.profile;
   }
+  if (roles.includes(ROLES.FEE_SECTION)) return path.startsWith("/fee-section") || path === ROUTES.profile;
   if (roles.includes(ROLES.STUDENT)) {
     return path.startsWith("/student/");
   }

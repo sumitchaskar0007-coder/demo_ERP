@@ -1,0 +1,1 @@
+package com.jadhavr.erp.fee.dto; import java.math.BigDecimal; public record FeeDashboardResponse(long totalFeeAccounts,long pendingPayments,long verifiedPayments,long rejectedPayments,BigDecimal totalCollectedAmount,BigDecimal totalPendingAmount,BigDecimal todayCollectedAmount){}

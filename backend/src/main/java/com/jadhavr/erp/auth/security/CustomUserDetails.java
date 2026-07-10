@@ -15,6 +15,7 @@ public class CustomUserDetails implements UserDetails {
     private final String password;
     private final String fullName;
     private final UserStatus status;
+    private final boolean mustChangePassword;
     private final List<GrantedAuthority> authorities;
 
     public CustomUserDetails(User user) {
@@ -24,6 +25,7 @@ public class CustomUserDetails implements UserDetails {
         password = user.getPasswordHash();
         fullName = user.getFullName();
         status = user.getStatus();
+        mustChangePassword = user.isMustChangePassword();
         authorities = user.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName().name()))
                 .map(GrantedAuthority.class::cast).toList();
@@ -31,6 +33,7 @@ public class CustomUserDetails implements UserDetails {
     public Long getId() { return id; }
     public Long getCollegeId() { return collegeId; }
     public String getFullName() { return fullName; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
     @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
     @Override public String getPassword() { return password; }
     @Override public String getUsername() { return email; }

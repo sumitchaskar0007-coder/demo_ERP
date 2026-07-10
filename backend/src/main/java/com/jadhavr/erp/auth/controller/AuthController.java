@@ -3,6 +3,8 @@ package com.jadhavr.erp.auth.controller;
 import com.jadhavr.erp.auth.dto.AuthUserResponse;
 import com.jadhavr.erp.auth.dto.LoginRequest;
 import com.jadhavr.erp.auth.dto.LoginResponse;
+import com.jadhavr.erp.auth.dto.ChangePasswordRequest;
+import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.JwtService;
 import com.jadhavr.erp.common.api.ApiResponse;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Locale;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -26,13 +29,15 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserRepository users;
     private final UserMapper mapper;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthController(AuthenticationManager authenticationManager, JwtService jwtService,
-                          UserRepository users, UserMapper mapper) {
+                          UserRepository users, UserMapper mapper, PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.users = users;
         this.mapper = mapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
@@ -55,5 +60,22 @@ public class AuthController {
     public ApiResponse<AuthUserResponse> profile(@AuthenticationPrincipal CustomUserDetails details) {
         User user = users.findByEmail(details.getUsername()).orElseThrow();
         return ApiResponse.success("Profile retrieved successfully", mapper.toAuthResponse(user));
+    }
+
+    @PostMapping("/change-password")
+    @Transactional
+    public ApiResponse<AuthUserResponse> changePassword(
+            @AuthenticationPrincipal CustomUserDetails details,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        User user = users.findByEmail(details.getUsername()).orElseThrow();
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
+        return ApiResponse.success("Password changed successfully", mapper.toAuthResponse(users.save(user)));
     }
 }

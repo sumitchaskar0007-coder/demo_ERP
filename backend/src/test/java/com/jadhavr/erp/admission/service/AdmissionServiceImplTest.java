@@ -150,7 +150,7 @@ class AdmissionServiceImplTest {
         assertEquals(30L, result.studentProfileId());
         assertTrue(result.admissionReferenceNumber().startsWith("ADM-ABC001-"));
         assertTrue(result.admissionNumber().startsWith("STU-ABC001-"));
-        assertTrue(result.temporaryPassword().length() >= 10);
+        assertEquals("9876543210", result.temporaryPassword());
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
@@ -159,6 +159,7 @@ class AdmissionServiceImplTest {
         assertEquals(RoleName.STUDENT, savedUser.getRoles().iterator().next().getName());
         assertNotEquals(result.temporaryPassword(), savedUser.getPasswordHash());
         assertTrue(passwordEncoder.matches(result.temporaryPassword(), savedUser.getPasswordHash()));
+        assertTrue(savedUser.isMustChangePassword());
 
         ArgumentCaptor<StudentProfile> profileCaptor = ArgumentCaptor.forClass(StudentProfile.class);
         verify(studentProfileRepository).save(profileCaptor.capture());

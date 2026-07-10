@@ -21,7 +21,8 @@ public class UserMapper {
         College college = user.getCollege();
         return new AuthUserResponse(user.getId(), college == null ? null : college.getId(),
                 college == null ? null : college.getName(), college == null ? null : college.getCode(),
-                user.getFullName(), user.getEmail(), user.getPhone(), user.getStatus(), roles(user));
+                user.getFullName(), user.getEmail(), user.getPhone(), user.getStatus(), roles(user),
+                user.isMustChangePassword());
     }
 
     private List<String> roles(User user) {

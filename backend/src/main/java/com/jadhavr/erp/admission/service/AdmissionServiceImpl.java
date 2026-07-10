@@ -142,7 +142,7 @@ public class AdmissionServiceImpl implements AdmissionService {
                 .orElseThrow(() -> new ResourceNotFoundException("STUDENT role not found"));
         String fullName = buildFullName(
                 request.firstName(), request.middleName(), request.lastName());
-        String temporaryPassword = generateTemporaryPassword();
+        String temporaryPassword = request.phone().trim();
 
         User user = new User();
         user.setCollege(college);
@@ -150,6 +150,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         user.setEmail(email);
         user.setPhone(trimToNull(request.phone()));
         user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setMustChangePassword(true);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(studentRole));
         User savedUser = userRepository.save(user);
@@ -241,13 +242,6 @@ public class AdmissionServiceImpl implements AdmissionService {
         throw new BadRequestException("Could not generate unique reference number");
     }
 
-    private String generateTemporaryPassword() {
-        return "Stu@"
-                + (10000 + random.nextInt(90000))
-                + (char) ('A' + random.nextInt(26))
-                + (char) ('a' + random.nextInt(26))
-                + PASSWORD_SPECIALS.charAt(random.nextInt(PASSWORD_SPECIALS.length()));
-    }
 
     private String academicYear() {
         LocalDate today = LocalDate.now();
@@ -303,8 +297,8 @@ public class AdmissionServiceImpl implements AdmissionService {
         profile.setCity(trimToNull(request.city()));
         profile.setState(trimToNull(request.state()));
         profile.setPincode(trimToNull(request.pincode()));
-        profile.setParentName(request.parentName().trim());
-        profile.setParentPhone(request.parentPhone().trim());
+        profile.setParentName(request.parentName() == null ? "" : request.parentName().trim());
+        profile.setParentPhone(request.parentPhone() == null ? "" : request.parentPhone().trim());
         profile.setParentEmail(request.parentEmail() == null ? null : normalizeEmail(request.parentEmail()));
     }
 
@@ -326,8 +320,8 @@ public class AdmissionServiceImpl implements AdmissionService {
         admissionForm.setCity(trimToNull(request.city()));
         admissionForm.setState(trimToNull(request.state()));
         admissionForm.setPincode(trimToNull(request.pincode()));
-        admissionForm.setParentName(request.parentName().trim());
-        admissionForm.setParentPhone(request.parentPhone().trim());
+        admissionForm.setParentName(request.parentName() == null ? "" : request.parentName().trim());
+        admissionForm.setParentPhone(request.parentPhone() == null ? "" : request.parentPhone().trim());
         admissionForm.setParentEmail(request.parentEmail() == null ? null : normalizeEmail(request.parentEmail()));
         admissionForm.setPreviousSchoolName(trimToNull(request.previousSchoolName()));
         admissionForm.setPreviousClassName(trimToNull(request.previousClassName()));

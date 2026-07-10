@@ -1,8 +1,11 @@
-import { Building2, Mail, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { Building2, KeyRound, Mail, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Badge, StatusBadge } from "@/components/common/Badge";
+import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
+import { ROUTES } from "@/lib/constants";
 import { useAuth } from "./authStore";
 
 export function ProfilePage() {
@@ -26,7 +29,7 @@ export function ProfilePage() {
             <div className="flex-1 pb-2"><h2 className="text-2xl font-bold">{user.fullName}</h2><div className="mt-2 flex flex-wrap gap-2"><StatusBadge status={user.status} />{user.roles.map((role) => <Badge key={role} tone="info">{role.replaceAll("_", " ")}</Badge>)}</div></div>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">{details.map(({ label, value, icon: Icon }) => <div key={label} className="rounded-2xl border bg-slate-50 p-5"><div className="mb-3 inline-flex rounded-xl bg-white p-2 text-brand-600 shadow-sm"><Icon className="h-5 w-5" /></div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 font-medium text-slate-800">{value}</p></div>)}</div>
-          <div className="mt-6 flex items-center gap-3 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700"><ShieldCheck className="h-5 w-5" />Your password and authentication token are never displayed here.</div>
+          <div className="mt-6 flex flex-col gap-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" />Your password and authentication token are never displayed here.</div><Link to={ROUTES.changePassword}><Button variant="secondary"><KeyRound className="h-4 w-4" />Change Password</Button></Link></div>
         </div>
       </Card>
     </div>

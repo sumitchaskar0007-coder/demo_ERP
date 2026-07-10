@@ -44,7 +44,7 @@ export function PrincipalReviewQueuePage() {
   ];
   return (
     <div className="page-container">
-      <div><h1 className="page-title">Principal Review Queue</h1><p className="page-subtitle">Read-only admissions verified by Student Section.</p></div>
+      <div><h1 className="page-title">Fee Verified - Ready for Principal Final Review</h1><p className="page-subtitle">Read-only admissions that reached the required verified fee amount. Final approval will be available in the next module.</p></div>
       <Card className="mt-6">
         <div className="border-b p-4"><Input placeholder="Search review-ready admissions..." icon={<Search className="h-4 w-4" />} value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(0); }} /></div>
         {loading ? <Loader label="Loading review queue..." /> : result.content.length ? <><DataTable columns={columns} data={result.content} rowKey={(row) => row.id} /><div className="border-t p-4"><Pagination page={result.page} totalPages={result.totalPages} totalElements={result.totalElements} onChange={setPage} /></div></> : <EmptyState title="No review-ready admissions" description="Student Section approved admissions will appear here." />}

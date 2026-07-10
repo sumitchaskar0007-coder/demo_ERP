@@ -10,6 +10,7 @@ import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.enums.StaffStatus;
@@ -67,32 +68,44 @@ public class StaffServiceImpl implements StaffService {
     @Override
     @Transactional
     public StaffResponse createStudentSectionStaff(CreateStudentSectionStaffRequest request) {
+        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.joiningDate(), RoleName.STUDENT_SECTION, StaffType.STUDENT_SECTION);
+    }
+
+    @Override
+    @Transactional
+    public StaffResponse createFeeSectionStaff(CreateFeeSectionStaffRequest request) {
+        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.joiningDate(), RoleName.FEE_SECTION, StaffType.FEE_SECTION);
+    }
+
+    private StaffResponse createStaff(Long collegeId, String fullName, String requestedEmail, String phone,
+                                      java.time.LocalDate joiningDate, RoleName roleName, StaffType staffType) {
         CustomUserDetails currentUser = SecurityUtils.requireCurrentUser();
         if (!SecurityUtils.isSuperAdmin() && !SecurityUtils.isPrincipal()) {
             throw new AccessDeniedException("Access denied");
         }
-        if (SecurityUtils.isPrincipal() && !request.collegeId().equals(currentUser.getCollegeId())) {
+        if (SecurityUtils.isPrincipal() && !collegeId.equals(currentUser.getCollegeId())) {
             throw new AccessDeniedException("Principal can create staff only for own college");
         }
 
-        College college = colleges.findById(request.collegeId())
+        College college = colleges.findById(collegeId)
                 .orElseThrow(() -> new ResourceNotFoundException("College not found"));
         if (college.getStatus() != CollegeStatus.ACTIVE) {
             throw new BadRequestException("Cannot create staff for an inactive college");
         }
-        String email = normalizeEmail(request.email());
+        String email = normalizeEmail(requestedEmail);
         if (users.existsByEmail(email)) {
             throw new DuplicateResourceException("User already exists with this email");
         }
-        Role role = roles.findByName(RoleName.STUDENT_SECTION)
-                .orElseThrow(() -> new ResourceNotFoundException("Role not found: STUDENT_SECTION"));
+        Role role = roles.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
 
         User user = new User();
         user.setCollege(college);
-        user.setFullName(request.fullName().trim());
+        user.setFullName(fullName.trim());
         user.setEmail(email);
-        user.setPhone(trimToNull(request.phone()));
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setPhone(phone.trim());
+        user.setPasswordHash(passwordEncoder.encode(phone.trim()));
+        user.setMustChangePassword(true);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(role));
         User savedUser = users.save(user);
@@ -102,12 +115,12 @@ public class StaffServiceImpl implements StaffService {
         profile.setCollege(college);
         profile.setDepartment(null);
         profile.setEmployeeCode(generateEmployeeCode(college.getCode()));
-        profile.setFullName(request.fullName().trim());
+        profile.setFullName(fullName.trim());
         profile.setEmail(email);
-        profile.setPhone(trimToNull(request.phone()));
-        profile.setStaffType(StaffType.STUDENT_SECTION);
+        profile.setPhone(phone.trim());
+        profile.setStaffType(staffType);
         profile.setStatus(StaffStatus.ACTIVE);
-        profile.setJoiningDate(request.joiningDate());
+        profile.setJoiningDate(joiningDate);
         return mapper.toResponse(staffProfiles.save(profile));
     }
 

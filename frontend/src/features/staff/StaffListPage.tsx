@@ -48,7 +48,8 @@ export function StaffListPage() {
     if (!confirming) return;
     setActionLoading(true);
     try {
-      confirming.status === "ACTIVE" ? await api.deactivateStaff(confirming.id) : await api.activateStaff(confirming.id);
+      if (confirming.status === "ACTIVE") await api.deactivateStaff(confirming.id);
+      else await api.activateStaff(confirming.id);
       toast.success("Staff status updated");
       setConfirming(null);
       await load();
