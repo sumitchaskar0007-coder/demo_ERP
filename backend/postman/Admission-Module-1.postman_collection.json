@@ -1,0 +1,101 @@
+{
+  "info": {
+    "name": "Admission Module 1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "collegeCode", "value": "ABC001" },
+    { "key": "studentToken", "value": "" },
+    { "key": "studentEmail", "value": "aarav.patil@example.com" },
+    { "key": "temporaryPassword", "value": "" },
+    { "key": "admissionReferenceNumber", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Get public admission info",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/public/admissions/college/{{collegeCode}}/info"
+      }
+    },
+    {
+      "name": "Submit admission form",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data) {",
+              "  pm.collectionVariables.set('studentEmail', json.data.email);",
+              "  pm.collectionVariables.set('temporaryPassword', json.data.temporaryPassword);",
+              "  pm.collectionVariables.set('admissionReferenceNumber', json.data.admissionReferenceNumber);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"departmentId\": 1,\n  \"firstName\": \"Aarav\",\n  \"middleName\": \"Rajesh\",\n  \"lastName\": \"Patil\",\n  \"email\": \"aarav.patil@example.com\",\n  \"phone\": \"9876543210\",\n  \"dateOfBirth\": \"2007-05-14\",\n  \"gender\": \"Male\",\n  \"addressLine1\": \"Shivaji Nagar\",\n  \"addressLine2\": \"Near Bus Stand\",\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"411001\",\n  \"parentName\": \"Rajesh Patil\",\n  \"parentPhone\": \"9876500001\",\n  \"parentEmail\": \"rajesh.patil@example.com\",\n  \"previousSchoolName\": \"ABC Junior College\",\n  \"previousClassName\": \"12th Science\",\n  \"previousPercentage\": 78.50\n}"
+        },
+        "url": "{{baseUrl}}/api/public/admissions/college/{{collegeCode}}/submit"
+      }
+    },
+    {
+      "name": "Student login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.token) {",
+              "  pm.collectionVariables.set('studentToken', json.data.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{temporaryPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Get my admission",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/student/admissions/me"
+      }
+    },
+    {
+      "name": "Get my profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/student/profile/me"
+      }
+    }
+  ]
+}

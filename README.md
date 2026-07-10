@@ -16,6 +16,8 @@ The current implementation includes:
 
 - College management
 - Department management
+- Public admissions with student account auto creation
+- Student Section verification, admission print data, and Principal review queue
 - JWT authentication and role-based authorization
 - Super Admin and Principal account management
 

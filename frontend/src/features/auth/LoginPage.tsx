@@ -10,26 +10,27 @@ import { Input } from "@/components/common/Input";
 import { useAuth } from "./authStore";
 import { handleApiError } from "@/lib/handleApiError";
 import { loginSchema } from "@/lib/validators";
-import { APP_NAME, ROUTES } from "@/lib/constants";
+import { APP_NAME, defaultRouteForRoles, isRouteAllowedForRoles } from "@/lib/constants";
 
 type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "admin@erp.com", password: "Admin@12345" },
   });
-  if (isAuthenticated) return <Navigate to={ROUTES.dashboard} replace />;
+  if (isAuthenticated) return <Navigate to={defaultRouteForRoles(user?.roles)} replace />;
   const onSubmit = async (values: LoginForm) => {
     try {
-      await login(values);
+      const user = await login(values);
       toast.success("Welcome back");
       const from = (location.state as { from?: string } | null)?.from;
-      navigate(from || ROUTES.dashboard, { replace: true });
+      const target = defaultRouteForRoles(user.roles);
+      navigate(from && isRouteAllowedForRoles(from, user.roles) ? from : target, { replace: true });
     } catch (error) {
       toast.error(handleApiError(error).message);
     }

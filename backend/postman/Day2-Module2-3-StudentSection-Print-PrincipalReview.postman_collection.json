@@ -1,0 +1,139 @@
+{
+  "info": {
+    "name": "Day2 Module2-3 StudentSection Print PrincipalReview",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "superAdminToken", "value": "" },
+    { "key": "principalToken", "value": "" },
+    { "key": "studentSectionToken", "value": "" },
+    { "key": "studentToken", "value": "" },
+    { "key": "collegeId", "value": "1" },
+    { "key": "collegeCode", "value": "ABC001" },
+    { "key": "departmentId", "value": "1" },
+    { "key": "admissionId", "value": "" },
+    { "key": "admissionReferenceNumber", "value": "" },
+    { "key": "staffEmail", "value": "student.section@example.com" },
+    { "key": "staffPassword", "value": "Staff@123" },
+    { "key": "studentEmail", "value": "aarav.patil@example.com" },
+    { "key": "studentPassword", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Login Super Admin",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const json = pm.response.json();", "if (json.data && json.data.token) pm.collectionVariables.set('superAdminToken', json.data.token);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@erp.com\",\n  \"password\": \"Admin@12345\"\n}" },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Login Principal",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const json = pm.response.json();", "if (json.data && json.data.token) pm.collectionVariables.set('principalToken', json.data.token);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"principal@example.com\",\n  \"password\": \"Principal@123\"\n}" },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Create Student Section Staff",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{principalToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"collegeId\": {{collegeId}},\n  \"fullName\": \"Student Section Staff\",\n  \"email\": \"{{staffEmail}}\",\n  \"phone\": \"9876543210\",\n  \"password\": \"{{staffPassword}}\",\n  \"joiningDate\": \"2026-07-10\"\n}" },
+        "url": "{{baseUrl}}/api/principal/staff/student-section"
+      }
+    },
+    {
+      "name": "Login Student Section Staff",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const json = pm.response.json();", "if (json.data && json.data.token) pm.collectionVariables.set('studentSectionToken', json.data.token);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{staffEmail}}\",\n  \"password\": \"{{staffPassword}}\"\n}" },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    { "name": "Get public admission info", "request": { "method": "GET", "url": "{{baseUrl}}/api/public/admissions/college/{{collegeCode}}/info" } },
+    {
+      "name": "Submit public admission form",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const json = pm.response.json();", "if (json.data) {", "  pm.collectionVariables.set('studentEmail', json.data.email);", "  pm.collectionVariables.set('studentPassword', json.data.temporaryPassword);", "  pm.collectionVariables.set('admissionReferenceNumber', json.data.admissionReferenceNumber);", "}"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"departmentId\": {{departmentId}},\n  \"firstName\": \"Aarav\",\n  \"middleName\": \"Rajesh\",\n  \"lastName\": \"Patil\",\n  \"email\": \"{{studentEmail}}\",\n  \"phone\": \"9876543210\",\n  \"dateOfBirth\": \"2007-05-14\",\n  \"gender\": \"Male\",\n  \"addressLine1\": \"Shivaji Nagar\",\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"411001\",\n  \"parentName\": \"Rajesh Patil\",\n  \"parentPhone\": \"9876500001\",\n  \"parentEmail\": \"rajesh.patil@example.com\",\n  \"previousSchoolName\": \"ABC Junior College\",\n  \"previousClassName\": \"12th Science\",\n  \"previousPercentage\": 78.50\n}" },
+        "url": "{{baseUrl}}/api/public/admissions/college/{{collegeCode}}/submit"
+      }
+    },
+    {
+      "name": "Search submitted admissions as Student Section",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const json = pm.response.json();", "if (json.data && json.data.content && json.data.content.length) pm.collectionVariables.set('admissionId', json.data.content[0].id);"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }], "url": "{{baseUrl}}/api/student-section/admissions?status=SUBMITTED" }
+    },
+    { "name": "Get admission detail", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }], "url": "{{baseUrl}}/api/student-section/admissions/{{admissionId}}" } },
+    { "name": "Start review", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }], "url": "{{baseUrl}}/api/student-section/admissions/{{admissionId}}/start-review" } },
+    {
+      "name": "Approve admission",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"remarks\": \"Student data verified successfully\"\n}" },
+        "url": "{{baseUrl}}/api/student-section/admissions/{{admissionId}}/approve"
+      }
+    },
+    { "name": "Get print data", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }], "url": "{{baseUrl}}/api/student-section/admissions/{{admissionId}}/print-data" } },
+    {
+      "name": "Mark admission printed",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"remarks\": \"Printed for physical verification\"\n}" },
+        "url": "{{baseUrl}}/api/student-section/admissions/{{admissionId}}/mark-printed"
+      }
+    },
+    { "name": "Get admission history", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }], "url": "{{baseUrl}}/api/student-section/admissions/{{admissionId}}/history" } },
+    { "name": "Principal gets review-ready admission list", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{principalToken}}" }], "url": "{{baseUrl}}/api/principal/admissions/review-ready" } },
+    { "name": "Principal gets admission detail", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{principalToken}}" }], "url": "{{baseUrl}}/api/principal/admissions/{{admissionId}}" } },
+    { "name": "Principal gets admission history", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{principalToken}}" }], "url": "{{baseUrl}}/api/principal/admissions/{{admissionId}}/history" } },
+    {
+      "name": "Submit another admission",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"departmentId\": {{departmentId}},\n  \"firstName\": \"Riya\",\n  \"lastName\": \"Sharma\",\n  \"email\": \"riya.sharma@example.com\",\n  \"phone\": \"9876543211\",\n  \"dateOfBirth\": \"2007-08-21\",\n  \"gender\": \"Female\",\n  \"parentName\": \"Mahesh Sharma\",\n  \"parentPhone\": \"9876500002\"\n}" },
+        "url": "{{baseUrl}}/api/public/admissions/college/{{collegeCode}}/submit"
+      }
+    },
+    {
+      "name": "Reject admission",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"rejectionReason\": \"Parent phone number is invalid\"\n}" },
+        "url": "{{baseUrl}}/api/student-section/admissions/{{admissionId}}/reject"
+      }
+    },
+    {
+      "name": "Student login",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const json = pm.response.json();", "if (json.data && json.data.token) pm.collectionVariables.set('studentToken', json.data.token);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{studentPassword}}\"\n}" },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    { "name": "Student checks own admission status", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }], "url": "{{baseUrl}}/api/student/admissions/me" } },
+    { "name": "Negative Student tries student-section", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }], "url": "{{baseUrl}}/api/student-section/admissions" } },
+    { "name": "Negative Student tries principal review", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }], "url": "{{baseUrl}}/api/principal/admissions/review-ready" } },
+    { "name": "Negative Student Section tries super-admin users", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentSectionToken}}" }], "url": "{{baseUrl}}/api/super-admin/users/search" } }
+  ]
+}

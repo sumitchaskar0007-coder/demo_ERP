@@ -54,10 +54,15 @@ public class SecurityConfig {
                                 "/api/health",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/api/auth/login"
+                                "/api/auth/login",
+                                "/api/public/admissions/**"
                         ).permitAll()
                         .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/student-section/**").hasAnyRole("STUDENT_SECTION", "PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/principal/staff/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/principal/admissions/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/student/**").hasRole("STUDENT")
                         .requestMatchers("/api/auth/profile").authenticated()
                         .anyRequest().authenticated()
                 )

@@ -1,0 +1,215 @@
+package com.jadhavr.erp.staff.service;
+
+import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.college.entity.College;
+import com.jadhavr.erp.college.entity.CollegeStatus;
+import com.jadhavr.erp.college.repository.CollegeRepository;
+import com.jadhavr.erp.common.exception.BadRequestException;
+import com.jadhavr.erp.common.exception.DuplicateResourceException;
+import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
+import com.jadhavr.erp.staff.entity.StaffProfile;
+import com.jadhavr.erp.staff.enums.StaffStatus;
+import com.jadhavr.erp.staff.enums.StaffType;
+import com.jadhavr.erp.staff.mapper.StaffMapper;
+import com.jadhavr.erp.staff.repository.StaffProfileRepository;
+import com.jadhavr.erp.user.entity.Role;
+import com.jadhavr.erp.user.entity.RoleName;
+import com.jadhavr.erp.user.entity.User;
+import com.jadhavr.erp.user.entity.UserStatus;
+import com.jadhavr.erp.user.repository.RoleRepository;
+import com.jadhavr.erp.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import java.time.LocalDate;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class StaffServiceImplTest {
+    @Mock private StaffProfileRepository staffProfiles;
+    @Mock private UserRepository users;
+    @Mock private RoleRepository roles;
+    @Mock private CollegeRepository colleges;
+
+    private BCryptPasswordEncoder passwordEncoder;
+    private StaffServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        passwordEncoder = new BCryptPasswordEncoder();
+        service = new StaffServiceImpl(
+                staffProfiles, users, roles, colleges, passwordEncoder, new StaffMapper());
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void createStudentSectionStaffSucceedsByPrincipal() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        College college = college(1L, CollegeStatus.ACTIVE);
+        when(colleges.findById(1L)).thenReturn(Optional.of(college));
+        when(users.existsByEmail("section@example.com")).thenReturn(false);
+        when(roles.findByName(RoleName.STUDENT_SECTION)).thenReturn(Optional.of(role(RoleName.STUDENT_SECTION)));
+        when(staffProfiles.existsByEmployeeCode(anyString())).thenReturn(false);
+        when(users.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(10L);
+            return user;
+        });
+        when(staffProfiles.save(any(StaffProfile.class))).thenAnswer(invocation -> {
+            StaffProfile profile = invocation.getArgument(0);
+            profile.setId(20L);
+            return profile;
+        });
+
+        var result = service.createStudentSectionStaff(request(1L));
+
+        assertEquals(20L, result.id());
+        assertEquals(StaffType.STUDENT_SECTION, result.staffType());
+        assertEquals(StaffStatus.ACTIVE, result.status());
+        assertTrue(result.employeeCode().startsWith("EMP-ABC001-"));
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(users).save(userCaptor.capture());
+        assertEquals(RoleName.STUDENT_SECTION, userCaptor.getValue().getRoles().iterator().next().getName());
+        assertNotEquals("Staff@123", userCaptor.getValue().getPasswordHash());
+        assertTrue(passwordEncoder.matches("Staff@123", userCaptor.getValue().getPasswordHash()));
+    }
+
+    @Test
+    void principalCannotCreateStaffForAnotherCollege() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.createStudentSectionStaff(request(99L)));
+    }
+
+    @Test
+    void createStaffFailsIfCollegeInactive() {
+        authenticate(1L, null, RoleName.SUPER_ADMIN);
+        when(colleges.findById(1L)).thenReturn(Optional.of(college(1L, CollegeStatus.INACTIVE)));
+
+        assertThrows(BadRequestException.class,
+                () -> service.createStudentSectionStaff(request(1L)));
+    }
+
+    @Test
+    void createStaffFailsIfEmailAlreadyExists() {
+        authenticate(1L, null, RoleName.SUPER_ADMIN);
+        when(colleges.findById(1L)).thenReturn(Optional.of(college(1L, CollegeStatus.ACTIVE)));
+        when(users.existsByEmail("section@example.com")).thenReturn(true);
+
+        assertThrows(DuplicateResourceException.class,
+                () -> service.createStudentSectionStaff(request(1L)));
+    }
+
+    @Test
+    void deactivateStaffAlsoDeactivatesUser() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        StaffProfile profile = staffProfile();
+        when(staffProfiles.findById(20L)).thenReturn(Optional.of(profile));
+        when(staffProfiles.save(profile)).thenReturn(profile);
+
+        var result = service.deactivateStaff(20L);
+
+        assertEquals(StaffStatus.INACTIVE, result.status());
+        assertEquals(UserStatus.INACTIVE, profile.getUser().getStatus());
+    }
+
+    @Test
+    void activateStaffAlsoActivatesUser() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        StaffProfile profile = staffProfile();
+        profile.setStatus(StaffStatus.INACTIVE);
+        profile.getUser().setStatus(UserStatus.INACTIVE);
+        when(staffProfiles.findById(20L)).thenReturn(Optional.of(profile));
+        when(staffProfiles.save(profile)).thenReturn(profile);
+
+        var result = service.activateStaff(20L);
+
+        assertEquals(StaffStatus.ACTIVE, result.status());
+        assertEquals(UserStatus.ACTIVE, profile.getUser().getStatus());
+    }
+
+    private CreateStudentSectionStaffRequest request(Long collegeId) {
+        return new CreateStudentSectionStaffRequest(
+                collegeId,
+                "Student Section Staff",
+                "Section@Example.com",
+                "9876543210",
+                "Staff@123",
+                LocalDate.of(2026, 7, 10)
+        );
+    }
+
+    private StaffProfile staffProfile() {
+        User user = new User();
+        user.setId(10L);
+        user.setFullName("Student Section Staff");
+        user.setEmail("section@example.com");
+        user.setPasswordHash("hash");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setRoles(Set.of(role(RoleName.STUDENT_SECTION)));
+        StaffProfile profile = new StaffProfile();
+        profile.setId(20L);
+        profile.setUser(user);
+        profile.setCollege(college(1L, CollegeStatus.ACTIVE));
+        profile.setEmployeeCode("EMP-ABC001-2026-000001");
+        profile.setFullName("Student Section Staff");
+        profile.setEmail("section@example.com");
+        profile.setStaffType(StaffType.STUDENT_SECTION);
+        profile.setStatus(StaffStatus.ACTIVE);
+        return profile;
+    }
+
+    private College college(Long id, CollegeStatus status) {
+        College college = new College();
+        college.setId(id);
+        college.setName("ABC College");
+        college.setCode("ABC001");
+        college.setStatus(status);
+        return college;
+    }
+
+    private Role role(RoleName roleName) {
+        Role role = new Role();
+        role.setName(roleName);
+        return role;
+    }
+
+    private void authenticate(Long userId, Long collegeId, RoleName roleName) {
+        User user = new User();
+        user.setId(userId);
+        user.setCollege(collegeId == null ? null : college(collegeId, CollegeStatus.ACTIVE));
+        user.setFullName(roleName.name());
+        user.setEmail(roleName.name().toLowerCase() + "@example.com");
+        user.setPasswordHash("hash");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setRoles(Set.of(role(roleName)));
+        CustomUserDetails details = new CustomUserDetails(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities()));
+    }
+}

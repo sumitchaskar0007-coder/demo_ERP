@@ -1,0 +1,12 @@
+package com.jadhavr.erp.admission.enums;
+
+public enum AdmissionStatus {
+    SUBMITTED,
+    STUDENT_SECTION_REVIEW_PENDING,
+    STUDENT_SECTION_APPROVED,
+    STUDENT_SECTION_REJECTED,
+    PRINCIPAL_REVIEW_PENDING,
+    PRINCIPAL_APPROVED,
+    PRINCIPAL_REJECTED,
+    CANCELLED
+}
