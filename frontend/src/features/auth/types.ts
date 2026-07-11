@@ -9,6 +9,7 @@ export interface AuthUser {
   status: "ACTIVE" | "INACTIVE";
   roles: string[];
   mustChangePassword: boolean;
+  emailVerified: boolean;
 }
 
 export interface LoginRequest {

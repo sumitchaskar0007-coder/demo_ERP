@@ -5,6 +5,7 @@ import com.jadhavr.erp.student.dto.StudentProfileResponse;
 import com.jadhavr.erp.student.enums.StudentStatus;
 
 public interface AdminStudentService {
+    StudentProfileResponse getStudentById(Long id);
     PageResponse<StudentProfileResponse> searchStudents(
             String keyword,
             Long collegeId,

@@ -8,6 +8,7 @@ import com.jadhavr.erp.student.service.AdminStudentService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -34,5 +35,10 @@ public class AdminStudentController {
                 adminStudentService.searchStudents(
                         keyword, collegeId, departmentId, status, page, size, sortBy, sortDir)
         );
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<StudentProfileResponse> getStudent(@PathVariable Long id) {
+        return ApiResponse.success("Student retrieved successfully", adminStudentService.getStudentById(id));
     }
 }

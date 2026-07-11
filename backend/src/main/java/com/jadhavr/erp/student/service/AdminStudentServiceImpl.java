@@ -2,6 +2,7 @@ package com.jadhavr.erp.student.service;
 
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.common.exception.BadRequestException;
+import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.student.dto.StudentProfileResponse;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.student.enums.StudentStatus;
@@ -30,6 +31,12 @@ public class AdminStudentServiceImpl implements AdminStudentService {
             StudentProfileMapper mapper) {
         this.studentProfiles = studentProfiles;
         this.mapper = mapper;
+    }
+
+    @Override
+    public StudentProfileResponse getStudentById(Long id) {
+        return mapper.toResponse(studentProfiles.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found")));
     }
 
     @Override

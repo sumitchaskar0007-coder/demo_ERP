@@ -1,0 +1,2 @@
+package com.jadhavr.erp.academic.enums;
+public enum TimetableDay { MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY }

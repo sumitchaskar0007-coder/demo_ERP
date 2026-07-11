@@ -39,10 +39,10 @@ export function StaffListPage() {
   useEffect(() => { if (admin) getActiveColleges().then(setColleges).catch(() => setColleges([])); }, [admin]);
   const load = useCallback(async () => {
     setLoading(true);
-    try { setResult(await api.searchStaff({ keyword: keyword || undefined, collegeId: Number(collegeId) || undefined, status: status as never, staffType: staffType as never, page, size: PAGE_SIZE })); }
+    try { setResult(await (admin ? api.searchAdminStaff : api.searchStaff)({ keyword: keyword || undefined, collegeId: Number(collegeId) || undefined, status: status as never, staffType: staffType as never, page, size: PAGE_SIZE })); }
     catch (err) { toast.error(handleApiError(err).message); }
     finally { setLoading(false); }
-  }, [collegeId, keyword, page, staffType, status]);
+  }, [admin, collegeId, keyword, page, staffType, status]);
   useEffect(() => { const timer = setTimeout(load, 250); return () => clearTimeout(timer); }, [load]);
   const toggle = async () => {
     if (!confirming) return;
@@ -64,7 +64,7 @@ export function StaffListPage() {
     { key: "college", header: "College", render: (row) => row.collegeName },
     { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
     { key: "joining", header: "Joining", render: (row) => formatDate(row.joiningDate) },
-    { key: "actions", header: "", render: (row) => <Button variant={row.status === "ACTIVE" ? "danger" : "secondary"} onClick={() => setConfirming(row)}>{row.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button> },
+    { key: "actions", header: "", render: (row) => admin ? <span className="text-xs text-slate-400">View only</span> : <Button variant={row.status === "ACTIVE" ? "danger" : "secondary"} onClick={() => setConfirming(row)}>{row.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button> },
   ];
   return (
     <div className="page-container">

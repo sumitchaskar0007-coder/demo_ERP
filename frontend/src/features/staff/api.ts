@@ -14,6 +14,10 @@ export async function searchStaff(params: { keyword?: string; collegeId?: number
   const { data } = await apiClient.get<ApiResponse<PageResponse<StaffResponse>>>("/api/principal/staff/search", { params });
   return data.data;
 }
+export async function searchAdminStaff(params: { keyword?: string; collegeId?: number; staffType?: StaffType | ""; status?: StaffStatus | ""; page?: number; size?: number }) {
+  const { data } = await apiClient.get<ApiResponse<PageResponse<StaffResponse>>>("/api/super-admin/staff/search", { params });
+  return data.data;
+}
 export async function getStaffById(id: number) {
   const { data } = await apiClient.get<ApiResponse<StaffResponse>>(`/api/principal/staff/${id}`);
   return data.data;

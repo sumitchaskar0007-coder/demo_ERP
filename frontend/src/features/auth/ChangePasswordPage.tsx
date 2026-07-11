@@ -24,9 +24,9 @@ export function ChangePasswordPage() {
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({ resolver: zodResolver(schema) });
-  const submit = async ({ currentPassword, newPassword }: FormValues) => {
+  const submit = async ({ currentPassword, newPassword, confirmPassword }: FormValues) => {
     try {
-      await api.changePassword({ currentPassword, newPassword });
+      await api.changePassword({ currentPassword, newPassword, confirmPassword });
       await refreshProfile();
       toast.success("Password changed successfully");
       navigate(defaultRouteForRoles(user?.roles), { replace: true });

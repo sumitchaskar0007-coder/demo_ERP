@@ -32,6 +32,8 @@ import com.jadhavr.erp.user.repository.UserRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -62,6 +64,10 @@ public class AdmissionServiceImpl implements AdmissionService {
     private final PasswordEncoder passwordEncoder;
     private final AdmissionMapper admissionMapper;
     private final SecureRandom random = new SecureRandom();
+    private EmailNotificationService emailNotifications;
+
+    @Autowired(required = false)
+    public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
 
     public AdmissionServiceImpl(
             CollegeRepository collegeRepository,
@@ -154,6 +160,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(studentRole));
         User savedUser = userRepository.save(user);
+        if (emailNotifications != null) emailNotifications.queueUserCreatedEmail(savedUser);
 
         StudentProfile profile = new StudentProfile();
         profile.setUser(savedUser);

@@ -45,18 +45,14 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
         { label: "Colleges", to: ROUTES.colleges, icon: Building2 },
-        { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
-        { label: "Users", to: ROUTES.users, icon: Users },
-        { label: "Create Principal", to: ROUTES.createPrincipal, icon: UserPlus },
+        { label: "Principals", to: ROUTES.principals, icon: UserPlus },
         { label: "Staff", to: ROUTES.staff, icon: Users },
         { label: "Students", to: ROUTES.students, icon: GraduationCap },
-        { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
-        { label: "Create Fee Section Staff", to: ROUTES.createFeeSectionStaff, icon: UserPlus },
-        { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
-        { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
-        { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
-        { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
-        { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+        { label: "Fee Setup", to: ROUTES.adminFeeSetup, icon: CreditCard },
+        { label: "Fee Collection", to: ROUTES.adminFeeCollection, icon: WalletCards },
+        { label: "Pending Fees", to: ROUTES.adminPendingFees, icon: CreditCard },
+        { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
+        { label: "Account", to: ROUTES.account, icon: UserRound },
       ]
     : isPrincipal
     ? [
@@ -70,12 +66,21 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
         { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+        { label: "Final Admissions", to: ROUTES.finalAdmissions, icon: FileText },
+        { label: "Academic Classes", to: ROUTES.academicClasses, icon: GraduationCap },
+        { label: "Sections", to: ROUTES.academicSections, icon: Users },
+        { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
+        { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
+        { label: "Audit Logs", to: ROUTES.auditLogs, icon: FileText },
+        { label: "Account", to: ROUTES.account, icon: UserRound },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
     : isStudentSection
     ? [
         { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
         { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+        { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
+        { label: "Account", to: ROUTES.account, icon: UserRound },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
     : isFeeSection
@@ -83,6 +88,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: LayoutDashboard },
         { label: "Fee Accounts", to: ROUTES.feeAccounts, icon: WalletCards },
         { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
+        { label: "Fee Report", to: ROUTES.feeReport, icon: BarChart3 },
+        { label: "Account", to: ROUTES.account, icon: UserRound },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
     : isStudent
@@ -91,6 +98,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
         { label: "My Fees", to: ROUTES.studentFees, icon: WalletCards },
         { label: "My Payments", to: ROUTES.studentPayments, icon: CreditCard },
+        { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
+        { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
+        { label: "Account", to: ROUTES.account, icon: UserRound },
         { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
       ]
     : [

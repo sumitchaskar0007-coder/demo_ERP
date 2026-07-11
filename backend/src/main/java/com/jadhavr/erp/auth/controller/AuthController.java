@@ -21,6 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.jadhavr.erp.email.service.EmailNotificationService;
+import com.jadhavr.erp.audit.service.AuditLogService;
+import com.jadhavr.erp.audit.enums.AuditModule;
+import com.jadhavr.erp.audit.enums.AuditAction;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,14 +34,21 @@ public class AuthController {
     private final UserRepository users;
     private final UserMapper mapper;
     private final PasswordEncoder passwordEncoder;
+    private final EmailNotificationService emailNotifications;
+    private AuditLogService auditLogs;
+
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAuditLogs(AuditLogService service) { this.auditLogs = service; }
 
     public AuthController(AuthenticationManager authenticationManager, JwtService jwtService,
-                          UserRepository users, UserMapper mapper, PasswordEncoder passwordEncoder) {
+                          UserRepository users, UserMapper mapper, PasswordEncoder passwordEncoder,
+                          EmailNotificationService emailNotifications) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.users = users;
         this.mapper = mapper;
         this.passwordEncoder = passwordEncoder;
+        this.emailNotifications = emailNotifications;
     }
 
     @PostMapping("/login")
@@ -50,6 +61,7 @@ public class AuthController {
         User user = users.findByEmail(email).orElseThrow();
         user.setLastLoginAt(LocalDateTime.now());
         users.save(user);
+        if (auditLogs != null) auditLogs.logWithUser(user, AuditModule.AUTH, AuditAction.LOGIN, "User", user.getId(), "Successful login");
         return ApiResponse.success("Login successful", new LoginResponse(
                 jwtService.generateToken(details), "Bearer",
                 jwtService.getExpirationMs(), mapper.toAuthResponse(user)));
@@ -76,6 +88,8 @@ public class AuthController {
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         user.setMustChangePassword(false);
-        return ApiResponse.success("Password changed successfully", mapper.toAuthResponse(users.save(user)));
+        User saved = users.save(user);
+        emailNotifications.queuePasswordChangedEmail(saved);
+        return ApiResponse.success("Password changed successfully", mapper.toAuthResponse(saved));
     }
 }

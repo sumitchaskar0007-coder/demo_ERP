@@ -1,12 +1,14 @@
 import { Building2, KeyRound, Mail, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { Badge, StatusBadge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
 import { ROUTES } from "@/lib/constants";
 import { useAuth } from "./authStore";
+import { requestEmailVerification } from "./api";
 
 export function ProfilePage() {
   const { user, refreshProfile } = useAuth();
@@ -18,6 +20,10 @@ export function ProfilePage() {
     { label: "Phone", value: user.phone || "Not provided", icon: Phone },
     { label: "College", value: user.collegeName ? `${user.collegeName} (${user.collegeCode})` : "System-wide access", icon: Building2 },
   ];
+  const sendVerification = async () => {
+    try { await requestEmailVerification(); toast.success("Verification email has been queued"); }
+    catch { toast.error("Could not queue verification email"); }
+  };
   return (
     <div className="page-container">
       <h1 className="page-title">My Profile</h1><p className="page-subtitle">Your identity and access information.</p>
@@ -29,7 +35,7 @@ export function ProfilePage() {
             <div className="flex-1 pb-2"><h2 className="text-2xl font-bold">{user.fullName}</h2><div className="mt-2 flex flex-wrap gap-2"><StatusBadge status={user.status} />{user.roles.map((role) => <Badge key={role} tone="info">{role.replaceAll("_", " ")}</Badge>)}</div></div>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">{details.map(({ label, value, icon: Icon }) => <div key={label} className="rounded-2xl border bg-slate-50 p-5"><div className="mb-3 inline-flex rounded-xl bg-white p-2 text-brand-600 shadow-sm"><Icon className="h-5 w-5" /></div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 font-medium text-slate-800">{value}</p></div>)}</div>
-          <div className="mt-6 flex flex-col gap-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" />Your password and authentication token are never displayed here.</div><Link to={ROUTES.changePassword}><Button variant="secondary"><KeyRound className="h-4 w-4" />Change Password</Button></Link></div>
+          <div className="mt-6 flex flex-col gap-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" />Email: {user.emailVerified ? "Verified" : "Not verified"}. Passwords and tokens are never displayed.</div><div className="flex flex-wrap gap-2">{!user.emailVerified && <Button variant="secondary" onClick={sendVerification}><Mail className="h-4 w-4" />Verify Email</Button>}<Link to={ROUTES.changePassword}><Button variant="secondary"><KeyRound className="h-4 w-4" />Change Password</Button></Link></div></div>
         </div>
       </Card>
     </div>

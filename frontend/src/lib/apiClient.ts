@@ -11,7 +11,8 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const token = authToken.getToken();
   const url = config.url || "";
-  const isPublicRequest = url === "/api/auth/login" || url.startsWith("/api/public/");
+  const isPublicRequest = url === "/api/auth/login" || url.startsWith("/api/auth/password/")
+    || url === "/api/auth/email-verification/confirm" || url.startsWith("/api/public/");
   if (token && !isPublicRequest) config.headers.Authorization = `Bearer ${token}`;
   else delete config.headers.Authorization;
   return config;

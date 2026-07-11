@@ -11,7 +11,13 @@ import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
+import com.jadhavr.erp.email.service.EmailNotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.jadhavr.erp.staff.dto.StaffResponse;
+import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
+import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.department.entity.DepartmentStatus;
+import com.jadhavr.erp.department.repository.DepartmentRepository;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
@@ -46,9 +52,14 @@ public class StaffServiceImpl implements StaffService {
     private final UserRepository users;
     private final RoleRepository roles;
     private final CollegeRepository colleges;
+    private DepartmentRepository departments;
     private final PasswordEncoder passwordEncoder;
     private final StaffMapper mapper;
     private final SecureRandom random = new SecureRandom();
+    private EmailNotificationService emailNotifications;
+
+    @Autowired(required = false)
+    public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
 
     public StaffServiceImpl(
             StaffProfileRepository staffProfiles,
@@ -63,6 +74,21 @@ public class StaffServiceImpl implements StaffService {
         this.colleges = colleges;
         this.passwordEncoder = passwordEncoder;
         this.mapper = mapper;
+    }
+
+    @Autowired
+    public void setDepartments(DepartmentRepository departments) { this.departments = departments; }
+
+    @Override @Transactional
+    public StaffResponse createAcademicStaff(CreateAcademicStaffRequest request, StaffType type) {
+        if (type != StaffType.HOD && type != StaffType.CLASS_TEACHER && type != StaffType.SUBJECT_TEACHER) throw new BadRequestException("Invalid academic staff type");
+        Department department = departments.findById(request.departmentId()).orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        if (!department.getCollege().getId().equals(request.collegeId()) || department.getStatus() != DepartmentStatus.ACTIVE) throw new BadRequestException("Department must be active and belong to the college");
+        if (type == StaffType.HOD && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(department.getId(), type, StaffStatus.ACTIVE)) throw new DuplicateResourceException("Department already has an active HOD");
+        RoleName role = switch(type){case HOD -> RoleName.HOD; case CLASS_TEACHER -> RoleName.CLASS_TEACHER; default -> RoleName.SUBJECT_TEACHER;};
+        StaffResponse response = createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.joiningDate(), role, type);
+        StaffProfile profile = staffProfiles.findById(response.id()).orElseThrow(); profile.setDepartment(department); staffProfiles.save(profile);
+        return mapper.toResponse(profile);
     }
 
     @Override
@@ -109,6 +135,7 @@ public class StaffServiceImpl implements StaffService {
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(role));
         User savedUser = users.save(user);
+        if (emailNotifications != null) emailNotifications.queueUserCreatedEmail(savedUser);
 
         StaffProfile profile = new StaffProfile();
         profile.setUser(savedUser);

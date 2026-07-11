@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, GraduationCap, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/common/Button";
@@ -60,6 +60,7 @@ export function LoginPage() {
                 <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600" aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
               </div>
               <Button type="submit" loading={isSubmitting} className="h-12 w-full">Sign in securely</Button>
+              <div className="text-right"><Link to={ROUTES.forgotPassword} className="text-sm font-semibold text-blue-600 hover:text-blue-700">Forgot password?</Link></div>
             </form>
             <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-blue-700">Demo Super Admin</p><p className="mt-2 text-sm text-blue-900">admin@erp.com</p><p className="text-sm text-blue-900">Admin@12345</p></div>
           </div>

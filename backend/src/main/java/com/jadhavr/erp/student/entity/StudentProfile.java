@@ -19,6 +19,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "student_profiles")
@@ -95,6 +96,12 @@ public class StudentProfile extends BaseAuditEntity {
     @Column(nullable = false, length = 40)
     private StudentStatus status = StudentStatus.ADMISSION_SUBMITTED;
 
+    @Column(name = "roll_number", unique = true, length = 60)
+    private String rollNumber;
+
+    @Column(name = "activated_at")
+    private LocalDateTime activatedAt;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public User getUser() { return user; }
@@ -139,4 +146,8 @@ public class StudentProfile extends BaseAuditEntity {
     public void setParentEmail(String parentEmail) { this.parentEmail = parentEmail; }
     public StudentStatus getStatus() { return status; }
     public void setStatus(StudentStatus status) { this.status = status; }
+    public String getRollNumber() { return rollNumber; }
+    public void setRollNumber(String rollNumber) { this.rollNumber = rollNumber; }
+    public LocalDateTime getActivatedAt() { return activatedAt; }
+    public void setActivatedAt(LocalDateTime activatedAt) { this.activatedAt = activatedAt; }
 }

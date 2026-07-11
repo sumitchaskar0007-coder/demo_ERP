@@ -1,5 +1,7 @@
 package com.jadhavr.erp.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import jakarta.persistence.Column;
@@ -42,10 +44,14 @@ public class User extends BaseAuditEntity {
     private String phone;
 
     @Column(name = "password_hash", nullable = false)
+    @JsonIgnore
     private String passwordHash;
 
     @Column(name = "must_change_password", nullable = false, columnDefinition = "boolean default false")
     private boolean mustChangePassword = false;
+
+    @Column(name = "email_verified", nullable = false, columnDefinition = "boolean default false")
+    private boolean emailVerified = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -74,6 +80,8 @@ public class User extends BaseAuditEntity {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public boolean isMustChangePassword() { return mustChangePassword; }
     public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
     public UserStatus getStatus() { return status; }
     public void setStatus(UserStatus status) { this.status = status; }
     public Set<Role> getRoles() { return roles; }

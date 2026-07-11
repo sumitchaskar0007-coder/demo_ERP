@@ -5,6 +5,7 @@ import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
+import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 import com.jadhavr.erp.staff.service.StaffService;
@@ -42,6 +43,12 @@ public class StaffController {
                         "Student Section staff created successfully",
                         staffService.createStudentSectionStaff(request)
                 ));
+    }
+
+    @PostMapping("/{type:hod|class-teacher|subject-teacher}")
+    public ResponseEntity<ApiResponse<StaffResponse>> createAcademicStaff(@PathVariable String type,@Valid @RequestBody CreateAcademicStaffRequest request) {
+        StaffType staffType = switch(type){case "hod" -> StaffType.HOD; case "class-teacher" -> StaffType.CLASS_TEACHER; default -> StaffType.SUBJECT_TEACHER;};
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Academic staff created successfully", staffService.createAcademicStaff(request, staffType)));
     }
 
     @GetMapping("/search")

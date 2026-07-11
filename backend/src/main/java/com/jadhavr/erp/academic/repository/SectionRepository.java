@@ -1,0 +1,1 @@
+package com.jadhavr.erp.academic.repository; import com.jadhavr.erp.academic.entity.Section; import org.springframework.data.jpa.repository.*; public interface SectionRepository extends JpaRepository<Section,Long>,JpaSpecificationExecutor<Section>{ boolean existsByAcademicClassIdAndAcademicYearAndCodeIgnoreCase(Long c,String y,String code); long countById(Long id); }

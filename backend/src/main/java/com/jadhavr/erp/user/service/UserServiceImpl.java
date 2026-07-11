@@ -21,6 +21,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
@@ -37,6 +39,10 @@ public class UserServiceImpl implements UserService {
     private final CollegeRepository colleges;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper mapper;
+    private EmailNotificationService emailNotifications;
+
+    @Autowired(required = false)
+    public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
 
     public UserServiceImpl(UserRepository users, RoleRepository roles,
                            CollegeRepository colleges, PasswordEncoder passwordEncoder,
@@ -75,7 +81,9 @@ public class UserServiceImpl implements UserService {
         user.setMustChangePassword(true);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(principalRole));
-        return mapper.toResponse(users.save(user));
+        User saved = users.save(user);
+        if (emailNotifications != null) emailNotifications.queuePrincipalCreatedEmail(saved);
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -103,7 +111,9 @@ public class UserServiceImpl implements UserService {
             }
         }
         user.setStatus(UserStatus.ACTIVE);
-        return mapper.toResponse(users.save(user));
+        User saved = users.save(user);
+        if (emailNotifications != null) emailNotifications.queueAccountActivatedEmail(saved);
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -111,7 +121,9 @@ public class UserServiceImpl implements UserService {
     public UserResponse deactivateUser(Long id) {
         User user = findUser(id);
         user.setStatus(UserStatus.INACTIVE);
-        return mapper.toResponse(users.save(user));
+        User saved = users.save(user);
+        if (emailNotifications != null) emailNotifications.queueAccountDeactivatedEmail(saved);
+        return mapper.toResponse(saved);
     }
 
     @Override
