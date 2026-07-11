@@ -1,1 +1,23 @@
-import{apiClient}from"@/lib/apiClient";import type{ApiResponse}from"@/types/api";export interface AccountProfile{id:number;collegeName?:string;collegeCode?:string;fullName:string;email:string;phone?:string;status:string;roles:string[];lastLoginAt?:string;createdAt:string}export const getMyAccount=()=>apiClient.get<ApiResponse<AccountProfile>>("/api/account/me").then(r=>r.data.data);export const updateMyAccount=(data:{fullName:string;phone?:string})=>apiClient.put<ApiResponse<AccountProfile>>("/api/account/me",data).then(r=>r.data.data);export const changePassword=(data:{currentPassword:string;newPassword:string;confirmPassword:string})=>apiClient.patch("/api/account/change-password",data);
+import { apiClient } from "@/lib/apiClient";
+import type { ApiResponse } from "@/types/api";
+export interface AccountProfile {
+  id: number;
+  collegeName?: string;
+  collegeCode?: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  status: string;
+  roles: string[];
+  lastLoginAt?: string;
+  createdAt: string;
+}
+export const getMyAccount = () =>
+  apiClient.get<ApiResponse<AccountProfile>>("/api/account/me").then((r) => r.data.data);
+export const updateMyAccount = (data: { fullName: string; phone?: string }) =>
+  apiClient.put<ApiResponse<AccountProfile>>("/api/account/me", data).then((r) => r.data.data);
+export const changePassword = (data: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}) => apiClient.patch("/api/account/change-password", data);

@@ -1,0 +1,191 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
+import { Input } from "@/components/common/Input";
+import { Loader } from "@/components/common/Loader";
+import { Select } from "@/components/common/Select";
+import { handleApiError } from "@/lib/handleApiError";
+import { ROUTES } from "@/lib/constants";
+import * as api from "@/features/admin/api";
+const categories = ["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"].map((v) => ({
+  label: v,
+  value: v,
+}));
+export function AdminDashboardPage() {
+  const [d, setD] = useState<api.AdminAnalytics | null>(null);
+  useEffect(() => {
+    api
+      .getAdminAnalytics()
+      .then(setD)
+      .catch((e) => toast.error(handleApiError(e).message));
+  }, []);
+  if (!d) return <Loader />;
+  return (
+    <div className="page-container">
+      <div className="rounded-2xl bg-gradient-to-r from-blue-700 to-cyan-500 p-7 text-white">
+        <h1 className="text-2xl font-bold">Super Admin Control Center</h1>
+        <p className="mt-1 text-blue-50">
+          Govern colleges, principals, fees, and global analytics.
+        </p>
+      </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Object.entries(d.summary).map(([k, v]) => (
+          <Card className="p-5" key={k}>
+            <p className="text-xs font-bold uppercase text-slate-400">
+              {k.replace(/([A-Z])/g, " $1")}
+            </p>
+            <p className="mt-2 text-2xl font-bold">{v}</p>
+          </Card>
+        ))}
+      </div>
+      <Card className="mt-6 p-5">
+        <h2 className="font-bold">Quick actions</h2>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link to="/colleges/create">
+            <Button>Create College</Button>
+          </Link>
+          <Link to="/principals/create">
+            <Button variant="secondary">Create Principal</Button>
+          </Link>
+          <Link to={ROUTES.adminFeeSetup}>
+            <Button variant="secondary">Setup Fee</Button>
+          </Link>
+        </div>
+      </Card>
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Chart title="College-wise Students" data={d.collegeWiseStudents} />
+        <Chart title="College-wise Fee Collection" data={d.collegeWiseFeeCollection} />
+      </div>
+    </div>
+  );
+}
+function Chart({ title, data }: { title: string; data: { label: string; value: number }[] }) {
+  const max = Math.max(1, ...data.map((x) => Number(x.value)));
+  return (
+    <Card className="p-5">
+      <h2 className="font-bold">{title}</h2>
+      <div className="mt-4 space-y-3">
+        {data.map((x) => (
+          <div key={x.label}>
+            <div className="flex justify-between text-sm">
+              <span>{x.label}</span>
+              <b>{x.value}</b>
+            </div>
+            <div className="mt-1 h-2 rounded bg-slate-100">
+              <div
+                className="h-2 rounded bg-blue-600"
+                style={{ width: `${(Number(x.value) / max) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+export function AdminFeeSetupPage() {
+  const [rows, setRows] = useState<import("@/features/fees/types").FeeStructureResponse[]>([]),
+    [v, setV] = useState<Record<string, string>>({
+      studentCategory: "OPEN",
+      academicYear: "2026-27",
+    });
+  const load = () =>
+    api
+      .searchAdminFeeStructures({ size: 100 })
+      .then((r) => setRows(r.content))
+      .catch((e) => toast.error(handleApiError(e).message));
+  useEffect(() => {
+    void load();
+  }, []);
+  const input = (n: string, l: string) => (
+    <Input label={l} value={v[n] || ""} onChange={(e) => setV({ ...v, [n]: e.target.value })} />
+  );
+  const save = async () => {
+    try {
+      await api.createAdminFeeStructure({
+        collegeId: +v.collegeId,
+        departmentId: +v.departmentId,
+        academicYear: v.academicYear,
+        studentCategory: v.studentCategory,
+        title: v.title || `${v.studentCategory} Fee`,
+        totalFee: +v.totalFee,
+        minimumAmountForAdmission: +v.minimumAmountForAdmission,
+        admissionFee: 0,
+        tuitionFee: +v.totalFee,
+        examFee: 0,
+        libraryFee: 0,
+        otherFee: 0,
+      });
+      toast.success("Fee structure created");
+      void load();
+    } catch (e) {
+      toast.error(handleApiError(e).message);
+    }
+  };
+  return (
+    <div className="page-container">
+      <h1 className="page-title">Fee Setup</h1>
+      <p className="page-subtitle">Set fees by college, department, academic year and category.</p>
+      <Card className="mt-6 p-5">
+        <div className="grid gap-4 md:grid-cols-3">
+          {input("collegeId", "College ID")}
+          {input("departmentId", "Department ID")}
+          {input("academicYear", "Academic Year")}
+          <Select
+            label="Category"
+            options={categories}
+            value={v.studentCategory}
+            onChange={(e) => setV({ ...v, studentCategory: e.target.value })}
+          />
+          {input("totalFee", "Total Fee")}
+          {input("minimumAmountForAdmission", "Minimum Admission Fee")}
+        </div>
+        <Button className="mt-4" onClick={save}>
+          Create Fee Structure
+        </Button>
+      </Card>
+      <Card className="mt-6 p-5">
+        <h2 className="font-bold">Configured fees</h2>
+        <div className="mt-3 space-y-2">
+          {rows.map((r) => (
+            <div className="flex justify-between rounded-xl border p-3" key={r.id}>
+              <span>
+                {r.collegeName} · {r.departmentName} · {r.studentCategory || "OPEN"}
+              </span>
+              <b>₹{r.totalFee}</b>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
+  const [rows, setRows] = useState<api.Row[] | null>(null);
+  useEffect(() => {
+    (pending ? api.getPendingFees() : api.getCollections())
+      .then(setRows)
+      .catch((e) => toast.error(handleApiError(e).message));
+  }, [pending]);
+  return (
+    <div className="page-container">
+      <h1 className="page-title">{pending ? "Pending Fees" : "Fee Collection"}</h1>
+      <p className="page-subtitle">Global college and department fee overview.</p>
+      <Card className="mt-6">
+        {!rows ? (
+          <Loader />
+        ) : rows.length ? (
+          <pre className="overflow-auto p-5 text-sm">{JSON.stringify(rows, null, 2)}</pre>
+        ) : (
+          <EmptyState title="No records" description="Fee records will appear here." />
+        )}
+      </Card>
+    </div>
+  );
+}
+export function AdminAnalyticsPage() {
+  return <AdminDashboardPage />;
+}

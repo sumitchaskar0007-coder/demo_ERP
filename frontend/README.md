@@ -67,31 +67,31 @@ These credentials are only for localhost development.
 
 ## Routes
 
-| Route | Access |
-|---|---|
-| `/login` | Public |
-| `/dashboard` | Super Admin, Principal |
-| `/profile` | Super Admin, Principal |
-| `/colleges` | Super Admin |
-| `/colleges/:id` | Super Admin |
-| `/departments` | Super Admin, Principal |
-| `/departments/:id` | Super Admin, Principal |
-| `/users` | Super Admin |
-| `/users/:id` | Super Admin |
-| `/users/principals/create` | Super Admin |
-| `/admission/:collegeCode` | Public |
-| `/student/dashboard` | Student |
-| `/student/profile` | Student |
-| `/student/admission` | Student |
-| `/student-section/dashboard` | Student Section |
-| `/student-section/admissions` | Student Section, Principal, Super Admin |
-| `/student-section/admissions/:admissionId` | Student Section, Principal, Super Admin |
+| Route                                            | Access                                  |
+| ------------------------------------------------ | --------------------------------------- |
+| `/login`                                         | Public                                  |
+| `/dashboard`                                     | Super Admin, Principal                  |
+| `/profile`                                       | Super Admin, Principal                  |
+| `/colleges`                                      | Super Admin                             |
+| `/colleges/:id`                                  | Super Admin                             |
+| `/departments`                                   | Super Admin, Principal                  |
+| `/departments/:id`                               | Super Admin, Principal                  |
+| `/users`                                         | Super Admin                             |
+| `/users/:id`                                     | Super Admin                             |
+| `/users/principals/create`                       | Super Admin                             |
+| `/admission/:collegeCode`                        | Public                                  |
+| `/student/dashboard`                             | Student                                 |
+| `/student/profile`                               | Student                                 |
+| `/student/admission`                             | Student                                 |
+| `/student-section/dashboard`                     | Student Section                         |
+| `/student-section/admissions`                    | Student Section, Principal, Super Admin |
+| `/student-section/admissions/:admissionId`       | Student Section, Principal, Super Admin |
 | `/student-section/admissions/:admissionId/print` | Student Section, Principal, Super Admin |
-| `/staff` | Principal, Super Admin |
-| `/staff/student-section/create` | Principal, Super Admin |
-| `/principal/admissions/review-ready` | Principal, Super Admin |
-| `/principal/admissions/:admissionId` | Principal, Super Admin |
-| `/forbidden` | Public error page |
+| `/staff`                                         | Principal, Super Admin                  |
+| `/staff/student-section/create`                  | Principal, Super Admin                  |
+| `/principal/admissions/review-ready`             | Principal, Super Admin                  |
+| `/principal/admissions/:admissionId`             | Principal, Super Admin                  |
+| `/forbidden`                                     | Public error page                       |
 
 ## Security behavior
 

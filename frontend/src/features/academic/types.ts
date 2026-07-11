@@ -1,6 +1,64 @@
-export type AcademicStatus="ACTIVE"|"INACTIVE"; export type TimetableDay="MONDAY"|"TUESDAY"|"WEDNESDAY"|"THURSDAY"|"FRIDAY"|"SATURDAY"|"SUNDAY"; export type AttendanceStatus="PRESENT"|"ABSENT"|"LATE"|"EXCUSED";
-export interface AcademicClass {id:number;college:{id:number;name:string};department:{id:number;name:string};academicYear:string;name:string;code:string;description?:string;status:AcademicStatus}
-export interface Section {id:number;academicClass:AcademicClass;academicYear:string;name:string;code:string;capacity:number;status:AcademicStatus;classTeacher?:{id:number;fullName:string}}
-export interface Subject {id:number;academicClass:AcademicClass;academicYear:string;name:string;code:string;description?:string;credits?:number;status:AcademicStatus}
-export interface TimetableEntry {id:number;section:Section;subject:Subject;teacher:{id:number;fullName:string};dayOfWeek:TimetableDay;startTime:string;endTime:string;roomNumber?:string;status:AcademicStatus}
-export interface FinalAdmission {id:number;admissionReferenceNumber:string;fullName:string;email:string;phone:string;academicYear:string;collegeId:number;collegeName:string;departmentId:number;departmentName:string;status:string}
+export type AcademicStatus = "ACTIVE" | "INACTIVE";
+export type TimetableDay =
+  | "MONDAY"
+  | "TUESDAY"
+  | "WEDNESDAY"
+  | "THURSDAY"
+  | "FRIDAY"
+  | "SATURDAY"
+  | "SUNDAY";
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
+export interface AcademicClass {
+  id: number;
+  college: { id: number; name: string };
+  department: { id: number; name: string };
+  academicYear: string;
+  name: string;
+  code: string;
+  description?: string;
+  status: AcademicStatus;
+}
+export interface Section {
+  id: number;
+  academicClass: AcademicClass;
+  academicYear: string;
+  name: string;
+  code: string;
+  capacity: number;
+  status: AcademicStatus;
+  classTeacher?: { id: number; fullName: string };
+}
+export interface Subject {
+  id: number;
+  academicClass: AcademicClass;
+  academicYear: string;
+  name: string;
+  code: string;
+  description?: string;
+  credits?: number;
+  status: AcademicStatus;
+}
+export interface TimetableEntry {
+  id: number;
+  section: Section;
+  subject: Subject;
+  teacher: { id: number; fullName: string };
+  dayOfWeek: TimetableDay;
+  startTime: string;
+  endTime: string;
+  roomNumber?: string;
+  status: AcademicStatus;
+}
+export interface FinalAdmission {
+  id: number;
+  admissionReferenceNumber: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  academicYear: string;
+  collegeId: number;
+  collegeName: string;
+  departmentId: number;
+  departmentName: string;
+  status: string;
+}

@@ -5,7 +5,9 @@ import type { CreatePrincipalValues, User, UserSearchParams } from "./types";
 const BASE = "/api/super-admin/users";
 
 export async function searchUsers(params: UserSearchParams) {
-  const { data } = await apiClient.get<ApiResponse<PageResponse<User>>>(`${BASE}/search`, { params });
+  const { data } = await apiClient.get<ApiResponse<PageResponse<User>>>(`${BASE}/search`, {
+    params,
+  });
   return data.data;
 }
 export async function getUser(id: number) {
@@ -17,6 +19,8 @@ export async function createPrincipal(values: CreatePrincipalValues) {
   return data;
 }
 export async function setUserStatus(id: number, active: boolean) {
-  const { data } = await apiClient.patch<ApiResponse<User>>(`${BASE}/${id}/${active ? "activate" : "deactivate"}`);
+  const { data } = await apiClient.patch<ApiResponse<User>>(
+    `${BASE}/${id}/${active ? "activate" : "deactivate"}`,
+  );
   return data;
 }

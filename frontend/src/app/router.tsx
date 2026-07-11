@@ -1,50 +1,81 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/features/auth/authStore";
-import { LoginPage } from "@/features/auth/LoginPage";
-import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "@/features/auth/PasswordRecoveryPages";
-import { ProfilePage } from "@/features/auth/ProfilePage";
-import { ChangePasswordPage } from "@/features/auth/ChangePasswordPage";
-import { CollegeDetailsPage } from "@/features/colleges/CollegeDetailsPage";
-import { CollegeListPage } from "@/features/colleges/CollegeListPage";
-import { AdmissionPrintPage } from "@/features/admissions/AdmissionPrintPage";
-import { PrincipalAdmissionDetailPage } from "@/features/admissions/PrincipalAdmissionDetailPage";
-import { PrincipalReviewQueuePage } from "@/features/admissions/PrincipalReviewQueuePage";
-import { PublicAdmissionPage } from "@/features/admissions/PublicAdmissionPage";
-import { StudentSectionAdmissionDetailPage } from "@/features/admissions/StudentSectionAdmissionDetailPage";
-import { StudentSectionAdmissionListPage } from "@/features/admissions/StudentSectionAdmissionListPage";
-import { StudentSectionDashboardPage } from "@/features/admissions/StudentSectionDashboardPage";
-import { DepartmentDetailsPage } from "@/features/departments/DepartmentDetailsPage";
-import { DepartmentListPage } from "@/features/departments/DepartmentListPage";
-import { CreateStudentSectionStaffPage } from "@/features/staff/CreateStudentSectionStaffPage";
-import { CreateFeeSectionStaffPage } from "@/features/staff/CreateFeeSectionStaffPage";
-import { FeeStructureDetailsPage, FeeStructureFormPage, FeeStructureListPage } from "@/features/fees/FeeStructurePages";
-import { MyFeeTransactionsPage, MyPaymentsPage, StudentFeesPage, SubmitPaymentPage } from "@/features/fees/StudentFeePages";
-import { FeeAccountDetailsPage, FeeAccountsPage, FeeSectionDashboardPage, PaymentDetailsPage, PaymentsPage } from "@/features/fees/FeeSectionPages";
-import { StaffListPage } from "@/features/staff/StaffListPage";
-import { StudentAdmissionPage } from "@/features/student/StudentAdmissionPage";
-import { AdminStudentListPage } from "@/features/student/AdminStudentListPage";
-import { StudentDashboardPage } from "@/features/student/StudentDashboardPage";
-import { StudentProfilePage } from "@/features/student/StudentProfilePage";
-import { CreatePrincipalPage } from "@/features/users/CreatePrincipalPage";
-import { UserDetailsPage } from "@/features/users/UserDetailsPage";
-import { UserListPage } from "@/features/users/UserListPage";
+import { LoginPage } from "@/pages/auth/LoginPage";
+import {
+  ForgotPasswordPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from "@/pages/auth/PasswordRecoveryPages";
+import { ProfilePage } from "@/pages/auth/ProfilePage";
+import { ChangePasswordPage } from "@/pages/auth/ChangePasswordPage";
+import { CollegeDetailsPage } from "@/pages/colleges/CollegeDetailsPage";
+import { CollegeListPage } from "@/pages/colleges/CollegeListPage";
+import { AdmissionPrintPage } from "@/pages/admissions/AdmissionPrintPage";
+import { PrincipalAdmissionDetailPage } from "@/pages/admissions/PrincipalAdmissionDetailPage";
+import { PrincipalReviewQueuePage } from "@/pages/admissions/PrincipalReviewQueuePage";
+import { PublicAdmissionPage } from "@/pages/admissions/PublicAdmissionPage";
+import { StudentSectionAdmissionDetailPage } from "@/pages/admissions/StudentSectionAdmissionDetailPage";
+import { StudentSectionAdmissionListPage } from "@/pages/admissions/StudentSectionAdmissionListPage";
+import { StudentSectionDashboardPage } from "@/pages/admissions/StudentSectionDashboardPage";
+import { DepartmentDetailsPage } from "@/pages/departments/DepartmentDetailsPage";
+import { DepartmentListPage } from "@/pages/departments/DepartmentListPage";
+import { CreateStudentSectionStaffPage } from "@/pages/staff/CreateStudentSectionStaffPage";
+import { CreateFeeSectionStaffPage } from "@/pages/staff/CreateFeeSectionStaffPage";
+import {
+  FeeStructureDetailsPage,
+  FeeStructureFormPage,
+  FeeStructureListPage,
+} from "@/pages/fees/FeeStructurePages";
+import {
+  MyFeeTransactionsPage,
+  MyPaymentsPage,
+  StudentFeesPage,
+  SubmitPaymentPage,
+} from "@/pages/fees/StudentFeePages";
+import {
+  FeeAccountDetailsPage,
+  FeeAccountsPage,
+  FeeSectionDashboardPage,
+  PaymentDetailsPage,
+  PaymentsPage,
+} from "@/pages/fees/FeeSectionPages";
+import { StaffListPage } from "@/pages/staff/StaffListPage";
+import { StudentAdmissionPage } from "@/pages/student/StudentAdmissionPage";
+import { AdminStudentListPage } from "@/pages/student/AdminStudentListPage";
+import { StudentDashboardPage } from "@/pages/student/StudentDashboardPage";
+import { StudentProfilePage } from "@/pages/student/StudentProfilePage";
+import { CreatePrincipalPage } from "@/pages/users/CreatePrincipalPage";
+import { UserDetailsPage } from "@/pages/users/UserDetailsPage";
+import { UserListPage } from "@/pages/users/UserListPage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ServerErrorPage } from "@/pages/ServerErrorPage";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { RoleRoute } from "@/routes/RoleRoute";
-import { AccountPage } from "@/features/account/AccountPage";
-import { RoleDashboardPage } from "@/features/dashboard/RoleDashboardPage";
-import { ReportPage } from "@/features/reports/ReportPage";
-import { AuditLogPage } from "@/features/audit/AuditLogPage";
-import { AdminAnalyticsPage, AdminDashboardPage, AdminFeeSetupPage, AdminMoneyPage } from "@/features/admin/AdminPages";
-import { AcademicCreatePage, AcademicListPage, FinalAdmissionsPage, StudentAcademicPage } from "@/features/academic/AcademicPages";
+import { AccountPage } from "@/pages/account/AccountPage";
+import { RoleDashboardPage } from "@/pages/dashboard/RoleDashboardPage";
+import { ReportPage } from "@/pages/reports/ReportPage";
+import { AuditLogPage } from "@/pages/audit/AuditLogPage";
+import {
+  AdminAnalyticsPage,
+  AdminDashboardPage,
+  AdminFeeSetupPage,
+  AdminMoneyPage,
+} from "@/pages/admin/AdminPages";
+import {
+  AcademicCreatePage,
+  AcademicListPage,
+  FinalAdmissionsPage,
+  StudentAcademicPage,
+} from "@/pages/academic/AcademicPages";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
-  return <Navigate to={isAuthenticated ? defaultRouteForRoles(user?.roles) : ROUTES.login} replace />;
+  return (
+    <Navigate to={isAuthenticated ? defaultRouteForRoles(user?.roles) : ROUTES.login} replace />
+  );
 }
 
 function SmartDashboard() {
@@ -92,18 +123,30 @@ export function AppRouter() {
             <Route path={ROUTES.departments} element={<DepartmentListPage />} />
             <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
             <Route path={ROUTES.staff} element={<StaffListPage />} />
-            <Route path={ROUTES.createStudentSectionStaff} element={<CreateStudentSectionStaffPage />} />
+            <Route
+              path={ROUTES.createStudentSectionStaff}
+              element={<CreateStudentSectionStaffPage />}
+            />
             <Route path={ROUTES.createFeeSectionStaff} element={<CreateFeeSectionStaffPage />} />
             <Route path={ROUTES.feeStructures} element={<FeeStructureListPage />} />
             <Route path="/fee-structures/create" element={<FeeStructureFormPage />} />
             <Route path="/fee-structures/:id" element={<FeeStructureDetailsPage />} />
             <Route path={ROUTES.principalReviewReady} element={<PrincipalReviewQueuePage />} />
-            <Route path="/principal/admissions/:admissionId" element={<PrincipalAdmissionDetailPage />} />
+            <Route
+              path="/principal/admissions/:admissionId"
+              element={<PrincipalAdmissionDetailPage />}
+            />
             <Route path={ROUTES.finalAdmissions} element={<FinalAdmissionsPage />} />
             <Route path={ROUTES.auditLogs} element={<AuditLogPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.FEE_SECTION, ROLES.STUDENT_SECTION]} />}>
+          <Route
+            element={
+              <RoleRoute
+                roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.FEE_SECTION, ROLES.STUDENT_SECTION]}
+              />
+            }
+          >
             <Route path={ROUTES.admissionReport} element={<ReportPage type="admissions" />} />
             <Route path={ROUTES.feeReport} element={<ReportPage type="fees" />} />
             <Route path={ROUTES.attendanceReport} element={<ReportPage type="attendance" />} />
@@ -112,18 +155,39 @@ export function AppRouter() {
 
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />}>
             <Route path={ROUTES.academicClasses} element={<AcademicListPage kind="classes" />} />
-            <Route path="/academic/classes/create" element={<AcademicCreatePage kind="classes" />} />
+            <Route
+              path="/academic/classes/create"
+              element={<AcademicCreatePage kind="classes" />}
+            />
             <Route path={ROUTES.academicSections} element={<AcademicListPage kind="sections" />} />
-            <Route path="/academic/sections/create" element={<AcademicCreatePage kind="sections" />} />
+            <Route
+              path="/academic/sections/create"
+              element={<AcademicCreatePage kind="sections" />}
+            />
             <Route path={ROUTES.academicSubjects} element={<AcademicListPage kind="subjects" />} />
-            <Route path="/academic/subjects/create" element={<AcademicCreatePage kind="subjects" />} />
+            <Route
+              path="/academic/subjects/create"
+              element={<AcademicCreatePage kind="subjects" />}
+            />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.STUDENT_SECTION]} />}>
-            <Route path={ROUTES.studentSectionDashboard} element={<StudentSectionDashboardPage />} />
-            <Route path={ROUTES.studentSectionAdmissions} element={<StudentSectionAdmissionListPage />} />
-            <Route path="/student-section/admissions/:admissionId" element={<StudentSectionAdmissionDetailPage />} />
-            <Route path="/student-section/admissions/:admissionId/print" element={<AdmissionPrintPage />} />
+            <Route
+              path={ROUTES.studentSectionDashboard}
+              element={<StudentSectionDashboardPage />}
+            />
+            <Route
+              path={ROUTES.studentSectionAdmissions}
+              element={<StudentSectionAdmissionListPage />}
+            />
+            <Route
+              path="/student-section/admissions/:admissionId"
+              element={<StudentSectionAdmissionDetailPage />}
+            />
+            <Route
+              path="/student-section/admissions/:admissionId/print"
+              element={<AdmissionPrintPage />}
+            />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.STUDENT]} />}>
@@ -140,7 +204,10 @@ export function AppRouter() {
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
             <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
             <Route path={ROUTES.feeAccounts} element={<FeeAccountsPage />} />
-            <Route path="/fee-section/fee-accounts/:feeAccountId" element={<FeeAccountDetailsPage />} />
+            <Route
+              path="/fee-section/fee-accounts/:feeAccountId"
+              element={<FeeAccountDetailsPage />}
+            />
             <Route path={ROUTES.feePayments} element={<PaymentsPage />} />
             <Route path="/fee-section/payments/:paymentId" element={<PaymentDetailsPage />} />
           </Route>

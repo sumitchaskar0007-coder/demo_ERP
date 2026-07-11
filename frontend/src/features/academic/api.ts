@@ -1,8 +1,49 @@
-import {apiClient} from "@/lib/apiClient"; import type {ApiResponse} from "@/types/api"; import type {AcademicClass,FinalAdmission,Section,Subject,TimetableEntry} from "./types";
-const get=<T>(url:string,params?:object)=>apiClient.get<ApiResponse<T>>(url,{params}).then(r=>r.data.data); const post=<T>(url:string,data?:object)=>apiClient.post<ApiResponse<T>>(url,data).then(r=>r.data.data); const patch=<T>(url:string,data?:object)=>apiClient.patch<ApiResponse<T>>(url,data).then(r=>r.data.data);
-export const getFinalAdmissionQueue=(params?:object)=>get<FinalAdmission[]>("/api/principal/final-admissions/review-ready",params); export const getFinalAdmissionDetail=(id:number)=>get<FinalAdmission>(`/api/principal/final-admissions/${id}`); export const approveFinalAdmission=(id:number,data:object)=>patch<FinalAdmission>(`/api/principal/final-admissions/${id}/approve`,data); export const rejectFinalAdmission=(id:number,data:object)=>patch<FinalAdmission>(`/api/principal/final-admissions/${id}/reject`,data);
-export const createAcademicClass=(data:object)=>post<AcademicClass>("/api/academic/classes",data); export const searchAcademicClasses=(params?:object)=>get<AcademicClass[]>("/api/academic/classes/search",params); export const activateAcademicClass=(id:number)=>patch(`/api/academic/classes/${id}/activate`); export const deactivateAcademicClass=(id:number)=>patch(`/api/academic/classes/${id}/deactivate`);
-export const createSection=(data:object)=>post<Section>("/api/academic/sections",data); export const searchSections=(params?:object)=>get<Section[]>("/api/academic/sections/search",params); export const assignClassTeacher=(id:number,data:object)=>patch(`/api/academic/sections/${id}/assign-class-teacher`,data); export const assignStudentToSection=(id:number,data:object)=>post(`/api/academic/sections/${id}/students`,data);
-export const createSubject=(data:object)=>post<Subject>("/api/academic/subjects",data); export const searchSubjects=(params?:object)=>get<Subject[]>("/api/academic/subjects/search",params); export const assignSubjectTeacher=(id:number,data:object)=>post(`/api/academic/subjects/${id}/assign-teacher`,data);
-export const createTimetableEntry=(data:object)=>post<TimetableEntry>("/api/academic/timetable",data); export const searchTimetable=(sectionId:number)=>get<TimetableEntry[]>("/api/academic/timetable",{sectionId});
-export const createAttendanceSession=(data:object)=>post("/api/academic/attendance/sessions",data); export const markAttendance=(id:number,data:object)=>patch(`/api/academic/attendance/sessions/${id}/mark`,data); export const submitAttendance=(id:number)=>patch(`/api/academic/attendance/sessions/${id}/submit`); export const getMyStudentTimetable=()=>get<TimetableEntry[]>("/api/student/academic/timetable"); export const getMyStudentAttendanceSummary=()=>get<Record<string,number>>("/api/student/academic/attendance/summary");
+import { apiClient } from "@/lib/apiClient";
+import type { ApiResponse } from "@/types/api";
+import type { AcademicClass, FinalAdmission, Section, Subject, TimetableEntry } from "./types";
+const get = <T>(url: string, params?: object) =>
+  apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
+const post = <T>(url: string, data?: object) =>
+  apiClient.post<ApiResponse<T>>(url, data).then((r) => r.data.data);
+const patch = <T>(url: string, data?: object) =>
+  apiClient.patch<ApiResponse<T>>(url, data).then((r) => r.data.data);
+export const getFinalAdmissionQueue = (params?: object) =>
+  get<FinalAdmission[]>("/api/principal/final-admissions/review-ready", params);
+export const getFinalAdmissionDetail = (id: number) =>
+  get<FinalAdmission>(`/api/principal/final-admissions/${id}`);
+export const approveFinalAdmission = (id: number, data: object) =>
+  patch<FinalAdmission>(`/api/principal/final-admissions/${id}/approve`, data);
+export const rejectFinalAdmission = (id: number, data: object) =>
+  patch<FinalAdmission>(`/api/principal/final-admissions/${id}/reject`, data);
+export const createAcademicClass = (data: object) =>
+  post<AcademicClass>("/api/academic/classes", data);
+export const searchAcademicClasses = (params?: object) =>
+  get<AcademicClass[]>("/api/academic/classes/search", params);
+export const activateAcademicClass = (id: number) => patch(`/api/academic/classes/${id}/activate`);
+export const deactivateAcademicClass = (id: number) =>
+  patch(`/api/academic/classes/${id}/deactivate`);
+export const createSection = (data: object) => post<Section>("/api/academic/sections", data);
+export const searchSections = (params?: object) =>
+  get<Section[]>("/api/academic/sections/search", params);
+export const assignClassTeacher = (id: number, data: object) =>
+  patch(`/api/academic/sections/${id}/assign-class-teacher`, data);
+export const assignStudentToSection = (id: number, data: object) =>
+  post(`/api/academic/sections/${id}/students`, data);
+export const createSubject = (data: object) => post<Subject>("/api/academic/subjects", data);
+export const searchSubjects = (params?: object) =>
+  get<Subject[]>("/api/academic/subjects/search", params);
+export const assignSubjectTeacher = (id: number, data: object) =>
+  post(`/api/academic/subjects/${id}/assign-teacher`, data);
+export const createTimetableEntry = (data: object) =>
+  post<TimetableEntry>("/api/academic/timetable", data);
+export const searchTimetable = (sectionId: number) =>
+  get<TimetableEntry[]>("/api/academic/timetable", { sectionId });
+export const createAttendanceSession = (data: object) =>
+  post("/api/academic/attendance/sessions", data);
+export const markAttendance = (id: number, data: object) =>
+  patch(`/api/academic/attendance/sessions/${id}/mark`, data);
+export const submitAttendance = (id: number) =>
+  patch(`/api/academic/attendance/sessions/${id}/submit`);
+export const getMyStudentTimetable = () => get<TimetableEntry[]>("/api/student/academic/timetable");
+export const getMyStudentAttendanceSummary = () =>
+  get<Record<string, number>>("/api/student/academic/attendance/summary");

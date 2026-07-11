@@ -7,7 +7,11 @@ export interface Column<T> {
   className?: string;
 }
 
-export function DataTable<T>({ columns, data, rowKey }: {
+export function DataTable<T>({
+  columns,
+  data,
+  rowKey,
+}: {
   columns: Column<T>[];
   data: T[];
   rowKey: (row: T) => string | number;
@@ -15,11 +19,29 @@ export function DataTable<T>({ columns, data, rowKey }: {
   return (
     <div className="overflow-x-auto rounded-2xl border border-blue-100 bg-white shadow-sm">
       <table className="w-full min-w-[850px] border-collapse text-left">
-        <thead><tr className="border-b bg-slate-50/80">{columns.map((column) => <th key={column.key} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500 ${column.className || ""}`}>{column.header}</th>)}</tr></thead>
+        <thead>
+          <tr className="border-b bg-slate-50/80">
+            {columns.map((column) => (
+              <th
+                key={column.key}
+                className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500 ${column.className || ""}`}
+              >
+                {column.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
         <tbody className="divide-y">
           {data.map((row) => (
             <tr key={rowKey(row)} className="transition-colors duration-200 hover:bg-blue-50/50">
-              {columns.map((column) => <td key={column.key} className={`px-5 py-4 text-sm text-slate-700 ${column.className || ""}`}>{column.render(row)}</td>)}
+              {columns.map((column) => (
+                <td
+                  key={column.key}
+                  className={`px-5 py-4 text-sm text-slate-700 ${column.className || ""}`}
+                >
+                  {column.render(row)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>

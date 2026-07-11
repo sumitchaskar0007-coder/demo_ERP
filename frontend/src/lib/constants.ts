@@ -72,25 +72,45 @@ export function defaultRouteForRoles(roles: string[] = []) {
   if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRINCIPAL)) return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
   if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
-  if (roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER)) return ROUTES.academicClasses;
+  if (
+    roles.includes(ROLES.HOD) ||
+    roles.includes(ROLES.CLASS_TEACHER) ||
+    roles.includes(ROLES.SUBJECT_TEACHER)
+  )
+    return ROUTES.academicClasses;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
   return ROUTES.dashboard;
 }
 
 export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
   if (roles.includes(ROLES.SUPER_ADMIN)) {
-    return path === ROUTES.dashboard || path === ROUTES.account || path === ROUTES.accountChangePassword
-      || path.startsWith("/colleges") || path.startsWith("/principals")
-      || path === ROUTES.staff || path === ROUTES.students || path.startsWith("/admin/");
+    return (
+      path === ROUTES.dashboard ||
+      path === ROUTES.account ||
+      path === ROUTES.accountChangePassword ||
+      path.startsWith("/colleges") ||
+      path.startsWith("/principals") ||
+      path === ROUTES.staff ||
+      path === ROUTES.students ||
+      path.startsWith("/admin/")
+    );
   }
   if (roles.includes(ROLES.PRINCIPAL)) {
-    return !path.startsWith("/student/") && !path.startsWith("/colleges") && !path.startsWith("/users");
+    return (
+      !path.startsWith("/student/") && !path.startsWith("/colleges") && !path.startsWith("/users")
+    );
   }
   if (roles.includes(ROLES.STUDENT_SECTION)) {
     return path.startsWith("/student-section") || path === ROUTES.profile;
   }
-  if (roles.includes(ROLES.FEE_SECTION)) return path.startsWith("/fee-section") || path === ROUTES.profile;
-  if (roles.some((role) => [ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER].includes(role as never))) return path.startsWith("/academic") || path === ROUTES.profile;
+  if (roles.includes(ROLES.FEE_SECTION))
+    return path.startsWith("/fee-section") || path === ROUTES.profile;
+  if (
+    roles.some((role) =>
+      [ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER].includes(role as never),
+    )
+  )
+    return path.startsWith("/academic") || path === ROUTES.profile;
   if (roles.includes(ROLES.STUDENT)) {
     return path.startsWith("/student/");
   }
