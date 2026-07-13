@@ -10,13 +10,13 @@ export default {
           500: "#3b82f6",
           600: "#2563eb",
           700: "#1d4ed8",
-          900: "#1e3a8a"
-        }
+          900: "#1e3a8a",
+        },
       },
       boxShadow: {
-        card: "0 8px 30px rgba(15, 23, 42, 0.06)"
-      }
-    }
+        card: "0 10px 35px rgba(37, 99, 235, 0.07)",
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };

@@ -2,6 +2,7 @@ package com.jadhavr.erp.admission.dto;
 
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.fee.enums.StudentCategory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ public record StudentSectionAdmissionResponse(
         String departmentName,
         String departmentCode,
         String academicYear,
+        StudentCategory studentCategory,
         String fullName,
         String email,
         String phone,
@@ -34,6 +36,30 @@ public record StudentSectionAdmissionResponse(
         String previousSchoolName,
         String previousClassName,
         BigDecimal previousPercentage,
+        boolean photoAvailable,
+        String placeOfBirth,
+        String maritalStatus,
+        String aadhaarNumber,
+        String apaarId,
+        String nationality,
+        String religion,
+        String caste,
+        String permanentPhone,
+        String permanentEmail,
+        String correspondenceAddress,
+        String correspondenceCity,
+        String correspondencePincode,
+        String correspondenceState,
+        String correspondencePhone,
+        String correspondenceMobile,
+        String correspondenceEmail,
+        java.util.List<AcademicRecordDto> academicRecords,
+        String qualifyingEntranceSeatNumber,
+        BigDecimal qualifyingEntranceTotalScore,
+        String lastGraduationCollegeName,
+        String lastGraduationCollegeAddress,
+        LocalDateTime detailsCompletedAt,
+        LocalDateTime principalApprovedAt,
         AdmissionStatus status,
         AdmissionSource source,
         LocalDateTime submittedAt,

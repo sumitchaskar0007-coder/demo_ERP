@@ -6,6 +6,7 @@ import com.jadhavr.erp.admission.dto.MarkAdmissionPrintedRequest;
 import com.jadhavr.erp.admission.dto.RejectAdmissionRequest;
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.dto.VerifyAdmissionRequest;
+import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.common.dto.PageResponse;
 
@@ -17,6 +18,7 @@ public interface StudentSectionAdmissionService {
             int page, int size, String sortBy, String sortDir);
     StudentSectionAdmissionResponse getAdmissionForStudentSection(Long admissionId);
     StudentSectionAdmissionResponse startReview(Long admissionId);
+    StudentSectionAdmissionResponse updateDetails(Long admissionId, DetailedAdmissionRequest request);
     StudentSectionAdmissionResponse approveAdmission(Long admissionId, VerifyAdmissionRequest request);
     StudentSectionAdmissionResponse rejectAdmission(Long admissionId, RejectAdmissionRequest request);
     List<AdmissionStatusHistoryResponse> getAdmissionHistory(Long admissionId);

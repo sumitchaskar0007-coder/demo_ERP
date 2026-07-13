@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.Set;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
+@Order(1)
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
     private final RoleRepository roles;
     private final UserRepository users;

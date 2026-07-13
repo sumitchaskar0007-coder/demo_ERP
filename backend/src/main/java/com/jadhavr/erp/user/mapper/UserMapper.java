@@ -23,7 +23,8 @@ public class UserMapper {
         return new AuthUserResponse(user.getId(), college == null ? null : college.getId(),
                 college == null ? null : college.getName(), college == null ? null : college.getCode(),
                 user.getFullName(), user.getEmail(), user.getPhone(), user.getProfileImageUrl(),
-                user.getAddress(), user.getBio(), user.getStatus(), roles(user));
+                user.getAddress(), user.getBio(), user.getStatus(), roles(user),
+                user.isMustChangePassword(), user.isEmailVerified());
     }
 
     private List<String> roles(User user) {

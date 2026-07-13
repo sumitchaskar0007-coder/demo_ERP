@@ -4,6 +4,8 @@ import com.jadhavr.erp.auth.dto.AuthUserResponse;
 import com.jadhavr.erp.auth.dto.LoginRequest;
 import com.jadhavr.erp.auth.dto.LoginResponse;
 import com.jadhavr.erp.auth.dto.UpdateOwnProfileRequest;
+import com.jadhavr.erp.auth.dto.ChangePasswordRequest;
+import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.JwtService;
 import com.jadhavr.erp.auth.service.ProfileImageStorageService;
@@ -21,6 +23,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Locale;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.jadhavr.erp.email.service.EmailNotificationService;
+import com.jadhavr.erp.audit.service.AuditLogService;
+import com.jadhavr.erp.audit.enums.AuditModule;
+import com.jadhavr.erp.audit.enums.AuditAction;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,15 +36,24 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserRepository users;
     private final UserMapper mapper;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailNotificationService emailNotifications;
     private final ProfileImageStorageService profileImages;
+    private AuditLogService auditLogs;
+
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAuditLogs(AuditLogService service) { this.auditLogs = service; }
 
     public AuthController(AuthenticationManager authenticationManager, JwtService jwtService,
-                          UserRepository users, UserMapper mapper,
+                          UserRepository users, UserMapper mapper, PasswordEncoder passwordEncoder,
+                          EmailNotificationService emailNotifications,
                           ProfileImageStorageService profileImages) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.users = users;
         this.mapper = mapper;
+        this.passwordEncoder = passwordEncoder;
+        this.emailNotifications = emailNotifications;
         this.profileImages = profileImages;
     }
 
@@ -51,6 +67,7 @@ public class AuthController {
         User user = users.findByEmail(email).orElseThrow();
         user.setLastLoginAt(LocalDateTime.now());
         users.save(user);
+        if (auditLogs != null) auditLogs.logWithUser(user, AuditModule.AUTH, AuditAction.LOGIN, "User", user.getId(), "Successful login");
         return ApiResponse.success("Login successful", new LoginResponse(
                 jwtService.generateToken(details), "Bearer",
                 jwtService.getExpirationMs(), mapper.toAuthResponse(user)));
@@ -93,5 +110,23 @@ public class AuthController {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+    @PostMapping("/change-password")
+    @Transactional
+    public ApiResponse<AuthUserResponse> changePassword(
+            @AuthenticationPrincipal CustomUserDetails details,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        User user = users.findByEmail(details.getUsername()).orElseThrow();
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
+        User saved = users.save(user);
+        emailNotifications.queuePasswordChangedEmail(saved);
+        return ApiResponse.success("Password changed successfully", mapper.toAuthResponse(saved));
     }
 }

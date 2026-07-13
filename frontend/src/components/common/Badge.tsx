@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function Badge({ children, tone = "neutral" }: {
+export function Badge({
+  children,
+  tone = "neutral",
+}: {
   children: ReactNode;
   tone?: "success" | "danger" | "warning" | "info" | "neutral";
 }) {
@@ -13,12 +16,38 @@ export function Badge({ children, tone = "neutral" }: {
     neutral: "bg-slate-100 text-slate-700 ring-slate-500/20",
   };
   return (
-    <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset", tones[tone])}>
+    <span
+      className={cn(
+        "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
+        tones[tone],
+      )}
+    >
       {children}
     </span>
   );
 }
 
-export function StatusBadge({ status }: { status: "ACTIVE" | "INACTIVE" }) {
-  return <Badge tone={status === "ACTIVE" ? "success" : "danger"}>{status}</Badge>;
+export function StatusBadge({ status }: { status: string }) {
+  const tone = [
+    "ACTIVE",
+    "VERIFIED",
+    "PAID",
+    "PRINCIPAL_APPROVED",
+    "STUDENT_SECTION_APPROVED",
+  ].includes(status)
+    ? "success"
+    : [
+          "REJECTED",
+          "INACTIVE",
+          "PRINCIPAL_REJECTED",
+          "STUDENT_SECTION_REJECTED",
+          "OVERDUE",
+        ].includes(status)
+      ? "danger"
+      : ["PENDING", "SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(status)
+        ? "warning"
+        : ["PARTIALLY_PAID", "PRINCIPAL_REVIEW_PENDING"].includes(status)
+          ? "info"
+          : "neutral";
+  return <Badge tone={tone}>{status.replaceAll("_", " ")}</Badge>;
 }

@@ -10,11 +10,14 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token = authToken.getToken();
-  const isLoginRequest = config.url?.includes("/api/auth/login");
-  // Login must never carry an old session token. An expired token can cause
-  // the security filter to reject valid credentials before login is handled.
-  if (token && !isLoginRequest) config.headers.Authorization = `Bearer ${token}`;
-  if (isLoginRequest) delete config.headers.Authorization;
+  const url = config.url || "";
+  const isPublicRequest =
+    url === "/api/auth/login" ||
+    url.startsWith("/api/auth/password/") ||
+    url === "/api/auth/email-verification/confirm" ||
+    url.startsWith("/api/public/");
+  if (token && !isPublicRequest) config.headers.Authorization = `Bearer ${token}`;
+  else delete config.headers.Authorization;
   return config;
 });
 

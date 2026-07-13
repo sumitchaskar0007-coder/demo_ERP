@@ -10,7 +10,15 @@ import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
+import com.jadhavr.erp.email.service.EmailNotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.jadhavr.erp.staff.dto.StaffResponse;
+import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateStaffRequest;
+import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.department.entity.DepartmentStatus;
+import com.jadhavr.erp.department.repository.DepartmentRepository;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
@@ -38,6 +46,8 @@ import java.util.Set;
 @Service
 @Transactional(readOnly = true)
 public class StaffServiceImpl implements StaffService {
+    private static final Set<StaffType> DEPARTMENT_REQUIRED_TYPES = Set.of(
+            StaffType.HOD, StaffType.TEACHER, StaffType.CLASS_TEACHER, StaffType.SUBJECT_TEACHER);
     private static final Set<String> SORT_FIELDS = Set.of(
             "id", "employeeCode", "fullName", "email", "staffType", "status", "createdAt", "updatedAt");
 
@@ -45,9 +55,14 @@ public class StaffServiceImpl implements StaffService {
     private final UserRepository users;
     private final RoleRepository roles;
     private final CollegeRepository colleges;
+    private DepartmentRepository departments;
     private final PasswordEncoder passwordEncoder;
     private final StaffMapper mapper;
     private final SecureRandom random = new SecureRandom();
+    private EmailNotificationService emailNotifications;
+
+    @Autowired(required = false)
+    public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
 
     public StaffServiceImpl(
             StaffProfileRepository staffProfiles,
@@ -64,50 +79,115 @@ public class StaffServiceImpl implements StaffService {
         this.mapper = mapper;
     }
 
+    @Autowired
+    public void setDepartments(DepartmentRepository departments) { this.departments = departments; }
+
+    @Override
+    @Transactional
+    public StaffResponse createStaff(CreateStaffRequest request) {
+        if (!SecurityUtils.isPrincipal()) {
+            throw new AccessDeniedException("Only Principal can create staff");
+        }
+        CustomUserDetails currentUser = SecurityUtils.requireCurrentUser();
+        Long collegeId = currentUser.getCollegeId();
+        if (collegeId == null) throw new AccessDeniedException("Principal college is required");
+
+        StaffType staffType = request.staffType();
+        Department department = resolveDepartment(request.departmentId(), staffType, collegeId);
+        if (staffType == StaffType.HOD && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(
+                department.getId(), StaffType.HOD, StaffStatus.ACTIVE)) {
+            throw new DuplicateResourceException("Department already has an active HOD");
+        }
+
+        RoleName roleName = switch (staffType) {
+            case STUDENT_SECTION -> RoleName.STUDENT_SECTION;
+            case FEE_SECTION -> RoleName.FEE_SECTION;
+            case HOD -> RoleName.HOD;
+            case TEACHER, SUBJECT_TEACHER -> RoleName.SUBJECT_TEACHER;
+            case CLASS_TEACHER -> RoleName.CLASS_TEACHER;
+            case GENERAL_STAFF -> RoleName.GENERAL_STAFF;
+        };
+        StaffResponse created = createStaff(collegeId, request.fullName(), request.email(),
+                request.phone(), request.password(), request.joiningDate(), roleName, staffType, false);
+        StaffProfile profile = staffProfiles.findById(created.id()).orElseThrow();
+        profile.setDepartment(department);
+        return mapper.toResponse(staffProfiles.save(profile));
+    }
+
+    @Override @Transactional
+    public StaffResponse createAcademicStaff(CreateAcademicStaffRequest request, StaffType type) {
+        if (type != StaffType.HOD && type != StaffType.CLASS_TEACHER && type != StaffType.SUBJECT_TEACHER) throw new BadRequestException("Invalid academic staff type");
+        Department department = departments.findById(request.departmentId()).orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        if (!department.getCollege().getId().equals(request.collegeId()) || department.getStatus() != DepartmentStatus.ACTIVE) throw new BadRequestException("Department must be active and belong to the college");
+        if (type == StaffType.HOD && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(department.getId(), type, StaffStatus.ACTIVE)) throw new DuplicateResourceException("Department already has an active HOD");
+        RoleName role = switch(type){case HOD -> RoleName.HOD; case CLASS_TEACHER -> RoleName.CLASS_TEACHER; default -> RoleName.SUBJECT_TEACHER;};
+        StaffResponse response = createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(),
+                request.phone(), request.joiningDate(), role, type, true);
+        StaffProfile profile = staffProfiles.findById(response.id()).orElseThrow(); profile.setDepartment(department); staffProfiles.save(profile);
+        return mapper.toResponse(profile);
+    }
+
     @Override
     @Transactional
     public StaffResponse createStudentSectionStaff(CreateStudentSectionStaffRequest request) {
+        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.phone(),
+                request.joiningDate(), RoleName.STUDENT_SECTION, StaffType.STUDENT_SECTION, true);
+    }
+
+    @Override
+    @Transactional
+    public StaffResponse createFeeSectionStaff(CreateFeeSectionStaffRequest request) {
+        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.phone(),
+                request.joiningDate(), RoleName.FEE_SECTION, StaffType.FEE_SECTION, true);
+    }
+
+    private StaffResponse createStaff(Long collegeId, String fullName, String requestedEmail, String phone,
+                                      String rawPassword, java.time.LocalDate joiningDate,
+                                      RoleName roleName, StaffType staffType, boolean mustChangePassword) {
         CustomUserDetails currentUser = SecurityUtils.requireCurrentUser();
         if (!SecurityUtils.isSuperAdmin() && !SecurityUtils.isPrincipal()) {
             throw new AccessDeniedException("Access denied");
         }
-        if (SecurityUtils.isPrincipal() && !request.collegeId().equals(currentUser.getCollegeId())) {
+        if (SecurityUtils.isPrincipal() && !collegeId.equals(currentUser.getCollegeId())) {
             throw new AccessDeniedException("Principal can create staff only for own college");
         }
 
-        College college = colleges.findById(request.collegeId())
+        College college = colleges.findById(collegeId)
                 .orElseThrow(() -> new ResourceNotFoundException("College not found"));
         if (college.getStatus() != CollegeStatus.ACTIVE) {
             throw new BadRequestException("Cannot create staff for an inactive college");
         }
-        String email = normalizeEmail(request.email());
+        String email = normalizeEmail(requestedEmail);
         if (users.existsByEmail(email)) {
             throw new DuplicateResourceException("User already exists with this email");
         }
-        Role role = roles.findByName(RoleName.STUDENT_SECTION)
-                .orElseThrow(() -> new ResourceNotFoundException("Role not found: STUDENT_SECTION"));
+        Role role = roles.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
 
         User user = new User();
         user.setCollege(college);
-        user.setFullName(request.fullName().trim());
+        user.setFullName(fullName.trim());
         user.setEmail(email);
-        user.setPhone(trimToNull(request.phone()));
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        String normalizedPhone = trimToNull(phone);
+        user.setPhone(normalizedPhone);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setMustChangePassword(mustChangePassword);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(role));
         User savedUser = users.save(user);
+        if (emailNotifications != null) emailNotifications.queueUserCreatedEmail(savedUser);
 
         StaffProfile profile = new StaffProfile();
         profile.setUser(savedUser);
         profile.setCollege(college);
         profile.setDepartment(null);
         profile.setEmployeeCode(generateEmployeeCode(college.getCode()));
-        profile.setFullName(request.fullName().trim());
+        profile.setFullName(fullName.trim());
         profile.setEmail(email);
-        profile.setPhone(trimToNull(request.phone()));
-        profile.setStaffType(StaffType.STUDENT_SECTION);
+        profile.setPhone(normalizedPhone);
+        profile.setStaffType(staffType);
         profile.setStatus(StaffStatus.ACTIVE);
-        profile.setJoiningDate(request.joiningDate());
+        profile.setJoiningDate(joiningDate);
         return mapper.toResponse(staffProfiles.save(profile));
     }
 
@@ -120,7 +200,7 @@ public class StaffServiceImpl implements StaffService {
 
     @Override
     public PageResponse<StaffResponse> searchStaff(
-            String keyword, Long collegeId, StaffType staffType, StaffStatus status,
+            String keyword, Long collegeId, Long departmentId, StaffType staffType, StaffStatus status,
             int page, int size, String sortBy, String sortDir) {
         validatePage(page, size);
         Long scopedCollegeId = scopedCollegeId(collegeId);
@@ -133,6 +213,9 @@ public class StaffServiceImpl implements StaffService {
         }
         if (staffType != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("staffType"), staffType));
+        }
+        if (departmentId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("department").get("id"), departmentId));
         }
         if (status != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
@@ -226,6 +309,24 @@ public class StaffServiceImpl implements StaffService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Department resolveDepartment(Long departmentId, StaffType staffType, Long collegeId) {
+        if (departmentId == null) {
+            if (DEPARTMENT_REQUIRED_TYPES.contains(staffType)) {
+                throw new BadRequestException("Department is required for " + staffType);
+            }
+            return null;
+        }
+        Department department = departments.findById(departmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        if (!department.getCollege().getId().equals(collegeId)) {
+            throw new AccessDeniedException("Department is outside Principal college");
+        }
+        if (department.getStatus() != DepartmentStatus.ACTIVE) {
+            throw new BadRequestException("Department must be active");
+        }
+        return department;
     }
 
     private String trimToNull(String value) {

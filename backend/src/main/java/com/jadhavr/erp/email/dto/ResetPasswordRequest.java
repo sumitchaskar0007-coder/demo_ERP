@@ -1,0 +1,1 @@
+package com.jadhavr.erp.email.dto;import jakarta.validation.constraints.*;public record ResetPasswordRequest(@NotBlank @Size(min=40,max=200)String token,@NotBlank @Pattern(regexp="^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&.#_-])[A-Za-z\\d@$!%*?&.#_-]{8,100}$",message="Password must contain uppercase, lowercase, digit, and special character")String newPassword){}

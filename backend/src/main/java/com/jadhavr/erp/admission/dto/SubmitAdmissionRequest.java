@@ -6,12 +6,14 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import com.jadhavr.erp.fee.enums.StudentCategory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record SubmitAdmissionRequest(
         @NotNull Long departmentId,
+        @NotNull StudentCategory studentCategory,
         @NotBlank @Size(min = 2, max = 80) String firstName,
         @Size(max = 80) String middleName,
         @NotBlank @Size(min = 2, max = 80) String lastName,
@@ -24,8 +26,8 @@ public record SubmitAdmissionRequest(
         @Size(max = 100) String city,
         @Size(max = 100) String state,
         @Size(max = 10) String pincode,
-        @NotBlank @Size(min = 2, max = 150) String parentName,
-        @NotBlank @Size(max = 20) String parentPhone,
+        @Size(max = 150) String parentName,
+        @Size(max = 20) String parentPhone,
         @Email @Size(max = 150) String parentEmail,
         @Size(max = 200) String previousSchoolName,
         @Size(max = 100) String previousClassName,

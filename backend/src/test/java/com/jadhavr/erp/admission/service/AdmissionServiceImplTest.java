@@ -15,6 +15,7 @@ import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
+import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
@@ -150,7 +151,7 @@ class AdmissionServiceImplTest {
         assertEquals(30L, result.studentProfileId());
         assertTrue(result.admissionReferenceNumber().startsWith("ADM-ABC001-"));
         assertTrue(result.admissionNumber().startsWith("STU-ABC001-"));
-        assertTrue(result.temporaryPassword().length() >= 10);
+        assertEquals("9876543210", result.temporaryPassword());
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
@@ -159,14 +160,17 @@ class AdmissionServiceImplTest {
         assertEquals(RoleName.STUDENT, savedUser.getRoles().iterator().next().getName());
         assertNotEquals(result.temporaryPassword(), savedUser.getPasswordHash());
         assertTrue(passwordEncoder.matches(result.temporaryPassword(), savedUser.getPasswordHash()));
+        assertTrue(savedUser.isMustChangePassword());
 
         ArgumentCaptor<StudentProfile> profileCaptor = ArgumentCaptor.forClass(StudentProfile.class);
         verify(studentProfileRepository).save(profileCaptor.capture());
         assertEquals(StudentStatus.ADMISSION_SUBMITTED, profileCaptor.getValue().getStatus());
+        assertEquals(StudentCategory.SC, profileCaptor.getValue().getStudentCategory());
 
         ArgumentCaptor<AdmissionForm> admissionCaptor = ArgumentCaptor.forClass(AdmissionForm.class);
         verify(admissionFormRepository).save(admissionCaptor.capture());
         assertEquals(AdmissionStatus.SUBMITTED, admissionCaptor.getValue().getStatus());
+        assertEquals(StudentCategory.SC, admissionCaptor.getValue().getStudentCategory());
     }
 
     @Test
@@ -293,6 +297,7 @@ class AdmissionServiceImplTest {
     private SubmitAdmissionRequest request() {
         return new SubmitAdmissionRequest(
                 10L,
+                StudentCategory.SC,
                 "Aarav",
                 "Rajesh",
                 "Patil",

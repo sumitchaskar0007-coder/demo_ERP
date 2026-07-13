@@ -56,13 +56,34 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/uploads/**",
                                 "/api/auth/login",
+                                "/api/auth/password/forgot",
+                                "/api/auth/password/reset",
+                                "/api/auth/email-verification/confirm",
                                 "/api/public/admissions/**"
                         ).permitAll()
                         .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/api/student-section/**").hasAnyRole("STUDENT_SECTION", "PRINCIPAL", "SUPER_ADMIN")
-                        .requestMatchers("/api/principal/staff/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
-                        .requestMatchers("/api/principal/admissions/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
-                        .requestMatchers("/api/principal/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/account/**").authenticated()
+                        .requestMatchers("/api/dashboard/super-admin").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/dashboard/principal").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/dashboard/student-section").hasAnyRole("STUDENT_SECTION", "PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/dashboard/fee-section").hasAnyRole("FEE_SECTION", "PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/dashboard/hod").hasAnyRole("HOD", "PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/dashboard/teacher").hasAnyRole("CLASS_TEACHER", "SUBJECT_TEACHER")
+                        .requestMatchers("/api/dashboard/student").hasRole("STUDENT")
+                        .requestMatchers("/api/audit-logs/**").hasRole("PRINCIPAL")
+                        .requestMatchers("/api/reports/**").hasAnyRole("PRINCIPAL", "HOD", "FEE_SECTION", "STUDENT_SECTION")
+                        .requestMatchers("/api/student-section/**").hasAnyRole("STUDENT_SECTION", "PRINCIPAL")
+                        .requestMatchers("/api/fee-section/**").hasAnyRole("FEE_SECTION", "PRINCIPAL")
+                        .requestMatchers(HttpMethod.POST, "/api/principal/staff/**").hasRole("PRINCIPAL")
+                        .requestMatchers("/api/academic/classes/**").hasAnyRole("PRINCIPAL", "HOD")
+                        .requestMatchers("/api/academic/sections/**").hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER")
+                        .requestMatchers("/api/academic/subjects/**").hasAnyRole("PRINCIPAL", "HOD", "SUBJECT_TEACHER")
+                        .requestMatchers("/api/academic/timetable/**").hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER", "SUBJECT_TEACHER")
+                        .requestMatchers("/api/academic/attendance/**").hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER", "SUBJECT_TEACHER")
+                        .requestMatchers("/api/hod/**").hasAnyRole("HOD", "PRINCIPAL")
+                        .requestMatchers("/api/principal/staff/**").hasRole("PRINCIPAL")
+                        .requestMatchers("/api/principal/admissions/**").hasRole("PRINCIPAL")
+                        .requestMatchers("/api/principal/**").hasRole("PRINCIPAL")
                         .requestMatchers("/api/student/**").hasRole("STUDENT")
                         .requestMatchers("/api/auth/profile").authenticated()
                         .anyRequest().authenticated()

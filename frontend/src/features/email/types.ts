@@ -1,0 +1,25 @@
+import type { PageResponse } from "@/types/api";
+export type EmailStatus =
+  | "QUEUED"
+  | "PROCESSING"
+  | "SENT"
+  | "RETRY_PENDING"
+  | "FAILED"
+  | "CANCELLED";
+export interface EmailNotification {
+  id: number;
+  recipientEmail: string;
+  recipientName?: string;
+  emailType: string;
+  subject: string;
+  status: EmailStatus;
+  priority: string;
+  retryCount: number;
+  maxRetries: number;
+  provider?: string;
+  failureReason?: string;
+  createdAt: string;
+  sentAt?: string;
+  correlationId: string;
+}
+export type EmailNotificationPage = PageResponse<EmailNotification>;

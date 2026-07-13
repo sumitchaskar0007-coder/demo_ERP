@@ -51,7 +51,7 @@ public class PrincipalAdmissionServiceImpl implements PrincipalAdmissionService 
             String keyword, Long departmentId, int page, int size, String sortBy, String sortDir) {
         validatePage(page, size);
         Specification<AdmissionForm> spec = buildSpec(keyword, scopedCollegeId(), departmentId)
-                .and((root, query, cb) -> cb.equal(root.get("status"), AdmissionStatus.STUDENT_SECTION_APPROVED));
+                .and((root, query, cb) -> cb.equal(root.get("status"), AdmissionStatus.PRINCIPAL_REVIEW_PENDING));
         return PageResponse.from(admissions.findAll(
                 spec, PageRequest.of(page, size, Sort.by(directionOrDefault(sortDir), safeSort(sortBy))))
                 .map(admissionMapper::toResponse));

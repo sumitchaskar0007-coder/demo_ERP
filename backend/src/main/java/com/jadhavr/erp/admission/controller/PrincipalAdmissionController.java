@@ -3,9 +3,12 @@ package com.jadhavr.erp.admission.controller;
 import com.jadhavr.erp.admission.dto.AdmissionStatusHistoryResponse;
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.service.PrincipalAdmissionService;
+import com.jadhavr.erp.admission.service.AdmissionPhotoService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,9 +20,13 @@ import java.util.List;
 @RequestMapping("/api/principal/admissions")
 public class PrincipalAdmissionController {
     private final PrincipalAdmissionService principalAdmissionService;
+    private final AdmissionPhotoService photoService;
 
-    public PrincipalAdmissionController(PrincipalAdmissionService principalAdmissionService) {
+    public PrincipalAdmissionController(
+            PrincipalAdmissionService principalAdmissionService,
+            AdmissionPhotoService photoService) {
         this.principalAdmissionService = principalAdmissionService;
+        this.photoService = photoService;
     }
 
     @GetMapping("/review-ready")
@@ -52,4 +59,10 @@ public class PrincipalAdmissionController {
                 principalAdmissionService.getAdmissionHistoryForPrincipal(admissionId)
         );
     }
+    @GetMapping("/{admissionId}/photo")
+    public ResponseEntity<Resource> getPhoto(@PathVariable Long admissionId) {
+        var photo = photoService.load(admissionId);
+        return ResponseEntity.ok().contentType(photo.mediaType()).body(photo.resource());
+    }
+
 }

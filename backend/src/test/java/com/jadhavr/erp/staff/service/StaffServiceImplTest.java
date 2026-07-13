@@ -7,6 +7,10 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateStaffRequest;
+import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.department.entity.DepartmentStatus;
+import com.jadhavr.erp.department.repository.DepartmentRepository;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
@@ -33,6 +37,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -49,6 +54,7 @@ class StaffServiceImplTest {
     @Mock private UserRepository users;
     @Mock private RoleRepository roles;
     @Mock private CollegeRepository colleges;
+    @Mock private DepartmentRepository departments;
 
     private BCryptPasswordEncoder passwordEncoder;
     private StaffServiceImpl service;
@@ -58,6 +64,7 @@ class StaffServiceImplTest {
         passwordEncoder = new BCryptPasswordEncoder();
         service = new StaffServiceImpl(
                 staffProfiles, users, roles, colleges, passwordEncoder, new StaffMapper());
+        service.setDepartments(departments);
     }
 
     @AfterEach
@@ -94,8 +101,9 @@ class StaffServiceImplTest {
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(users).save(userCaptor.capture());
         assertEquals(RoleName.STUDENT_SECTION, userCaptor.getValue().getRoles().iterator().next().getName());
-        assertNotEquals("Staff@123", userCaptor.getValue().getPasswordHash());
-        assertTrue(passwordEncoder.matches("Staff@123", userCaptor.getValue().getPasswordHash()));
+        assertNotEquals("9876543210", userCaptor.getValue().getPasswordHash());
+        assertTrue(passwordEncoder.matches("9876543210", userCaptor.getValue().getPasswordHash()));
+        assertTrue(userCaptor.getValue().isMustChangePassword());
     }
 
     @Test
@@ -153,13 +161,91 @@ class StaffServiceImplTest {
         assertEquals(UserStatus.ACTIVE, profile.getUser().getStatus());
     }
 
+    @Test
+    void unifiedFormCreatesTeacherWithDepartmentAndEncodedPassword() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        Department department = department(5L, 1L);
+        when(departments.findById(5L)).thenReturn(Optional.of(department));
+        stubUnifiedCreation(RoleName.SUBJECT_TEACHER);
+
+        var result = service.createStaff(unified(StaffType.TEACHER, 5L, "teacher@example.com"));
+
+        assertEquals(StaffType.TEACHER, result.staffType());
+        assertEquals(5L, result.departmentId());
+        ArgumentCaptor<User> user = ArgumentCaptor.forClass(User.class);
+        verify(users).save(user.capture());
+        assertTrue(passwordEncoder.matches("Teacher@123", user.getValue().getPasswordHash()));
+    }
+
+    @Test
+    void unifiedFormCreatesStudentSectionWithoutDepartment() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        stubUnifiedCreation(RoleName.STUDENT_SECTION);
+        assertEquals(StaffType.STUDENT_SECTION,
+                service.createStaff(unified(StaffType.STUDENT_SECTION, null, "student-section@example.com")).staffType());
+    }
+
+    @Test
+    void unifiedFormCreatesFeeSectionWithoutDepartment() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        stubUnifiedCreation(RoleName.FEE_SECTION);
+        assertEquals(StaffType.FEE_SECTION,
+                service.createStaff(unified(StaffType.FEE_SECTION, null, "fee-section@example.com")).staffType());
+    }
+
+    @Test
+    void hodRequiresDepartment() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        assertThrows(BadRequestException.class,
+                () -> service.createStaff(unified(StaffType.HOD, null, "hod@example.com")));
+    }
+
+    @Test
+    void teacherRequiresDepartment() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        assertThrows(BadRequestException.class,
+                () -> service.createStaff(unified(StaffType.TEACHER, null, "teacher@example.com")));
+    }
+
+    @Test
+    void superAdminCannotUseUnifiedStaffForm() {
+        authenticate(1L, null, RoleName.SUPER_ADMIN);
+        assertThrows(AccessDeniedException.class,
+                () -> service.createStaff(unified(StaffType.GENERAL_STAFF, null, "general@example.com")));
+    }
+
+    private void stubUnifiedCreation(RoleName roleName) {
+        College college = college(1L, CollegeStatus.ACTIVE);
+        when(colleges.findById(1L)).thenReturn(Optional.of(college));
+        when(users.existsByEmail(anyString())).thenReturn(false);
+        when(roles.findByName(roleName)).thenReturn(Optional.of(role(roleName)));
+        when(staffProfiles.existsByEmployeeCode(anyString())).thenReturn(false);
+        when(users.save(any(User.class))).thenAnswer(invocation -> { User user = invocation.getArgument(0); user.setId(10L); return user; });
+        AtomicReference<StaffProfile> saved = new AtomicReference<>();
+        when(staffProfiles.save(any(StaffProfile.class))).thenAnswer(invocation -> {
+            StaffProfile profile = invocation.getArgument(0); profile.setId(20L); saved.set(profile); return profile;
+        });
+        when(staffProfiles.findById(20L)).thenAnswer(invocation -> Optional.of(saved.get()));
+    }
+
+    private CreateStaffRequest unified(StaffType type, Long departmentId, String email) {
+        return new CreateStaffRequest("Mr. Kale", email, "9876543210", "Teacher@123",
+                departmentId, type, LocalDate.of(2026, 7, 10));
+    }
+
+    private Department department(Long id, Long collegeId) {
+        Department department = new Department();
+        department.setId(id); department.setCollege(college(collegeId, CollegeStatus.ACTIVE));
+        department.setName("BCA"); department.setCode("BCA"); department.setStatus(DepartmentStatus.ACTIVE);
+        return department;
+    }
+
     private CreateStudentSectionStaffRequest request(Long collegeId) {
         return new CreateStudentSectionStaffRequest(
                 collegeId,
                 "Student Section Staff",
                 "Section@Example.com",
                 "9876543210",
-                "Staff@123",
                 LocalDate.of(2026, 7, 10)
         );
     }

@@ -19,6 +19,7 @@ public class AdmissionMapper {
                 admissionForm.getDepartment().getName(),
                 admissionForm.getDepartment().getCode(),
                 admissionForm.getAcademicYear(),
+                admissionForm.getStudentCategory(),
                 admissionForm.getFullName(),
                 admissionForm.getEmail(),
                 admissionForm.getPhone(),

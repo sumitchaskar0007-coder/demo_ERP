@@ -29,6 +29,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.equals("/api/auth/login")
+                || path.startsWith("/api/auth/password/")
+                || path.equals("/api/auth/email-verification/confirm")
+                || path.startsWith("/api/public/")
+                || path.equals("/actuator/health")
+                || path.equals("/api/health")
+                || path.startsWith("/swagger-ui/")
+                || path.startsWith("/v3/api-docs/");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String header = request.getHeader(SecurityConstants.AUTHORIZATION_HEADER);
@@ -45,6 +58,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     var authentication = new UsernamePasswordAuthenticationToken(
                             user, null, user.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (user instanceof CustomUserDetails details
+                            && details.isMustChangePassword()
+                            && !request.getRequestURI().equals("/api/auth/change-password")
+                            && !request.getRequestURI().equals("/api/auth/profile")) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                        objectMapper.writeValue(response.getOutputStream(),
+                                new ErrorResponse("Password change required before using the platform"));
+                        return;
+                    }
                 }
             }
             chain.doFilter(request, response);

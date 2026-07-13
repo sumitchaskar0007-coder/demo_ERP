@@ -1,0 +1,1 @@
+package com.jadhavr.erp.academic.repository; import com.jadhavr.erp.academic.entity.Subject; import org.springframework.data.jpa.repository.*; public interface SubjectRepository extends JpaRepository<Subject,Long>,JpaSpecificationExecutor<Subject>{ boolean existsByAcademicClassIdAndAcademicYearAndCodeIgnoreCase(Long c,String y,String code); }
