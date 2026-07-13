@@ -8,6 +8,7 @@ export const ROUTES = {
   departments: "/departments",
   users: "/users",
   createPrincipal: "/users/principals/create",
+  editPrincipal: "/users/principals/:id/edit",
   publicAdmission: "/admission/:collegeCode",
   publicAdmissionSuccess: "/admission/:collegeCode/success",
   studentDashboard: "/student/dashboard",

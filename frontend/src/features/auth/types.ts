@@ -6,8 +6,17 @@ export interface AuthUser {
   fullName: string;
   email: string;
   phone: string | null;
+  profileImageUrl: string | null;
+  address: string | null;
+  bio: string | null;
   status: "ACTIVE" | "INACTIVE";
   roles: string[];
+}
+
+export interface UpdateOwnProfileValues {
+  phone: string;
+  address: string;
+  bio: string;
 }
 
 export interface LoginRequest {

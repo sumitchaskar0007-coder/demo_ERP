@@ -5,5 +5,6 @@ import java.util.List;
 
 public record AuthUserResponse(
         Long id, Long collegeId, String collegeName, String collegeCode,
-        String fullName, String email, String phone, UserStatus status, List<String> roles
+        String fullName, String email, String phone, String profileImageUrl,
+        String address, String bio, UserStatus status, List<String> roles
 ) {}

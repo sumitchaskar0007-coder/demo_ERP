@@ -3,6 +3,7 @@ package com.jadhavr.erp.user.controller;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.user.dto.CreatePrincipalRequest;
+import com.jadhavr.erp.user.dto.UpdatePrincipalRequest;
 import com.jadhavr.erp.user.dto.UserResponse;
 import com.jadhavr.erp.user.entity.RoleName;
 import com.jadhavr.erp.user.entity.UserStatus;
@@ -24,6 +25,12 @@ public class UserController {
             @Valid @RequestBody CreatePrincipalRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.success("Principal created successfully", service.createPrincipal(request)));
+    }
+    @PutMapping("/principals/{id}")
+    public ApiResponse<UserResponse> updatePrincipal(
+            @PathVariable Long id, @Valid @RequestBody UpdatePrincipalRequest request) {
+        return ApiResponse.success("Principal profile updated successfully",
+                service.updatePrincipal(id, request));
     }
     @GetMapping("/search")
     public ApiResponse<PageResponse<UserResponse>> search(

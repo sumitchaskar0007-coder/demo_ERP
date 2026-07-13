@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
-import type { CreatePrincipalValues, User, UserSearchParams } from "./types";
+import type { CreatePrincipalValues, UpdatePrincipalValues, User, UserSearchParams } from "./types";
 
 const BASE = "/api/super-admin/users";
 
@@ -14,6 +14,10 @@ export async function getUser(id: number) {
 }
 export async function createPrincipal(values: CreatePrincipalValues) {
   const { data } = await apiClient.post<ApiResponse<User>>(`${BASE}/principals`, values);
+  return data;
+}
+export async function updatePrincipal(id: number, values: UpdatePrincipalValues) {
+  const { data } = await apiClient.put<ApiResponse<User>>(`${BASE}/principals/${id}`, values);
   return data;
 }
 export async function setUserStatus(id: number, active: boolean) {
