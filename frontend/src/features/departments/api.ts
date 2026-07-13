@@ -4,6 +4,13 @@ import type { Department, DepartmentFormValues, DepartmentSearchParams } from ".
 
 const BASE = "/api/principal/departments";
 
+export async function getActiveDepartmentsForAdmin(collegeId: number) {
+  const { data } = await apiClient.get<ApiResponse<Department[]>>(
+    `/api/super-admin/departments/college/${collegeId}/active`,
+  );
+  return data.data;
+}
+
 export async function searchDepartments(params: DepartmentSearchParams) {
   const { data } = await apiClient.get<ApiResponse<PageResponse<Department>>>(`${BASE}/search`, {
     params,

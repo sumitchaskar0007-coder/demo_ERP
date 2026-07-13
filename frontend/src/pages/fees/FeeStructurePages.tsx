@@ -42,6 +42,12 @@ export function FeeStructureListPage() {
           <Link to={`/fee-structures/${r.id}`}>
             <Button variant="secondary">View</Button>
           </Link>
+          <Link to={`/fee-structures/${r.id}/edit`}><Button variant="secondary">Edit</Button></Link>
+          <Button variant="danger" onClick={async () => {
+            if (!window.confirm(`Delete fee structure "${r.title}"?`)) return;
+            try { await api.deleteFeeStructure(r.id); toast.success("Fee structure deleted"); load(); }
+            catch (e) { toast.error(handleApiError(e).message); }
+          }}>Delete</Button>
           <Button
             variant="ghost"
             onClick={() =>
@@ -96,10 +102,14 @@ const initial: CreateFeeStructureRequest = {
   otherFee: 0,
 };
 export function FeeStructureFormPage() {
+  const { id } = useParams();
   const { user } = useAuth();
   const nav = useNavigate();
   const [v, setV] = useState({ ...initial, collegeId: user?.collegeId || 0 });
   const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
+  useEffect(() => {
+    if (id) api.getFeeStructureById(Number(id)).then((x) => setV(x));
+  }, [id]);
   useEffect(() => {
     if (v.collegeId)
       searchDepartments({ collegeId: v.collegeId, status: "ACTIVE", size: 100 }).then((x) =>
@@ -112,8 +122,9 @@ export function FeeStructureFormPage() {
     if (v.totalFee <= 0 || v.minimumAmountForAdmission > v.totalFee)
       return toast.error("Check total and minimum fee amounts");
     try {
-      await api.createFeeStructure(v);
-      toast.success("Fee structure created");
+      if (id) await api.updateFeeStructure(Number(id), v);
+      else await api.createFeeStructure(v);
+      toast.success(id ? "Fee structure updated" : "Fee structure created");
       nav("/fee-structures");
     } catch (e) {
       toast.error(handleApiError(e).message);
@@ -122,13 +133,13 @@ export function FeeStructureFormPage() {
   return (
     <div className="page-container">
       <Card className="mx-auto max-w-4xl p-6">
-        <h1 className="page-title">Create Fee Structure</h1>
+        <h1 className="page-title">{id ? "Edit Fee Structure" : "Create Fee Structure"}</h1>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Input
             label="College ID"
             type="number"
             value={v.collegeId}
-            disabled={Boolean(user?.collegeId)}
+            disabled={Boolean(user?.collegeId) || Boolean(id)}
             onChange={(e) => set("collegeId", Number(e.target.value))}
           />
           <label className="text-sm font-semibold">
@@ -136,6 +147,7 @@ export function FeeStructureFormPage() {
             <select
               className="mt-2 h-10 w-full rounded-xl border px-3"
               value={v.departmentId}
+              disabled={Boolean(id)}
               onChange={(e) => set("departmentId", Number(e.target.value))}
             >
               <option value={0}>Select department</option>
@@ -149,6 +161,7 @@ export function FeeStructureFormPage() {
           <Input
             label="Academic Year"
             value={v.academicYear}
+            disabled={Boolean(id)}
             onChange={(e) => set("academicYear", e.target.value)}
           />
           <Input label="Title" value={v.title} onChange={(e) => set("title", e.target.value)} />
@@ -173,7 +186,7 @@ export function FeeStructureFormPage() {
           ))}
         </div>
         <Button className="mt-6" onClick={submit}>
-          Create Fee Structure
+          {id ? "Update Fee Structure" : "Create Fee Structure"}
         </Button>
       </Card>
     </div>

@@ -130,6 +130,7 @@ export function AppRouter() {
             <Route path={ROUTES.createFeeSectionStaff} element={<CreateFeeSectionStaffPage />} />
             <Route path={ROUTES.feeStructures} element={<FeeStructureListPage />} />
             <Route path="/fee-structures/create" element={<FeeStructureFormPage />} />
+            <Route path="/fee-structures/:id/edit" element={<FeeStructureFormPage />} />
             <Route path="/fee-structures/:id" element={<FeeStructureDetailsPage />} />
             <Route path={ROUTES.principalReviewReady} element={<PrincipalReviewQueuePage />} />
             <Route

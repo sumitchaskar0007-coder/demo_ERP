@@ -14,9 +14,9 @@ const get = <T>(url: string, params?: object) =>
   apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
 export const getAdminAnalytics = () => get<AdminAnalytics>("/api/super-admin/analytics");
 export const getCollections = (params?: object) =>
-  get<Row[]>("/api/super-admin/fees/collections", params);
+  get<PageResponse<Row>>("/api/super-admin/fees/collections", params);
 export const getPendingFees = (params?: object) =>
-  get<Row[]>("/api/super-admin/fees/pending", params);
+  get<PageResponse<Row>>("/api/super-admin/fees/pending", params);
 export const getCollectionSummary = () =>
   get<Record<string, number>>("/api/super-admin/fees/collection-summary");
 export const getPendingSummary = () =>
@@ -29,3 +29,7 @@ export const searchAdminFeeStructures = (params?: object) =>
   get<PageResponse<FeeStructureResponse>>("/api/super-admin/fee-structures/search", params);
 export const setAdminFeeStatus = (id: number, active: boolean) =>
   apiClient.patch(`/api/super-admin/fee-structures/${id}/${active ? "activate" : "deactivate"}`);
+export const updateAdminFeeStructure = (id: number, data: object) =>
+  apiClient.put<ApiResponse<FeeStructureResponse>>(`/api/super-admin/fee-structures/${id}`, data).then((r) => r.data.data);
+export const deleteAdminFeeStructure = (id: number) =>
+  apiClient.delete(`/api/super-admin/fee-structures/${id}`);

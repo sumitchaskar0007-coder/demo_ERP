@@ -32,6 +32,8 @@ export const updateFeeStructure = (id: number, v: UpdateFeeStructureRequest) =>
   apiClient
     .put<ApiResponse<FeeStructureResponse>>(`/api/principal/fee-structures/${id}`, v)
     .then(unwrap);
+export const deleteFeeStructure = (id: number) =>
+  apiClient.delete(`/api/principal/fee-structures/${id}`);
 export const setFeeStructureStatus = (id: number, s: FeeStructureStatus) =>
   apiClient
     .patch<
