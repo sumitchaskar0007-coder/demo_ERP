@@ -58,6 +58,23 @@ export const createPrincipalSchema = z.object({
     ),
 });
 
+export const updatePrincipalSchema = z.object({
+  phone: z.string().max(20).optional().default(""),
+  password: z.union([
+    z.literal(""),
+    z.string().min(8).max(100).regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
+      "Include uppercase, lowercase, number, and special character",
+    ),
+  ]),
+});
+
+export const updateOwnProfileSchema = z.object({
+  phone: z.string().max(20, "Phone cannot exceed 20 characters").optional().default(""),
+  address: z.string().max(500, "Address cannot exceed 500 characters").optional().default(""),
+  bio: z.string().max(500, "Bio cannot exceed 500 characters").optional().default(""),
+});
+
 export const publicAdmissionSchema = z.object({
   departmentId: z.coerce.number().positive("Department is required"),
   firstName: z.string().trim().min(2).max(80),

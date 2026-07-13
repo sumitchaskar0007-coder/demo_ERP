@@ -21,6 +21,7 @@ import { StudentAdmissionPage } from "@/features/student/StudentAdmissionPage";
 import { StudentDashboardPage } from "@/features/student/StudentDashboardPage";
 import { StudentProfilePage } from "@/features/student/StudentProfilePage";
 import { CreatePrincipalPage } from "@/features/users/CreatePrincipalPage";
+import { EditPrincipalPage } from "@/features/users/EditPrincipalPage";
 import { UserDetailsPage } from "@/features/users/UserDetailsPage";
 import { UserListPage } from "@/features/users/UserListPage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
@@ -54,6 +55,7 @@ export function AppRouter() {
             <Route path={ROUTES.users} element={<UserListPage />} />
             <Route path="/users/:id" element={<UserDetailsPage />} />
             <Route path={ROUTES.createPrincipal} element={<CreatePrincipalPage />} />
+            <Route path={ROUTES.editPrincipal} element={<EditPrincipalPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>

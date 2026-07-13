@@ -1,4 +1,4 @@
-import { FileText, UserRound, WalletCards, CalendarDays } from "lucide-react";
+import { ArrowRight, CalendarDays, FileText, GraduationCap, UserRound, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -19,26 +19,32 @@ export function StudentDashboardPage() {
   }, []);
   if (loading) return <Loader label="Loading student dashboard..." />;
   return (
-    <div className="page-container">
-      <div className="rounded-3xl bg-gradient-to-r from-brand-700 to-indigo-800 p-7 text-white">
-        <p className="text-blue-100">Student workspace</p>
-        <h1 className="mt-2 text-3xl font-bold">Welcome, {user?.fullName}</h1>
-        {admission && <p className="mt-2 text-blue-100">{admission.collegeName} - {admission.departmentName}</p>}
-      </div>
-      {admission && <Card className="mt-6 p-6"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-sm text-slate-500">Current admission status</p><div className="mt-2"><AdmissionStatusBadge status={admission.status} /></div><p className="mt-2 text-sm text-slate-500">{statusExplanation(admission.status)}</p></div><div className="text-sm text-slate-600"><p><b>Admission No:</b> {admission.admissionNumber}</p><p><b>Reference:</b> {admission.admissionReferenceNumber}</p></div></div></Card>}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <QuickCard to="/student/admission" icon={<FileText />} label="My Admission" />
-        <QuickCard to="/student/profile" icon={<UserRound />} label="My Profile" />
-        <DisabledCard icon={<WalletCards />} label="Fee Payment" />
-        <DisabledCard icon={<CalendarDays />} label="Attendance" />
+    <div className="page-container pb-10">
+      <div className="mb-6"><p className="text-xs font-semibold text-slate-400">Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Student</p><h1 className="mt-2 text-2xl font-bold">Student Dashboard</h1><p className="mt-1 text-sm text-slate-500">Your personal admission and profile workspace.</p></div>
+      <section className="erp-welcome-banner p-7 sm:p-9">
+        <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full border-[32px] border-blue-500/30" />
+        <div className="relative"><p className="text-sm text-blue-100">Student workspace</p><h2 className="mt-2 text-3xl font-bold">Welcome back, {user?.fullName?.split(" ")[0]}</h2>{admission && <p className="mt-3 text-sm text-blue-100">{admission.collegeName} · {admission.departmentName}</p>}</div>
+      </section>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.8fr]">
+        {admission && (
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between border-b px-6 py-5"><div><h2 className="font-bold">Admission overview</h2><p className="mt-1 text-xs text-slate-500">Your current application information</p></div><GraduationCap className="h-5 w-5 text-brand-600" /></div>
+            <div className="p-6">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Current status</p><div className="mt-3"><AdmissionStatusBadge status={admission.status} /></div><p className="mt-3 text-sm leading-6 text-slate-500">{statusExplanation(admission.status)}</p>
+              <div className="mt-6 grid gap-3 border-t pt-5 sm:grid-cols-2"><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-400">Admission number</p><p className="mt-1 font-semibold">{admission.admissionNumber}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-400">Reference number</p><p className="mt-1 font-semibold">{admission.admissionReferenceNumber}</p></div></div>
+            </div>
+          </Card>
+        )}
+        <Card className="overflow-hidden"><div className="border-b px-6 py-5"><h2 className="font-bold">Quick access</h2><p className="mt-1 text-xs text-slate-500">Open your available ERP services</p></div><div className="space-y-2 p-4"><QuickCard to="/student/admission" icon={<FileText />} label="My Admission" /><QuickCard to="/student/profile" icon={<UserRound />} label="My Profile" /><DisabledCard icon={<WalletCards />} label="Fee Payment" /><DisabledCard icon={<CalendarDays />} label="Attendance" /></div></Card>
       </div>
     </div>
   );
 }
 
 function QuickCard({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
-  return <Link to={to}><Card className="flex items-center gap-4 p-5 transition hover:border-brand-200 hover:bg-brand-50"><div className="text-brand-600">{icon}</div><b>{label}</b></Card></Link>;
+  return <Link to={to} className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-slate-50"><div className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-brand-600">{icon}</div><b className="flex-1 text-sm">{label}</b><ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-brand-600" /></Link>;
 }
 function DisabledCard({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return <Card className="flex cursor-not-allowed items-center gap-4 p-5 text-slate-400"><div>{icon}</div><b>{label}</b><span className="ml-auto text-xs font-bold uppercase">Soon</span></Card>;
+  return <div className="flex cursor-not-allowed items-center gap-3 rounded-xl p-3 text-slate-400"><div className="grid h-11 w-11 place-items-center rounded-xl bg-slate-50">{icon}</div><b className="flex-1 text-sm">{label}</b><span className="rounded bg-slate-100 px-2 py-1 text-[9px] font-bold uppercase">Soon</span></div>;
 }

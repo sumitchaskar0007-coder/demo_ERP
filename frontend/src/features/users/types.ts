@@ -8,6 +8,9 @@ export interface User {
   fullName: string;
   email: string;
   phone: string | null;
+  profileImageUrl: string | null;
+  address: string | null;
+  bio: string | null;
   status: EntityStatus;
   roles: string[];
   lastLoginAt: string | null;
@@ -19,6 +22,11 @@ export interface CreatePrincipalValues {
   collegeId: number;
   fullName: string;
   email: string;
+  phone: string;
+  password: string;
+}
+
+export interface UpdatePrincipalValues {
   phone: string;
   password: string;
 }

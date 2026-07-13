@@ -8,7 +8,7 @@ import {
 } from "react";
 import { authToken } from "@/lib/authToken";
 import * as authApi from "./api";
-import type { AuthUser, LoginRequest } from "./types";
+import type { AuthUser, LoginRequest, UpdateOwnProfileValues } from "./types";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -17,12 +17,22 @@ interface AuthContextValue {
   login: (request: LoginRequest) => Promise<AuthUser>;
   logout: () => void;
   refreshProfile: () => Promise<void>;
+  updateProfile: (request: UpdateOwnProfileValues) => Promise<AuthUser>;
+  uploadProfilePhoto: (file: File) => Promise<AuthUser>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<AuthUser | null>(() => authToken.getUser());
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const storedUser = authToken.getUser();
+    const storedToken = authToken.getToken();
+    if (!storedUser || !storedToken) {
+      authToken.clear();
+      return null;
+    }
+    return storedUser;
+  });
 
   const login = useCallback(async (request: LoginRequest) => {
     const response = await authApi.login(request);
@@ -43,6 +53,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(profile);
   }, []);
 
+  const updateProfile = useCallback(async (request: UpdateOwnProfileValues) => {
+    const profile = await authApi.updateProfile(request);
+    const token = authToken.getToken();
+    if (token) authToken.setSession(token, profile);
+    setUser(profile);
+    return profile;
+  }, []);
+
+  const uploadProfilePhoto = useCallback(async (file: File) => {
+    const profile = await authApi.uploadProfilePhoto(file);
+    const token = authToken.getToken();
+    if (token) authToken.setSession(token, profile);
+    setUser(profile);
+    return profile;
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -51,8 +77,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       login,
       logout,
       refreshProfile,
+      updateProfile,
+      uploadProfilePhoto,
     }),
-    [login, logout, refreshProfile, user],
+    [login, logout, refreshProfile, updateProfile, uploadProfilePhoto, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

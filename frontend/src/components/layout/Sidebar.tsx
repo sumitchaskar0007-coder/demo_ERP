@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/features/auth/authStore";
-import { APP_NAME, ROLES, ROUTES } from "@/lib/constants";
+import { BrandLogo } from "@/components/common/BrandLogo";
+import { ROLES, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -85,12 +86,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       : futureItems;
 
   return (
-    <aside className={cn("flex h-full flex-col border-r bg-white transition-all", !mobile && (collapsed ? "w-20" : "w-64"))}>
-      <div className={cn("flex h-20 items-center border-b px-5", collapsed && !mobile ? "justify-center" : "gap-3")}>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-indigo-700 text-white shadow-lg shadow-blue-200">
-          <GraduationCap className="h-6 w-6" />
-        </div>
-        {(!collapsed || mobile) && <div><p className="font-bold text-slate-900">{APP_NAME}</p><p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">College Management</p></div>}
+    <aside className={cn("flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300", !mobile && (collapsed ? "w-20" : "w-64"))}>
+      <div className={cn("flex h-20 items-center border-b border-slate-100 px-5", collapsed && !mobile ? "justify-center" : "gap-3")}>
+        {collapsed && !mobile ? <BrandLogo compact /> : <BrandLogo className="w-[185px]" />}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">
         <p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400", collapsed && !mobile && "sr-only")}>{sectionLabel}</p>
@@ -102,8 +100,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               onClick={onNavigate}
               title={collapsed && !mobile ? label : undefined}
               className={({ isActive }) => cn(
-                "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition",
-                isActive ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition",
+                isActive ? "bg-[#eef1ff] text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                 collapsed && !mobile && "justify-center",
               )}
             >
@@ -124,7 +122,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         </div>
       </div>
       {!mobile && (
-        <button onClick={onToggle} className="flex h-12 items-center justify-center border-t text-slate-400 hover:bg-slate-50 hover:text-slate-700" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+        <button onClick={onToggle} className="flex h-12 items-center justify-center border-t border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-slate-700" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <><ChevronLeft className="mr-2 h-5 w-5" /><span className="text-sm">Collapse</span></>}
         </button>
       )}

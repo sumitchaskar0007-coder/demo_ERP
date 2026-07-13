@@ -41,6 +41,15 @@ public class User extends BaseAuditEntity {
     @Column(length = 20)
     private String phone;
 
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
+
+    @Column(length = 500)
+    private String address;
+
+    @Column(length = 500)
+    private String bio;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -67,6 +76,12 @@ public class User extends BaseAuditEntity {
     public void setEmail(String email) { this.email = email; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getProfileImageUrl() { return profileImageUrl; }
+    public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public UserStatus getStatus() { return status; }

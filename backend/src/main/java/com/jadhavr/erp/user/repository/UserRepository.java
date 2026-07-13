@@ -14,4 +14,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     List<User> findByCollegeId(Long collegeId);
     boolean existsByCollegeIdAndRolesNameAndStatus(
             Long collegeId, RoleName roleName, UserStatus status);
+    boolean existsByCollegeIdAndRolesNameAndStatusAndIdNot(
+            Long collegeId, RoleName roleName, UserStatus status, Long id);
 }
