@@ -17,6 +17,52 @@ export type AdmissionAction =
   | "STATUS_UPDATED";
 
 export type StudentCategory = "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
+export interface AcademicRecord {
+  qualification: "10TH" | "12TH" | "DIPLOMA" | "GRADUATION";
+  instituteName?: string | null;
+  boardUniversity?: string | null;
+  yearOfPassing?: string | null;
+  marksPercentage?: number | null;
+}
+
+export interface DetailedAdmissionRequest {
+  fullName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: string;
+  placeOfBirth: string;
+  maritalStatus: string;
+  aadhaarNumber: string;
+  apaarId?: string;
+  nationality: string;
+  religion: string;
+  caste: string;
+  studentCategory: StudentCategory;
+  parentName: string;
+  parentPhone: string;
+  parentEmail?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  pincode: string;
+  state: string;
+  permanentPhone?: string;
+  permanentEmail?: string;
+  correspondenceAddress: string;
+  correspondenceCity: string;
+  correspondencePincode: string;
+  correspondenceState: string;
+  correspondencePhone?: string;
+  correspondenceMobile?: string;
+  correspondenceEmail?: string;
+  academicRecords: AcademicRecord[];
+  qualifyingEntranceSeatNumber?: string;
+  qualifyingEntranceTotalScore?: number;
+  lastGraduationCollegeName?: string;
+  lastGraduationCollegeAddress?: string;
+}
+
 
 export interface AdmissionDepartmentOptionResponse {
   id: number;
@@ -118,6 +164,30 @@ export interface StudentSectionAdmissionResponse extends AdmissionResponse {
   lastPrintedAt?: string | null;
   lastPrintedByName?: string | null;
   printCount: number;
+  photoAvailable: boolean;
+  placeOfBirth?: string | null;
+  maritalStatus?: string | null;
+  aadhaarNumber?: string | null;
+  apaarId?: string | null;
+  nationality?: string | null;
+  religion?: string | null;
+  caste?: string | null;
+  permanentPhone?: string | null;
+  permanentEmail?: string | null;
+  correspondenceAddress?: string | null;
+  correspondenceCity?: string | null;
+  correspondencePincode?: string | null;
+  correspondenceState?: string | null;
+  correspondencePhone?: string | null;
+  correspondenceMobile?: string | null;
+  correspondenceEmail?: string | null;
+  academicRecords: AcademicRecord[];
+  qualifyingEntranceSeatNumber?: string | null;
+  qualifyingEntranceTotalScore?: number | null;
+  lastGraduationCollegeName?: string | null;
+  lastGraduationCollegeAddress?: string | null;
+  detailsCompletedAt?: string | null;
+  principalApprovedAt?: string | null;
 }
 export interface AdmissionStatusHistoryResponse {
   id: number;

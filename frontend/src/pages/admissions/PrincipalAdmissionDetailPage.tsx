@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
+import { Button } from "@/components/common/Button";
+import { Textarea } from "@/components/common/Textarea";
 import { Loader } from "@/components/common/Loader";
 import { handleApiError } from "@/lib/handleApiError";
 import { formatDate } from "@/lib/utils";
@@ -10,6 +12,7 @@ import {
   DetailSection,
   HistoryTimeline,
 } from "@/components/admissions/components";
+import { DetailedAdmissionView } from "@/components/admissions/DetailedAdmissionForm";
 import * as api from "@/features/admissions/api";
 import type {
   AdmissionStatusHistoryResponse,
@@ -22,6 +25,9 @@ export function PrincipalAdmissionDetailPage() {
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [history, setHistory] = useState<AdmissionStatusHistoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
+  const [remarks, setRemarks] = useState("");
+  const [saving, setSaving] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -41,6 +47,29 @@ export function PrincipalAdmissionDetailPage() {
     load();
   }, [load]);
   if (loading) return <Loader label="Loading principal admission detail..." />;
+  const decide = async () => {
+    if (!decision) return;
+    if (decision === "reject" && remarks.trim().length < 5) {
+      toast.error("Rejection reason must contain at least 5 characters");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (decision === "approve") {
+        await api.principalApproveAdmission(id, remarks.trim() || undefined);
+      } else {
+        await api.principalRejectAdmission(id, remarks.trim());
+      }
+      toast.success(decision === "approve" ? "Admission approved" : "Admission rejected");
+      setDecision(null);
+      setRemarks("");
+      await load();
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
   if (!admission) return null;
   return (
     <div className="page-container space-y-5">
@@ -54,10 +83,31 @@ export function PrincipalAdmissionDetailPage() {
           </div>
           <AdmissionStatusBadge status={admission.status} />
         </div>
-        <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-          Final approval will be available in the next module.
-        </p>
+        {admission.status === "PRINCIPAL_REVIEW_PENDING" && (
+          <div className="mt-5 space-y-3">
+            <div className="flex gap-2">
+              <Button onClick={() => setDecision("approve")}>Approve admission</Button>
+              <Button variant="danger" onClick={() => setDecision("reject")}>Reject admission</Button>
+            </div>
+            {decision && (
+              <div className="max-w-xl rounded-xl border bg-slate-50 p-4">
+                <Textarea
+                  label={decision === "approve" ? "Approval remarks (optional)" : "Rejection reason"}
+                  value={remarks}
+                  onChange={(event) => setRemarks(event.target.value)}
+                />
+                <div className="mt-3 flex gap-2">
+                  <Button variant={decision === "reject" ? "danger" : "primary"} loading={saving} onClick={decide}>
+                    Confirm {decision}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setDecision(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
+      <DetailedAdmissionView admission={admission} principal />
       <DetailSection
         title="Admission"
         rows={[

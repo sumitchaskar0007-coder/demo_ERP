@@ -130,3 +130,48 @@ export async function getPrincipalAdmissionHistory(id: number) {
   );
   return data.data;
 }
+export async function updateAdmissionDetails(
+  id: number,
+  values: import("./types").DetailedAdmissionRequest,
+) {
+  const { data } = await apiClient.put<ApiResponse<StudentSectionAdmissionResponse>>(
+    `/api/student-section/admissions/${id}/details`,
+    values,
+  );
+  return data.data;
+}
+
+export async function uploadAdmissionPhoto(id: number, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
+    `/api/student-section/admissions/${id}/photo`,
+    body,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data.data;
+}
+
+export async function getAdmissionPhoto(id: number, principal = false) {
+  const prefix = principal ? "/api/principal/admissions" : "/api/student-section/admissions";
+  const response = await apiClient.get<Blob>(`${prefix}/${id}/photo`, {
+    responseType: "blob",
+  });
+  return URL.createObjectURL(response.data);
+}
+
+export async function principalApproveAdmission(id: number, remarks?: string) {
+  const { data } = await apiClient.patch<ApiResponse<AdmissionResponse>>(
+    `/api/principal/final-admissions/${id}/approve`,
+    { remarks },
+  );
+  return data.data;
+}
+
+export async function principalRejectAdmission(id: number, rejectionReason: string) {
+  const { data } = await apiClient.patch<ApiResponse<AdmissionResponse>>(
+    `/api/principal/final-admissions/${id}/reject`,
+    { rejectionReason },
+  );
+  return data.data;
+}

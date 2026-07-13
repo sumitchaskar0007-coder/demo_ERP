@@ -36,6 +36,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -104,6 +105,8 @@ class StudentSectionAdmissionServiceImplTest {
     @Test
     void approveUpdatesAdmissionProfileAndHistory() {
         AdmissionForm admission = admission(100L, 1L, AdmissionStatus.SUBMITTED);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        admission.setPhotoStorageName("student-photo.jpg");
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
         when(admissions.save(admission)).thenReturn(admission);
         when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));

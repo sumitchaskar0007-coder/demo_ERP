@@ -34,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import java.util.List;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
@@ -82,8 +83,8 @@ class FeeServiceImplTest {
         structure.setTotalFee(new BigDecimal("12000.00"));
         structure.setMinimumAmountForAdmission(new BigDecimal("2000.00"));
         when(accounts.existsByAdmissionFormId(40L)).thenReturn(false);
-        when(structures.findByCollegeIdAndDepartmentIdAndAcademicYearAndStudentCategoryAndStatus(
-                1L, 10L, "2026-2027", StudentCategory.SC, FeeStructureStatus.ACTIVE))
+        when(structures.findFirstByCollegeIdAndDepartmentIdAndAcademicYearInAndStudentCategoryAndStatus(
+                1L, 10L, List.of("2026-2027", "2026-27"), StudentCategory.SC, FeeStructureStatus.ACTIVE))
                 .thenReturn(Optional.of(structure));
 
         service.createAccountForAdmission(admission);

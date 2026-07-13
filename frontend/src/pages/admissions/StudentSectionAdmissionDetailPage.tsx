@@ -18,6 +18,7 @@ import {
   rejectAdmissionSchema,
 } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
+import { DetailedAdmissionForm, DetailedAdmissionView } from "@/components/admissions/DetailedAdmissionForm";
 import {
   AdmissionStatusBadge,
   DetailSection,
@@ -66,6 +67,7 @@ export function StudentSectionAdmissionDetailPage() {
   if (loading) return <Loader label="Loading admission detail..." />;
   if (!admission) return null;
   const canVerify = ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(admission.status);
+  const canApprove = canVerify && Boolean(admission.detailsCompletedAt) && admission.photoAvailable;
   return (
     <div className="page-container space-y-5">
       <Card className="p-6">
@@ -84,7 +86,7 @@ export function StudentSectionAdmissionDetailPage() {
               Start Review
             </Button>
           )}
-          {canVerify && <Button onClick={() => setModal("approve")}>Approve</Button>}
+          {canApprove && <Button onClick={() => setModal("approve")}>Approve</Button>}
           {canVerify && (
             <Button variant="danger" onClick={() => setModal("reject")}>
               Reject
@@ -105,6 +107,11 @@ export function StudentSectionAdmissionDetailPage() {
           )}
         </div>
       </Card>
+      {canVerify ? (
+        <DetailedAdmissionForm admission={admission} onSaved={load} />
+      ) : (
+        <DetailedAdmissionView admission={admission} />
+      )}
       <DetailSection
         title="Admission"
         rows={[

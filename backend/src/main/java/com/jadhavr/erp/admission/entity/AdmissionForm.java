@@ -9,6 +9,9 @@ import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.user.entity.User;
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -23,6 +26,8 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "admission_forms")
@@ -114,6 +119,75 @@ public class AdmissionForm extends BaseAuditEntity {
 
     @Column(precision = 5, scale = 2)
     private BigDecimal previousPercentage;
+    @Column(length = 180)
+    private String photoStorageName;
+
+    @Column(length = 120)
+    private String placeOfBirth;
+
+    @Column(length = 30)
+    private String maritalStatus;
+
+    @Column(length = 12, unique = true)
+    private String aadhaarNumber;
+
+    @Column(length = 30)
+    private String apaarId;
+
+    @Column(length = 80)
+    private String nationality;
+
+    @Column(length = 80)
+    private String religion;
+
+    @Column(length = 100)
+    private String caste;
+
+    @Column(length = 20)
+    private String permanentPhone;
+
+    @Column(length = 150)
+    private String permanentEmail;
+
+    @Column(length = 500)
+    private String correspondenceAddress;
+
+    @Column(length = 100)
+    private String correspondenceCity;
+
+    @Column(length = 10)
+    private String correspondencePincode;
+
+    @Column(length = 100)
+    private String correspondenceState;
+
+    @Column(length = 20)
+    private String correspondencePhone;
+
+    @Column(length = 20)
+    private String correspondenceMobile;
+
+    @Column(length = 150)
+    private String correspondenceEmail;
+
+    @Column(length = 80)
+    private String qualifyingEntranceSeatNumber;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal qualifyingEntranceTotalScore;
+
+    @Column(length = 200)
+    private String lastGraduationCollegeName;
+
+    @Column(length = 500)
+    private String lastGraduationCollegeAddress;
+
+    private LocalDateTime detailsCompletedAt;
+
+    @ElementCollection
+    @CollectionTable(name = "admission_academic_records", joinColumns = @JoinColumn(name = "admission_form_id"))
+    @OrderColumn(name = "record_order")
+    private List<AdmissionAcademicRecord> academicRecords = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -228,4 +302,50 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setLastPrintedBy(User lastPrintedBy) { this.lastPrintedBy = lastPrintedBy; }
     public Integer getPrintCount() { return printCount; }
     public void setPrintCount(Integer printCount) { this.printCount = printCount; }
+    public String getPhotoStorageName() { return photoStorageName; }
+    public void setPhotoStorageName(String photoStorageName) { this.photoStorageName = photoStorageName; }
+    public String getPlaceOfBirth() { return placeOfBirth; }
+    public void setPlaceOfBirth(String placeOfBirth) { this.placeOfBirth = placeOfBirth; }
+    public String getMaritalStatus() { return maritalStatus; }
+    public void setMaritalStatus(String maritalStatus) { this.maritalStatus = maritalStatus; }
+    public String getAadhaarNumber() { return aadhaarNumber; }
+    public void setAadhaarNumber(String aadhaarNumber) { this.aadhaarNumber = aadhaarNumber; }
+    public String getApaarId() { return apaarId; }
+    public void setApaarId(String apaarId) { this.apaarId = apaarId; }
+    public String getNationality() { return nationality; }
+    public void setNationality(String nationality) { this.nationality = nationality; }
+    public String getReligion() { return religion; }
+    public void setReligion(String religion) { this.religion = religion; }
+    public String getCaste() { return caste; }
+    public void setCaste(String caste) { this.caste = caste; }
+    public String getPermanentPhone() { return permanentPhone; }
+    public void setPermanentPhone(String permanentPhone) { this.permanentPhone = permanentPhone; }
+    public String getPermanentEmail() { return permanentEmail; }
+    public void setPermanentEmail(String permanentEmail) { this.permanentEmail = permanentEmail; }
+    public String getCorrespondenceAddress() { return correspondenceAddress; }
+    public void setCorrespondenceAddress(String correspondenceAddress) { this.correspondenceAddress = correspondenceAddress; }
+    public String getCorrespondenceCity() { return correspondenceCity; }
+    public void setCorrespondenceCity(String correspondenceCity) { this.correspondenceCity = correspondenceCity; }
+    public String getCorrespondencePincode() { return correspondencePincode; }
+    public void setCorrespondencePincode(String correspondencePincode) { this.correspondencePincode = correspondencePincode; }
+    public String getCorrespondenceState() { return correspondenceState; }
+    public void setCorrespondenceState(String correspondenceState) { this.correspondenceState = correspondenceState; }
+    public String getCorrespondencePhone() { return correspondencePhone; }
+    public void setCorrespondencePhone(String correspondencePhone) { this.correspondencePhone = correspondencePhone; }
+    public String getCorrespondenceMobile() { return correspondenceMobile; }
+    public void setCorrespondenceMobile(String correspondenceMobile) { this.correspondenceMobile = correspondenceMobile; }
+    public String getCorrespondenceEmail() { return correspondenceEmail; }
+    public void setCorrespondenceEmail(String correspondenceEmail) { this.correspondenceEmail = correspondenceEmail; }
+    public String getQualifyingEntranceSeatNumber() { return qualifyingEntranceSeatNumber; }
+    public void setQualifyingEntranceSeatNumber(String qualifyingEntranceSeatNumber) { this.qualifyingEntranceSeatNumber = qualifyingEntranceSeatNumber; }
+    public BigDecimal getQualifyingEntranceTotalScore() { return qualifyingEntranceTotalScore; }
+    public void setQualifyingEntranceTotalScore(BigDecimal qualifyingEntranceTotalScore) { this.qualifyingEntranceTotalScore = qualifyingEntranceTotalScore; }
+    public String getLastGraduationCollegeName() { return lastGraduationCollegeName; }
+    public void setLastGraduationCollegeName(String lastGraduationCollegeName) { this.lastGraduationCollegeName = lastGraduationCollegeName; }
+    public String getLastGraduationCollegeAddress() { return lastGraduationCollegeAddress; }
+    public void setLastGraduationCollegeAddress(String lastGraduationCollegeAddress) { this.lastGraduationCollegeAddress = lastGraduationCollegeAddress; }
+    public LocalDateTime getDetailsCompletedAt() { return detailsCompletedAt; }
+    public void setDetailsCompletedAt(LocalDateTime detailsCompletedAt) { this.detailsCompletedAt = detailsCompletedAt; }
+    public List<AdmissionAcademicRecord> getAcademicRecords() { return academicRecords; }
+    public void setAcademicRecords(List<AdmissionAcademicRecord> academicRecords) { this.academicRecords = academicRecords; }
 }

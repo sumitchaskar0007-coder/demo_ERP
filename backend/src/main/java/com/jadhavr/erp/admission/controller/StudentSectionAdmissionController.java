@@ -6,18 +6,26 @@ import com.jadhavr.erp.admission.dto.MarkAdmissionPrintedRequest;
 import com.jadhavr.erp.admission.dto.RejectAdmissionRequest;
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.dto.VerifyAdmissionRequest;
+import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.admission.service.AdmissionPhotoService;
 import com.jadhavr.erp.admission.service.StudentSectionAdmissionService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -25,9 +33,13 @@ import java.util.List;
 @RequestMapping("/api/student-section/admissions")
 public class StudentSectionAdmissionController {
     private final StudentSectionAdmissionService admissionService;
+    private final AdmissionPhotoService photoService;
 
-    public StudentSectionAdmissionController(StudentSectionAdmissionService admissionService) {
+    public StudentSectionAdmissionController(
+            StudentSectionAdmissionService admissionService,
+            AdmissionPhotoService photoService) {
         this.admissionService = admissionService;
+        this.photoService = photoService;
     }
 
     @GetMapping
@@ -59,6 +71,15 @@ public class StudentSectionAdmissionController {
         return ApiResponse.success(
                 "Admission review started successfully",
                 admissionService.startReview(admissionId)
+        );
+    }
+    @PutMapping("/{admissionId}/details")
+    public ApiResponse<StudentSectionAdmissionResponse> updateDetails(
+            @PathVariable Long admissionId,
+            @Valid @RequestBody DetailedAdmissionRequest request) {
+        return ApiResponse.success(
+                "Detailed admission form saved successfully",
+                admissionService.updateDetails(admissionId, request)
         );
     }
 
@@ -107,4 +128,19 @@ public class StudentSectionAdmissionController {
                 admissionService.markAdmissionPrinted(admissionId, request)
         );
     }
+    @PostMapping(path = "/{admissionId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<StudentSectionAdmissionResponse> uploadPhoto(
+            @PathVariable Long admissionId, @RequestParam("file") MultipartFile file) {
+        photoService.save(admissionId, file);
+        return ApiResponse.success(
+                "Student photo uploaded successfully",
+                admissionService.getAdmissionForStudentSection(admissionId));
+    }
+
+    @GetMapping("/{admissionId}/photo")
+    public ResponseEntity<Resource> getPhoto(@PathVariable Long admissionId) {
+        var photo = photoService.load(admissionId);
+        return ResponseEntity.ok().contentType(photo.mediaType()).body(photo.resource());
+    }
+
 }
