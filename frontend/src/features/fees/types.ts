@@ -51,6 +51,7 @@ export interface StudentFeeAccountResponse {
   departmentName: string;
   departmentCode: string;
   academicYear: string;
+  studentCategory: "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
   totalFee: number;
   paidAmount: number;
   remainingAmount: number;

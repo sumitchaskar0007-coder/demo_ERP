@@ -1,6 +1,7 @@
 package com.jadhavr.erp.fee.repository;
 
 import com.jadhavr.erp.fee.dto.CollegeAmountPoint;
+import com.jadhavr.erp.fee.dto.FeeBalanceTotals;
 import com.jadhavr.erp.fee.dto.PendingFeeRow;
 import com.jadhavr.erp.fee.dto.PendingFeeSummary;
 import com.jadhavr.erp.fee.entity.StudentFeeAccount;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,6 +22,12 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
         JpaSpecificationExecutor<StudentFeeAccount> {
 
     Optional<StudentFeeAccount> findTopByStudentUserIdOrderByCreatedAtDesc(Long id);
+
+    Optional<StudentFeeAccount> findTopByStudentIdOrderByCreatedAtDesc(Long id);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from StudentFeeAccount a where a.id = :id")
+    Optional<StudentFeeAccount> findByIdForUpdate(@Param("id") Long id);
 
     Optional<StudentFeeAccount> findByAdmissionFormId(Long id);
 
@@ -34,6 +42,23 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
 
     @Query("select coalesce(sum(a.remainingAmount), 0) from StudentFeeAccount a")
     BigDecimal sumRemainingAmount();
+
+    @Query("""
+            select new com.jadhavr.erp.fee.dto.FeeBalanceTotals(
+                coalesce(sum(a.paidAmount), 0),
+                coalesce(sum(a.remainingAmount), 0))
+            from StudentFeeAccount a
+            """)
+    FeeBalanceTotals balanceTotals();
+
+    @Query("""
+            select new com.jadhavr.erp.fee.dto.FeeBalanceTotals(
+                coalesce(sum(a.paidAmount), 0),
+                coalesce(sum(a.remainingAmount), 0))
+            from StudentFeeAccount a
+            where a.college.id = :collegeId
+            """)
+    FeeBalanceTotals balanceTotalsByCollegeId(@Param("collegeId") Long collegeId);
 
     @Query("""
             select new com.jadhavr.erp.fee.dto.PendingFeeSummary(
@@ -60,7 +85,7 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
                 a.student.admissionNumber,
                 a.college.name,
                 a.department.name,
-                a.feeStructure.studentCategory,
+                a.studentCategory,
                 a.totalFee,
                 a.paidAmount,
                 a.remainingAmount)
@@ -69,7 +94,7 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
               and (:collegeId is null or a.college.id = :collegeId)
               and (:departmentId is null or a.department.id = :departmentId)
               and (:academicYear is null or a.academicYear = :academicYear)
-              and (:studentCategory is null or a.feeStructure.studentCategory = :studentCategory)
+              and (:studentCategory is null or a.studentCategory = :studentCategory)
             """, countQuery = """
             select count(a.id)
             from StudentFeeAccount a
@@ -77,7 +102,7 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
               and (:collegeId is null or a.college.id = :collegeId)
               and (:departmentId is null or a.department.id = :departmentId)
               and (:academicYear is null or a.academicYear = :academicYear)
-              and (:studentCategory is null or a.feeStructure.studentCategory = :studentCategory)
+              and (:studentCategory is null or a.studentCategory = :studentCategory)
             """)
     Page<PendingFeeRow> findPendingFees(
             @Param("collegeId") Long collegeId,

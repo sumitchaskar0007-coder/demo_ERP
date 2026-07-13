@@ -34,6 +34,7 @@ export function PublicAdmissionPage() {
     resolver: zodResolver(publicAdmissionSchema),
     defaultValues: {
       gender: "",
+      studentCategory: "OPEN",
       middleName: "",
       addressLine1: "",
       addressLine2: "",
@@ -152,6 +153,21 @@ export function PublicAdmissionPage() {
             />
           </FormSection>
           <FormSection title="Student Basic Details">
+            <Select
+              label="Student category"
+              options={[
+                { label: "Open", value: "OPEN" },
+                { label: "OBC", value: "OBC" },
+                { label: "SC", value: "SC" },
+                { label: "ST", value: "ST" },
+                { label: "SBC", value: "SBC" },
+                { label: "VJNT", value: "VJNT" },
+                { label: "EWS", value: "EWS" },
+                { label: "Other", value: "OTHER" },
+              ]}
+              error={errors.studentCategory?.message}
+              {...register("studentCategory")}
+            />
             <Input
               label="First name"
               error={errors.firstName?.message}

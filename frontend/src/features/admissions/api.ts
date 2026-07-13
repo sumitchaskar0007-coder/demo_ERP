@@ -68,7 +68,10 @@ export async function startAdmissionReview(id: number) {
   );
   return data.data;
 }
-export async function approveAdmission(id: number, values: { remarks?: string }) {
+export async function approveAdmission(
+  id: number,
+  values: { studentCategory: import("./types").StudentCategory; remarks?: string },
+) {
   const { data } = await apiClient.patch<ApiResponse<StudentSectionAdmissionResponse>>(
     `/api/student-section/admissions/${id}/approve`,
     values,

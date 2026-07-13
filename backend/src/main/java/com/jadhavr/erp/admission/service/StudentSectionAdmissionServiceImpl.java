@@ -118,6 +118,11 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         ensureVerifiable(admission, "approve");
         AdmissionStatus oldStatus = admission.getStatus();
         User currentUser = currentUserEntity();
+        if (request.studentCategory() == null) {
+            throw new BadRequestException("Student category must be verified before approval");
+        }
+        admission.setStudentCategory(request.studentCategory());
+        admission.getStudent().setStudentCategory(request.studentCategory());
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_APPROVED);
         admission.setStudentSectionVerifiedAt(LocalDateTime.now());
         admission.setStudentSectionVerifiedBy(currentUser);

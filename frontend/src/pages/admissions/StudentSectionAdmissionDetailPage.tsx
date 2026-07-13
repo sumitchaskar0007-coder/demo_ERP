@@ -9,6 +9,7 @@ import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
 import { Modal } from "@/components/common/Modal";
+import { Select } from "@/components/common/Select";
 import { Textarea } from "@/components/common/Textarea";
 import { handleApiError } from "@/lib/handleApiError";
 import {
@@ -110,6 +111,7 @@ export function StudentSectionAdmissionDetailPage() {
           ["College", admission.collegeName],
           ["Department", admission.departmentName],
           ["Academic Year", admission.academicYear],
+          ["Requested Category", admission.studentCategory],
           ["Submitted", formatDate(admission.submittedAt)],
         ]}
       />
@@ -153,7 +155,13 @@ export function StudentSectionAdmissionDetailPage() {
         ]}
       />
       <HistoryTimeline history={history} />
-      <ActionModal modal={modal} onClose={() => setModal(null)} id={id} reload={load} />
+      <ActionModal
+        modal={modal}
+        onClose={() => setModal(null)}
+        id={id}
+        requestedCategory={admission.studentCategory}
+        reload={load}
+      />
     </div>
   );
 }
@@ -162,16 +170,18 @@ function ActionModal({
   modal,
   onClose,
   id,
+  requestedCategory,
   reload,
 }: {
   modal: "approve" | "reject" | "printed" | null;
   onClose: () => void;
   id: number;
+  requestedCategory: StudentSectionAdmissionResponse["studentCategory"];
   reload: () => Promise<void>;
 }) {
   const approveForm = useForm<z.infer<typeof approveAdmissionSchema>>({
     resolver: zodResolver(approveAdmissionSchema),
-    defaultValues: { remarks: "" },
+    defaultValues: { studentCategory: requestedCategory, remarks: "" },
   });
   const rejectForm = useForm<z.infer<typeof rejectAdmissionSchema>>({
     resolver: zodResolver(rejectAdmissionSchema),
@@ -183,7 +193,11 @@ function ActionModal({
   });
   const submit = async (values: Record<string, string>) => {
     try {
-      if (modal === "approve") await api.approveAdmission(id, values);
+      if (modal === "approve")
+        await api.approveAdmission(id, {
+          studentCategory: values.studentCategory as StudentSectionAdmissionResponse["studentCategory"],
+          remarks: values.remarks,
+        });
       if (modal === "reject")
         await api.rejectAdmission(id, { rejectionReason: values.rejectionReason });
       if (modal === "printed") await api.markAdmissionPrinted(id, values);
@@ -208,6 +222,21 @@ function ActionModal({
     >
       {modal === "approve" && (
         <form onSubmit={approveForm.handleSubmit(submit)} className="space-y-4">
+          <Select
+            label="Verified student category"
+            options={[
+              { label: "Open", value: "OPEN" },
+              { label: "OBC", value: "OBC" },
+              { label: "SC", value: "SC" },
+              { label: "ST", value: "ST" },
+              { label: "SBC", value: "SBC" },
+              { label: "VJNT", value: "VJNT" },
+              { label: "EWS", value: "EWS" },
+              { label: "Other", value: "OTHER" },
+            ]}
+            {...approveForm.register("studentCategory")}
+            error={approveForm.formState.errors.studentCategory?.message}
+          />
           <Textarea
             label="Remarks"
             {...approveForm.register("remarks")}

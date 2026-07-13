@@ -16,6 +16,8 @@ export type AdmissionAction =
   | "ADMISSION_FORM_PRINTED"
   | "STATUS_UPDATED";
 
+export type StudentCategory = "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
+
 export interface AdmissionDepartmentOptionResponse {
   id: number;
   name: string;
@@ -36,6 +38,7 @@ export interface PublicAdmissionInfoResponse {
 }
 export interface SubmitAdmissionRequest {
   departmentId: number;
+  studentCategory: StudentCategory;
   firstName: string;
   middleName?: string;
   lastName: string;
@@ -82,6 +85,7 @@ export interface AdmissionResponse {
   departmentName: string;
   departmentCode: string;
   academicYear: string;
+  studentCategory: StudentCategory;
   fullName: string;
   email: string;
   phone: string;

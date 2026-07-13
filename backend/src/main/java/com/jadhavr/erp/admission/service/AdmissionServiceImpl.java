@@ -167,6 +167,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         profile.setCollege(college);
         profile.setDepartment(department);
         profile.setAdmissionNumber(generateAdmissionNumber(college.getCode()));
+        profile.setStudentCategory(request.studentCategory());
         copyStudentFields(profile, request, fullName, email);
         profile.setStatus(StudentStatus.ADMISSION_SUBMITTED);
         StudentProfile savedProfile = studentProfileRepository.save(profile);
@@ -179,6 +180,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         admissionForm.setStudent(savedProfile);
         admissionForm.setStudentUser(savedUser);
         admissionForm.setAcademicYear(academicYear());
+        admissionForm.setStudentCategory(request.studentCategory());
         copyAdmissionFields(admissionForm, request, fullName, email);
         admissionForm.setStatus(AdmissionStatus.SUBMITTED);
         admissionForm.setSource(AdmissionSource.PUBLIC_LINK);

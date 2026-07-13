@@ -68,6 +68,7 @@ export function StudentSectionAdmissionListPage() {
       if (action.type === "start") await api.startAdmissionReview(action.admission.id);
       else
         await api.approveAdmission(action.admission.id, {
+          studentCategory: action.admission.studentCategory,
           remarks: "Student data verified successfully",
         });
       toast.success("Admission updated");
@@ -199,7 +200,9 @@ export function StudentSectionAdmissionListPage() {
         onConfirm={runAction}
         loading={actionLoading}
         title={`${action?.type === "start" ? "Start review" : "Approve admission"}?`}
-        description="This will record a status history entry."
+        description={action?.type === "approve"
+          ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
+          : "This will record a status history entry."}
         confirmLabel={action?.type === "start" ? "Start Review" : "Approve"}
       />
     </div>

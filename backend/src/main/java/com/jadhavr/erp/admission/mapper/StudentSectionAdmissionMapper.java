@@ -18,6 +18,7 @@ public class StudentSectionAdmissionMapper {
                 admission.getDepartment().getName(),
                 admission.getDepartment().getCode(),
                 admission.getAcademicYear(),
+                admission.getStudentCategory(),
                 admission.getFullName(),
                 admission.getEmail(),
                 admission.getPhone(),

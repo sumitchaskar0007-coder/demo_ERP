@@ -3,6 +3,7 @@ package com.jadhavr.erp.student.entity;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.User;
 import jakarta.persistence.Column;
@@ -43,6 +44,10 @@ public class StudentProfile extends BaseAuditEntity {
 
     @Column(name = "admission_number", nullable = false, unique = true, length = 40)
     private String admissionNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'OPEN'")
+    private StudentCategory studentCategory = StudentCategory.OPEN;
 
     @Column(nullable = false, length = 80)
     private String firstName;
@@ -112,6 +117,8 @@ public class StudentProfile extends BaseAuditEntity {
     public void setDepartment(Department department) { this.department = department; }
     public String getAdmissionNumber() { return admissionNumber; }
     public void setAdmissionNumber(String admissionNumber) { this.admissionNumber = admissionNumber; }
+    public StudentCategory getStudentCategory() { return studentCategory; }
+    public void setStudentCategory(StudentCategory studentCategory) { this.studentCategory = studentCategory; }
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getMiddleName() { return middleName; }

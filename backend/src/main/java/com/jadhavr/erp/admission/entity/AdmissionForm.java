@@ -5,6 +5,7 @@ import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.user.entity.User;
 import jakarta.persistence.Column;
@@ -52,6 +53,10 @@ public class AdmissionForm extends BaseAuditEntity {
 
     @Column(nullable = false, length = 20)
     private String academicYear;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'OPEN'")
+    private StudentCategory studentCategory = StudentCategory.OPEN;
 
     @Column(nullable = false, length = 80)
     private String firstName;
@@ -157,6 +162,8 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setStudentUser(User studentUser) { this.studentUser = studentUser; }
     public String getAcademicYear() { return academicYear; }
     public void setAcademicYear(String academicYear) { this.academicYear = academicYear; }
+    public StudentCategory getStudentCategory() { return studentCategory; }
+    public void setStudentCategory(StudentCategory studentCategory) { this.studentCategory = studentCategory; }
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getMiddleName() { return middleName; }

@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,6 +18,10 @@ import java.util.List;
 
 public interface FeePaymentRepository extends JpaRepository<FeePayment, Long>,
         JpaSpecificationExecutor<FeePayment> {
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from FeePayment p where p.id = :id")
+    java.util.Optional<FeePayment> findByIdForUpdate(@Param("id") Long id);
 
     List<FeePayment> findByStudentUserIdOrderByCreatedAtDesc(Long id);
 
@@ -46,7 +51,7 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long>,
                 p.student.fullName,
                 p.college.name,
                 p.department.name,
-                p.studentFeeAccount.feeStructure.studentCategory,
+                p.studentFeeAccount.studentCategory,
                 p.amount,
                 p.paymentDate,
                 p.transactionReference)
@@ -55,7 +60,7 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long>,
               and (:collegeId is null or p.college.id = :collegeId)
               and (:departmentId is null or p.department.id = :departmentId)
               and (:academicYear is null or p.studentFeeAccount.academicYear = :academicYear)
-              and (:studentCategory is null or p.studentFeeAccount.feeStructure.studentCategory = :studentCategory)
+              and (:studentCategory is null or p.studentFeeAccount.studentCategory = :studentCategory)
             """, countQuery = """
             select count(p.id)
             from FeePayment p
@@ -63,7 +68,7 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long>,
               and (:collegeId is null or p.college.id = :collegeId)
               and (:departmentId is null or p.department.id = :departmentId)
               and (:academicYear is null or p.studentFeeAccount.academicYear = :academicYear)
-              and (:studentCategory is null or p.studentFeeAccount.feeStructure.studentCategory = :studentCategory)
+              and (:studentCategory is null or p.studentFeeAccount.studentCategory = :studentCategory)
             """)
     Page<FeeCollectionRow> findVerifiedCollections(
             @Param("collegeId") Long collegeId,

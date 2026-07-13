@@ -52,6 +52,7 @@ export const createPrincipalSchema = z.object({
 
 export const publicAdmissionSchema = z.object({
   departmentId: z.coerce.number().positive("Department is required"),
+  studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
   firstName: z.string().trim().min(2).max(80),
   middleName: z.string().max(80).optional().default(""),
   lastName: z.string().trim().min(2).max(80),
@@ -75,6 +76,7 @@ export const createStudentSectionStaffSchema = z.object({
 });
 
 export const approveAdmissionSchema = z.object({
+  studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
   remarks: z.string().max(500).optional().default(""),
 });
 
