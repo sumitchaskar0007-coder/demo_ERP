@@ -139,13 +139,13 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r border-blue-100/80 bg-white shadow-[8px_0_35px_rgba(37,99,235,0.04)] transition-all duration-300",
-        !mobile && (collapsed ? "w-20" : "w-[260px]"),
+        "flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300",
+        !mobile && (collapsed ? "w-20" : "w-64"),
       )}
     >
       <div
         className={cn(
-          "flex h-20 items-center border-b px-5",
+          "flex h-20 items-center border-b border-slate-100 px-5",
           collapsed && !mobile ? "justify-center" : "gap-3",
         )}
       >
@@ -153,7 +153,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           <BrandLogo compact />
         ) : (
           <BrandLogo className="w-[185px]" />
-        )}      </div>
+        )}
+      </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">
         <p
           className={cn(
@@ -172,10 +173,10 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               title={collapsed && !mobile ? label : undefined}
               className={({ isActive }) =>
                 cn(
-                  "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-200 ease-out",
+                  "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition",
                   isActive
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20"
-                    : "text-slate-600 hover:bg-blue-50 hover:text-blue-700",
+                    ? "bg-[#eef1ff] text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                   collapsed && !mobile && "justify-center",
                 )
               }
@@ -222,7 +223,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       {!mobile && (
         <button
           onClick={onToggle}
-          className="flex h-12 items-center justify-center border-t text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+          className="flex h-12 items-center justify-center border-t border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (

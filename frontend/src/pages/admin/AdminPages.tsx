@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { Activity, ArrowRight, Building2, Clock3, LibraryBig, Users, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { DonutChart } from "@/components/common/DonutChart";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
@@ -10,6 +12,7 @@ import { Select } from "@/components/common/Select";
 import { Pagination } from "@/components/common/Pagination";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
+import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/admin/api";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
@@ -22,46 +25,74 @@ const categories = ["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"].ma
   value: v,
 }));
 export function AdminDashboardPage() {
+  const { user } = useAuth();
   const [d, setD] = useState<api.AdminAnalytics | null>(null);
+
   useEffect(() => {
-    api
-      .getAdminAnalytics()
-      .then(setD)
-      .catch((e) => toast.error(handleApiError(e).message));
+    api.getAdminAnalytics().then(setD).catch((error) => toast.error(handleApiError(error).message));
   }, []);
-  if (!d) return <Loader />;
+
+  if (!d) return <Loader label="Preparing Super Admin dashboard..." />;
+
+  const styles = [
+    { icon: Building2, color: "bg-blue-50 text-blue-600", accent: "bg-blue-500", chart: "#3b82f6" },
+    { icon: Users, color: "bg-violet-50 text-violet-600", accent: "bg-violet-500", chart: "#8b5cf6" },
+    { icon: LibraryBig, color: "bg-amber-50 text-amber-600", accent: "bg-amber-500", chart: "#f59e0b" },
+    { icon: WalletCards, color: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-500", chart: "#22c55e" },
+  ];
+  const summary = Object.entries(d.summary).map(([key, value], index) => ({
+    key,
+    label: key.replace(/([A-Z])/g, " $1").trim(),
+    value,
+    numericValue: Number(value) || 0,
+    ...styles[index % styles.length],
+  }));
+
   return (
-    <div className="page-container">
-      <div className="rounded-2xl bg-gradient-to-r from-blue-700 to-cyan-500 p-7 text-white">
-        <h1 className="text-2xl font-bold">Super Admin Control Center</h1>
-        <p className="mt-1 text-blue-50">
-          Govern colleges, principals, fees, and global analytics.
-        </p>
+    <div className="page-container pb-10">
+      <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div><p className="text-xs font-semibold text-slate-400">Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Super Admin</p><h1 className="mt-2 text-2xl font-bold">Super Admin Dashboard</h1><p className="mt-1 text-sm text-slate-500">Global college, student, and fee overview.</p></div>
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-slate-400"><Clock3 className="h-4 w-4" /> Updated just now</p>
       </div>
+
+      <section className="erp-welcome-banner px-7 py-7 sm:px-9">
+        <div className="absolute -right-10 -top-20 h-64 w-64 rounded-full border-[30px] border-blue-500/30" />
+        <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
+        <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+          <div><p className="text-sm text-blue-100">Jadhavr ERP Administration</p><h2 className="mt-2 text-3xl font-bold">Welcome back, {user?.fullName?.split(" ")[0] || "Admin"}</h2><p className="mt-2 text-sm text-blue-100">Have a productive day managing your education workspace.</p></div>
+          <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-right backdrop-blur sm:block"><p className="text-xs text-blue-200">Account status</p><p className="mt-1 font-bold">{user?.status}</p></div>
+        </div>
+      </section>
+
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Object.entries(d.summary).map(([k, v]) => (
-          <Card className="p-5" key={k}>
-            <p className="text-xs font-bold uppercase text-slate-400">
-              {k.replace(/([A-Z])/g, " $1")}
-            </p>
-            <p className="mt-2 text-2xl font-bold">{v}</p>
+        {summary.map(({ key, label, value, icon: Icon, color, accent }) => (
+          <Card className="relative overflow-hidden p-5" key={key}>
+            <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
+            <div className="flex items-center justify-between"><div className={`grid h-11 w-11 place-items-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></div><span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600">Live</span></div>
+            <p className="mt-4 text-2xl font-bold">{value}</p><p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
           </Card>
         ))}
       </div>
-      <Card className="mt-6 p-5">
-        <h2 className="font-bold">Quick actions</h2>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link to="/colleges/create">
-            <Button>Create College</Button>
-          </Link>
-          <Link to="/principals/create">
-            <Button variant="secondary">Create Principal</Button>
-          </Link>
-          <Link to={ROUTES.adminFeeSetup}>
-            <Button variant="secondary">Setup Fee</Button>
-          </Link>
-        </div>
-      </Card>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+        <Card className="overflow-hidden">
+          <div className="erp-panel-header"><div><h2 className="font-bold">System overview</h2><p className="mt-1 text-xs text-slate-500">Live global ERP data</p></div><Activity className="h-5 w-5 text-brand-600" /></div>
+          <div className="flex min-h-[300px] items-center justify-center p-6"><DonutChart centerLabel="ERP Records" segments={summary.map(({ label, numericValue, chart }) => ({ label, value: numericValue, color: chart }))} /></div>
+        </Card>
+        <Card className="overflow-hidden">
+          <div className="border-b px-6 py-5"><h2 className="font-bold">Quick actions</h2><p className="mt-1 text-xs text-slate-500">Frequently used administration tools</p></div>
+          <div className="space-y-2 p-4">
+            {[
+              { label: "Create College", detail: "Add a new college workspace", to: "/colleges/create", icon: Building2 },
+              { label: "Create Principal", detail: "Add a principal account", to: "/principals/create", icon: Users },
+              { label: "Set up Fees", detail: "Configure college fee structures", to: ROUTES.adminFeeSetup, icon: WalletCards },
+            ].map(({ label, detail, to, icon: Icon }) => (
+              <Link key={label} to={to} className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-slate-50"><div className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-brand-600"><Icon className="h-5 w-5" /></div><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{label}</p><p className="truncate text-xs text-slate-400">{detail}</p></div><ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-brand-600" /></Link>
+            ))}
+          </div>
+        </Card>
+      </div>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Chart title="College-wise Students" data={d.collegeWiseStudents} />
         <Chart title="College-wise Fee Collection" data={d.collegeWiseFeeCollection} />

@@ -1,12 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, GraduationCap, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/common/Button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { Input } from "@/components/common/Input";
+import { Select } from "@/components/common/Select";
 import { useAuth } from "@/features/auth/authStore";
 import { handleApiError } from "@/lib/handleApiError";
 import { loginSchema } from "@/lib/validators";
@@ -14,128 +16,84 @@ import { APP_NAME, ROUTES, defaultRouteForRoles, isRouteAllowedForRoles } from "
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+const LOGIN_CATEGORY_OPTIONS = [
+  { label: "Admin", value: "admin" },
+  { label: "Principal", value: "principal" },
+  { label: "Teacher", value: "teacher" },
+  { label: "Student", value: "student" },
+  { label: "Accountant", value: "accountant" },
+];
+
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loginCategory, setLoginCategory] = useState("admin");
   const { login, isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "admin@erp.com", password: "Admin@12345" },
   });
+
   if (isAuthenticated) return <Navigate to={defaultRouteForRoles(user?.roles)} replace />;
+
   const onSubmit = async (values: LoginForm) => {
     try {
-      const user = await login(values);
-      toast.success("Welcome back");
-      if (user.mustChangePassword) {
-        window.location.replace(ROUTES.changePassword);
+      // Login category is visual guidance only. The backend determines access
+      // securely from the authenticated account's assigned roles.
+      const authenticatedUser = await login(values);
+      toast.success(`Welcome to ${APP_NAME}`);
+      if (authenticatedUser.mustChangePassword) {
+        navigate(ROUTES.changePassword, { replace: true });
         return;
       }
       const from = (location.state as { from?: string } | null)?.from;
-      const target = defaultRouteForRoles(user.roles);
-      window.location.replace(from && isRouteAllowedForRoles(from, user.roles) ? from : target);
+      const target = defaultRouteForRoles(authenticatedUser.roles);
+      navigate(from && isRouteAllowedForRoles(from, authenticatedUser.roles) ? from : target, { replace: true });
     } catch (error) {
       toast.error(handleApiError(error).message);
     }
   };
+
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-[1.15fr_0.85fr]">
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-blue-700 via-brand-700 to-indigo-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-cyan-400/15 blur-3xl" />
-        <div className="relative flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 backdrop-blur">
-            <GraduationCap />
-          </div>
-          <div>
-            <p className="text-xl font-bold">{APP_NAME}</p>
-            <p className="text-xs text-blue-100">College Management Platform</p>
-          </div>
+    <main className="grid min-h-screen bg-white lg:grid-cols-[1.08fr_0.92fr]">
+      <section className="relative hidden min-h-screen overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-900 px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
+        <div className="absolute -left-20 top-1/4 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="absolute -right-24 -top-20 h-96 w-96 rounded-full bg-fuchsia-300/20 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-2/3 w-2/3 rounded-tl-[100%] bg-white/[0.05]" />
+        <div className="relative inline-flex w-fit rounded-2xl bg-white px-4 py-2 shadow-xl"><BrandLogo className="w-48" /></div>
+        <div className="relative max-w-2xl py-12">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur"><ShieldCheck className="h-4 w-4" />Secure. Centralized. Efficient.</span>
+          <h1 className="mt-6 text-5xl font-bold leading-[1.08] tracking-tight xl:text-6xl">Smarter campuses.<br />Brighter futures.</h1>
+          <p className="mt-3 text-xl font-semibold text-white">Where education meets innovation.</p>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-blue-100">A secure digital workspace for administrators, principals, teachers, students and college teams.</p>
+          <div className="mt-10 rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-md"><p className="text-lg font-bold">Everything your college needs</p><p className="mt-2 text-sm leading-6 text-blue-100">Manage colleges, departments, users and admissions through role-based access.</p></div>
         </div>
-        <div className="relative max-w-xl">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm backdrop-blur">
-            <ShieldCheck className="h-4 w-4" />
-            Secure. Centralized. Efficient.
-          </span>
-          <h1 className="text-5xl font-bold leading-tight">
-            One platform to manage your college ecosystem.
-          </h1>
-          <p className="mt-6 max-w-lg text-lg leading-8 text-blue-100">
-            A modern, role-aware workspace for administrators and principals to manage colleges,
-            departments, and teams.
-          </p>
-        </div>
-        <p className="relative text-sm text-blue-200">
-          © 2026 Jadhavr ERP. Built for modern education.
-        </p>
-      </div>
-      <div className="flex items-center justify-center bg-slate-50 px-5 py-12">
-        <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand-600 text-white">
-              <GraduationCap />
-            </div>
-            <p className="text-xl font-bold">{APP_NAME}</p>
-          </div>
-          <div className="rounded-3xl border bg-white p-7 shadow-card sm:p-9">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Sign in to your account</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Enter your credentials to access the ERP portal.
-              </p>
-            </div>
+        <p className="relative text-sm text-blue-200">© 2026 Jadhavr. Built for modern education by Unseen Studio.</p>
+      </section>
+
+      <section className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-10 sm:px-10">
+        <div className="w-full max-w-lg">
+          <div className="mb-8 flex justify-center lg:hidden"><BrandLogo className="w-52" /></div>
+          <div className="rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)] sm:p-10">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-brand-600"><UserRound className="h-7 w-7" /></div>
+            <h2 className="mt-5 text-3xl font-bold tracking-tight text-slate-900">Welcome back</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Choose your category and enter your registered credentials.</p>
             <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
-              <Input
-                label="Email address"
-                type="email"
-                icon={<Mail className="h-4 w-4" />}
-                error={errors.email?.message}
-                {...register("email")}
-              />
+              <Select label="Login category" value={loginCategory} onChange={(event) => setLoginCategory(event.target.value)} options={LOGIN_CATEGORY_OPTIONS} className="h-12" aria-label="Login category" />
+              <Input label="Email address" type="email" placeholder="Enter your email" icon={<Mail className="h-4 w-4" />} error={errors.email?.message} {...register("email")} />
               <div className="relative">
-                <Input
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  icon={<LockKeyhole className="h-4 w-4" />}
-                  error={errors.password?.message}
-                  className="pr-11"
-                  {...register("password")}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+                <Input label="Password" type={showPassword ? "text" : "password"} placeholder="Enter your password" icon={<LockKeyhole className="h-4 w-4" />} error={errors.password?.message} className="pr-11" {...register("password")} />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600" aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
               </div>
-              <Button type="submit" loading={isSubmitting} className="h-12 w-full">
-                Sign in securely
-              </Button>
-              <div className="text-right">
-                <Link
-                  to={ROUTES.forgotPassword}
-                  className="text-sm font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <Button type="submit" loading={isSubmitting} className="h-[52px] w-full rounded-2xl text-base">Sign in securely</Button>
+              <div className="text-right"><Link to={ROUTES.forgotPassword} className="text-sm font-semibold text-brand-600 hover:text-brand-700">Forgot password?</Link></div>
             </form>
-            <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-                Demo Super Admin
-              </p>
-              <p className="mt-2 text-sm text-blue-900">admin@erp.com</p>
-              <p className="text-sm text-blue-900">Admin@12345</p>
-            </div>
+            <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-blue-700">Demo Super Admin</p><p className="mt-2 text-sm text-blue-900">admin@erp.com</p><p className="text-sm text-blue-900">Admin@12345</p></div>
           </div>
+          <p className="mt-6 text-center text-xs text-slate-400">Secure access powered by Jadhavr ERP</p>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
