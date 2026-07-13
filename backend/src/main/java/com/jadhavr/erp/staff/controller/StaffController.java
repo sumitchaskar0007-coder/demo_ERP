@@ -6,6 +6,7 @@ import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
 import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateStaffRequest;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 import com.jadhavr.erp.staff.service.StaffService;
@@ -28,6 +29,13 @@ public class StaffController {
 
     public StaffController(StaffService staffService) {
         this.staffService = staffService;
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<StaffResponse>> createStaff(
+            @Valid @RequestBody CreateStaffRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Staff created successfully", staffService.createStaff(request)));
     }
 
     @PostMapping("/fee-section")
@@ -55,6 +63,7 @@ public class StaffController {
     public ApiResponse<PageResponse<StaffResponse>> searchStaff(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long collegeId,
+            @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) StaffType staffType,
             @RequestParam(required = false) StaffStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -63,7 +72,8 @@ public class StaffController {
             @RequestParam(defaultValue = "desc") String sortDir) {
         return ApiResponse.success(
                 "Staff searched successfully",
-                staffService.searchStaff(keyword, collegeId, staffType, status, page, size, sortBy, sortDir)
+                staffService.searchStaff(keyword, collegeId, departmentId, staffType, status,
+                        page, size, sortBy, sortDir)
         );
     }
 

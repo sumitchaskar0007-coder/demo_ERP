@@ -75,6 +75,40 @@ export const createStudentSectionStaffSchema = z.object({
   joiningDate: z.string().optional().default(""),
 });
 
+const departmentStaffTypes = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
+export const createStaffSchema = z.object({
+  fullName: z.string().trim().min(2).max(150),
+  email: z.string().email("Enter a valid email").max(150),
+  phone: z.string().max(20).optional().default(""),
+  password: z.string().min(8).max(72)
+    .regex(/[a-z]/, "Add a lowercase letter")
+    .regex(/[A-Z]/, "Add an uppercase letter")
+    .regex(/\d/, "Add a number")
+    .regex(/[^A-Za-z0-9]/, "Add a special character"),
+  staffType: z.enum(["STUDENT_SECTION", "FEE_SECTION", "HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "GENERAL_STAFF"]),
+  departmentId: z.coerce.number().optional(),
+  joiningDate: z.string().optional().default(""),
+}).superRefine((value, context) => {
+  if (departmentStaffTypes.includes(value.staffType) && !value.departmentId) {
+    context.addIssue({ code: "custom", path: ["departmentId"], message: "Department is required" });
+  }
+});
+
+export const courseYearSchema = z.object({
+  departmentId: z.coerce.number().positive("Department is required"),
+  academicYear: z.string().trim().min(1, "Academic year is required").max(20),
+  yearName: z.enum(["FIRST_YEAR", "SECOND_YEAR", "THIRD_YEAR", "FOURTH_YEAR", "FIFTH_YEAR"]),
+  displayName: z.string().trim().min(2).max(150),
+  code: z.string().trim().min(1).max(30),
+});
+export const divisionSchema = z.object({
+  departmentId: z.coerce.number().positive("Department is required"),
+  courseYearId: z.coerce.number().positive("Course Year is required"),
+  name: z.string().trim().min(1).max(100),
+  code: z.string().trim().min(1).max(20),
+  capacity: z.coerce.number().int().positive("Capacity must be positive"),
+});
+
 export const approveAdmissionSchema = z.object({
   studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
   remarks: z.string().max(500).optional().default(""),

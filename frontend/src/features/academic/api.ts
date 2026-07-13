@@ -1,12 +1,28 @@
 import { apiClient } from "@/lib/apiClient";
-import type { ApiResponse } from "@/types/api";
-import type { AcademicClass, FinalAdmission, Section, Subject, TimetableEntry } from "./types";
+import type { ApiResponse, PageResponse } from "@/types/api";
+import type { AcademicClass, CourseYear, Division, FinalAdmission, Section, Subject, TimetableEntry } from "./types";
 const get = <T>(url: string, params?: object) =>
   apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
 const post = <T>(url: string, data?: object) =>
   apiClient.post<ApiResponse<T>>(url, data).then((r) => r.data.data);
 const patch = <T>(url: string, data?: object) =>
   apiClient.patch<ApiResponse<T>>(url, data).then((r) => r.data.data);
+const put = <T>(url: string, data?: object) =>
+  apiClient.put<ApiResponse<T>>(url, data).then((r) => r.data.data);
+export const createCourseYear = (data: object) => post<CourseYear>("/api/principal/course-years", data);
+export const searchCourseYears = (params?: object) =>
+  get<PageResponse<CourseYear>>("/api/principal/course-years/search", params);
+export const getCourseYear = (id: number) => get<CourseYear>(`/api/principal/course-years/${id}`);
+export const updateCourseYear = (id: number, data: object) => put<CourseYear>(`/api/principal/course-years/${id}`, data);
+export const setCourseYearStatus = (id: number, active: boolean) => patch<CourseYear>(`/api/principal/course-years/${id}/${active ? "activate" : "deactivate"}`);
+export const createDivision = (data: object) => post<Division>("/api/principal/divisions", data);
+export const searchDivisions = (params?: object) => get<PageResponse<Division>>("/api/principal/divisions/search", params);
+export const getDivision = (id: number) => get<Division>(`/api/principal/divisions/${id}`);
+export const updateDivision = (id: number, data: object) => put<Division>(`/api/principal/divisions/${id}`, data);
+export const setDivisionStatus = (id: number, active: boolean) => patch<Division>(`/api/principal/divisions/${id}/${active ? "activate" : "deactivate"}`);
+export const eligibleClassTeachers = (id: number) => get<import("@/features/staff/types").StaffResponse[]>(`/api/principal/divisions/${id}/eligible-class-teachers`);
+export const assignDivisionClassTeacher = (id: number, staffProfileId: number) => patch<Division>(`/api/principal/divisions/${id}/assign-class-teacher`, { staffProfileId });
+export const removeDivisionClassTeacher = (id: number) => patch<Division>(`/api/principal/divisions/${id}/remove-class-teacher`);
 export const getFinalAdmissionQueue = (params?: object) =>
   get<FinalAdmission[]>("/api/principal/final-admissions/review-ready", params);
 export const getFinalAdmissionDetail = (id: number) =>

@@ -110,7 +110,8 @@ export function StaffListPage() {
       header: "Type",
       render: (row) => <Badge>{row.staffType.replaceAll("_", " ")}</Badge>,
     },
-    { key: "college", header: "College", render: (row) => row.collegeName },
+    { key: "department", header: "Department", render: (row) => row.departmentName || "All departments" },
+    { key: "roles", header: "Roles", render: (row) => row.roles.join(", ") },
     { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
     { key: "joining", header: "Joining", render: (row) => formatDate(row.joiningDate) },
     {
@@ -133,7 +134,7 @@ export function StaffListPage() {
     <div className="page-container">
       <div>
         <h1 className="page-title">Staff</h1>
-        <p className="page-subtitle">Manage Student Section staff without deleting records.</p>
+        <p className="page-subtitle">Manage all staff roles without deleting records.</p>
       </div>
       <Card className="mt-6">
         <div
@@ -199,7 +200,7 @@ export function StaffListPage() {
         ) : (
           <EmptyState
             title="No staff found"
-            description="Create Student Section staff to begin admission verification."
+            description="Create staff to begin assigning ERP responsibilities."
           />
         )}
       </Card>

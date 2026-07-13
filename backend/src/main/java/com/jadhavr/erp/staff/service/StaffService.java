@@ -5,10 +5,12 @@ import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
 import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateStaffRequest;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 
 public interface StaffService {
+    StaffResponse createStaff(CreateStaffRequest request);
     StaffResponse createStudentSectionStaff(CreateStudentSectionStaffRequest request);
     StaffResponse createFeeSectionStaff(CreateFeeSectionStaffRequest request);
     StaffResponse createAcademicStaff(CreateAcademicStaffRequest request, StaffType type);
@@ -16,6 +18,7 @@ public interface StaffService {
     PageResponse<StaffResponse> searchStaff(
             String keyword,
             Long collegeId,
+            Long departmentId,
             StaffType staffType,
             StaffStatus status,
             int page,

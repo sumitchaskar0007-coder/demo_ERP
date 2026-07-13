@@ -1,11 +1,15 @@
 package com.jadhavr.erp.bootstrap;
 
+import com.jadhavr.erp.staff.enums.StaffType;
+import com.jadhavr.erp.user.entity.RoleName;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /** Keeps PostgreSQL enum check constraints in sync when Hibernate ddl-auto=update cannot alter them. */
 @Component
+@Order(0)
 public class DatabaseConstraintMigration implements CommandLineRunner {
     private final JdbcTemplate jdbc;
 
@@ -15,6 +19,7 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        synchronizeApplicationEnumConstraints();
         addStudentCategoryConstraints();
         addFinancialConstraints();
 
@@ -28,6 +33,25 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
                     'PAYMENT_REJECTED', 'PRINCIPAL_REVIEW_PENDING'
                 ))
                 """);
+    }
+
+    private void synchronizeApplicationEnumConstraints() {
+        replaceCheckConstraint("roles", "roles_name_check",
+                enumCondition("name", RoleName.values()));
+        replaceCheckConstraint("staff_profiles", "staff_profiles_staff_type_check",
+                enumCondition("staff_type", StaffType.values()));
+    }
+
+    private String enumCondition(String column, Enum<?>[] values) {
+        return column + " IN (" + java.util.Arrays.stream(values)
+                .map(value -> "'" + value.name() + "'")
+                .collect(java.util.stream.Collectors.joining(",")) + ")";
+    }
+
+    private void replaceCheckConstraint(String table, String constraint, String condition) {
+        jdbc.execute("ALTER TABLE " + table + " DROP CONSTRAINT IF EXISTS " + constraint);
+        jdbc.execute("ALTER TABLE " + table + " ADD CONSTRAINT " + constraint
+                + " CHECK (" + condition + ")");
     }
 
     private void addStudentCategoryConstraints() {

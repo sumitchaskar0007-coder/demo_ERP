@@ -4,6 +4,9 @@ import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
 import { useAuth } from "@/features/auth/authStore";
 import { ROLES } from "@/lib/constants";
+import { ROUTES } from "@/lib/constants";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/common/Button";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/dashboard/api";
 export function RoleDashboardPage() {
@@ -46,6 +49,19 @@ export function RoleDashboardPage() {
             </Card>
           ))}
       </div>
+      {user?.roles.includes(ROLES.PRINCIPAL) && (
+        <Card className="mt-6 p-5">
+          <h2 className="font-bold text-slate-900">Principal setup workflow</h2>
+          <p className="mt-1 text-sm text-slate-500">Department → Course Year → Division → Staff → Class Teacher</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link to={ROUTES.departments}><Button variant="secondary">Create Department</Button></Link>
+            <Link to={ROUTES.createCourseYear}><Button variant="secondary">Create Course Year</Button></Link>
+            <Link to={ROUTES.createDivision}><Button variant="secondary">Create Division</Button></Link>
+            <Link to={ROUTES.createStaff}><Button variant="secondary">Create Staff</Button></Link>
+            <Link to={ROUTES.divisions}><Button>Assign Class Teacher</Button></Link>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

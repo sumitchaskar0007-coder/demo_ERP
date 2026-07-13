@@ -36,6 +36,11 @@ export const ROUTES = {
   students: "/students",
   createStudentSectionStaff: "/staff/student-section/create",
   createFeeSectionStaff: "/staff/fee-section/create",
+  createStaff: "/principal/staff/create",
+  courseYears: "/principal/course-years",
+  createCourseYear: "/principal/course-years/create",
+  divisions: "/principal/divisions",
+  createDivision: "/principal/divisions/create",
   feeStructures: "/fee-structures",
   studentFees: "/student/fees",
   studentPayments: "/student/fees/payments",
@@ -63,6 +68,7 @@ export const ROLES = {
   HOD: "HOD",
   CLASS_TEACHER: "CLASS_TEACHER",
   SUBJECT_TEACHER: "SUBJECT_TEACHER",
+  GENERAL_STAFF: "GENERAL_STAFF",
   STUDENT: "STUDENT",
 } as const;
 
@@ -72,12 +78,9 @@ export function defaultRouteForRoles(roles: string[] = []) {
   if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRINCIPAL)) return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
   if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
-  if (
-    roles.includes(ROLES.HOD) ||
-    roles.includes(ROLES.CLASS_TEACHER) ||
-    roles.includes(ROLES.SUBJECT_TEACHER)
-  )
-    return ROUTES.academicClasses;
+  if (roles.includes(ROLES.HOD)) return ROUTES.academicClasses;
+  if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER))
+    return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
   return ROUTES.dashboard;
 }
@@ -142,6 +145,7 @@ export const STAFF_TYPE_OPTIONS = [
   { label: "Student Section", value: "STUDENT_SECTION" },
   { label: "Fee Section", value: "FEE_SECTION" },
   { label: "HOD", value: "HOD" },
+  { label: "Teacher", value: "TEACHER" },
   { label: "Class Teacher", value: "CLASS_TEACHER" },
   { label: "Subject Teacher", value: "SUBJECT_TEACHER" },
   { label: "General Staff", value: "GENERAL_STAFF" },

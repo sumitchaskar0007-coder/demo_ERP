@@ -41,6 +41,8 @@ import {
   PaymentsPage,
 } from "@/pages/fees/FeeSectionPages";
 import { StaffListPage } from "@/pages/staff/StaffListPage";
+import { CreateStaffPage } from "@/pages/staff/CreateStaffPage";
+import { CourseYearFormPage, CourseYearListPage, DivisionFormPage, DivisionListPage } from "@/pages/academic/CourseYearDivisionPages";
 import { StudentAdmissionPage } from "@/pages/student/StudentAdmissionPage";
 import { AdminStudentListPage } from "@/pages/student/AdminStudentListPage";
 import { StudentDashboardPage } from "@/pages/student/StudentDashboardPage";
@@ -123,6 +125,13 @@ export function AppRouter() {
             <Route path={ROUTES.departments} element={<DepartmentListPage />} />
             <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
             <Route path={ROUTES.staff} element={<StaffListPage />} />
+            <Route path={ROUTES.createStaff} element={<CreateStaffPage />} />
+            <Route path={ROUTES.courseYears} element={<CourseYearListPage />} />
+            <Route path={ROUTES.createCourseYear} element={<CourseYearFormPage />} />
+            <Route path="/principal/course-years/:id/edit" element={<CourseYearFormPage />} />
+            <Route path={ROUTES.divisions} element={<DivisionListPage />} />
+            <Route path={ROUTES.createDivision} element={<DivisionFormPage />} />
+            <Route path="/principal/divisions/:id/edit" element={<DivisionFormPage />} />
             <Route
               path={ROUTES.createStudentSectionStaff}
               element={<CreateStudentSectionStaffPage />}

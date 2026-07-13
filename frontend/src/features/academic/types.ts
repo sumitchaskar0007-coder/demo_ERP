@@ -1,4 +1,49 @@
 export type AcademicStatus = "ACTIVE" | "INACTIVE";
+export type CourseYearName =
+  | "FIRST_YEAR"
+  | "SECOND_YEAR"
+  | "THIRD_YEAR"
+  | "FOURTH_YEAR"
+  | "FIFTH_YEAR";
+export interface CourseYear {
+  id: number;
+  collegeId: number;
+  collegeName: string;
+  collegeCode: string;
+  departmentId: number;
+  departmentName: string;
+  departmentCode: string;
+  academicYear: string;
+  yearName: CourseYearName;
+  displayName: string;
+  code: string;
+  status: AcademicStatus;
+  divisionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface Division {
+  id: number;
+  collegeId: number;
+  collegeName: string;
+  collegeCode: string;
+  departmentId: number;
+  departmentName: string;
+  departmentCode: string;
+  courseYearId: number;
+  courseYearName: CourseYearName;
+  courseYearDisplayName: string;
+  academicYear: string;
+  name: string;
+  code: string;
+  capacity: number;
+  classTeacherId?: number | null;
+  classTeacherName?: string | null;
+  classTeacherEmail?: string | null;
+  status: AcademicStatus;
+  createdAt: string;
+  updatedAt: string;
+}
 export type TimetableDay =
   | "MONDAY"
   | "TUESDAY"

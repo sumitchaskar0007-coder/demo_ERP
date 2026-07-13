@@ -3,10 +3,16 @@ import type { ApiResponse, PageResponse } from "@/types/api";
 import type {
   CreateFeeSectionStaffRequest,
   CreateStudentSectionStaffRequest,
+  CreateStaffRequest,
   StaffResponse,
   StaffStatus,
   StaffType,
 } from "./types";
+
+export async function createStaff(values: CreateStaffRequest) {
+  const { data } = await apiClient.post<ApiResponse<StaffResponse>>("/api/principal/staff", values);
+  return data.data;
+}
 
 export async function createStudentSectionStaff(values: CreateStudentSectionStaffRequest) {
   const { data } = await apiClient.post<ApiResponse<StaffResponse>>(
@@ -25,6 +31,7 @@ export async function createFeeSectionStaff(values: CreateFeeSectionStaffRequest
 export async function searchStaff(params: {
   keyword?: string;
   collegeId?: number;
+  departmentId?: number;
   staffType?: StaffType | "";
   status?: StaffStatus | "";
   page?: number;
