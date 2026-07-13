@@ -81,7 +81,7 @@ export function defaultRouteForRoles(roles: string[] = []) {
   if (roles.includes(ROLES.HOD)) return ROUTES.academicClasses;
   if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER))
     return ROUTES.dashboard;
-  if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
+  if (roles.includes(ROLES.STUDENT)) return ROUTES.dashboard;
   return ROUTES.dashboard;
 }
 
@@ -114,9 +114,13 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
     )
   )
     return path.startsWith("/academic") || path === ROUTES.profile;
-  if (roles.includes(ROLES.STUDENT)) {
-    return path.startsWith("/student/");
-  }
+  if (roles.includes(ROLES.STUDENT))
+    return (
+      path.startsWith("/student/") ||
+      path === ROUTES.dashboard ||
+      path === ROUTES.account ||
+      path === ROUTES.accountChangePassword
+    );
   return false;
 }
 

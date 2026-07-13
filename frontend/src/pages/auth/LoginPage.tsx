@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, GraduationCap, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/common/Button";
@@ -17,7 +17,6 @@ type LoginForm = z.infer<typeof loginSchema>;
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const {
     register,
@@ -33,12 +32,12 @@ export function LoginPage() {
       const user = await login(values);
       toast.success("Welcome back");
       if (user.mustChangePassword) {
-        navigate(ROUTES.changePassword, { replace: true });
+        window.location.replace(ROUTES.changePassword);
         return;
       }
       const from = (location.state as { from?: string } | null)?.from;
       const target = defaultRouteForRoles(user.roles);
-      navigate(from && isRouteAllowedForRoles(from, user.roles) ? from : target, { replace: true });
+      window.location.replace(from && isRouteAllowedForRoles(from, user.roles) ? from : target);
     } catch (error) {
       toast.error(handleApiError(error).message);
     }

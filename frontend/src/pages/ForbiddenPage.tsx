@@ -1,11 +1,15 @@
 import { ShieldX } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Button } from "@/components/common/Button";
 import { useAuth } from "@/features/auth/authStore";
-import { defaultRouteForRoles } from "@/lib/constants";
+import { defaultRouteForRoles, ROUTES } from "@/lib/constants";
 
 export function ForbiddenPage() {
   const { user } = useAuth();
+  if (user?.mustChangePassword) {
+    return <Navigate to={ROUTES.changePassword} replace />;
+  }
+
   return (
     <div className="grid min-h-screen place-items-center bg-slate-50 p-6 text-center">
       <div>
