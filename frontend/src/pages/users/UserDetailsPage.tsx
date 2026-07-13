@@ -1,4 +1,4 @@
-import { ArrowLeft, Building2, Clock, Mail, Phone, UserRound } from "lucide-react";
+import { ArrowLeft, Building2, Clock, Mail, Pencil, Phone, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ export function UserDetailsPage() {
         <Loader label="Loading user…" />
       </div>
     );
+  const principal = user.roles.includes("PRINCIPAL");
   const details = [
     { icon: Mail, label: "Email", value: user.email },
     { icon: Phone, label: "Phone", value: user.phone || "Not provided" },
@@ -37,12 +38,22 @@ export function UserDetailsPage() {
   ];
   return (
     <div className="page-container">
-      <Link to="/users">
-        <Button variant="ghost">
-          <ArrowLeft className="h-4 w-4" />
-          Back to users
-        </Button>
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link to="/users">
+          <Button variant="ghost">
+            <ArrowLeft className="h-4 w-4" />
+            Back to users
+          </Button>
+        </Link>
+        {principal && (
+          <Link to={`/users/principals/${user.id}/edit`}>
+            <Button>
+              <Pencil className="h-4 w-4" />
+              Edit Principal
+            </Button>
+          </Link>
+        )}
+      </div>
       <Card className="mt-4 overflow-hidden">
         <div className="bg-gradient-to-r from-violet-700 to-brand-700 p-8 text-white">
           <div className="flex items-center gap-5">

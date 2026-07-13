@@ -16,8 +16,9 @@ import {
   Printer,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { useAuth } from "@/features/auth/authStore";
-import { APP_NAME, ROLES, ROUTES } from "@/lib/constants";
+import { ROLES, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -148,18 +149,11 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           collapsed && !mobile ? "justify-center" : "gap-3",
         )}
       >
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-lg font-black text-white shadow-lg shadow-blue-500/20">
-          J
-        </div>
-        {(!collapsed || mobile) && (
-          <div>
-            <p className="font-bold text-slate-900">{APP_NAME}</p>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-              College Management
-            </p>
-          </div>
-        )}
-      </div>
+        {collapsed && !mobile ? (
+          <BrandLogo compact />
+        ) : (
+          <BrandLogo className="w-[185px]" />
+        )}      </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">
         <p
           className={cn(

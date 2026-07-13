@@ -13,7 +13,8 @@ public class UserMapper {
         College college = user.getCollege();
         return new UserResponse(user.getId(), college == null ? null : college.getId(),
                 college == null ? null : college.getName(), college == null ? null : college.getCode(),
-                user.getFullName(), user.getEmail(), user.getPhone(), user.getStatus(), roles(user),
+                user.getFullName(), user.getEmail(), user.getPhone(), user.getProfileImageUrl(),
+                user.getAddress(), user.getBio(), user.getStatus(), roles(user),
                 user.getLastLoginAt(), user.getCreatedAt(), user.getUpdatedAt());
     }
 
@@ -21,7 +22,8 @@ public class UserMapper {
         College college = user.getCollege();
         return new AuthUserResponse(user.getId(), college == null ? null : college.getId(),
                 college == null ? null : college.getName(), college == null ? null : college.getCode(),
-                user.getFullName(), user.getEmail(), user.getPhone(), user.getStatus(), roles(user),
+                user.getFullName(), user.getEmail(), user.getPhone(), user.getProfileImageUrl(),
+                user.getAddress(), user.getBio(), user.getStatus(), roles(user),
                 user.isMustChangePassword(), user.isEmailVerified());
     }
 

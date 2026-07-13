@@ -17,6 +17,9 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     boolean existsByCollegeIdAndRolesNameAndStatus(
             Long collegeId, RoleName roleName, UserStatus status);
 
+    boolean existsByCollegeIdAndRolesNameAndStatusAndIdNot(
+            Long collegeId, RoleName roleName, UserStatus status, Long id);
+
     @Query("select count(distinct u.id) from User u join u.roles r where r.name = :role")
     long countByRole(@Param("role") RoleName role);
 }

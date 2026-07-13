@@ -6,10 +6,19 @@ export interface AuthUser {
   fullName: string;
   email: string;
   phone: string | null;
+  profileImageUrl: string | null;
+  address: string | null;
+  bio: string | null;
   status: "ACTIVE" | "INACTIVE";
   roles: string[];
   mustChangePassword: boolean;
   emailVerified: boolean;
+}
+
+export interface UpdateOwnProfileValues {
+  phone: string;
+  address: string;
+  bio: string;
 }
 
 export interface LoginRequest {

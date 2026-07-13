@@ -6,7 +6,8 @@ import java.util.List;
 
 public record UserResponse(
         Long id, Long collegeId, String collegeName, String collegeCode,
-        String fullName, String email, String phone, UserStatus status,
+        String fullName, String email, String phone, String profileImageUrl,
+        String address, String bio, UserStatus status,
         List<String> roles, LocalDateTime lastLoginAt,
         LocalDateTime createdAt, LocalDateTime updatedAt
 ) {}

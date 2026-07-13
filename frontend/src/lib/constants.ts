@@ -20,6 +20,7 @@ export const ROUTES = {
   departments: "/departments",
   users: "/users",
   createPrincipal: "/users/principals/create",
+  editPrincipal: "/users/principals/:id/edit",
   principals: "/principals",
   adminFeeSetup: "/admin/fee-setup",
   adminFeeCollection: "/admin/fee-collection",

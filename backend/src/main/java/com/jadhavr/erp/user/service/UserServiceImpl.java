@@ -8,6 +8,7 @@ import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.user.dto.CreatePrincipalRequest;
+import com.jadhavr.erp.user.dto.UpdatePrincipalRequest;
 import com.jadhavr.erp.user.dto.UserResponse;
 import com.jadhavr.erp.user.entity.Role;
 import com.jadhavr.erp.user.entity.RoleName;
@@ -84,6 +85,20 @@ public class UserServiceImpl implements UserService {
         User saved = users.save(user);
         if (emailNotifications != null) emailNotifications.queuePrincipalCreatedEmail(saved);
         return mapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse updatePrincipal(Long id, UpdatePrincipalRequest request) {
+        User user = findUser(id);
+        if (!hasRole(user, RoleName.PRINCIPAL)) {
+            throw new BadRequestException("Only Principal accounts can be updated through this endpoint");
+        }
+        user.setPhone(trimToNull(request.phone()));
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
+        return mapper.toResponse(users.save(user));
     }
 
     @Override
@@ -167,5 +182,10 @@ public class UserServiceImpl implements UserService {
     }
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

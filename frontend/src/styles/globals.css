@@ -82,6 +82,22 @@
     @apply mt-1 text-sm text-slate-500;
   }
 
+  .erp-welcome-banner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    color: white;
+    background:
+      radial-gradient(circle at 92% 35%, rgb(255 255 255 / 0.16) 0 5%, transparent 5.5%),
+      repeating-linear-gradient(125deg, transparent 0 52px, rgb(255 255 255 / 0.055) 53px 55px),
+      linear-gradient(100deg, #1267d5 0%, #1e6fd4 55%, #2457c5 100%);
+    box-shadow: 0 14px 32px rgb(37 99 235 / 0.18);
+  }
+
+  .erp-panel-header {
+    @apply flex items-center justify-between border-b border-slate-200/80 px-6 py-5;
+  }
+
   .print-page-bg {
     @apply bg-slate-100;
   }
