@@ -24,6 +24,7 @@ import { CreatePrincipalPage } from "@/features/users/CreatePrincipalPage";
 import { EditPrincipalPage } from "@/features/users/EditPrincipalPage";
 import { UserDetailsPage } from "@/features/users/UserDetailsPage";
 import { UserListPage } from "@/features/users/UserListPage";
+import { NoticesPage } from "@/features/notices/NoticesPage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -48,6 +49,7 @@ export function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path={ROUTES.profile} element={<ProfilePage />} />
+          <Route path={ROUTES.notices} element={<NoticesPage />} />
 
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
             <Route path={ROUTES.colleges} element={<CollegeListPage />} />

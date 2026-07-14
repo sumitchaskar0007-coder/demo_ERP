@@ -6,7 +6,7 @@ import { useAuth } from "@/features/auth/authStore";
 import { ROUTES } from "@/lib/constants";
 import { initials } from "@/lib/utils";
 
-export function Topbar({ onMenu }: { onMenu: () => void }) {
+export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unreadNotices?: number }) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -26,9 +26,9 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       </div>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <div className="hidden h-11 items-center gap-2 rounded-xl border bg-white px-3 text-xs font-semibold text-slate-600 xl:flex"><CalendarDays className="h-4 w-4 text-brand-600" />Academic Year: {year} / {year + 1}</div>
-        <button className="relative rounded-xl border bg-white p-2.5 text-slate-500 hover:bg-slate-50" aria-label="Notifications">
-          <Bell className="h-5 w-5" /><span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        </button>
+        <Link to={ROUTES.notices} className="relative rounded-xl border bg-white p-2.5 text-slate-500 hover:bg-slate-50" aria-label={`Notifications${unreadNotices ? `, ${unreadNotices} unread` : ""}`}>
+          <Bell className="h-5 w-5" />{unreadNotices > 0 && <span className="absolute -right-1.5 -top-1.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">{unreadNotices > 99 ? "99+" : unreadNotices}</span>}
+        </Link>
         <div className="relative">
           <button onClick={() => setOpen((value) => !value)} className="flex items-center gap-3 rounded-xl border bg-white p-1.5 pr-3 hover:bg-slate-50">
             <div className="grid h-10 w-10 place-items-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">{initials(user?.fullName || "User")}</div>

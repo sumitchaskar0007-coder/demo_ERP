@@ -14,6 +14,7 @@ import {
   WalletCards,
   FileText,
   Printer,
+  Bell,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/features/auth/authStore";
@@ -41,6 +42,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
+  const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER, ROLES.FEE_SECTION]);
   const nav = isAdmin
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
@@ -52,6 +54,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
         { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
       ]
     : isPrincipal
     ? [
@@ -61,6 +64,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
         { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
     : isStudentSection
@@ -68,17 +72,24 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
         { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
       ]
     : isStudent
     ? [
         { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
         { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
         { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+      ]
+    : isOtherStaff
+    ? [
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+        { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
     : [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
       ];
-  const sectionLabel = isAdmin ? "Admin" : isPrincipal ? "Principal" : isStudentSection ? "Student Section" : isStudent ? "Student" : "Menu";
+  const sectionLabel = isAdmin ? "Admin" : isPrincipal ? "Principal" : isStudentSection ? "Student Section" : isStudent ? "Student" : isOtherStaff ? "Staff" : "Menu";
   const roleFuture = isStudentSection
     ? [{ label: "Fee Verification", icon: CreditCard }, { label: "Documents", icon: FileText }, { label: "Reports", icon: BarChart3 }]
     : isStudent

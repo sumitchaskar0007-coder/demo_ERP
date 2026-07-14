@@ -19,6 +19,7 @@ export const ROUTES = {
   staff: "/staff",
   createStudentSectionStaff: "/staff/student-section/create",
   principalReviewReady: "/principal/admissions/review-ready",
+  notices: "/notices",
   forbidden: "/forbidden",
   serverError: "/server-error",
 } as const;
@@ -26,6 +27,10 @@ export const ROUTES = {
 export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN",
   PRINCIPAL: "PRINCIPAL",
+  HOD: "HOD",
+  FEE_SECTION: "FEE_SECTION",
+  CLASS_TEACHER: "CLASS_TEACHER",
+  SUBJECT_TEACHER: "SUBJECT_TEACHER",
   STUDENT_SECTION: "STUDENT_SECTION",
   STUDENT: "STUDENT",
 } as const;
@@ -35,6 +40,7 @@ export type AppRole = (typeof ROLES)[keyof typeof ROLES];
 export function defaultRouteForRoles(roles: string[] = []) {
   if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRINCIPAL)) return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
+  if (roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER) || roles.includes(ROLES.FEE_SECTION)) return ROUTES.notices;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
   return ROUTES.dashboard;
 }
@@ -48,8 +54,9 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
     return path.startsWith("/student-section") || path === ROUTES.profile;
   }
   if (roles.includes(ROLES.STUDENT)) {
-    return path.startsWith("/student/");
+    return path.startsWith("/student/") || path === ROUTES.notices;
   }
+  if (roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER) || roles.includes(ROLES.FEE_SECTION)) return path === ROUTES.notices || path === ROUTES.profile;
   return false;
 }
 
