@@ -14,6 +14,7 @@ import {
   WalletCards,
   FileText,
   Printer,
+  Bell,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
@@ -42,12 +43,14 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
   const isFeeSection = isRole([ROLES.FEE_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
+  const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER, ROLES.FEE_SECTION]);
   const nav = isAdmin
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
         { label: "Colleges", to: ROUTES.colleges, icon: Building2 },
         { label: "Principals", to: ROUTES.principals, icon: UserPlus },
         { label: "Staff", to: ROUTES.staff, icon: Users },
+<<<<<<< HEAD
         { label: "Students", to: ROUTES.students, icon: GraduationCap },
         { label: "Fee Setup", to: ROUTES.adminFeeSetup, icon: CreditCard },
         { label: "Fee Collection", to: ROUTES.adminFeeCollection, icon: WalletCards },
@@ -121,6 +124,47 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           : isStudent
             ? "Student"
             : "Menu";
+=======
+        { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
+        { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+        { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+      ]
+    : isPrincipal
+    ? [
+        { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+        { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
+        { label: "Staff", to: ROUTES.staff, icon: Users },
+        { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
+        { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+        { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+        { label: "Profile", to: ROUTES.profile, icon: UserRound },
+      ]
+    : isStudentSection
+    ? [
+        { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
+        { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+        { label: "Profile", to: ROUTES.profile, icon: UserRound },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+      ]
+    : isStudent
+    ? [
+        { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
+        { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
+        { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+      ]
+    : isOtherStaff
+    ? [
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+        { label: "Profile", to: ROUTES.profile, icon: UserRound },
+      ]
+    : [
+        { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+      ];
+  const sectionLabel = isAdmin ? "Admin" : isPrincipal ? "Principal" : isStudentSection ? "Student Section" : isStudent ? "Student" : isOtherStaff ? "Staff" : "Menu";
+>>>>>>> origin/sumit
   const roleFuture = isStudentSection
     ? [
         { label: "Fee Verification", icon: CreditCard },

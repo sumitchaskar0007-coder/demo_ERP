@@ -85,6 +85,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/principal/admissions/**").hasRole("PRINCIPAL")
                         .requestMatchers("/api/principal/**").hasRole("PRINCIPAL")
                         .requestMatchers("/api/student/**").hasRole("STUDENT")
+                        .requestMatchers("/api/notices/**").authenticated()
                         .requestMatchers("/api/auth/profile").authenticated()
                         .anyRequest().authenticated()
                 )

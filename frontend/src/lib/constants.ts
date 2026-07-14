@@ -49,6 +49,7 @@ export const ROUTES = {
   feeAccounts: "/fee-section/fee-accounts",
   feePayments: "/fee-section/payments",
   principalReviewReady: "/principal/admissions/review-ready",
+<<<<<<< HEAD
   finalAdmissions: "/principal/final-admissions",
   academicClasses: "/academic/classes",
   academicSections: "/academic/sections",
@@ -57,6 +58,9 @@ export const ROUTES = {
   academicAttendance: "/academic/attendance",
   studentTimetable: "/student/academic/timetable",
   studentAttendance: "/student/academic/attendance",
+=======
+  notices: "/notices",
+>>>>>>> origin/sumit
   forbidden: "/forbidden",
   serverError: "/server-error",
 } as const;
@@ -64,6 +68,10 @@ export const ROUTES = {
 export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN",
   PRINCIPAL: "PRINCIPAL",
+  HOD: "HOD",
+  FEE_SECTION: "FEE_SECTION",
+  CLASS_TEACHER: "CLASS_TEACHER",
+  SUBJECT_TEACHER: "SUBJECT_TEACHER",
   STUDENT_SECTION: "STUDENT_SECTION",
   FEE_SECTION: "FEE_SECTION",
   HOD: "HOD",
@@ -78,11 +86,16 @@ export type AppRole = (typeof ROLES)[keyof typeof ROLES];
 export function defaultRouteForRoles(roles: string[] = []) {
   if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRINCIPAL)) return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
+<<<<<<< HEAD
   if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
   if (roles.includes(ROLES.HOD)) return ROUTES.academicClasses;
   if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER))
     return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.dashboard;
+=======
+  if (roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER) || roles.includes(ROLES.FEE_SECTION)) return ROUTES.notices;
+  if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
+>>>>>>> origin/sumit
   return ROUTES.dashboard;
 }
 
@@ -107,6 +120,7 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
   if (roles.includes(ROLES.STUDENT_SECTION)) {
     return path.startsWith("/student-section") || path === ROUTES.profile;
   }
+<<<<<<< HEAD
   if (roles.includes(ROLES.FEE_SECTION))
     return path.startsWith("/fee-section") || path === ROUTES.profile;
   if (
@@ -122,6 +136,12 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
       path === ROUTES.account ||
       path === ROUTES.accountChangePassword
     );
+=======
+  if (roles.includes(ROLES.STUDENT)) {
+    return path.startsWith("/student/") || path === ROUTES.notices;
+  }
+  if (roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER) || roles.includes(ROLES.FEE_SECTION)) return path === ROUTES.notices || path === ROUTES.profile;
+>>>>>>> origin/sumit
   return false;
 }
 
