@@ -11,7 +11,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     const textareaId = id || props.name;
     return (
       <div className="space-y-1.5">
-        {label && <label htmlFor={textareaId} className="text-sm font-medium text-slate-700">{label}</label>}
+        {label && (
+          <label htmlFor={textareaId} className="text-sm font-medium text-slate-700">
+            {label}
+          </label>
+        )}
         <textarea
           ref={ref}
           id={textareaId}

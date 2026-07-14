@@ -9,5 +9,6 @@ public enum RoleName {
     FEE_SECTION,
     CLASS_TEACHER,
     SUBJECT_TEACHER,
+    GENERAL_STAFF,
     STUDENT
 }

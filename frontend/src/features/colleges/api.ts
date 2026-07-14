@@ -5,7 +5,9 @@ import type { College, CollegeFormValues, CollegeSearchParams } from "./types";
 const BASE = "/api/super-admin/colleges";
 
 export async function searchColleges(params: CollegeSearchParams) {
-  const { data } = await apiClient.get<ApiResponse<PageResponse<College>>>(`${BASE}/search`, { params });
+  const { data } = await apiClient.get<ApiResponse<PageResponse<College>>>(`${BASE}/search`, {
+    params,
+  });
   return data.data;
 }
 

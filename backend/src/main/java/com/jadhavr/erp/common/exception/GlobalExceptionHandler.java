@@ -40,6 +40,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(new ErrorResponse(exception.getMessage()));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException exception) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
         Map<String, String> errors = new LinkedHashMap<>();
@@ -91,9 +96,19 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("User account is inactive"));
     }
 
+    // @ExceptionHandler(Exception.class)
+    // public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+    //     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+    //             .body(new ErrorResponse("An unexpected error occurred"));
+    // }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("An unexpected error occurred"));
-    }
+public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+
+    System.err.println("===== UNEXPECTED EXCEPTION =====");
+    exception.printStackTrace();
+
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponse("An unexpected error occurred"));
+}
 }

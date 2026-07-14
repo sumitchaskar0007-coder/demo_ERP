@@ -16,4 +16,6 @@ public interface CollegeRepository extends JpaRepository<College, Long>,
     boolean existsByCode(String code);
 
     List<College> findByStatus(CollegeStatus status);
+
+    long countByStatus(CollegeStatus status);
 }

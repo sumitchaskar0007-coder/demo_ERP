@@ -3,7 +3,10 @@ package com.jadhavr.erp.staff.controller;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
+import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
+import com.jadhavr.erp.staff.dto.CreateStaffRequest;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 import com.jadhavr.erp.staff.service.StaffService;
@@ -28,6 +31,18 @@ public class StaffController {
         this.staffService = staffService;
     }
 
+    @PostMapping
+    public ResponseEntity<ApiResponse<StaffResponse>> createStaff(
+            @Valid @RequestBody CreateStaffRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Staff created successfully", staffService.createStaff(request)));
+    }
+
+    @PostMapping("/fee-section")
+    public ResponseEntity<ApiResponse<StaffResponse>> createFeeSectionStaff(@Valid @RequestBody CreateFeeSectionStaffRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Fee Section staff created successfully", staffService.createFeeSectionStaff(request)));
+    }
+
     @PostMapping("/student-section")
     public ResponseEntity<ApiResponse<StaffResponse>> createStudentSectionStaff(
             @Valid @RequestBody CreateStudentSectionStaffRequest request) {
@@ -38,10 +53,17 @@ public class StaffController {
                 ));
     }
 
+    @PostMapping("/{type:hod|class-teacher|subject-teacher}")
+    public ResponseEntity<ApiResponse<StaffResponse>> createAcademicStaff(@PathVariable String type,@Valid @RequestBody CreateAcademicStaffRequest request) {
+        StaffType staffType = switch(type){case "hod" -> StaffType.HOD; case "class-teacher" -> StaffType.CLASS_TEACHER; default -> StaffType.SUBJECT_TEACHER;};
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Academic staff created successfully", staffService.createAcademicStaff(request, staffType)));
+    }
+
     @GetMapping("/search")
     public ApiResponse<PageResponse<StaffResponse>> searchStaff(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long collegeId,
+            @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) StaffType staffType,
             @RequestParam(required = false) StaffStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -50,7 +72,8 @@ public class StaffController {
             @RequestParam(defaultValue = "desc") String sortDir) {
         return ApiResponse.success(
                 "Staff searched successfully",
-                staffService.searchStaff(keyword, collegeId, staffType, status, page, size, sortBy, sortDir)
+                staffService.searchStaff(keyword, collegeId, departmentId, staffType, status,
+                        page, size, sortBy, sortDir)
         );
     }
 

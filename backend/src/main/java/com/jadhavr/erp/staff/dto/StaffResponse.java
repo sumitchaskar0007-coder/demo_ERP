@@ -6,6 +6,7 @@ import com.jadhavr.erp.staff.enums.StaffType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.List;
 
 public record StaffResponse(
         Long id,
@@ -13,6 +14,9 @@ public record StaffResponse(
         Long collegeId,
         String collegeName,
         String collegeCode,
+        Long departmentId,
+        String departmentName,
+        String departmentCode,
         String employeeCode,
         String fullName,
         String email,
@@ -21,6 +25,7 @@ public record StaffResponse(
         StaffStatus status,
         Set<String> roles,
         LocalDate joiningDate,
+        List<String> assignedClassTeacherDivisions,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

@@ -17,8 +17,8 @@ import {
   Bell,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { useAuth } from "@/features/auth/authStore";
 import { BrandLogo } from "@/components/common/BrandLogo";
+import { useAuth } from "@/features/auth/authStore";
 import { ROLES, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -38,73 +38,115 @@ const futureItems = [
 
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
   const { isRole } = useAuth();
-  const isAdmin = isRole([ROLES.SUPER_ADMIN, ROLES.ADMIN]);
+  const isAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
+  const isFeeSection = isRole([ROLES.FEE_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
-  const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER, ROLES.FEE_SECTION]);
+  const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
   const nav = isAdmin
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
         { label: "Colleges", to: ROUTES.colleges, icon: Building2 },
-        { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
-        { label: "Users", to: ROUTES.users, icon: Users },
-        { label: "Create Principal", to: ROUTES.createPrincipal, icon: UserPlus },
+        { label: "Principals", to: ROUTES.principals, icon: UserPlus },
         { label: "Staff", to: ROUTES.staff, icon: Users },
-        { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
-        { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
-        { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+        { label: "Students", to: ROUTES.students, icon: GraduationCap },
+        { label: "Fee Setup", to: ROUTES.adminFeeSetup, icon: CreditCard },
+        { label: "Fee Collection", to: ROUTES.adminFeeCollection, icon: WalletCards },
+        { label: "Pending Fees", to: ROUTES.adminPendingFees, icon: CreditCard },
+        { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
-        { label: "Academic Setup", to: ROUTES.academicSetup, icon: LibraryBig },
-        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
-        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
+        { label: "Account", to: ROUTES.account, icon: UserRound },
       ]
     : isPrincipal
-    ? [
-        { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
-        { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
-        { label: "Staff", to: ROUTES.staff, icon: Users },
-        { label: "Create Student Section Staff", to: ROUTES.createStudentSectionStaff, icon: UserPlus },
-        { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
-        { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
-        { label: "Notices", to: ROUTES.notices, icon: Bell },
-        { label: "Academic Setup", to: ROUTES.academicSetup, icon: LibraryBig },
-        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
-        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
-        { label: "Profile", to: ROUTES.profile, icon: UserRound },
-      ]
-    : isStudentSection
-    ? [
-        { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
-        { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
-        { label: "Profile", to: ROUTES.profile, icon: UserRound },
-        { label: "Notices", to: ROUTES.notices, icon: Bell },
-        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
-        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
-      ]
-    : isStudent
-    ? [
-        { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
-        { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
-        { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
-        { label: "Notices", to: ROUTES.notices, icon: Bell },
-      ]
-    : isOtherStaff
-    ? [
-        { label: "Notices", to: ROUTES.notices, icon: Bell },
-        ...(isRole([ROLES.HOD]) ? [{ label: "Academic Setup", to: ROUTES.academicSetup, icon: LibraryBig }] : []),
-        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
-        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
-        { label: "Profile", to: ROUTES.profile, icon: UserRound },
-      ]
-    : [
-        { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
-      ];
-  const sectionLabel = isAdmin ? "Admin" : isPrincipal ? "Principal" : isStudentSection ? "Student Section" : isStudent ? "Student" : isOtherStaff ? "Staff" : "Menu";
+      ? [
+          { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+          { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
+          { label: "Course Years", to: ROUTES.courseYears, icon: GraduationCap },
+          { label: "Divisions", to: ROUTES.divisions, icon: Users },
+          { label: "Staff", to: ROUTES.staff, icon: Users },
+          { label: "Create Staff", to: ROUTES.createStaff, icon: UserPlus },
+          { label: "Class Teacher Assignment", to: ROUTES.divisions, icon: UserRound },
+          { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
+          { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
+          { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
+          { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+          { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
+          { label: "Final Admissions", to: ROUTES.finalAdmissions, icon: FileText },
+          { label: "Academic", to: ROUTES.academicClasses, icon: GraduationCap },
+          { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
+          { label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users },
+          { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
+          { label: "Audit Logs", to: ROUTES.auditLogs, icon: FileText },
+          { label: "Notices", to: ROUTES.notices, icon: Bell },
+          { label: "Account", to: ROUTES.account, icon: UserRound },
+          { label: "Profile", to: ROUTES.profile, icon: UserRound },
+        ]
+      : isStudentSection
+        ? [
+            { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
+            { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+            { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
+            { label: "Notices", to: ROUTES.notices, icon: Bell },
+            { label: "Account", to: ROUTES.account, icon: UserRound },
+            { label: "Profile", to: ROUTES.profile, icon: UserRound },
+          ]
+        : isFeeSection
+          ? [
+              { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: LayoutDashboard },
+              { label: "Fee Accounts", to: ROUTES.feeAccounts, icon: WalletCards },
+              { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
+              { label: "Fee Report", to: ROUTES.feeReport, icon: BarChart3 },
+              { label: "Notices", to: ROUTES.notices, icon: Bell },
+              { label: "Account", to: ROUTES.account, icon: UserRound },
+              { label: "Profile", to: ROUTES.profile, icon: UserRound },
+            ]
+          : isStudent
+            ? [
+                { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
+                { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
+                { label: "My Fees", to: ROUTES.studentFees, icon: WalletCards },
+                { label: "My Payments", to: ROUTES.studentPayments, icon: CreditCard },
+                { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
+                { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
+                { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
+                { label: "Notices", to: ROUTES.notices, icon: Bell },
+                { label: "Account", to: ROUTES.account, icon: UserRound },
+                { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
+              ]
+            : isOtherStaff
+              ? [
+                  { label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap },
+                  { label: "Notices", to: ROUTES.notices, icon: Bell },
+                  { label: "Profile", to: ROUTES.profile, icon: UserRound },
+                ]
+              : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
+  const sectionLabel = isAdmin
+    ? "Admin"
+    : isPrincipal
+      ? "Principal"
+      : isStudentSection
+        ? "Student Section"
+        : isFeeSection
+          ? "Accountant"
+          : isStudent
+            ? "Student"
+            : isOtherStaff
+              ? "Staff"
+              : "Menu";
   const roleFuture = isStudentSection
-    ? [{ label: "Fee Verification", icon: CreditCard }, { label: "Documents", icon: FileText }, { label: "Reports", icon: BarChart3 }]
+    ? [
+        { label: "Fee Verification", icon: CreditCard },
+        { label: "Documents", icon: FileText },
+        { label: "Reports", icon: BarChart3 },
+      ]
     : isStudent
-      ? [{ label: "Fee Payment", icon: CreditCard }, { label: "Attendance", icon: CalendarDays }, { label: "Timetable", icon: WalletCards }, { label: "Results", icon: Printer }]
+      ? [
+          { label: "Fee Payment", icon: CreditCard },
+          { label: "Attendance", icon: CalendarDays },
+          { label: "Timetable", icon: WalletCards },
+          { label: "Results", icon: Printer },
+        ]
       : futureItems;
 
   return (
@@ -116,17 +158,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         <p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400", collapsed && !mobile && "sr-only")}>{sectionLabel}</p>
         <nav className="space-y-1">
           {nav.map(({ label, to, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={onNavigate}
-              title={collapsed && !mobile ? label : undefined}
-              className={({ isActive }) => cn(
-                "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition",
-                isActive ? "bg-[#eef1ff] text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                collapsed && !mobile && "justify-center",
-              )}
-            >
+            <NavLink key={to} to={to} onClick={onNavigate} title={collapsed && !mobile ? label : undefined} className={({ isActive }) => cn("relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition", isActive ? "bg-[#eef1ff] text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900", collapsed && !mobile && "justify-center")}>
               <Icon className="h-5 w-5 shrink-0" />
               {(!collapsed || mobile) && <span>{label}</span>}
             </NavLink>
@@ -143,11 +175,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           ))}
         </div>
       </div>
-      {!mobile && (
-        <button onClick={onToggle} className="flex h-12 items-center justify-center border-t border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-slate-700" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
-          {collapsed ? <ChevronRight className="h-5 w-5" /> : <><ChevronLeft className="mr-2 h-5 w-5" /><span className="text-sm">Collapse</span></>}
-        </button>
-      )}
+      {!mobile && <button onClick={onToggle} className="flex h-12 items-center justify-center border-t border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-slate-700" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <ChevronRight className="h-5 w-5" /> : <><ChevronLeft className="mr-2 h-5 w-5" /><span className="text-sm">Collapse</span></>}</button>}
     </aside>
   );
 }

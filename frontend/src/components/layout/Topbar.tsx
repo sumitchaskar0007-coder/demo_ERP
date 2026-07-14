@@ -12,8 +12,11 @@ export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unre
   const navigate = useNavigate();
   const primaryRole = user?.roles[0]?.replaceAll("_", " ") || "User";
   const year = new Date().getFullYear();
-  const handleLogout = async () => {
-    await logout();
+  const profileImage = user?.profileImageUrl?.startsWith("/")
+    ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8081"}${user.profileImageUrl}`
+    : user?.profileImageUrl;
+  const handleLogout = () => {
+    logout();
     toast.success("Logged out successfully");
     navigate(ROUTES.login);
   };
@@ -31,7 +34,7 @@ export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unre
         </Link>
         <div className="relative">
           <button onClick={() => setOpen((value) => !value)} className="flex items-center gap-3 rounded-xl border bg-white p-1.5 pr-3 hover:bg-slate-50">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">{initials(user?.fullName || "User")}</div>
+            {profileImage ? <img src={profileImage} alt={user?.fullName || "Profile"} className="h-10 w-10 rounded-lg object-cover" /> : <div className="grid h-10 w-10 place-items-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">{initials(user?.fullName || "User")}</div>}
             <div className="hidden text-left sm:block"><p className="max-w-36 truncate text-sm font-semibold">{user?.fullName}</p><p className="text-xs capitalize text-slate-400">{primaryRole.toLowerCase()}</p></div>
             <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
           </button>

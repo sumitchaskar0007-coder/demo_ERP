@@ -6,8 +6,10 @@ import com.jadhavr.erp.admission.dto.MarkAdmissionPrintedRequest;
 import com.jadhavr.erp.admission.dto.RejectAdmissionRequest;
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.dto.VerifyAdmissionRequest;
+import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
+import com.jadhavr.erp.admission.entity.AdmissionAcademicRecord;
 import com.jadhavr.erp.admission.enums.AdmissionAction;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.mapper.AdmissionPrintMapper;
@@ -23,6 +25,8 @@ import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.fee.service.FeeService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -51,20 +55,29 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private final StudentSectionAdmissionMapper admissionMapper;
     private final AdmissionStatusHistoryMapper historyMapper;
     private final AdmissionPrintMapper printMapper;
+    private final FeeService feeService;
 
+    @Autowired
     public StudentSectionAdmissionServiceImpl(
             AdmissionFormRepository admissions,
             AdmissionStatusHistoryRepository histories,
             UserRepository users,
             StudentSectionAdmissionMapper admissionMapper,
             AdmissionStatusHistoryMapper historyMapper,
-            AdmissionPrintMapper printMapper) {
+            AdmissionPrintMapper printMapper, FeeService feeService) {
         this.admissions = admissions;
         this.histories = histories;
         this.users = users;
         this.admissionMapper = admissionMapper;
         this.historyMapper = historyMapper;
         this.printMapper = printMapper;
+        this.feeService = feeService;
+    }
+
+    public StudentSectionAdmissionServiceImpl(AdmissionFormRepository admissions, AdmissionStatusHistoryRepository histories,
+            UserRepository users, StudentSectionAdmissionMapper admissionMapper,
+            AdmissionStatusHistoryMapper historyMapper, AdmissionPrintMapper printMapper) {
+        this(admissions, histories, users, admissionMapper, historyMapper, printMapper, null);
     }
 
     @Override
@@ -102,17 +115,110 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
 
     @Override
     @Transactional
+    public StudentSectionAdmissionResponse updateDetails(
+            Long admissionId, DetailedAdmissionRequest request) {
+        AdmissionForm admission = findScopedAdmission(admissionId);
+        ensureVerifiable(admission, "update");
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        users.findByEmail(email)
+                .filter(existing -> !existing.getId().equals(admission.getStudentUser().getId()))
+                .ifPresent(existing -> {
+                    throw new BadRequestException("Email address is already used by another account");
+                });
+
+        admission.setFullName(request.fullName().trim());
+        admission.setEmail(email);
+        admission.setPhone(request.phone().trim());
+        admission.setDateOfBirth(request.dateOfBirth());
+        admission.setGender(request.gender().trim());
+        admission.setPlaceOfBirth(request.placeOfBirth().trim());
+        admission.setMaritalStatus(request.maritalStatus().trim());
+        admission.setAadhaarNumber(request.aadhaarNumber().trim());
+        admission.setApaarId(trimToNull(request.apaarId()));
+        admission.setNationality(request.nationality().trim());
+        admission.setReligion(request.religion().trim());
+        admission.setCaste(request.caste().trim());
+        admission.setStudentCategory(request.studentCategory());
+        admission.setParentName(request.parentName().trim());
+        admission.setParentPhone(request.parentPhone().trim());
+        admission.setParentEmail(trimToNull(request.parentEmail()));
+        admission.setAddressLine1(request.addressLine1().trim());
+        admission.setAddressLine2(trimToNull(request.addressLine2()));
+        admission.setCity(request.city().trim());
+        admission.setPincode(request.pincode().trim());
+        admission.setState(request.state().trim());
+        admission.setPermanentPhone(trimToNull(request.permanentPhone()));
+        admission.setPermanentEmail(trimToNull(request.permanentEmail()));
+        admission.setCorrespondenceAddress(request.correspondenceAddress().trim());
+        admission.setCorrespondenceCity(request.correspondenceCity().trim());
+        admission.setCorrespondencePincode(request.correspondencePincode().trim());
+        admission.setCorrespondenceState(request.correspondenceState().trim());
+        admission.setCorrespondencePhone(trimToNull(request.correspondencePhone()));
+        admission.setCorrespondenceMobile(trimToNull(request.correspondenceMobile()));
+        admission.setCorrespondenceEmail(trimToNull(request.correspondenceEmail()));
+        admission.setQualifyingEntranceSeatNumber(trimToNull(request.qualifyingEntranceSeatNumber()));
+        admission.setQualifyingEntranceTotalScore(request.qualifyingEntranceTotalScore());
+        admission.setLastGraduationCollegeName(trimToNull(request.lastGraduationCollegeName()));
+        admission.setLastGraduationCollegeAddress(trimToNull(request.lastGraduationCollegeAddress()));
+        admission.setAcademicRecords(request.academicRecords() == null ? new java.util.ArrayList<>() :
+                request.academicRecords().stream()
+                        .map(record -> new AdmissionAcademicRecord(
+                                record.qualification(), trimToNull(record.instituteName()),
+                                trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()),
+                                record.marksPercentage()))
+                        .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new)));
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+
+        var student = admission.getStudent();
+        student.setFullName(admission.getFullName());
+        student.setEmail(email);
+        student.setPhone(admission.getPhone());
+        student.setDateOfBirth(admission.getDateOfBirth());
+        student.setGender(admission.getGender());
+        student.setAddressLine1(admission.getAddressLine1());
+        student.setAddressLine2(admission.getAddressLine2());
+        student.setCity(admission.getCity());
+        student.setState(admission.getState());
+        student.setPincode(admission.getPincode());
+        student.setParentName(admission.getParentName());
+        student.setParentPhone(admission.getParentPhone());
+        student.setParentEmail(admission.getParentEmail());
+        student.setStudentCategory(admission.getStudentCategory());
+
+        var studentUser = admission.getStudentUser();
+        studentUser.setFullName(admission.getFullName());
+        studentUser.setEmail(email);
+        studentUser.setPhone(admission.getPhone());
+        AdmissionForm saved = admissions.save(admission);
+        saveHistory(saved, saved.getStatus(), saved.getStatus(), AdmissionAction.STATUS_UPDATED,
+                "Detailed admission form completed or corrected by Student Section");
+        return admissionMapper.toResponse(saved);
+    }
+    @Transactional
+    @Override
     public StudentSectionAdmissionResponse approveAdmission(Long admissionId, VerifyAdmissionRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
         ensureVerifiable(admission, "approve");
         AdmissionStatus oldStatus = admission.getStatus();
         User currentUser = currentUserEntity();
+        if (admission.getDetailsCompletedAt() == null) {
+            throw new BadRequestException("Complete the detailed admission form before approval");
+        }
+        if (admission.getPhotoStorageName() == null) {
+            throw new BadRequestException("Upload the passport-size photo before approval");
+        }
+        if (request.studentCategory() == null) {
+            throw new BadRequestException("Student category must be verified before approval");
+        }
+        admission.setStudentCategory(request.studentCategory());
+        admission.getStudent().setStudentCategory(request.studentCategory());
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_APPROVED);
         admission.setStudentSectionVerifiedAt(LocalDateTime.now());
         admission.setStudentSectionVerifiedBy(currentUser);
         admission.setStudentSectionRemarks(trimToNull(request.remarks()));
         admission.getStudent().setStatus(StudentStatus.UNDER_REVIEW);
         AdmissionForm saved = admissions.save(admission);
+        if (feeService != null) feeService.createAccountForAdmission(saved);
         saveHistory(saved, oldStatus, saved.getStatus(),
                 AdmissionAction.STUDENT_SECTION_APPROVED, trimToNull(request.remarks()));
         return admissionMapper.toResponse(saved);

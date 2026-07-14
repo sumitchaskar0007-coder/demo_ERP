@@ -23,7 +23,6 @@ export interface CreatePrincipalValues {
   fullName: string;
   email: string;
   phone: string;
-  password: string;
 }
 
 export interface UpdatePrincipalValues {

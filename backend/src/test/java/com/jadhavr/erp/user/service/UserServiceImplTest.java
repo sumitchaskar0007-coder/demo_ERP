@@ -48,12 +48,12 @@ class UserServiceImplTest {
 
     @Test void createPrincipalSuccessAndEncodesPassword() {
         stubValidCreation();
-        when(encoder.encode("Principal@123")).thenReturn("$2a$encoded");
+        when(encoder.encode("9876543210")).thenReturn("$2a$encoded");
         when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
         var result = service.createPrincipal(request());
         assertEquals("principal@abc.com", result.email());
         assertEquals(List.of("PRINCIPAL"), result.roles());
-        verify(encoder).encode("Principal@123");
+        verify(encoder).encode("9876543210");
     }
 
     @Test void missingCollegeFails() {
@@ -116,7 +116,7 @@ class UserServiceImplTest {
     }
     private CreatePrincipalRequest request() {
         return new CreatePrincipalRequest(1L, "Dr Principal", " Principal@ABC.com ",
-                "9876543210", "Principal@123");
+                "9876543210");
     }
     private College college(CollegeStatus status) {
         College item = new College();

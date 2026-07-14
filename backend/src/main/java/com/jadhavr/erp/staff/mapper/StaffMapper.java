@@ -5,6 +5,7 @@ import com.jadhavr.erp.staff.entity.StaffProfile;
 import org.springframework.stereotype.Component;
 
 import java.util.stream.Collectors;
+import java.util.List;
 
 @Component
 public class StaffMapper {
@@ -15,6 +16,9 @@ public class StaffMapper {
                 profile.getCollege().getId(),
                 profile.getCollege().getName(),
                 profile.getCollege().getCode(),
+                profile.getDepartment() == null ? null : profile.getDepartment().getId(),
+                profile.getDepartment() == null ? null : profile.getDepartment().getName(),
+                profile.getDepartment() == null ? null : profile.getDepartment().getCode(),
                 profile.getEmployeeCode(),
                 profile.getFullName(),
                 profile.getEmail(),
@@ -25,6 +29,7 @@ public class StaffMapper {
                         .map(role -> role.getName().name())
                         .collect(Collectors.toSet()),
                 profile.getJoiningDate(),
+                List.of(),
                 profile.getCreatedAt(),
                 profile.getUpdatedAt()
         );

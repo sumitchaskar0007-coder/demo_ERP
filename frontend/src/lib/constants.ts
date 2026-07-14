@@ -2,13 +2,30 @@ export const APP_NAME = "Jadhavr ERP";
 
 export const ROUTES = {
   login: "/login",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
+  verifyEmail: "/verify-email",
+  emailNotifications: "/admin/email-notifications",
+  changePassword: "/change-password",
   dashboard: "/dashboard",
+  account: "/account",
+  accountChangePassword: "/account/change-password",
+  auditLogs: "/audit-logs",
+  admissionReport: "/reports/admissions",
+  feeReport: "/reports/fees",
+  attendanceReport: "/reports/attendance",
+  studentReport: "/reports/students",
   profile: "/profile",
   colleges: "/colleges",
   departments: "/departments",
   users: "/users",
   createPrincipal: "/users/principals/create",
   editPrincipal: "/users/principals/:id/edit",
+  principals: "/principals",
+  adminFeeSetup: "/admin/fee-setup",
+  adminFeeCollection: "/admin/fee-collection",
+  adminPendingFees: "/admin/pending-fees",
+  adminAnalytics: "/admin/analytics",
   publicAdmission: "/admission/:collegeCode",
   publicAdmissionSuccess: "/admission/:collegeCode/success",
   studentDashboard: "/student/dashboard",
@@ -17,8 +34,32 @@ export const ROUTES = {
   studentSectionDashboard: "/student-section/dashboard",
   studentSectionAdmissions: "/student-section/admissions",
   staff: "/staff",
+  students: "/students",
   createStudentSectionStaff: "/staff/student-section/create",
+  createFeeSectionStaff: "/staff/fee-section/create",
+  createStaff: "/principal/staff/create",
+  courseYears: "/principal/course-years",
+  createCourseYear: "/principal/course-years/create",
+  divisions: "/principal/divisions",
+  createDivision: "/principal/divisions/create",
+  feeStructures: "/fee-structures",
+  studentFees: "/student/fees",
+  studentPayments: "/student/fees/payments",
+  feeSectionDashboard: "/fee-section/dashboard",
+  feeAccounts: "/fee-section/fee-accounts",
+  feePayments: "/fee-section/payments",
   principalReviewReady: "/principal/admissions/review-ready",
+  finalAdmissions: "/principal/final-admissions",
+  academicClasses: "/academic/classes",
+  academicSections: "/academic/sections",
+  academicSubjects: "/academic/subjects",
+  academicTimetable: "/academic/timetable",
+  academicAttendance: "/academic/attendance",
+  studentTimetable: "/student/academic/timetable",
+  studentAttendance: "/student/academic/attendance",
+  studentClass: "/student/academic/class",
+  studentAllocation: "/academic/student-allocation",
+  classTeacherClass: "/academic/class-teacher/my-class",
   notices: "/notices",
   academicSetup: "/academic-setup",
   timetable: "/timetable",
@@ -36,6 +77,7 @@ export const ROLES = {
   CLASS_TEACHER: "CLASS_TEACHER",
   SUBJECT_TEACHER: "SUBJECT_TEACHER",
   STUDENT_SECTION: "STUDENT_SECTION",
+  GENERAL_STAFF: "GENERAL_STAFF",
   STUDENT: "STUDENT",
 } as const;
 
@@ -44,23 +86,39 @@ export type AppRole = (typeof ROLES)[keyof typeof ROLES];
 export function defaultRouteForRoles(roles: string[] = []) {
   if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.ADMIN) || roles.includes(ROLES.PRINCIPAL)) return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
-  if (roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER) || roles.includes(ROLES.FEE_SECTION)) return ROUTES.notices;
+  if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
+  if (roles.includes(ROLES.HOD)) return ROUTES.studentAllocation;
+  if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER)) return ROUTES.classTeacherClass;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
   return ROUTES.dashboard;
 }
 
 export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
-  if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.ADMIN)) return true;
+  if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.ADMIN)) {
+    return (
+      path === ROUTES.dashboard ||
+      path === ROUTES.account ||
+      path === ROUTES.accountChangePassword ||
+      path.startsWith("/colleges") ||
+      path.startsWith("/principals") ||
+      path === ROUTES.staff ||
+      path === ROUTES.students ||
+      path.startsWith("/admin/")
+    );
+  }
   if (roles.includes(ROLES.PRINCIPAL)) {
-    return !path.startsWith("/student/") && !path.startsWith("/colleges") && !path.startsWith("/users");
+    return (
+      !path.startsWith("/student/") && !path.startsWith("/colleges") && !path.startsWith("/users")
+    );
   }
   if (roles.includes(ROLES.STUDENT_SECTION)) {
-    return path.startsWith("/student-section") || path === ROUTES.profile;
+    return path.startsWith("/student-section") || path === ROUTES.profile || path === ROUTES.notices;
   }
   if (roles.includes(ROLES.STUDENT)) {
-    return path.startsWith("/student/") || path === ROUTES.notices || path === ROUTES.timetable || path === ROUTES.attendance;
+    return path.startsWith("/student/") || path === ROUTES.dashboard || path === ROUTES.account || path === ROUTES.accountChangePassword || path === ROUTES.notices;
   }
-  if (roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER) || roles.includes(ROLES.FEE_SECTION)) return path === ROUTES.notices || path === ROUTES.profile || path === ROUTES.timetable || path === ROUTES.attendance || (roles.includes(ROLES.HOD) && path === ROUTES.academicSetup);
+  if (roles.includes(ROLES.FEE_SECTION)) return path.startsWith("/fee-section") || path === ROUTES.notices || path === ROUTES.profile;
+  if (roles.some((role) => [ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER].includes(role as never))) return path.startsWith("/academic") || path === ROUTES.notices || path === ROUTES.profile;
   return false;
 }
 
@@ -89,6 +147,7 @@ export const STAFF_TYPE_OPTIONS = [
   { label: "Student Section", value: "STUDENT_SECTION" },
   { label: "Fee Section", value: "FEE_SECTION" },
   { label: "HOD", value: "HOD" },
+  { label: "Teacher", value: "TEACHER" },
   { label: "Class Teacher", value: "CLASS_TEACHER" },
   { label: "Subject Teacher", value: "SUBJECT_TEACHER" },
   { label: "General Staff", value: "GENERAL_STAFF" },

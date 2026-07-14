@@ -1,0 +1,15 @@
+{
+  "info": {"name":"Day 3 Fee Management","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "variable": [{"key":"baseUrl","value":"http://localhost:8081"},{"key":"principalToken","value":""},{"key":"studentToken","value":""},{"key":"feeSectionToken","value":""},{"key":"paymentId","value":"1"}],
+  "item": [
+    {"name":"Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"admin@erp.com\",\"password\":\"Admin@12345\"}"},"url":"{{baseUrl}}/api/auth/login"}},
+    {"name":"Create Fee Structure","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{principalToken}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"collegeId\":1,\"departmentId\":1,\"academicYear\":\"2026-2027\",\"title\":\"Annual Fees\",\"totalFee\":50000,\"minimumAmountForAdmission\":10000}"},"url":"{{baseUrl}}/api/principal/fee-structures"}},
+    {"name":"Create Fee Section Staff","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{principalToken}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"collegeId\":1,\"fullName\":\"Fee Section Staff\",\"email\":\"fees@example.com\",\"phone\":\"9876543210\",\"joiningDate\":\"2026-07-10\"}"},"url":"{{baseUrl}}/api/principal/staff/fee-section"}},
+    {"name":"Student Fee Account","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{studentToken}}"}],"url":"{{baseUrl}}/api/student/fees/me"}},
+    {"name":"Submit Payment Proof","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{studentToken}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"amount\":10000,\"paymentMode\":\"UPI\",\"transactionReference\":\"UPI123456\",\"paymentDate\":\"2026-07-10\",\"proofUrl\":\"https://example.com/proof.jpg\"}"},"url":"{{baseUrl}}/api/student/fees/payments"}},
+    {"name":"Pending Payments","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{feeSectionToken}}"}],"url":"{{baseUrl}}/api/fee-section/payments?status=PENDING"}},
+    {"name":"Verify Payment","request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{feeSectionToken}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"remarks\":\"Payment verified\"}"},"url":"{{baseUrl}}/api/fee-section/payments/{{paymentId}}/verify"}},
+    {"name":"Reject Payment","request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{feeSectionToken}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"rejectionReason\":\"Payment proof is unclear\"}"},"url":"{{baseUrl}}/api/fee-section/payments/{{paymentId}}/reject"}},
+    {"name":"Principal Review Queue","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{principalToken}}"}],"url":"{{baseUrl}}/api/principal/admissions/review-ready"}}
+  ]
+}

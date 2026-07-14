@@ -1,5 +1,6 @@
 package com.jadhavr.erp.student.dto;
 
+import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.student.enums.StudentStatus;
 
 import java.time.LocalDate;
@@ -9,6 +10,7 @@ public record StudentProfileResponse(
         Long id,
         Long userId,
         String admissionNumber,
+        StudentCategory studentCategory,
         Long collegeId,
         String collegeName,
         String collegeCode,

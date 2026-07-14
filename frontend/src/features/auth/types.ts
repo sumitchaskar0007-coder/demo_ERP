@@ -12,6 +12,8 @@ export interface AuthUser {
   bio: string | null;
   status: "ACTIVE" | "INACTIVE";
   roles: string[];
+  mustChangePassword: boolean;
+  emailVerified: boolean;
 }
 
 export interface UpdateOwnProfileValues {

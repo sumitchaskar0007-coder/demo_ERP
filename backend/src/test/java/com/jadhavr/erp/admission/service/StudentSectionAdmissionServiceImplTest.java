@@ -16,6 +16,7 @@ import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.Role;
@@ -35,6 +36,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -103,14 +105,18 @@ class StudentSectionAdmissionServiceImplTest {
     @Test
     void approveUpdatesAdmissionProfileAndHistory() {
         AdmissionForm admission = admission(100L, 1L, AdmissionStatus.SUBMITTED);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        admission.setPhotoStorageName("student-photo.jpg");
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
         when(admissions.save(admission)).thenReturn(admission);
         when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
 
-        var result = service.approveAdmission(100L, new VerifyAdmissionRequest("Verified"));
+        var result = service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.SC, "Verified"));
 
         assertEquals(AdmissionStatus.STUDENT_SECTION_APPROVED, result.status());
         assertEquals(StudentStatus.UNDER_REVIEW, admission.getStudent().getStatus());
+        assertEquals(StudentCategory.SC, admission.getStudentCategory());
+        assertEquals(StudentCategory.SC, admission.getStudent().getStudentCategory());
         assertEquals("Verified", admission.getStudentSectionRemarks());
         verifyHistory(AdmissionAction.STUDENT_SECTION_APPROVED);
     }
@@ -136,7 +142,7 @@ class StudentSectionAdmissionServiceImplTest {
                 .thenReturn(Optional.of(admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REJECTED)));
 
         assertThrows(BadRequestException.class,
-                () -> service.approveAdmission(100L, new VerifyAdmissionRequest(null)));
+                () -> service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.OPEN, null)));
     }
 
     @Test

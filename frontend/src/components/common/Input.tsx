@@ -12,9 +12,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || props.name;
     return (
       <div className="space-y-1.5">
-        {label && <label htmlFor={inputId} className="text-sm font-medium text-slate-700">{label}</label>}
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-medium text-slate-700">
+            {label}
+          </label>
+        )}
         <div className="relative">
-          {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>}
+          {icon && (
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
+          )}
           <input
             ref={ref}
             id={inputId}
@@ -29,7 +35,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
         </div>
-        {error && <p id={`${inputId}-error`} className="text-xs text-red-600">{error}</p>}
+        {error && (
+          <p id={`${inputId}-error`} className="text-xs text-red-600">
+            {error}
+          </p>
+        )}
       </div>
     );
   },
