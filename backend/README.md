@@ -82,6 +82,29 @@ mvn spring-boot:run
 
 The API starts at `http://localhost:8081`.
 
+## Production authentication
+
+Browser authentication uses `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`,
+and `POST /api/v1/auth/logout`. Access and refresh credentials are delivered only
+as HttpOnly cookies; JWTs are never returned in JSON or stored by the frontend.
+Refresh tokens are opaque random values and only their SHA-256 hashes are stored
+in PostgreSQL. Rotation revokes the old database record before issuing a new token.
+
+Production deployment requirements:
+
+- Set `AUTH_COOKIE_SECURE=true` and terminate HTTPS only at a trusted reverse proxy.
+- Supply a randomly generated `JWT_SECRET` of at least 32 bytes through a secret manager.
+- Set `JPA_DDL_AUTO=validate` and manage the schema with Flyway/Liquibase migrations.
+- Set `RATE_LIMIT_REDIS_ENABLED=true` and configure a private, authenticated Redis service.
+- Keep the frontend and API same-site; use `SameSite=Lax` only when the deployment topology requires it.
+- Allow only exact production frontend origins in CORS and never use wildcard origins with credentials.
+- Forward client IP headers only from trusted proxies and restrict PostgreSQL/Redis to private networks.
+- Rotate secrets, use short log retention, monitor refresh-token reuse, and revoke active sessions after account compromise.
+
+The frontend first calls `GET /api/v1/auth/csrf`; mutating requests must echo the
+readable `XSRF-TOKEN` cookie in the `X-XSRF-TOKEN` header. Authentication cookies
+remain HttpOnly and cannot be read by JavaScript.
+
 ### Tests
 
 ```powershell

@@ -1,6 +1,7 @@
 export interface AuthUser {
   id: number;
   collegeId: number | null;
+  institutionId: number | null;
   collegeName: string | null;
   collegeCode: string | null;
   fullName: string;
@@ -22,11 +23,4 @@ export interface UpdateOwnProfileValues {
 export interface LoginRequest {
   email: string;
   password: string;
-}
-
-export interface LoginResponse {
-  token: string;
-  tokenType: "Bearer";
-  expiresInMs: number;
-  user: AuthUser;
 }

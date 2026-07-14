@@ -66,6 +66,15 @@ public class User extends BaseAuditEntity {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    @Column(name = "failed_login_attempts")
+    private Integer failedLoginAttempts;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
+    @Column(name = "session_version")
+    private Long sessionVersion;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public College getCollege() { return college; }
@@ -90,4 +99,10 @@ public class User extends BaseAuditEntity {
     public void setRoles(Set<Role> roles) { this.roles = roles; }
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+    public int getFailedLoginAttempts() { return failedLoginAttempts == null ? 0 : failedLoginAttempts; }
+    public void setFailedLoginAttempts(int failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+    public LocalDateTime getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+    public long getSessionVersion() { return sessionVersion == null ? 0L : sessionVersion; }
+    public void setSessionVersion(long sessionVersion) { this.sessionVersion = sessionVersion; }
 }

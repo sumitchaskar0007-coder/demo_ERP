@@ -18,7 +18,7 @@ public record CreatePrincipalRequest(
         @Size(max = 20, message = "Phone must not exceed 20 characters") String phone,
         @NotBlank(message = "Password is required")
         @Pattern(
-                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&.#_-])[A-Za-z\\d@$!%*?&.#_-]{8,100}$",
-                message = "Password must contain uppercase, lowercase, digit and special character")
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&.#_-])[A-Za-z\\d@$!%*?&.#_-]{12,100}$",
+                message = "Password must be 12+ characters with uppercase, lowercase, digit and special character")
         String password
 ) {}

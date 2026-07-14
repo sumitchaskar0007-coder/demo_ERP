@@ -15,8 +15,8 @@ public record CreateStudentSectionStaffRequest(
         @Size(max = 20) String phone,
         @NotBlank
         @Pattern(
-                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&.#_-])[A-Za-z\\d@$!%*?&.#_-]{8,100}$",
-                message = "Password must contain uppercase, lowercase, digit, and special character"
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&.#_-])[A-Za-z\\d@$!%*?&.#_-]{12,100}$",
+                message = "Password must be 12+ characters with uppercase, lowercase, digit, and special character"
         )
         String password,
         LocalDate joiningDate

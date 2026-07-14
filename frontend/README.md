@@ -95,11 +95,12 @@ These credentials are only for localhost development.
 
 ## Security behavior
 
-- JWT and the minimal user session are stored in local storage for this localhost MVP.
-- Axios attaches the Bearer token to API requests.
-- Passwords are never persisted.
-- Tokens are never printed to the console.
-- HTTP 401 clears the session and redirects to login.
+- Access and rotating refresh tokens are stored only in HttpOnly cookies.
+- Axios uses `withCredentials: true`; no token or user profile is persisted in browser storage.
+- The in-memory user profile is restored from `/api/v1/auth/me` after page reload.
+- A 401 triggers one refresh request and retries the original request once.
+- Failed refresh clears in-memory user state and redirects to login.
+- CSRF uses the standard `XSRF-TOKEN` cookie and `X-XSRF-TOKEN` request header.
 - HTTP 403 redirects to the forbidden page.
 - Route guards prevent Principal access to Super Admin screens.
 - Backend authorization remains the source of truth.

@@ -24,6 +24,8 @@ The current implementation includes:
 See the [backend documentation](backend/README.md) for architecture, environment
 configuration, API endpoints, credentials, testing, and local setup. See the
 [frontend documentation](frontend/README.md) for UI setup and role-aware workflows.
+See the [authentication flowcharts](docs/authentication/README.md) for the complete
+cookie JWT, refresh rotation, CSRF, authorization, tenant, and deployment flows.
 
 ## Quick start
 

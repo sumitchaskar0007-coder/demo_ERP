@@ -12,8 +12,8 @@ export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unre
   const navigate = useNavigate();
   const primaryRole = user?.roles[0]?.replaceAll("_", " ") || "User";
   const year = new Date().getFullYear();
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast.success("Logged out successfully");
     navigate(ROUTES.login);
   };

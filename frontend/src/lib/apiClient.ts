@@ -1,32 +1,44 @@
 import axios from "axios";
-import { authToken } from "@/lib/authToken";
 import { ROUTES } from "@/lib/constants";
 
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8081",
+  baseURL,
   timeout: 15_000,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: "XSRF-TOKEN",
+  xsrfHeaderName: "X-XSRF-TOKEN",
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = authToken.getToken();
-  const isLoginRequest = config.url?.includes("/api/auth/login");
-  // Login must never carry an old session token. An expired token can cause
-  // the security filter to reject valid credentials before login is handled.
-  if (token && !isLoginRequest) config.headers.Authorization = `Bearer ${token}`;
-  if (isLoginRequest) delete config.headers.Authorization;
-  return config;
-});
+const authClient = axios.create({ baseURL, timeout: 15_000, withCredentials: true, withXSRFToken: true });
+let refreshPromise: Promise<void> | null = null;
+
+async function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = authClient.get("/api/v1/auth/csrf")
+      .then(() => authClient.post("/api/v1/auth/refresh"))
+      .then(() => undefined)
+      .finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: unknown) => {
+  async (error: unknown) => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const path = window.location.pathname;
-      if (status === 401) {
-        authToken.clear();
-        if (path !== ROUTES.login) window.location.assign(ROUTES.login);
+      const original = error.config as (typeof error.config & { _retried?: boolean }) | undefined;
+      const authRequest = original?.url?.startsWith("/api/v1/auth/");
+      if (status === 401 && original && !original._retried && !authRequest) {
+        original._retried = true;
+        try { await refreshSession(); return apiClient.request(original); }
+        catch { window.dispatchEvent(new Event("auth:unauthorized")); if (path !== ROUTES.login) window.location.assign(ROUTES.login); }
+      } else if (status === 401) {
+        window.dispatchEvent(new Event("auth:unauthorized"));
       } else if (status === 403 && path !== ROUTES.forbidden) {
         window.location.assign(ROUTES.forbidden);
       }
@@ -34,3 +46,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export async function initializeCsrf() { await authClient.get("/api/v1/auth/csrf"); }

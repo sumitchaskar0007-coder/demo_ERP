@@ -50,10 +50,10 @@ export const createPrincipalSchema = z.object({
   phone: z.string().max(20).optional().default(""),
   password: z
     .string()
-    .min(8)
+    .min(12)
     .max(100)
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{12,100}$/,
       "Include uppercase, lowercase, number, and special character",
     ),
 });
@@ -62,8 +62,8 @@ export const updatePrincipalSchema = z.object({
   phone: z.string().max(20).optional().default(""),
   password: z.union([
     z.literal(""),
-    z.string().min(8).max(100).regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
+    z.string().min(12).max(100).regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{12,100}$/,
       "Include uppercase, lowercase, number, and special character",
     ),
   ]),
@@ -104,10 +104,10 @@ export const createStudentSectionStaffSchema = z.object({
   phone: z.string().max(20).optional().default(""),
   password: z
     .string()
-    .min(8)
+    .min(12)
     .max(100)
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{12,100}$/,
       "Include uppercase, lowercase, number, and special character",
     ),
   joiningDate: z.string().optional().default(""),

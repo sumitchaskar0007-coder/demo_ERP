@@ -4,18 +4,19 @@ import {
   useContext,
   useMemo,
   useState,
+  useEffect,
   type PropsWithChildren,
 } from "react";
-import { authToken } from "@/lib/authToken";
 import * as authApi from "./api";
 import type { AuthUser, LoginRequest, UpdateOwnProfileValues } from "./types";
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  initializing: boolean;
   isRole: (roles: string[]) => boolean;
   login: (request: LoginRequest) => Promise<AuthUser>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (request: UpdateOwnProfileValues) => Promise<AuthUser>;
   uploadProfilePhoto: (file: File) => Promise<AuthUser>;
@@ -24,47 +25,39 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const storedUser = authToken.getUser();
-    const storedToken = authToken.getToken();
-    if (!storedUser || !storedToken) {
-      authToken.clear();
-      return null;
-    }
-    return storedUser;
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
-  const login = useCallback(async (request: LoginRequest) => {
-    const response = await authApi.login(request);
-    authToken.setSession(response.token, response.user);
-    setUser(response.user);
-    return response.user;
+  useEffect(() => {
+    authApi.bootstrapSession().then(setUser).catch(() => setUser(null)).finally(() => setInitializing(false));
+    const clear = () => setUser(null);
+    window.addEventListener("auth:unauthorized", clear);
+    return () => window.removeEventListener("auth:unauthorized", clear);
   }, []);
 
-  const logout = useCallback(() => {
-    authToken.clear();
-    setUser(null);
+  const login = useCallback(async (request: LoginRequest) => {
+    const authenticatedUser = await authApi.login(request);
+    setUser(authenticatedUser);
+    return authenticatedUser;
+  }, []);
+
+  const logout = useCallback(async () => {
+    try { await authApi.logout(); } finally { setUser(null); }
   }, []);
 
   const refreshProfile = useCallback(async () => {
     const profile = await authApi.getProfile();
-    const token = authToken.getToken();
-    if (token) authToken.setSession(token, profile);
     setUser(profile);
   }, []);
 
   const updateProfile = useCallback(async (request: UpdateOwnProfileValues) => {
     const profile = await authApi.updateProfile(request);
-    const token = authToken.getToken();
-    if (token) authToken.setSession(token, profile);
     setUser(profile);
     return profile;
   }, []);
 
   const uploadProfilePhoto = useCallback(async (file: File) => {
     const profile = await authApi.uploadProfilePhoto(file);
-    const token = authToken.getToken();
-    if (token) authToken.setSession(token, profile);
     setUser(profile);
     return profile;
   }, []);
@@ -72,7 +65,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      isAuthenticated: Boolean(user && authToken.getToken()),
+      isAuthenticated: Boolean(user),
+      initializing,
       isRole: (roles) => Boolean(user?.roles.some((role) => roles.includes(role))),
       login,
       logout,
@@ -80,7 +74,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       updateProfile,
       uploadProfilePhoto,
     }),
-    [login, logout, refreshProfile, updateProfile, uploadProfilePhoto, user],
+    [initializing, login, logout, refreshProfile, updateProfile, uploadProfilePhoto, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

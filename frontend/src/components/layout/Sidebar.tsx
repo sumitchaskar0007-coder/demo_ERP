@@ -38,7 +38,7 @@ const futureItems = [
 
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
   const { isRole } = useAuth();
-  const isAdmin = isRole([ROLES.SUPER_ADMIN]);
+  const isAdmin = isRole([ROLES.SUPER_ADMIN, ROLES.ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
@@ -55,6 +55,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
+        { label: "Academic Setup", to: ROUTES.academicSetup, icon: LibraryBig },
+        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
+        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
       ]
     : isPrincipal
     ? [
@@ -65,6 +68,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
+        { label: "Academic Setup", to: ROUTES.academicSetup, icon: LibraryBig },
+        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
+        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
     : isStudentSection
@@ -73,6 +79,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
+        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
+        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
       ]
     : isStudent
     ? [
@@ -84,6 +92,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     : isOtherStaff
     ? [
         { label: "Notices", to: ROUTES.notices, icon: Bell },
+        ...(isRole([ROLES.HOD]) ? [{ label: "Academic Setup", to: ROUTES.academicSetup, icon: LibraryBig }] : []),
+        { label: "Timetable", to: ROUTES.timetable, icon: WalletCards },
+        { label: "Attendance", to: ROUTES.attendance, icon: CalendarDays },
         { label: "Profile", to: ROUTES.profile, icon: UserRound },
       ]
     : [
