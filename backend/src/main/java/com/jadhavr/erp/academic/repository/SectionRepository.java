@@ -18,4 +18,5 @@ public interface SectionRepository extends JpaRepository<Section, Long>, JpaSpec
             + "where s.academicClass.id in :ids group by s.academicClass.id")
     List<Object[]> countByAcademicClassIds(@Param("ids") Collection<Long> ids);
     long countById(Long id);
+    List<Section> findByClassTeacherIdAndStatus(Long staffId, SectionStatus status);
 }

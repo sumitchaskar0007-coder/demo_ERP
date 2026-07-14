@@ -63,3 +63,8 @@ export const submitAttendance = (id: number) =>
 export const getMyStudentTimetable = () => get<TimetableEntry[]>("/api/student/academic/timetable");
 export const getMyStudentAttendanceSummary = () =>
   get<Record<string, number>>("/api/student/academic/attendance/summary");
+export type StudentRosterItem = { studentProfileId: number; admissionNumber: string; rollNumber?: string | null; fullName: string; email: string; phone: string };
+export const eligibleStudentsForClass = (id: number) => get<StudentRosterItem[]>(`/api/academic/classes/${id}/eligible-students`);
+export const sectionStudents = (id: number) => get<StudentRosterItem[]>(`/api/academic/sections/${id}/students`);
+export const getMyClassRoster = () => get<Record<string, unknown>>("/api/academic/class-teacher/my-class");
+export const getMyStudentClass = () => get<Record<string, unknown>>("/api/student/academic/class");

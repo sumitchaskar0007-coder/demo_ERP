@@ -5,8 +5,11 @@ import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Loader } from "@/components/common/Loader";
+import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/academic/api";
+import { searchDepartments } from "@/features/departments/api";
+import type { Department } from "@/features/departments/types";
 import type {
   AcademicClass,
   FinalAdmission,
@@ -149,14 +152,53 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
   );
 }
 export function AcademicCreatePage({ kind }: { kind: Kind }) {
-  const [v, setV] = useState<Record<string, string>>({ academicYear: "2026-27" }),
-    input = (name: string, label: string) => (
-      <Input
-        label={label}
-        value={v[name] || ""}
-        onChange={(e) => setV({ ...v, [name]: e.target.value })}
-      />
-    );
+  const [v, setV] = useState<Record<string, string>>({ academicYear: "2026-27" });
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
+
+  const input = (name: string, label: string) => (
+    <Input
+      label={label}
+      value={v[name] || ""}
+      onChange={(e) => setV({ ...v, [name]: e.target.value })}
+    />
+  );
+
+  useEffect(() => {
+    if (kind !== "subjects") return;
+    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
+      .then((result) => setDepartments(result.content))
+      .catch((error) => toast.error(handleApiError(error).message));
+  }, [kind]);
+
+  const loadAcademicClasses = async (departmentId: string) => {
+    if (!departmentId) {
+      setAcademicClasses([]);
+      return;
+    }
+    try {
+      const items = await api.searchAcademicClasses({ departmentId: Number(departmentId) });
+      setAcademicClasses(items);
+    } catch (error) {
+      setAcademicClasses([]);
+      toast.error(handleApiError(error).message);
+    }
+  };
+
+  const handleDepartmentChange = (departmentId: string) => {
+    setV({ ...v, departmentId, academicClassId: "", academicYear: "" });
+    loadAcademicClasses(departmentId);
+  };
+
+  const handleClassChange = (academicClassId: string) => {
+    const selectedClass = academicClasses.find((item) => item.id === Number(academicClassId));
+    setV({
+      ...v,
+      academicClassId,
+      academicYear: selectedClass?.academicYear ?? "",
+    });
+  };
+
   const save = async () => {
     try {
       if (kind === "classes")
@@ -191,6 +233,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
       toast.error(handleApiError(e).message);
     }
   };
+
   return (
     <Shell title={`Create ${kind.slice(0, -1)}`} subtitle="Codes are normalized to uppercase.">
       <div className="grid gap-4 md:grid-cols-2">
@@ -199,17 +242,51 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
             {input("collegeId", "College ID")}
             {input("departmentId", "Department ID")}
           </>
+        ) : kind === "subjects" ? (
+          <>
+            <Select
+              label="Department"
+              value={v.departmentId || ""}
+              onChange={(e) => handleDepartmentChange(e.target.value)}
+              options={[
+                { label: "Select department", value: "" },
+                ...departments.map((item) => ({
+                  label: `${item.code} - ${item.name}`,
+                  value: item.id,
+                })),
+              ]}
+            />
+            <Select
+              label="Year / Class"
+              value={v.academicClassId || ""}
+              onChange={(e) => handleClassChange(e.target.value)}
+              options={[
+                { label: "Select year", value: "" },
+                ...academicClasses.map((item) => ({
+                  label: `${item.academicYear} - ${item.name}`,
+                  value: item.id,
+                })),
+              ]}
+            />
+          </>
         ) : (
           input("academicClassId", "Academic class ID")
         )}
-        {input("academicYear", "Academic year")}
+        <Input
+          label="Academic year"
+          value={v.academicYear || ""}
+          disabled={kind === "subjects"}
+          onChange={(e) => setV({ ...v, academicYear: e.target.value })}
+        />
         {input("name", "Name")}
         {input("code", "Code")}
-        {kind === "sections"
-          ? input("capacity", "Capacity")
-          : kind === "subjects"
-            ? input("credits", "Credits")
-            : input("description", "Description")}
+        {kind === "sections" ? (
+          input("capacity", "Capacity")
+        ) : kind === "subjects" ? (
+          input("credits", "Credits")
+        ) : (
+          input("description", "Description")
+        )}
       </div>
       <Button className="mt-5" onClick={save}>
         Create

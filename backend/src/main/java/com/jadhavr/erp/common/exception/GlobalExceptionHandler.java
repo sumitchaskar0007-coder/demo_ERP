@@ -95,9 +95,19 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("User account is inactive"));
     }
 
+    // @ExceptionHandler(Exception.class)
+    // public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+    //     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+    //             .body(new ErrorResponse("An unexpected error occurred"));
+    // }
+    
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("An unexpected error occurred"));
-    }
+public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+
+    System.err.println("===== UNEXPECTED EXCEPTION =====");
+    exception.printStackTrace();
+
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponse("An unexpected error occurred"));
+}
 }

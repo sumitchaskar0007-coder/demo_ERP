@@ -18,7 +18,7 @@
     <description>Multi-college ERP backend</description>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>17</java.version>
     </properties>
 
     <dependencies>

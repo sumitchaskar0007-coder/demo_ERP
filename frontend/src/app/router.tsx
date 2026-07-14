@@ -49,14 +49,9 @@ import { StudentDashboardPage } from "@/pages/student/StudentDashboardPage";
 import { StudentProfilePage } from "@/pages/student/StudentProfilePage";
 import { CreatePrincipalPage } from "@/pages/users/CreatePrincipalPage";
 import { EditPrincipalPage } from "@/features/users/EditPrincipalPage";
-<<<<<<< HEAD
 import { UserDetailsPage } from "@/pages/users/UserDetailsPage";
 import { UserListPage } from "@/pages/users/UserListPage";
-=======
-import { UserDetailsPage } from "@/features/users/UserDetailsPage";
-import { UserListPage } from "@/features/users/UserListPage";
 import { NoticesPage } from "@/features/notices/NoticesPage";
->>>>>>> origin/sumit
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -79,6 +74,7 @@ import {
   FinalAdmissionsPage,
   StudentAcademicPage,
 } from "@/pages/academic/AcademicPages";
+import { MyClassRosterPage, StudentAllocationPage, StudentClassPage } from "@/pages/academic/ClassAllocationPages";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -108,13 +104,10 @@ export function AppRouter() {
         <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
         <Route element={<DashboardLayout />}>
           <Route path={ROUTES.profile} element={<ProfilePage />} />
-<<<<<<< HEAD
           <Route path={ROUTES.account} element={<AccountPage />} />
           <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
           <Route path={ROUTES.dashboard} element={<SmartDashboard />} />
-=======
           <Route path={ROUTES.notices} element={<NoticesPage />} />
->>>>>>> origin/sumit
 
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
             <Route path={ROUTES.colleges} element={<CollegeListPage />} />
@@ -187,6 +180,7 @@ export function AppRouter() {
               element={<AcademicCreatePage kind="sections" />}
             />
             <Route path={ROUTES.academicSubjects} element={<AcademicListPage kind="subjects" />} />
+            <Route path={ROUTES.studentAllocation} element={<StudentAllocationPage />} />
             <Route
               path="/academic/subjects/create"
               element={<AcademicCreatePage kind="subjects" />}
@@ -212,6 +206,7 @@ export function AppRouter() {
             />
           </Route>
 
+          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}><Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} /></Route>
           <Route element={<RoleRoute roles={[ROLES.STUDENT]} />}>
             <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
             <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
@@ -222,6 +217,7 @@ export function AppRouter() {
             <Route path="/student/fees/transactions" element={<MyFeeTransactionsPage />} />
             <Route path={ROUTES.studentTimetable} element={<StudentAcademicPage />} />
             <Route path={ROUTES.studentAttendance} element={<StudentAcademicPage attendance />} />
+            <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
           </Route>
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
             <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
