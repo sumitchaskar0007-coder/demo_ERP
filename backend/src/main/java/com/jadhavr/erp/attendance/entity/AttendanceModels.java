@@ -14,7 +14,7 @@ public final class AttendanceModels {
     public enum SessionStatus { OPEN, SUBMITTED, LOCKED }
     public enum AttendanceStatus { PRESENT, ABSENT, LATE, EXCUSED, HALF_DAY, LEAVE }
 
-    @Entity @Table(name="attendance_sessions", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","timetable_entry_id","session_date"}))
+    @Entity(name="ManagedAttendanceSession") @Table(name="attendance_sessions", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","timetable_entry_id","session_date"}))
     public static class AttendanceSession extends TenantEntity {
         @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="timetable_entry_id") private TimetableEntry timetableEntry;
         @Column(name="session_date",nullable=false) private LocalDate sessionDate;
@@ -27,7 +27,7 @@ public final class AttendanceModels {
         public TimetableEntry getTimetableEntry(){return timetableEntry;} public void setTimetableEntry(TimetableEntry v){timetableEntry=v;} public LocalDate getSessionDate(){return sessionDate;} public void setSessionDate(LocalDate v){sessionDate=v;} public SessionType getType(){return type;} public void setType(SessionType v){type=v;} public SessionStatus getStatus(){return status;} public void setStatus(SessionStatus v){status=v;} public User getAssignedTeacher(){return assignedTeacher;} public void setAssignedTeacher(User v){assignedTeacher=v;} public LocalDateTime getLockAt(){return lockAt;} public void setLockAt(LocalDateTime v){lockAt=v;} public LocalDateTime getSubmittedAt(){return submittedAt;} public void setSubmittedAt(LocalDateTime v){submittedAt=v;} public User getSubmittedBy(){return submittedBy;} public void setSubmittedBy(User v){submittedBy=v;}
     }
 
-    @Entity @Table(name="student_attendance", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","session_id","student_id"}))
+    @Entity(name="ManagedStudentAttendance") @Table(name="student_attendance", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","session_id","student_id"}))
     public static class StudentAttendance extends TenantEntity {
         @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="session_id",nullable=false) private AttendanceSession session;
         @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="student_id",nullable=false) private StudentProfile student;
@@ -38,7 +38,7 @@ public final class AttendanceModels {
         public AttendanceSession getSession(){return session;} public void setSession(AttendanceSession v){session=v;} public StudentProfile getStudent(){return student;} public void setStudent(StudentProfile v){student=v;} public AttendanceStatus getStatus(){return status;} public void setStatus(AttendanceStatus v){status=v;} public String getRemarks(){return remarks;} public void setRemarks(String v){remarks=v;} public User getMarkedBy(){return markedBy;} public void setMarkedBy(User v){markedBy=v;} public LocalDateTime getMarkedAt(){return markedAt;} public void setMarkedAt(LocalDateTime v){markedAt=v;}
     }
 
-    @Entity @Table(name="attendance_corrections")
+    @Entity(name="ManagedAttendanceCorrection") @Table(name="attendance_corrections")
     public static class AttendanceCorrection extends TenantEntity {
         @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="attendance_id",nullable=false) private StudentAttendance attendance;
         @Enumerated(EnumType.STRING) @Column(name="old_status",nullable=false,length=20) private AttendanceStatus oldStatus;
@@ -49,7 +49,7 @@ public final class AttendanceModels {
         public StudentAttendance getAttendance(){return attendance;} public void setAttendance(StudentAttendance v){attendance=v;} public AttendanceStatus getOldStatus(){return oldStatus;} public void setOldStatus(AttendanceStatus v){oldStatus=v;} public AttendanceStatus getNewStatus(){return newStatus;} public void setNewStatus(AttendanceStatus v){newStatus=v;} public String getReason(){return reason;} public void setReason(String v){reason=v;} public User getCorrectedBy(){return correctedBy;} public void setCorrectedBy(User v){correctedBy=v;} public LocalDateTime getCorrectedAt(){return correctedAt;} public void setCorrectedAt(LocalDateTime v){correctedAt=v;}
     }
 
-    @Entity @Table(name="erp_audit_logs",indexes={@Index(name="idx_audit_tenant_time",columnList="college_id,created_at")})
+    @Entity(name="ManagedAttendanceAuditLog") @Table(name="erp_audit_logs",indexes={@Index(name="idx_audit_tenant_time",columnList="college_id,created_at")})
     public static class AuditLog extends TenantEntity {
         @Column(nullable=false,length=80) private String action; @Column(name="entity_type",nullable=false,length=80) private String entityType;
         @Column(name="entity_id") private Long entityId; @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="actor_id",nullable=false) private User actor;

@@ -11,7 +11,7 @@ public final class TimetableModels {
     private TimetableModels() {}
     public enum TimetableStatus { DRAFT, PUBLISHED, ARCHIVED }
 
-    @Entity @Table(name="timetables", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","academic_term_id","class_id","section_id","week_start"}))
+    @Entity(name="ManagedTimetable") @Table(name="timetables", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","academic_term_id","class_id","section_id","week_start"}))
     public static class Timetable extends TenantEntity {
         @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="academic_year_id",nullable=false) private AcademicYear academicYear;
         @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="academic_term_id",nullable=false) private AcademicTerm academicTerm;
@@ -25,7 +25,7 @@ public final class TimetableModels {
         public AcademicYear getAcademicYear(){return academicYear;} public void setAcademicYear(AcademicYear v){academicYear=v;} public AcademicTerm getAcademicTerm(){return academicTerm;} public void setAcademicTerm(AcademicTerm v){academicTerm=v;} public AcademicClass getAcademicClass(){return academicClass;} public void setAcademicClass(AcademicClass v){academicClass=v;} public Section getSection(){return section;} public void setSection(Section v){section=v;} public LocalDate getWeekStart(){return weekStart;} public void setWeekStart(LocalDate v){weekStart=v;} public TimetableStatus getStatus(){return status;} public void setStatus(TimetableStatus v){status=v;} public User getCreatedBy(){return createdBy;} public void setCreatedBy(User v){createdBy=v;} public User getPublishedBy(){return publishedBy;} public void setPublishedBy(User v){publishedBy=v;} public LocalDateTime getPublishedAt(){return publishedAt;} public void setPublishedAt(LocalDateTime v){publishedAt=v;}
     }
 
-    @Entity @Table(name="timetable_entries", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","timetable_id","day_of_week","period_id"}))
+    @Entity(name="ManagedTimetableEntry") @Table(name="timetable_entries", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","timetable_id","day_of_week","period_id"}))
     public static class TimetableEntry extends TenantEntity {
         @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="timetable_id",nullable=false) private Timetable timetable;
         @Enumerated(EnumType.STRING) @Column(name="day_of_week",nullable=false,length=12) private DayOfWeek dayOfWeek;

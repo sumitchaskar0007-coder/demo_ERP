@@ -7,6 +7,6 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
  Optional<StudentAttendance> findByIdAndCollegeId(Long id,Long tenant);
  Optional<StudentAttendance> findByCollegeIdAndSessionIdAndStudentId(Long tenant,Long session,Long student);
  List<StudentAttendance> findByCollegeIdAndSessionId(Long tenant,Long session);
- @Query("select a from StudentAttendance a where a.college.id=:tenant and a.student.id=:student and a.session.sessionDate between :from and :to")
+ @Query("select a from #{#entityName} a where a.college.id=:tenant and a.student.id=:student and a.session.sessionDate between :from and :to")
  List<StudentAttendance> report(@Param("tenant")Long tenant,@Param("student")Long student,@Param("from")LocalDate from,@Param("to")LocalDate to);
 }

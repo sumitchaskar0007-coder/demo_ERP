@@ -1,1 +1,1 @@
-package com.jadhavr.erp.audit.repository; import com.jadhavr.erp.audit.entity.AuditLog; import org.springframework.data.jpa.repository.*; public interface AuditLogRepository extends JpaRepository<AuditLog,Long>,JpaSpecificationExecutor<AuditLog>{}
+package com.jadhavr.erp.audit.repository; import com.jadhavr.erp.audit.entity.AuditLog; import org.springframework.data.jpa.repository.*; @org.springframework.stereotype.Repository("platformAuditLogRepository") public interface AuditLogRepository extends JpaRepository<AuditLog,Long>,JpaSpecificationExecutor<AuditLog>{}
