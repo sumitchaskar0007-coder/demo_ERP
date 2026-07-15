@@ -45,7 +45,7 @@ public class SecurityConfig {
     public SecurityConfig(ObjectMapper objectMapper,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           CustomUserDetailsService userDetailsService, LoginRateLimitFilter loginRateLimitFilter,
-                          @Value("${app.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
+                          @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins) {
         this.objectMapper = objectMapper;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userDetailsService = userDetailsService;
@@ -70,19 +70,20 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none'; object-src 'none'"))
                         .frameOptions(frame -> frame.deny())
+                        .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .permissionsPolicyHeader(permissions -> permissions.policy("camera=(), microphone=(), geolocation=()"))
                         .contentTypeOptions(content -> {}))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").denyAll()
                         .requestMatchers(
                                 "/actuator/health",
                                 "/api/health",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/uploads/**",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/csrf",
                                 "/api/public/admissions/**"
                         ).permitAll()
+                        .requestMatchers("/uploads/**").authenticated()
                         .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/student-section/**").hasAnyRole("STUDENT_SECTION", "PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/staff/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")

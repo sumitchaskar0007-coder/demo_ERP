@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/authStore";
+import { API_BASE_URL } from "@/lib/apiClient";
 import { ROUTES } from "@/lib/constants";
 import { initials } from "@/lib/utils";
 
@@ -13,7 +14,7 @@ export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unre
   const primaryRole = user?.roles[0]?.replaceAll("_", " ") || "User";
   const year = new Date().getFullYear();
   const profileImage = user?.profileImageUrl?.startsWith("/")
-    ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8081"}${user.profileImageUrl}`
+    ? `${API_BASE_URL}${user.profileImageUrl}`
     : user?.profileImageUrl;
   const handleLogout = () => {
     logout();
