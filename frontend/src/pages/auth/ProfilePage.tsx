@@ -19,7 +19,7 @@ import { API_BASE_URL } from "@/lib/apiClient";
 type ProfileForm = z.infer<typeof updateOwnProfileSchema>;
 
 function ProfileField({ label, value }: { label: string; value: string }) {
-  return <div><p className="mb-2 text-sm font-semibold text-slate-700">{label}</p><div className="flex min-h-12 items-center rounded-xl border border-slate-200 bg-[#fbfcfe] px-4 text-sm font-medium text-slate-700">{value || "—"}</div></div>;
+  return <div><p className="mb-2 text-sm font-semibold text-slate-700">{label}</p><div className="flex min-h-12 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{value || "—"}</div></div>;
 }
 
 export function ProfilePage() {

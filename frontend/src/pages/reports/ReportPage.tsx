@@ -42,12 +42,12 @@ export function ReportPage({ type }: { type: "admissions" | "fees" | "attendance
         {loading ? (
           <Loader />
         ) : rows.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="w-full overflow-hidden">
+            <table className="w-full table-fixed text-xs sm:text-sm">
               <thead>
                 <tr>
                   {keys.map((k) => (
-                    <th className="whitespace-nowrap p-3 text-left text-slate-500" key={k}>
+                    <th className="p-2 text-left text-slate-500 sm:p-3" key={k}>
                       {k.replace(/([A-Z])/g, " $1")}
                     </th>
                   ))}
@@ -57,7 +57,7 @@ export function ReportPage({ type }: { type: "admissions" | "fees" | "attendance
                 {rows.map((r, i) => (
                   <tr className="border-t" key={i}>
                     {keys.map((k) => (
-                      <td className="whitespace-nowrap p-3" key={k}>
+                      <td className="p-2 sm:p-3" key={k}>
                         {String(r[k] ?? "")}
                       </td>
                     ))}

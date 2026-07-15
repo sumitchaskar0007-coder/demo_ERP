@@ -159,7 +159,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         <p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400", collapsed && !mobile && "sr-only")}>{sectionLabel}</p>
         <nav className="space-y-1">
           {nav.map(({ label, to, icon: Icon }) => (
-            <NavLink key={to} to={to} onClick={onNavigate} title={collapsed && !mobile ? label : undefined} className={({ isActive }) => cn("relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition", isActive ? "bg-[#eef1ff] text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900", collapsed && !mobile && "justify-center")}>
+            <NavLink key={to} to={to} onClick={onNavigate} title={collapsed && !mobile ? label : undefined} className={({ isActive }) => cn("relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition", isActive ? "bg-brand-50 text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900", collapsed && !mobile && "justify-center")}>
               <Icon className="h-5 w-5 shrink-0" />
               {(!collapsed || mobile) && <span>{label}</span>}
             </NavLink>

@@ -49,7 +49,7 @@ export function DonutChartCard({
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {data.map((item) => (
           <div key={item.name} className="flex items-center gap-2 text-xs text-slate-600">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />

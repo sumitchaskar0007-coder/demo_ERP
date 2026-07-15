@@ -224,8 +224,8 @@ export function DetailedAdmissionForm({
       </Section>
 
       <Section title="Academic record">
-        <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-sm">
+        <div className="w-full overflow-hidden">
+          <table className="w-full table-fixed text-xs sm:text-sm">
             <thead><tr className="border-b text-left text-slate-500">
               <th className="p-2">Qualification</th><th>School / College / Institute</th>
               <th>Board / University</th><th>Year of passing</th><th>Marks %</th>
@@ -301,7 +301,7 @@ export function DetailedAdmissionView({
         </div>
       </Section>
       <Section title="Academic record">
-        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-slate-500"><th className="p-2">Qualification</th><th>Institute</th><th>Board / University</th><th>Year</th><th>Marks %</th></tr></thead><tbody>{admission.academicRecords?.map((record) => <tr className="border-b" key={record.qualification}><td className="p-2 font-semibold">{record.qualification}</td><td>{record.instituteName || "-"}</td><td>{record.boardUniversity || "-"}</td><td>{record.yearOfPassing || "-"}</td><td>{record.marksPercentage ?? "-"}</td></tr>)}</tbody></table></div>
+        <div className="w-full overflow-hidden"><table className="w-full table-fixed text-xs sm:text-sm"><thead><tr className="border-b text-left text-slate-500"><th className="p-2">Qualification</th><th>Institute</th><th>Board / University</th><th>Year</th><th>Marks %</th></tr></thead><tbody>{admission.academicRecords?.map((record) => <tr className="border-b" key={record.qualification}><td className="p-2 font-semibold">{record.qualification}</td><td>{record.instituteName || "-"}</td><td>{record.boardUniversity || "-"}</td><td>{record.yearOfPassing || "-"}</td><td>{record.marksPercentage ?? "-"}</td></tr>)}</tbody></table></div>
       </Section>
     </div>
   );

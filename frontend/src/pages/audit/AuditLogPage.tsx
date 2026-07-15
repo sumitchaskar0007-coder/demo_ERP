@@ -36,8 +36,8 @@ export function AuditLogPage() {
         {loading ? (
           <Loader />
         ) : rows.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="w-full overflow-hidden">
+            <table className="w-full table-fixed text-xs sm:text-sm">
               <thead>
                 <tr>
                   <th className="p-3 text-left">Date</th>
