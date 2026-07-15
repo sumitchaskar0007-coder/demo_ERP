@@ -8,7 +8,7 @@ import com.jadhavr.erp.staff.entity.StaffProfile;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "academic_sections", uniqueConstraints =
+@Table(name = "course_year_divisions", uniqueConstraints =
         @UniqueConstraint(columnNames = {"academic_class_id", "academic_year", "code"}))
 public class Section extends BaseAuditEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
