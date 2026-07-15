@@ -26,27 +26,45 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
         this.redis = redis; this.redisEnabled = redisEnabled;
     }
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !("POST".equals(request.getMethod()) && "/api/v1/auth/login".equals(request.getRequestURI()));
+        return !request.getRequestURI().startsWith("/api/");
     }
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String key = "erp:login-rate:" + clientIp(request);
-        boolean allowed = redisEnabled ? consumeRedis(key) : localBuckets.computeIfAbsent(key, ignored -> newBucket()).tryConsume(1);
+        Limit limit = limitFor(request);
+        String key = "erp:api-rate:" + limit.name() + ":" + clientIp(request);
+        boolean allowed = redisEnabled
+                ? consumeRedis(key, limit)
+                : localBuckets.computeIfAbsent(key, ignored -> newBucket(limit)).tryConsume(1);
         if (!allowed) {
             response.setStatus(429); response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write("{\"success\":false,\"message\":\"Too many login attempts\",\"timestamp\":\"" + LocalDateTime.now() + "\",\"path\":\"/api/v1/auth/login\"}");
+            response.setHeader("Retry-After", "60");
+            response.getWriter().write("{\"success\":false,\"message\":\"Too many requests\",\"timestamp\":\""
+                    + LocalDateTime.now() + "\",\"path\":\"" + request.getRequestURI() + "\"}");
             return;
         }
         chain.doFilter(request, response);
     }
-    private Bucket newBucket() { return Bucket.builder().addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1)))).build(); }
-    private boolean consumeRedis(String key) {
+    private Limit limitFor(HttpServletRequest request) {
+        if ("POST".equals(request.getMethod()) && "/api/v1/auth/login".equals(request.getRequestURI())) return Limit.LOGIN;
+        if ("POST".equals(request.getMethod()) && "/api/v1/auth/refresh".equals(request.getRequestURI())) return Limit.REFRESH;
+        return Limit.API;
+    }
+    private Bucket newBucket(Limit limit) {
+        return Bucket.builder().addLimit(Bandwidth.classic(limit.requests,
+                Refill.intervally(limit.requests, Duration.ofMinutes(1)))).build();
+    }
+    private boolean consumeRedis(String key, Limit limit) {
         Long count = redis.opsForValue().increment(key);
         if (count != null && count == 1) redis.expire(key, Duration.ofMinutes(1));
-        return count != null && count <= 10;
+        return count != null && count <= limit.requests;
     }
     private String clientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         return forwarded == null ? request.getRemoteAddr() : forwarded.split(",")[0].trim();
+    }
+    private enum Limit {
+        LOGIN(10), REFRESH(30), API(300);
+        private final int requests;
+        Limit(int requests) { this.requests = requests; }
     }
 }

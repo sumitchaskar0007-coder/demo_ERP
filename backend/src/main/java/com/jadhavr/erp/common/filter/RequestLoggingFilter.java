@@ -24,6 +24,10 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
         long start = System.nanoTime();
         try {
+            if (request.getRequestURI().startsWith("/api/")) {
+                response.setHeader("Cache-Control", "no-store, max-age=0");
+                response.setHeader("Pragma", "no-cache");
+            }
             filterChain.doFilter(request, response);
         } finally {
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);

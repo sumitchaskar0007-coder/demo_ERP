@@ -1,9 +1,10 @@
 import axios from "axios";
 import { ROUTES } from "@/lib/constants";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  || `${window.location.protocol}//${window.location.hostname}:8081`;
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: API_BASE_URL,
   timeout: 15_000,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
@@ -12,7 +13,7 @@ export const apiClient = axios.create({
   xsrfHeaderName: "X-XSRF-TOKEN",
 });
 
-const authClient = axios.create({ baseURL, timeout: 15_000, withCredentials: true, withXSRFToken: true });
+const authClient = axios.create({ baseURL: API_BASE_URL, timeout: 15_000, withCredentials: true, withXSRFToken: true });
 let refreshPromise: Promise<void> | null = null;
 
 async function refreshSession() {
@@ -39,8 +40,6 @@ apiClient.interceptors.response.use(
         catch { window.dispatchEvent(new Event("auth:unauthorized")); if (path !== ROUTES.login) window.location.assign(ROUTES.login); }
       } else if (status === 401) {
         window.dispatchEvent(new Event("auth:unauthorized"));
-      } else if (status === 403 && path !== ROUTES.forbidden) {
-        window.location.assign(ROUTES.forbidden);
       }
     }
     return Promise.reject(error);

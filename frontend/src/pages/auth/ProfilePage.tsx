@@ -14,6 +14,7 @@ import { Textarea } from "@/components/common/Textarea";
 import { initials } from "@/lib/utils";
 import { updateOwnProfileSchema } from "@/lib/validators";
 import { useAuth } from "@/features/auth/authStore";
+import { API_BASE_URL } from "@/lib/apiClient";
 
 type ProfileForm = z.infer<typeof updateOwnProfileSchema>;
 
@@ -51,7 +52,7 @@ export function ProfilePage() {
   };
   const refresh = async () => { setRefreshing(true); try { await refreshProfile(); } finally { setRefreshing(false); } };
   const imageUrl = user.profileImageUrl?.startsWith("/")
-    ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8081"}${user.profileImageUrl}`
+    ? `${API_BASE_URL}${user.profileImageUrl}`
     : user.profileImageUrl;
 
   return (
