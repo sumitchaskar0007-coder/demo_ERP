@@ -7,7 +7,7 @@ import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
 import jakarta.persistence.*;
 
-@Entity @Table(name="academic_classes", uniqueConstraints={
+@Entity @Table(name="course_years", uniqueConstraints={
  @UniqueConstraint(name="uk_academic_class_code",columnNames={"college_id","department_id","academic_year","code"}),
  @UniqueConstraint(name="uk_course_year_name",columnNames={"college_id","department_id","academic_year","year_name"})})
 public class AcademicClass extends BaseAuditEntity {

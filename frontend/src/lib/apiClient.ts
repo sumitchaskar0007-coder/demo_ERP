@@ -15,6 +15,35 @@ export const apiClient = axios.create({
 
 const authClient = axios.create({ baseURL: API_BASE_URL, timeout: 15_000, withCredentials: true, withXSRFToken: true });
 let refreshPromise: Promise<void> | null = null;
+let csrfPromise: Promise<void> | null = null;
+
+const unsafeMethods = new Set(["post", "put", "patch", "delete"]);
+
+function csrfTokenFromCookie() {
+  const entry = document.cookie
+    .split("; ")
+    .find((cookie) => cookie.startsWith("XSRF-TOKEN="));
+  return entry ? decodeURIComponent(entry.slice("XSRF-TOKEN=".length)) : null;
+}
+
+async function ensureCsrfToken(force = false) {
+  if (!force && csrfTokenFromCookie()) return;
+  if (!csrfPromise) {
+    csrfPromise = authClient.get("/api/v1/auth/csrf")
+      .then(() => undefined)
+      .finally(() => { csrfPromise = null; });
+  }
+  await csrfPromise;
+}
+
+apiClient.interceptors.request.use(async (config) => {
+  if (unsafeMethods.has(config.method?.toLowerCase() ?? "")) {
+    await ensureCsrfToken();
+    const token = csrfTokenFromCookie();
+    if (token) config.headers.set("X-XSRF-TOKEN", token);
+  }
+  return config;
+});
 
 async function refreshSession() {
   if (!refreshPromise) {
@@ -32,7 +61,7 @@ apiClient.interceptors.response.use(
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const path = window.location.pathname;
-      const original = error.config as (typeof error.config & { _retried?: boolean }) | undefined;
+      const original = error.config as (typeof error.config & { _retried?: boolean; _csrfRetried?: boolean }) | undefined;
       const authRequest = original?.url?.startsWith("/api/v1/auth/");
       if (status === 401 && original && !original._retried && !authRequest) {
         original._retried = true;
@@ -40,10 +69,22 @@ apiClient.interceptors.response.use(
         catch { window.dispatchEvent(new Event("auth:unauthorized")); if (path !== ROUTES.login) window.location.assign(ROUTES.login); }
       } else if (status === 401) {
         window.dispatchEvent(new Event("auth:unauthorized"));
+      } else if (
+        status === 403 &&
+        original &&
+        !original._csrfRetried &&
+        !authRequest &&
+        unsafeMethods.has(original.method?.toLowerCase() ?? "")
+      ) {
+        original._csrfRetried = true;
+        await ensureCsrfToken(true);
+        const token = csrfTokenFromCookie();
+        if (token) original.headers.set("X-XSRF-TOKEN", token);
+        return apiClient.request(original);
       }
     }
     return Promise.reject(error);
   },
 );
 
-export async function initializeCsrf() { await authClient.get("/api/v1/auth/csrf"); }
+export async function initializeCsrf() { await ensureCsrfToken(true); }

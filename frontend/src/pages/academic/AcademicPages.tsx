@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { BookOpen, Filter, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -111,6 +112,7 @@ export function FinalAdmissionsPage() {
 }
 type Kind = "classes" | "sections" | "subjects";
 export function AcademicListPage({ kind }: { kind: Kind }) {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<(AcademicClass | Section | Subject)[]>([]),
     [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -165,41 +167,64 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
   }, [kind, deptFilter, yearFilter]);
   return (
     <Shell title={kind[0].toUpperCase() + kind.slice(1)} subtitle={`Manage academic ${kind}.`}>
-      <div className="mb-4 flex flex-wrap items-end gap-4">
-        <Button onClick={() => (location.href = `/academic/${kind}/create`)}>Create new</Button>
-        {kind === "subjects" && (
-          <>
-            <Select
-              label="Department"
-              value={deptFilter}
-              onChange={(e) => handleDeptChange(e.target.value)}
-              options={[
-                { label: "All departments", value: "" },
-                ...departments.map((d) => ({ label: `${d.code} - ${d.name}`, value: String(d.id) })),
-              ]}
-            />
-            <Select
-              label="Year"
-              value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
-              options={[
-                { label: "All years", value: "" },
-                ...yearOptions.map((y) => ({ label: y.replace("_", " "), value: y })),
-              ]}
-            />
-          </>
-        )}
-      </div>
+      {kind === "subjects" ? (
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-brand-700 to-brand-500 p-5 text-white sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/15">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold sm:text-xl">Subject catalogue</h2>
+                <p className="mt-1 text-sm text-white/80">Organise subjects by department and course year.</p>
+              </div>
+            </div>
+            <Button className="w-full shrink-0 bg-white text-brand-700 hover:bg-brand-50 sm:w-auto" onClick={() => navigate("/academic/subjects/create")}>
+              <Plus className="h-4 w-4" /> Create subject
+            </Button>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <Filter className="h-4 w-4 text-brand-600" /> Filter subjects
+            </div>
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+              <Select
+                label="Department"
+                value={deptFilter}
+                onChange={(e) => handleDeptChange(e.target.value)}
+                options={[
+                  { label: "All departments", value: "" },
+                  ...departments.map((d) => ({ label: `${d.code} - ${d.name}`, value: String(d.id) })),
+                ]}
+              />
+              <Select
+                label="Course year"
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                disabled={!deptFilter}
+                options={[
+                  { label: deptFilter ? "All course years" : "Select a department first", value: "" },
+                  ...yearOptions.map((y) => ({ label: y.replaceAll("_", " "), value: y })),
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4">
+          <Button onClick={() => navigate(`/academic/${kind}/create`)}><Plus className="h-4 w-4" /> Create new</Button>
+        </div>
+      )}
       {loading ? (
         <Loader />
       ) : rows.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
-            <div key={r.id} className="rounded-xl border p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <b>{r.name}</b>
-                  <p className="text-sm text-slate-500">
+            <div key={r.id} className="min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-brand-200 hover:shadow-sm">
+              <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <b className="block break-words text-slate-900">{r.name}</b>
+                  <p className="mt-1 break-words text-sm text-slate-500">
                     {r.code} · {r.academicYear}
                     {"subjectType" in r && r.subjectType ? (
                       <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
@@ -209,12 +234,12 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                   </p>
                 </div>
                 {kind === "subjects" && (
-                  <div className="flex gap-1">
-                    <Button className="h-8 px-3 text-xs" onClick={() => (location.href = `/academic/subjects/${r.id}/edit`)}>
+                  <div className="flex w-full gap-2 sm:w-auto">
+                    <Button className="h-9 flex-1 px-3 text-xs sm:flex-none" onClick={() => navigate(`/academic/subjects/${r.id}/edit`)}>
                       Edit
                     </Button>
                     <Button
-                      className="h-8 px-3 text-xs"
+                      className="h-9 flex-1 px-3 text-xs sm:flex-none"
                       variant="danger"
                       onClick={async () => {
                         if (!confirm("Delete this subject?")) return;
@@ -236,12 +261,17 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
           ))}
         </div>
       ) : (
-        <EmptyState title={`No ${kind}`} description="Create the first record to begin." />
+        <EmptyState
+          title={`No ${kind} found`}
+          description={kind === "subjects" ? "Create a subject or adjust the department and course-year filters." : "Create the first record to begin."}
+          action={kind === "subjects" ? <Button onClick={() => navigate("/academic/subjects/create")}><Plus className="h-4 w-4" /> Create subject</Button> : undefined}
+        />
       )}
     </Shell>
   );
 }
 export function AcademicCreatePage({ kind }: { kind: Kind }) {
+  const navigate = useNavigate();
   const [v, setV] = useState<Record<string, string>>({ academicYear: "2026-27" });
   const [departments, setDepartments] = useState<Department[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
@@ -319,7 +349,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
           subjectType: v.subjectType || undefined,
         });
       toast.success("Created successfully");
-      location.href = `/academic/${kind}`;
+      navigate(`/academic/${kind}`, { replace: true });
     } catch (e) {
       toast.error(handleApiError(e).message);
     }
@@ -399,6 +429,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
   );
 }
 export function SubjectEditPage() {
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [v, setV] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -431,7 +462,7 @@ export function SubjectEditPage() {
         subjectType: v.subjectType || undefined,
       });
       toast.success("Subject updated");
-      location.href = "/academic/subjects";
+      navigate("/academic/subjects", { replace: true });
     } catch (e) {
       toast.error(handleApiError(e).message);
     }
