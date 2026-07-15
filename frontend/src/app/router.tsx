@@ -53,8 +53,9 @@ import { UserDetailsPage } from "@/pages/users/UserDetailsPage";
 import { UserListPage } from "@/pages/users/UserListPage";
 import { NoticesPage } from "@/features/notices/NoticesPage";
 import { AcademicSetupPage } from "@/features/academics/AcademicSetupPage";
-import { TimetablePage } from "@/features/academics/TimetablePage";
+import { WeeklyTimetablePage } from "@/features/timetable/TimetablePage";
 import { AttendancePage } from "@/features/academics/AttendancePage";
+import { ClassTeacherTimetablePage } from "@/pages/academic/ClassTeacherTimetablePage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -112,7 +113,7 @@ export function AppRouter() {
           <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
           <Route path={ROUTES.dashboard} element={<SmartDashboard />} />
           <Route path={ROUTES.notices} element={<NoticesPage />} />
-          <Route path={ROUTES.timetable} element={<TimetablePage />} />
+          <Route path={ROUTES.timetable} element={<WeeklyTimetablePage />} />
           <Route path={ROUTES.attendance} element={<AttendancePage />} />
 
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRINCIPAL, ROLES.HOD]} />}>
@@ -217,7 +218,7 @@ export function AppRouter() {
             />
           </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}><Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} /></Route>
+          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}><Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} /><Route path={ROUTES.classTeacherTimetable} element={<ClassTeacherTimetablePage />} /></Route>
           <Route element={<RoleRoute roles={[ROLES.STUDENT]} />}>
             <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
             <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />

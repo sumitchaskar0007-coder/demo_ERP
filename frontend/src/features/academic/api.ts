@@ -70,3 +70,8 @@ export const eligibleStudentsForClass = (id: number) => get<StudentRosterItem[]>
 export const sectionStudents = (id: number) => get<StudentRosterItem[]>(`/api/academic/sections/${id}/students`);
 export const getMyClassRoster = () => get<Record<string, unknown>>("/api/academic/class-teacher/my-class");
 export const getMyStudentClass = () => get<Record<string, unknown>>("/api/student/academic/class");
+// Class teacher timetable
+export const getClassTeacherSection = () => get<Record<string, unknown>>("/api/class-teacher/timetable/my-section");
+export const getClassTeacherSubjects = () => get<Record<string, unknown>[]>("/api/class-teacher/timetable/subjects");
+export const getClassTeacherTeachers = (subjectId: number) => get<Record<string, unknown>[]>("/api/class-teacher/timetable/teachers", { subjectId });
+export const getClassTeacherPeriods = () => get<Record<string, unknown>[]>("/api/class-teacher/timetable/periods");

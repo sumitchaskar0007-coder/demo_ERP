@@ -82,7 +82,7 @@ public final class AcademicModels {
         public String getCode(){return code;} public void setCode(String v){code=v;} public String getName(){return name;} public void setName(String v){name=v;} public Integer getCapacity(){return capacity;} public void setCapacity(Integer v){capacity=v;} public RoomType getType(){return type;} public void setType(RoomType v){type=v;}
     }
 
-    public enum PeriodType { LECTURE, PRACTICAL, LAB, BREAK }
+    public enum PeriodType { LECTURE, PRACTICAL, LAB, BREAK, THEORY, TUTORIAL }
     @Entity(name="ManagedPeriod") @Table(name="academic_periods", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","period_number"}))
     public static class Period extends TenantEntity {
         @Column(name="period_number",nullable=false) private Integer periodNumber;

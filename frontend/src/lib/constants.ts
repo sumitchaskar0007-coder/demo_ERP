@@ -61,6 +61,7 @@ export const ROUTES = {
   studentClass: "/student/academic/class",
   studentAllocation: "/academic/student-allocation",
   classTeacherClass: "/academic/class-teacher/my-class",
+  classTeacherTimetable: "/academic/class-teacher/timetable",
   notices: "/notices",
   academicSetup: "/academic-setup",
   timetable: "/timetable",

@@ -117,6 +117,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
             : isOtherStaff
               ? [
                   { label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap },
+                  { label: "My Timetable", to: ROUTES.classTeacherTimetable, icon: CalendarDays },
                   { label: "Notices", to: ROUTES.notices, icon: Bell },
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
                 ]
