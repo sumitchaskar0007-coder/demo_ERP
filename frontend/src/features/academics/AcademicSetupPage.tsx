@@ -1,4 +1,178 @@
-import { FormEvent, useEffect, useState } from "react";import { academicApi,Master } from "./api";import { Card } from "@/components/common/Card";import { Button } from "@/components/common/Button";import { Input } from "@/components/common/Input";import { Select } from "@/components/common/Select";import { handleApiError } from "@/lib/handleApiError";
-const types=["ACADEMIC_YEAR","TERM","PROGRAM","SEMESTER","CLASS","SECTION","SUBJECT","ROOM","PERIOD","WORKING_DAY","HOLIDAY"];
-export function AcademicSetupPage(){const[type,setType]=useState("ACADEMIC_YEAR");const[rows,setRows]=useState<Master[]>([]);const[error,setError]=useState("");const[form,setForm]=useState({name:"",code:"",parentId:"",secondaryParentId:"",number:"",capacity:"",category:"",startDate:"",endDate:"",startTime:"",endTime:""});const load=()=>academicApi.masters(type).then(setRows).catch(e=>setError(handleApiError(e).message));useEffect(()=>{void load()},[type]);async function submit(e:FormEvent){e.preventDefault();setError("");try{await academicApi.create({type,...form,parentId:form.parentId?Number(form.parentId):null,secondaryParentId:form.secondaryParentId?Number(form.secondaryParentId):null,number:form.number?Number(form.number):null,capacity:form.capacity?Number(form.capacity):null,active:true});setForm({...form,name:"",code:""});load()}catch(x){setError(handleApiError(x).message)}}
-return <div className="space-y-6"><div><h1 className="text-2xl font-bold text-slate-900">Academic setup</h1><p className="text-sm text-slate-500">Tenant-safe master data used by timetables and attendance.</p></div><Card><form onSubmit={submit} className="grid gap-4 md:grid-cols-4"><Select label="Resource" value={type} onChange={e=>setType(e.target.value)} options={types.map(x=>({label:x.replaceAll("_"," "),value:x}))}/><Input label="Name / working day" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><Input label="Code" value={form.code} onChange={e=>setForm({...form,code:e.target.value})}/><Input label="Parent ID" type="number" value={form.parentId} onChange={e=>setForm({...form,parentId:e.target.value})}/><Input label="Second parent ID" type="number" value={form.secondaryParentId} onChange={e=>setForm({...form,secondaryParentId:e.target.value})}/><Input label="Number" type="number" value={form.number} onChange={e=>setForm({...form,number:e.target.value})}/><Input label="Capacity" type="number" value={form.capacity} onChange={e=>setForm({...form,capacity:e.target.value})}/><Input label="Category" placeholder="THEORY / LAB / BREAK" value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/><Input label="Start date" type="date" value={form.startDate} onChange={e=>setForm({...form,startDate:e.target.value})}/><Input label="End date" type="date" value={form.endDate} onChange={e=>setForm({...form,endDate:e.target.value})}/><Input label="Start time" type="time" value={form.startTime} onChange={e=>setForm({...form,startTime:e.target.value})}/><Input label="End time" type="time" value={form.endTime} onChange={e=>setForm({...form,endTime:e.target.value})}/><div className="md:col-span-4"><Button type="submit">Create {type.replaceAll("_"," ").toLowerCase()}</Button></div>{error&&<p className="text-sm text-red-600 md:col-span-4">{error}</p>}</form></Card><Card><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-slate-500"><th className="p-3">ID</th><th>Name</th><th>Code</th><th>Details</th></tr></thead><tbody>{rows.map(r=><tr key={r.id} className="border-b last:border-0"><td className="p-3">{r.id}</td><td>{r.name}</td><td>{r.code||"—"}</td><td>{r.details||"—"}</td></tr>)}</tbody></table></div></Card></div>}
+import { FormEvent, useEffect, useState } from "react";
+import { academicApi, Master } from "./api";
+import { Card } from "@/components/common/Card";
+import { Button } from "@/components/common/Button";
+import { Input } from "@/components/common/Input";
+import { Select } from "@/components/common/Select";
+import { handleApiError } from "@/lib/handleApiError";
+const types = [
+  "ACADEMIC_YEAR",
+  "TERM",
+  "PROGRAM",
+  "SEMESTER",
+  "CLASS",
+  "SECTION",
+  "SUBJECT",
+  "ROOM",
+  "PERIOD",
+  "WORKING_DAY",
+  "HOLIDAY",
+];
+export function AcademicSetupPage() {
+  const [type, setType] = useState("ACADEMIC_YEAR");
+  const [rows, setRows] = useState<Master[]>([]);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    code: "",
+    parentId: "",
+    secondaryParentId: "",
+    number: "",
+    capacity: "",
+    category: "",
+    startDate: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+  });
+  const load = () =>
+    academicApi
+      .masters(type)
+      .then(setRows)
+      .catch((e) => setError(handleApiError(e).message));
+  useEffect(() => {
+    void load();
+  }, [type]);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    try {
+      await academicApi.create({
+        type,
+        ...form,
+        parentId: form.parentId ? Number(form.parentId) : null,
+        secondaryParentId: form.secondaryParentId ? Number(form.secondaryParentId) : null,
+        number: form.number ? Number(form.number) : null,
+        capacity: form.capacity ? Number(form.capacity) : null,
+        active: true,
+      });
+      setForm({ ...form, name: "", code: "" });
+      load();
+    } catch (x) {
+      setError(handleApiError(x).message);
+    }
+  }
+  return (
+    <div className="page-container space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Academic setup</h1>
+        <p className="text-sm text-slate-500">
+          Tenant-safe master data used by timetables and attendance.
+        </p>
+      </div>
+      <Card>
+        <form onSubmit={submit} className="grid gap-4 md:grid-cols-4">
+          <Select
+            label="Resource"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            options={types.map((x) => ({ label: x.replaceAll("_", " "), value: x }))}
+          />
+          <Input
+            label="Name / working day"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <Input
+            label="Code"
+            value={form.code}
+            onChange={(e) => setForm({ ...form, code: e.target.value })}
+          />
+          <Input
+            label="Parent ID"
+            type="number"
+            value={form.parentId}
+            onChange={(e) => setForm({ ...form, parentId: e.target.value })}
+          />
+          <Input
+            label="Second parent ID"
+            type="number"
+            value={form.secondaryParentId}
+            onChange={(e) => setForm({ ...form, secondaryParentId: e.target.value })}
+          />
+          <Input
+            label="Number"
+            type="number"
+            value={form.number}
+            onChange={(e) => setForm({ ...form, number: e.target.value })}
+          />
+          <Input
+            label="Capacity"
+            type="number"
+            value={form.capacity}
+            onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+          />
+          <Input
+            label="Category"
+            placeholder="THEORY / LAB / BREAK"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          />
+          <Input
+            label="Start date"
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+          />
+          <Input
+            label="End date"
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+          />
+          <Input
+            label="Start time"
+            type="time"
+            value={form.startTime}
+            onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+          />
+          <Input
+            label="End time"
+            type="time"
+            value={form.endTime}
+            onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+          />
+          <div className="md:col-span-4">
+            <Button type="submit">Create {type.replaceAll("_", " ").toLowerCase()}</Button>
+          </div>
+          {error && <p className="text-sm text-red-600 md:col-span-4">{error}</p>}
+        </form>
+      </Card>
+      <Card>
+        <div className="w-full overflow-hidden">
+          <table className="w-full table-fixed text-xs sm:text-sm">
+            <thead>
+              <tr className="border-b text-left text-slate-500">
+                <th className="p-3">ID</th>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-b last:border-0">
+                  <td className="p-3">{r.id}</td>
+                  <td>{r.name}</td>
+                  <td>{r.code || "—"}</td>
+                  <td>{r.details || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}

@@ -69,8 +69,8 @@ export function FinalAdmissionsPage() {
       {loading ? (
         <Loader />
       ) : rows.length ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="w-full overflow-hidden">
+          <table className="w-full table-fixed text-xs sm:text-sm">
             <thead>
               <tr className="text-left text-slate-500">
                 <th className="p-3">Student</th>

@@ -92,7 +92,7 @@ export function AdmissionPrintPage() {
         </Button>
       </div>
 
-      <Card className="print-container admission-form-sheet mx-auto max-w-[820px] p-8 text-black">
+      <Card className="print-container admission-form-sheet mx-auto max-w-[820px] p-4 text-black sm:p-8">
         <InstituteHeader data={data} />
 
         <div className="mt-3 grid grid-cols-[1fr_112px] gap-4">
@@ -155,7 +155,7 @@ export function AdmissionPrintPage() {
           </NumberedLine>
           <NumberedLine number={9}>
             Permanent Address: <Line value={address} />
-            <div className="ml-7 grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:ml-7 sm:grid-cols-3">
               <span>
                 Pin: <Line value={data.student.pincode} />
               </span>
@@ -166,7 +166,7 @@ export function AdmissionPrintPage() {
                 City: <Line value={data.student.city} />
               </span>
             </div>
-            <div className="ml-7 grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:ml-7 sm:grid-cols-2">
               <span>
                 Mobile no.: <Line value={data.student.phone} />
               </span>
@@ -177,7 +177,7 @@ export function AdmissionPrintPage() {
           </NumberedLine>
           <NumberedLine number={10}>
             Correspondence Address: <Line value={address} />
-            <div className="ml-7 grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:ml-7 sm:grid-cols-3">
               <span>
                 Pin: <Line value={data.student.pincode} />
               </span>
@@ -216,7 +216,7 @@ export function AdmissionPrintPage() {
         </div>
       </Card>
 
-      <Card className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 max-w-[820px] p-8 text-black">
+      <Card className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 max-w-[820px] p-4 text-black sm:p-8">
         <DeclarationSection declarations={data.declarations} />
         <UndertakingSection />
         <DocumentChecklist />
@@ -296,7 +296,7 @@ function UndertakingSection() {
           demand.
         </li>
       </ol>
-      <div className="mt-16 grid grid-cols-2 gap-8">
+      <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2">
         <span>
           Date: <Line width="160px" />
         </span>
@@ -317,7 +317,7 @@ function DocumentChecklist() {
         Documents Original ( for Verification ) & Set of attested xerox copies ( Attached with form
         )
       </h3>
-      <div className="grid grid-cols-2 gap-x-10 gap-y-2">
+      <div className="grid grid-cols-1 gap-y-2 sm:grid-cols-2 sm:gap-x-10">
         {documents.map((document, index) => (
           <div key={document} className="grid grid-cols-[1fr_22px] items-center gap-3">
             <span>
