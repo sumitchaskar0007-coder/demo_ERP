@@ -53,6 +53,7 @@ export const ROUTES = {
   academicClasses: "/academic/classes",
   academicSections: "/academic/sections",
   academicSubjects: "/academic/subjects",
+  editSubject: "/academic/subjects/:id/edit",
   academicTimetable: "/academic/timetable",
   academicAttendance: "/academic/attendance",
   studentTimetable: "/student/academic/timetable",

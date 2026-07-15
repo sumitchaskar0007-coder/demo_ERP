@@ -76,6 +76,7 @@ import {
   AcademicListPage,
   FinalAdmissionsPage,
   StudentAcademicPage,
+  SubjectEditPage,
 } from "@/pages/academic/AcademicPages";
 import { MyClassRosterPage, StudentAllocationPage, StudentClassPage } from "@/pages/academic/ClassAllocationPages";
 
@@ -194,6 +195,7 @@ export function AppRouter() {
               path="/academic/subjects/create"
               element={<AcademicCreatePage kind="subjects" />}
             />
+            <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.STUDENT_SECTION]} />}>

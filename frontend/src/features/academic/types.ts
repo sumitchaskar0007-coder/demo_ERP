@@ -1,4 +1,5 @@
 export type AcademicStatus = "ACTIVE" | "INACTIVE";
+export type SubjectType = "THEORY" | "PRACTICAL" | "OTHER";
 export type CourseYearName =
   | "FIRST_YEAR"
   | "SECOND_YEAR"
@@ -58,6 +59,7 @@ export interface AcademicClass {
   college: { id: number; name: string };
   department: { id: number; name: string };
   academicYear: string;
+  yearName: CourseYearName;
   name: string;
   code: string;
   description?: string;
@@ -81,6 +83,7 @@ export interface Subject {
   code: string;
   description?: string;
   credits?: number;
+  subjectType?: SubjectType;
   status: AcademicStatus;
 }
 export interface TimetableEntry {

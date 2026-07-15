@@ -46,6 +46,8 @@ export const assignClassTeacher = (id: number, data: object) =>
 export const assignStudentToSection = (id: number, data: object) =>
   post(`/api/academic/sections/${id}/students`, data);
 export const createSubject = (data: object) => post<Subject>("/api/academic/subjects", data);
+export const updateSubject = (id: number, data: object) => put<Subject>(`/api/academic/subjects/${id}`, data);
+export const deleteSubject = (id: number) => apiClient.delete(`/api/academic/subjects/${id}`);
 export const searchSubjects = (params?: object) =>
   get<Subject[]>("/api/academic/subjects/search", params);
 export const assignSubjectTeacher = (id: number, data: object) =>

@@ -83,8 +83,7 @@ public class NoticeServiceImpl implements NoticeService {
     @Override
     public List<NoticeResponse> inbox() {
         CustomUserDetails current = SecurityUtils.requireCurrentUser();
-        Set<RoleName> roles = current.getAuthorities().stream()
-                .map(a -> RoleName.valueOf(a.getAuthority().replace("ROLE_", ""))).collect(Collectors.toSet());
+        Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
         return notices.findAll().stream()
                 .filter(n -> !n.getCreatedBy().getId().equals(current.getId()))
@@ -100,6 +99,14 @@ public class NoticeServiceImpl implements NoticeService {
         Long id = SecurityUtils.getCurrentUserId();
         return notices.findAll().stream().filter(n -> n.getCreatedBy().getId().equals(id))
                 .sorted(Comparator.comparing(Notice::getCreatedAt).reversed()).map(this::map).toList();
+    }
+
+    private Set<RoleName> resolveRoles(CustomUserDetails current) {
+        return current.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .filter(authority -> authority != null && authority.startsWith("ROLE_"))
+                .map(authority -> RoleName.valueOf(authority.substring("ROLE_".length())))
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(RoleName.class)));
     }
 
     private Long currentDepartmentId(CustomUserDetails current, Set<RoleName> roles) {
