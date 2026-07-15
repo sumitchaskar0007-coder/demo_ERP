@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -112,6 +113,38 @@ type Kind = "classes" | "sections" | "subjects";
 export function AcademicListPage({ kind }: { kind: Kind }) {
   const [rows, setRows] = useState<(AcademicClass | Section | Subject)[]>([]),
     [loading, setLoading] = useState(true);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [yearOptions, setYearOptions] = useState<string[]>([]);
+  const [deptFilter, setDeptFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
+
+  useEffect(() => {
+    if (kind !== "subjects") return;
+    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
+      .then((r) => setDepartments(r.content))
+      .catch((e) => toast.error(handleApiError(e).message));
+  }, [kind]);
+
+  const loadYearOptions = async (departmentId: string) => {
+    if (!departmentId) {
+      setYearOptions([]);
+      return;
+    }
+    try {
+      const classes = await api.searchAcademicClasses({ departmentId: Number(departmentId) });
+      const unique = [...new Set(classes.map((c) => c.yearName))].filter(Boolean);
+      setYearOptions(unique);
+    } catch {
+      setYearOptions([]);
+    }
+  };
+
+  const handleDeptChange = (v: string) => {
+    setDeptFilter(v);
+    setYearFilter("");
+    loadYearOptions(v);
+  };
+
   const load = () => {
     setLoading(true);
     const p =
@@ -119,18 +152,43 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
         ? api.searchAcademicClasses()
         : kind === "sections"
           ? api.searchSections()
-          : api.searchSubjects();
+          : api.searchSubjects({
+              ...(deptFilter ? { departmentId: Number(deptFilter) } : {}),
+              ...(yearFilter ? { yearName: yearFilter } : {}),
+            });
     p.then(setRows)
       .catch((e) => toast.error(handleApiError(e).message))
       .finally(() => setLoading(false));
   };
   useEffect(() => {
     load();
-  }, [kind]);
+  }, [kind, deptFilter, yearFilter]);
   return (
     <Shell title={kind[0].toUpperCase() + kind.slice(1)} subtitle={`Manage academic ${kind}.`}>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-end gap-4">
         <Button onClick={() => (location.href = `/academic/${kind}/create`)}>Create new</Button>
+        {kind === "subjects" && (
+          <>
+            <Select
+              label="Department"
+              value={deptFilter}
+              onChange={(e) => handleDeptChange(e.target.value)}
+              options={[
+                { label: "All departments", value: "" },
+                ...departments.map((d) => ({ label: `${d.code} - ${d.name}`, value: String(d.id) })),
+              ]}
+            />
+            <Select
+              label="Year"
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              options={[
+                { label: "All years", value: "" },
+                ...yearOptions.map((y) => ({ label: y.replace("_", " "), value: y })),
+              ]}
+            />
+          </>
+        )}
       </div>
       {loading ? (
         <Loader />
@@ -138,10 +196,42 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
             <div key={r.id} className="rounded-xl border p-4">
-              <b>{r.name}</b>
-              <p className="text-sm text-slate-500">
-                {r.code} · {r.academicYear}
-              </p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <b>{r.name}</b>
+                  <p className="text-sm text-slate-500">
+                    {r.code} · {r.academicYear}
+                    {"subjectType" in r && r.subjectType ? (
+                      <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                        {r.subjectType}
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+                {kind === "subjects" && (
+                  <div className="flex gap-1">
+                    <Button className="h-8 px-3 text-xs" onClick={() => (location.href = `/academic/subjects/${r.id}/edit`)}>
+                      Edit
+                    </Button>
+                    <Button
+                      className="h-8 px-3 text-xs"
+                      variant="danger"
+                      onClick={async () => {
+                        if (!confirm("Delete this subject?")) return;
+                        try {
+                          await api.deleteSubject(r.id);
+                          toast.success("Subject deleted");
+                          load();
+                        } catch (e) {
+                          toast.error(handleApiError(e).message);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -226,6 +316,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
           code: v.code,
           credits: +v.credits || 0,
           description: v.description,
+          subjectType: v.subjectType || undefined,
         });
       toast.success("Created successfully");
       location.href = `/academic/${kind}`;
@@ -283,7 +374,20 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
         {kind === "sections" ? (
           input("capacity", "Capacity")
         ) : kind === "subjects" ? (
-          input("credits", "Credits")
+          <>
+            {input("credits", "Credits")}
+            <Select
+              label="Subject Type"
+              value={v.subjectType || ""}
+              onChange={(e) => setV({ ...v, subjectType: e.target.value })}
+              options={[
+                { label: "Select type", value: "" },
+                { label: "Theory", value: "THEORY" },
+                { label: "Practical", value: "PRACTICAL" },
+                { label: "Other (Soft Skill etc.)", value: "OTHER" },
+              ]}
+            />
+          </>
         ) : (
           input("description", "Description")
         )}
@@ -294,6 +398,71 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
     </Shell>
   );
 }
+export function SubjectEditPage() {
+  const { id } = useParams<{ id: string }>();
+  const [v, setV] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    api.searchSubjects()
+      .then((rows) => {
+        const sub = rows.find((s) => s.id === Number(id));
+        if (sub) {
+          setV({
+            name: sub.name,
+            code: sub.code,
+            description: sub.description || "",
+            credits: String(sub.credits ?? ""),
+            subjectType: sub.subjectType || "",
+          });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const save = async () => {
+    try {
+      await api.updateSubject(Number(id), {
+        name: v.name,
+        code: v.code,
+        description: v.description,
+        credits: +v.credits || 0,
+        subjectType: v.subjectType || undefined,
+      });
+      toast.success("Subject updated");
+      location.href = "/academic/subjects";
+    } catch (e) {
+      toast.error(handleApiError(e).message);
+    }
+  };
+
+  if (loading) return <Shell title="Edit Subject" subtitle="Loading..."><Loader /></Shell>;
+
+  return (
+    <Shell title="Edit Subject" subtitle="Update subject details.">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Input label="Name" value={v.name || ""} onChange={(e) => setV({ ...v, name: e.target.value })} />
+        <Input label="Code" value={v.code || ""} onChange={(e) => setV({ ...v, code: e.target.value })} />
+        <Input label="Credits" value={v.credits || ""} onChange={(e) => setV({ ...v, credits: e.target.value })} />
+        <Select
+          label="Subject Type"
+          value={v.subjectType || ""}
+          onChange={(e) => setV({ ...v, subjectType: e.target.value })}
+          options={[
+            { label: "Select type", value: "" },
+            { label: "Theory", value: "THEORY" },
+            { label: "Practical", value: "PRACTICAL" },
+            { label: "Other (Soft Skill etc.)", value: "OTHER" },
+          ]}
+        />
+        <Input label="Description" value={v.description || ""} onChange={(e) => setV({ ...v, description: e.target.value })} />
+      </div>
+      <Button className="mt-5" onClick={save}>Update</Button>
+    </Shell>
+  );
+}
+
 export function StudentAcademicPage({ attendance = false }: { attendance?: boolean }) {
   const [data, setData] = useState<TimetableEntry[] | Record<string, number> | null>(null);
   useEffect(() => {

@@ -25,5 +25,6 @@ public class NoticeController {
     @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
     public ApiResponse<List<NoticeResponse>> inbox() { return ApiResponse.success("Notices retrieved successfully", service.inbox()); }
     @GetMapping("/sent")
+    @PreAuthorize("hasAuthority('PERM_NOTICE_SEND')")
     public ApiResponse<List<NoticeResponse>> sent() { return ApiResponse.success("Sent notices retrieved successfully", service.sent()); }
 }
