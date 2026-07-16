@@ -13,5 +13,6 @@ public interface StaffProfileRepository extends JpaRepository<StaffProfile, Long
     Optional<StaffProfile> findByEmployeeCode(String employeeCode);
     boolean existsByEmployeeCode(String employeeCode);
     List<StaffProfile> findByCollegeId(Long collegeId);
+    long countByCollegeId(Long collegeId);
     boolean existsByDepartmentIdAndStaffTypeAndStatus(Long departmentId, com.jadhavr.erp.staff.enums.StaffType type, com.jadhavr.erp.staff.enums.StaffStatus status);
 }

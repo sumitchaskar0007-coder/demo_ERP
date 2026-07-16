@@ -17,5 +17,7 @@ public interface DepartmentRepository extends JpaRepository<Department, Long>,
 
     List<Department> findByCollegeId(Long collegeId);
 
+    long countByCollegeId(Long collegeId);
+
     List<Department> findByCollegeIdAndStatus(Long collegeId, DepartmentStatus status);
 }

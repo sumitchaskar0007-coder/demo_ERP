@@ -19,12 +19,12 @@ import com.jadhavr.erp.user.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @Transactional(readOnly = true)
@@ -85,20 +85,16 @@ public class NoticeServiceImpl implements NoticeService {
         CustomUserDetails current = SecurityUtils.requireCurrentUser();
         Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
-        return notices.findAll().stream()
-                .filter(n -> !n.getCreatedBy().getId().equals(current.getId()))
-                .filter(n -> n.getAudienceRoles().stream().anyMatch(roles::contains))
-                .filter(n -> n.getColleges().isEmpty() || n.getColleges().stream()
-                        .anyMatch(college -> college.getId().equals(current.getCollegeId())))
-                .filter(n -> n.getDepartment() == null || n.getDepartment().getId().equals(departmentId))
-                .sorted(Comparator.comparing(Notice::getCreatedAt).reversed()).map(this::map).toList();
+        if (roles.isEmpty()) return List.of();
+        return notices.findInbox(current.getId(), current.getCollegeId(), departmentId, roles, PageRequest.of(0, 100))
+                .stream().map(this::map).toList();
     }
 
     @Override
     public List<NoticeResponse> sent() {
         Long id = SecurityUtils.getCurrentUserId();
-        return notices.findAll().stream().filter(n -> n.getCreatedBy().getId().equals(id))
-                .sorted(Comparator.comparing(Notice::getCreatedAt).reversed()).map(this::map).toList();
+        return notices.findByCreatedByIdOrderByCreatedAtDesc(id, PageRequest.of(0, 100))
+                .stream().map(this::map).toList();
     }
 
     private Set<RoleName> resolveRoles(CustomUserDetails current) {

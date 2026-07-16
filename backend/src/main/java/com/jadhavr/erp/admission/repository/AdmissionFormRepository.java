@@ -21,6 +21,7 @@ public interface AdmissionFormRepository extends JpaRepository<AdmissionForm, Lo
     Optional<AdmissionForm> findTopByStudentIdOrderByCreatedAtDesc(Long studentId);
     List<AdmissionForm> findByCollegeId(Long collegeId);
     List<AdmissionForm> findByDepartmentId(Long departmentId);
+    long countByCollegeIdAndStatus(Long collegeId, AdmissionStatus status);
 
     @Query("""
             select new com.jadhavr.erp.fee.dto.AdmissionStatusCount(a.status, count(a.id))

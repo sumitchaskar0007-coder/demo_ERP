@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.List;
 
 public interface SectionRepository extends JpaRepository<Section, Long>, JpaSpecificationExecutor<Section> {
+    long countByCollegeId(Long collegeId);
     boolean existsByAcademicClassIdAndAcademicYearAndCodeIgnoreCase(Long classId, String academicYear, String code);
     boolean existsByClassTeacherIdAndAcademicYearAndStatus(Long staffId, String academicYear, SectionStatus status);
     long countByAcademicClassId(Long classId);

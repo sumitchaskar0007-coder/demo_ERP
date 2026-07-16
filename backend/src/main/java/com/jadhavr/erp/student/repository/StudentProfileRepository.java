@@ -20,6 +20,7 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     boolean existsByEmailAndCollegeId(String email, Long collegeId);
     List<StudentProfile> findByCollegeId(Long collegeId);
     List<StudentProfile> findByDepartmentId(Long departmentId);
+    long countByCollegeId(Long collegeId);
 
     @Query("""
             select new com.jadhavr.erp.fee.dto.CollegeCountPoint(c.name, count(s.id))

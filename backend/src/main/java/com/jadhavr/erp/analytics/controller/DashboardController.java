@@ -4,7 +4,6 @@ import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.academic.repository.AttendanceSessionRepository;
 import com.jadhavr.erp.academic.repository.SectionRepository;
 import com.jadhavr.erp.academic.repository.SubjectRepository;
-import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -84,12 +82,12 @@ public class DashboardController {
 
     @GetMapping("/student-section")
     public ApiResponse<?> studentSection() {
-        List<AdmissionForm> list = admissions.findByCollegeId(scopeCollege(null));
+        Long collegeId = scopeCollege(null);
         return ApiResponse.success("Student Section dashboard", Map.of(
-                "submittedAdmissions", count(list, AdmissionStatus.SUBMITTED),
-                "reviewPendingAdmissions", count(list, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING),
-                "approvedByStudentSection", count(list, AdmissionStatus.STUDENT_SECTION_APPROVED),
-                "rejectedByStudentSection", count(list, AdmissionStatus.STUDENT_SECTION_REJECTED)));
+                "submittedAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.SUBMITTED),
+                "reviewPendingAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING),
+                "approvedByStudentSection", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.STUDENT_SECTION_APPROVED),
+                "rejectedByStudentSection", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.STUDENT_SECTION_REJECTED)));
     }
 
     @GetMapping("/fee-section")
@@ -107,18 +105,18 @@ public class DashboardController {
     public ApiResponse<?> hod() {
         Long collegeId = scopeCollege(null);
         return ApiResponse.success("HOD dashboard", Map.of(
-                "totalClasses", classes.findAll().stream().filter(x -> x.getCollege().getId().equals(collegeId)).count(),
-                "totalSections", sections.findAll().stream().filter(x -> x.getCollege().getId().equals(collegeId)).count(),
-                "totalSubjects", subjects.findAll().stream().filter(x -> x.getCollege().getId().equals(collegeId)).count(),
-                "totalStudents", students.findByCollegeId(collegeId).size(),
+                "totalClasses", classes.countByCollegeId(collegeId),
+                "totalSections", sections.countByCollegeId(collegeId),
+                "totalSubjects", subjects.countByCollegeId(collegeId),
+                "totalStudents", students.countByCollegeId(collegeId),
                 "todayAttendanceSessions", 0));
     }
 
     @GetMapping("/teacher")
     public ApiResponse<?> teacher() {
         var staffProfile = staff.findByUserId(SecurityUtils.getCurrentUserId()).orElse(null);
-        long subjectCount = staffProfile == null ? 0 : subjects.findAll().stream()
-                .filter(x -> x.getDepartment().getId().equals(staffProfile.getDepartment().getId())).count();
+        long subjectCount = staffProfile == null || staffProfile.getDepartment() == null
+                ? 0 : subjects.countByDepartmentId(staffProfile.getDepartment().getId());
         return ApiResponse.success("Teacher dashboard", Map.of(
                 "mySubjects", subjectCount,
                 "mySections", 0,
@@ -144,21 +142,20 @@ public class DashboardController {
     }
 
     private Map<String, Object> college(Long collegeId) {
-        List<AdmissionForm> collegeAdmissions = admissions.findByCollegeId(collegeId);
         FeeBalanceTotals totals = fees.balanceTotalsByCollegeId(collegeId);
         return Map.ofEntries(
                 Map.entry("collegeId", collegeId),
-                Map.entry("totalDepartments", departments.findByCollegeId(collegeId).size()),
-                Map.entry("totalStaff", staff.findByCollegeId(collegeId).size()),
-                Map.entry("totalStudents", students.findByCollegeId(collegeId).size()),
-                Map.entry("pendingAdmissions", count(collegeAdmissions, AdmissionStatus.PRINCIPAL_REVIEW_PENDING)),
-                Map.entry("approvedAdmissions", count(collegeAdmissions, AdmissionStatus.PRINCIPAL_APPROVED)),
-                Map.entry("rejectedAdmissions", count(collegeAdmissions, AdmissionStatus.PRINCIPAL_REJECTED)),
+                Map.entry("totalDepartments", departments.countByCollegeId(collegeId)),
+                Map.entry("totalStaff", staff.countByCollegeId(collegeId)),
+                Map.entry("totalStudents", students.countByCollegeId(collegeId)),
+                Map.entry("pendingAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.PRINCIPAL_REVIEW_PENDING)),
+                Map.entry("approvedAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.PRINCIPAL_APPROVED)),
+                Map.entry("rejectedAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.PRINCIPAL_REJECTED)),
                 Map.entry("totalFeeCollected", totals.totalPaid()),
                 Map.entry("totalFeePending", totals.totalRemaining()),
-                Map.entry("totalClasses", classes.findAll().stream().filter(x -> x.getCollege().getId().equals(collegeId)).count()),
-                Map.entry("totalSections", sections.findAll().stream().filter(x -> x.getCollege().getId().equals(collegeId)).count()),
-                Map.entry("totalSubjects", subjects.findAll().stream().filter(x -> x.getCollege().getId().equals(collegeId)).count()));
+                Map.entry("totalClasses", classes.countByCollegeId(collegeId)),
+                Map.entry("totalSections", sections.countByCollegeId(collegeId)),
+                Map.entry("totalSubjects", subjects.countByCollegeId(collegeId)));
     }
 
     private Long scopeCollege(Long requested) {
@@ -169,7 +166,4 @@ public class DashboardController {
         return SecurityUtils.requireCurrentUser().getCollegeId();
     }
 
-    private long count(List<AdmissionForm> forms, AdmissionStatus status) {
-        return forms.stream().filter(x -> x.getStatus() == status).count();
-    }
 }
