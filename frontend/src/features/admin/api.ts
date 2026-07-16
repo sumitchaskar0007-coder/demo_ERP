@@ -3,8 +3,17 @@ import type { ApiResponse, PageResponse } from "@/types/api";
 import type { FeeStructureResponse } from "@/features/fees/types";
 export type StudentCategory = "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
 export type Row = Record<string, string | number>;
+export interface AdminSummary {
+  totalColleges: number;
+  activeColleges: number;
+  totalPrincipals: number;
+  totalStaff: number;
+  totalStudents: number;
+  totalFeeCollection: number;
+  pendingFee: number;
+}
 export interface AdminAnalytics {
-  summary: Record<string, number>;
+  summary: AdminSummary;
   collegeWiseStudents: { label: string; value: number }[];
   collegeWiseFeeCollection: { label: string; value: number }[];
   admissionStatusDistribution: Record<string, number>;

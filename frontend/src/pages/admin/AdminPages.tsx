@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowRight, Building2, Clock3, LibraryBig, Users, WalletCards } from "lucide-react";
+import { Activity, ArrowRight, Building2, CheckCircle2, Clock3, GraduationCap, UserRound, Users, WalletCards } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { DonutChart } from "@/components/common/DonutChart";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
@@ -34,19 +34,15 @@ export function AdminDashboardPage() {
 
   if (!d) return <Loader label="Preparing Super Admin dashboard..." />;
 
-  const styles = [
-    { icon: Building2, color: "bg-blue-50 text-blue-600", accent: "bg-blue-500", chart: "#3b82f6" },
-    { icon: Users, color: "bg-violet-50 text-violet-600", accent: "bg-violet-500", chart: "#8b5cf6" },
-    { icon: LibraryBig, color: "bg-amber-50 text-amber-600", accent: "bg-amber-500", chart: "#f59e0b" },
-    { icon: WalletCards, color: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-500", chart: "#22c55e" },
+  const organizationMetrics = [
+    { key: "totalStaff", label: "Total Staff", value: d.summary.totalStaff, icon: Users, color: "bg-blue-50 text-blue-600", accent: "bg-blue-500" },
+    { key: "totalPrincipals", label: "Total Principals", value: d.summary.totalPrincipals, icon: UserRound, color: "bg-violet-50 text-violet-600", accent: "bg-violet-500" },
+    { key: "totalColleges", label: "Total Colleges", value: d.summary.totalColleges, icon: Building2, color: "bg-amber-50 text-amber-600", accent: "bg-amber-500" },
+    { key: "activeColleges", label: "Active Colleges", value: d.summary.activeColleges, icon: CheckCircle2, color: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-500" },
+    { key: "totalStudents", label: "Total Students", value: d.summary.totalStudents, icon: GraduationCap, color: "bg-cyan-50 text-cyan-600", accent: "bg-cyan-500" },
   ];
-  const summary = Object.entries(d.summary).map(([key, value], index) => ({
-    key,
-    label: key.replace(/([A-Z])/g, " $1").trim(),
-    value,
-    numericValue: Number(value) || 0,
-    ...styles[index % styles.length],
-  }));
+  const feeTotal = d.summary.totalFeeCollection + d.summary.pendingFee;
+  const collectionRate = feeTotal > 0 ? Math.round((d.summary.totalFeeCollection / feeTotal) * 100) : 0;
 
   return (
     <div className="page-container pb-10">
@@ -64,20 +60,27 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summary.map(({ key, label, value, icon: Icon, color, accent }) => (
+      <section className="mt-6">
+        <div className="mb-4"><h2 className="text-lg font-bold">Organization Overview</h2><p className="mt-1 text-xs text-slate-500">Live people and institution counts from the database</p></div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {organizationMetrics.map(({ key, label, value, icon: Icon, color, accent }) => (
           <Card className="relative overflow-hidden p-5" key={key}>
             <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
             <div className="flex items-center justify-between"><div className={`grid h-11 w-11 place-items-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></div><span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600">Live</span></div>
             <p className="mt-4 text-2xl font-bold">{value}</p><p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
           </Card>
         ))}
-      </div>
+        </div>
+      </section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <Card className="overflow-hidden">
-          <div className="erp-panel-header"><div><h2 className="font-bold">System overview</h2><p className="mt-1 text-xs text-slate-500">Live global ERP data</p></div><Activity className="h-5 w-5 text-brand-600" /></div>
-          <div className="flex min-h-[300px] items-center justify-center p-6"><DonutChart centerLabel="ERP Records" segments={summary.map(({ label, numericValue, chart }) => ({ label, value: numericValue, color: chart }))} /></div>
+        <Card className="overflow-hidden p-6">
+          <div className="flex items-start justify-between"><div><h2 className="font-bold">Financial Overview</h2><p className="mt-1 text-xs text-slate-500">Collected and pending fees from student accounts</p></div><WalletCards className="h-5 w-5 text-emerald-600" /></div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl bg-emerald-50 p-5"><p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Total Fee Collection</p><p className="mt-3 text-3xl font-black text-emerald-900">₹{d.summary.totalFeeCollection.toLocaleString("en-IN")}</p><p className="mt-2 text-xs text-emerald-700">Verified amount received</p></div>
+            <div className="rounded-2xl bg-orange-50 p-5"><p className="text-xs font-bold uppercase tracking-wider text-orange-700">Pending Fee</p><p className="mt-3 text-3xl font-black text-orange-900">₹{d.summary.pendingFee.toLocaleString("en-IN")}</p><p className="mt-2 text-xs text-orange-700">Outstanding student balance</p></div>
+          </div>
+          <div className="mt-6"><div className="flex items-center justify-between text-xs"><span className="font-semibold text-slate-600">Collection progress</span><b className="text-emerald-600">{collectionRate}%</b></div><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all" style={{ width: `${collectionRate}%` }} /></div></div>
         </Card>
         <Card className="overflow-hidden">
           <div className="border-b px-6 py-5"><h2 className="font-bold">Quick actions</h2><p className="mt-1 text-xs text-slate-500">Frequently used administration tools</p></div>
@@ -93,36 +96,109 @@ export function AdminDashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Chart title="College-wise Students" data={d.collegeWiseStudents} />
-        <Chart title="College-wise Fee Collection" data={d.collegeWiseFeeCollection} />
-      </div>
+      <DashboardAnalytics analytics={d} />
     </div>
   );
 }
-function Chart({ title, data }: { title: string; data: { label: string; value: number }[] }) {
-  const max = Math.max(1, ...data.map((x) => Number(x.value)));
+function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
+  const admissions = Object.entries(analytics.admissionStatusDistribution).map(([label, value]) => ({
+    label: label.replaceAll("_", " "),
+    value: Number(value) || 0,
+  }));
+  const academics = analytics.collegeWiseStudents.map((item, index) => ({
+    ...item,
+    value: Number(item.value) || 0,
+    color: ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#f43f5e"][index % 5],
+  }));
+  const staffCards = [
+    { label: "Total Staff", value: analytics.summary.totalStaff ?? 0, icon: Users, tone: "bg-blue-50 text-blue-600" },
+    { label: "Principals", value: analytics.summary.totalPrincipals ?? 0, icon: UserRound, tone: "bg-violet-50 text-violet-600" },
+    { label: "Students", value: analytics.summary.totalStudents ?? 0, icon: GraduationCap, tone: "bg-amber-50 text-amber-600" },
+    { label: "Active Colleges", value: analytics.summary.activeColleges ?? 0, icon: Building2, tone: "bg-emerald-50 text-emerald-600" },
+  ];
+  const payroll = [
+    { label: "Processed", value: 0 },
+    { label: "Pending", value: 0 },
+    { label: "On Hold", value: 0 },
+  ];
+
   return (
-    <Card className="p-5">
-      <h2 className="font-bold">{title}</h2>
-      <div className="mt-4 space-y-3">
-        {data.map((x) => (
-          <div key={x.label}>
-            <div className="flex justify-between text-sm">
-              <span>{x.label}</span>
-              <b>{x.value}</b>
+    <section className="mt-6 space-y-6">
+      <div className="grid gap-6 xl:grid-cols-2">
+        <AnalyticsCard title="Fee Collection" subtitle="College-wise collection trend">
+          {analytics.collegeWiseFeeCollection.some((item) => Number(item.value) > 0) ? <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={analytics.collegeWiseFeeCollection} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis hide />
+              <Tooltip formatter={(value) => `₹${Number(value ?? 0).toLocaleString("en-IN")}`} />
+              <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: "#2563eb" }} activeDot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer> : <ChartEmpty message="No verified fee collections yet" />}
+        </AnalyticsCard>
+
+        <AnalyticsCard title="Admissions" subtitle="Application status distribution">
+          {admissions.some((item) => item.value > 0) ? <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={admissions} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} maxBarSize={48} />
+            </BarChart>
+          </ResponsiveContainer> : <ChartEmpty message="No admission records yet" />}
+        </AnalyticsCard>
+
+        <AnalyticsCard title="Academics" subtitle="Students allocated across colleges">
+          <div className="flex h-full flex-col items-center gap-3 sm:flex-row">
+            <div className="h-full min-h-52 flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={academics.length ? academics : [{ label: "No data", value: 1, color: "#e2e8f0" }]} dataKey="value" nameKey="label" innerRadius={58} outerRadius={82} paddingAngle={academics.length ? 3 : 0} stroke="none">
+                    {(academics.length ? academics : [{ label: "No data", value: 1, color: "#e2e8f0" }]).map((item) => <Cell key={item.label} fill={item.color} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-            <div className="mt-1 h-2 rounded bg-slate-100">
-              <div
-                className="h-2 rounded bg-blue-600"
-                style={{ width: `${(Number(x.value) / max) * 100}%` }}
-              />
+            <div className="w-full space-y-2 sm:w-48">
+              {academics.slice(0, 5).map((item) => <div key={item.label} className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} /><span className="min-w-0 flex-1 truncate text-slate-500">{item.label}</span><b>{item.value}</b></div>)}
             </div>
           </div>
-        ))}
+        </AnalyticsCard>
+
+        <AnalyticsCard title="Payroll" subtitle="Payroll processing allocation">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={payroll} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#f59e0b" radius={[8, 8, 0, 0]} maxBarSize={52} />
+            </BarChart>
+          </ResponsiveContainer>
+          <p className="-mt-6 text-center text-xs text-slate-400">Awaiting payroll API data</p>
+        </AnalyticsCard>
       </div>
-    </Card>
+
+      <div>
+        <Card className="p-6">
+          <div className="flex items-start justify-between"><div><h2 className="font-bold">Staff Overview</h2><p className="mt-1 text-xs text-slate-500">Allocated people and institutions</p></div><CheckCircle2 className="h-5 w-5 text-emerald-600" /></div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {staffCards.map(({ label, value, icon: Icon, tone }) => <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"><div className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></div><p className="mt-4 text-2xl font-black">{value}</p><p className="mt-1 text-xs font-semibold text-slate-500">{label}</p></div>)}
+          </div>
+        </Card>
+      </div>
+    </section>
   );
+}
+
+function AnalyticsCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return <Card className="p-6"><h2 className="font-bold">{title}</h2><p className="mt-1 text-xs text-slate-500">{subtitle}</p><div className="mt-4 h-64">{children}</div></Card>;
+}
+
+function ChartEmpty({ message }: { message: string }) {
+  return <div className="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 text-center"><div><Activity className="mx-auto h-7 w-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-500">{message}</p><p className="mt-1 text-xs text-slate-400">This chart updates automatically from the database.</p></div></div>;
 }
 export function AdminFeeSetupPage() {
   const [rows, setRows] = useState<FeeStructureResponse[]>([]);
