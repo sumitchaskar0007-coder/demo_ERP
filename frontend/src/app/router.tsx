@@ -53,6 +53,7 @@ import { UserDetailsPage } from "@/pages/users/UserDetailsPage";
 import { UserListPage } from "@/pages/users/UserListPage";
 import { NoticesPage } from "@/features/notices/NoticesPage";
 import { AcademicSetupPage } from "@/features/academics/AcademicSetupPage";
+import { TimetablePage } from "@/features/academics/TimetablePage";
 import { WeeklyTimetablePage } from "@/features/timetable/TimetablePage";
 import { AttendancePage } from "@/features/academics/AttendancePage";
 import { ClassTeacherTimetablePage } from "@/pages/academic/ClassTeacherTimetablePage";
