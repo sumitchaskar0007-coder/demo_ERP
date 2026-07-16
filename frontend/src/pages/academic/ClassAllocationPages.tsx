@@ -103,8 +103,8 @@ export function StudentAllocationPage() {
         />
       </div>
       {classId && (
-        <div className="mt-6 w-full overflow-hidden">
-          <table className="w-full table-fixed text-xs sm:text-sm">
+        <div className="responsive-table mt-6">
+          <table>
             <thead>
               <tr className="text-left text-slate-500">
                 <th className="p-3">Student</th>
@@ -175,8 +175,8 @@ function ClassDetails({ data }: { data: Record<string, unknown> }) {
         </div>
       </div>
       {data.students !== undefined && (
-        <div className="mt-6 w-full overflow-hidden">
-          <table className="w-full table-fixed text-xs sm:text-sm">
+        <div className="responsive-table mt-6">
+          <table>
             <thead>
               <tr className="text-left text-slate-500">
                 <th className="p-3">Student</th>

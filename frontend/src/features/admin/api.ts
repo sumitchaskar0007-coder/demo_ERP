@@ -3,8 +3,38 @@ import type { ApiResponse, PageResponse } from "@/types/api";
 import type { FeeStructureResponse } from "@/features/fees/types";
 export type StudentCategory = "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
 export type Row = Record<string, string | number>;
+export interface FeeCollectionRow {
+  id: number;
+  studentName: string;
+  collegeName: string;
+  departmentName: string;
+  studentCategory: StudentCategory;
+  amount: number;
+  paymentDate: string;
+  transactionReference: string;
+}
+export interface PendingFeeRow {
+  id: number;
+  studentName: string;
+  admissionNumber: string;
+  collegeName: string;
+  departmentName: string;
+  studentCategory: StudentCategory;
+  totalFee: number;
+  paidAmount: number;
+  remainingAmount: number;
+}
+export interface AdminSummary {
+  totalColleges: number;
+  activeColleges: number;
+  totalPrincipals: number;
+  totalStaff: number;
+  totalStudents: number;
+  totalFeeCollection: number;
+  pendingFee: number;
+}
 export interface AdminAnalytics {
-  summary: Record<string, number>;
+  summary: AdminSummary;
   collegeWiseStudents: { label: string; value: number }[];
   collegeWiseFeeCollection: { label: string; value: number }[];
   admissionStatusDistribution: Record<string, number>;
@@ -14,9 +44,9 @@ const get = <T>(url: string, params?: object) =>
   apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
 export const getAdminAnalytics = () => get<AdminAnalytics>("/api/super-admin/analytics");
 export const getCollections = (params?: object) =>
-  get<PageResponse<Row>>("/api/super-admin/fees/collections", params);
+  get<PageResponse<FeeCollectionRow>>("/api/super-admin/fees/collections", params);
 export const getPendingFees = (params?: object) =>
-  get<PageResponse<Row>>("/api/super-admin/fees/pending", params);
+  get<PageResponse<PendingFeeRow>>("/api/super-admin/fees/pending", params);
 export const getCollectionSummary = () =>
   get<Record<string, number>>("/api/super-admin/fees/collection-summary");
 export const getPendingSummary = () =>

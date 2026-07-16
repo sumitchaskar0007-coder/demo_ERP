@@ -13,8 +13,8 @@ export function DataTable<T>({ columns, data, rowKey }: {
   rowKey: (row: T) => string | number;
 }) {
   return (
-    <div className="data-table w-full min-w-0">
-      <table className="w-full border-collapse text-left">
+    <div className="data-table w-full min-w-0 overflow-x-auto">
+      <table className="w-full min-w-[760px] border-collapse text-left">
         <thead><tr className="border-b bg-slate-50">{columns.map((column) => <th key={column.key} className={`px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500 ${column.className || ""}`}>{column.header}</th>)}</tr></thead>
         <tbody className="divide-y">
           {data.map((row) => (

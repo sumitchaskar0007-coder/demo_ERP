@@ -83,11 +83,7 @@ public class NoticeServiceImpl implements NoticeService {
     @Override
     public List<NoticeResponse> inbox() {
         CustomUserDetails current = SecurityUtils.requireCurrentUser();
-        Set<RoleName> roles = current.getAuthorities().stream()
-                .map(a -> a.getAuthority())
-                .filter(authority -> authority.startsWith("ROLE_"))
-                .map(authority -> RoleName.valueOf(authority.substring("ROLE_".length())))
-                .collect(Collectors.toSet());
+        Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
         return notices.findAll().stream()
                 .filter(n -> !n.getCreatedBy().getId().equals(current.getId()))

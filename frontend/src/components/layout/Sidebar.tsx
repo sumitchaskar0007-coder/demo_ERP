@@ -177,18 +177,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       : futureItems;
 
   return (
-    <aside
-      className={cn(
-        "flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300",
-        !mobile && (collapsed ? "w-20" : "w-64"),
-      )}
-    >
-      <div
-        className={cn(
-          "flex h-20 items-center border-b border-slate-100 px-5",
-          collapsed && !mobile ? "justify-center" : "gap-3",
-        )}
-      >
+    <aside className={cn("flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300", !mobile && (collapsed ? "w-20" : "w-64"))}>
+      <div className={cn("flex h-16 shrink-0 items-center border-b border-slate-100 px-5 lg:h-20", collapsed && !mobile ? "justify-center" : "gap-3")}>
         {collapsed && !mobile ? <BrandLogo compact /> : <BrandLogo className="w-[185px]" />}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">

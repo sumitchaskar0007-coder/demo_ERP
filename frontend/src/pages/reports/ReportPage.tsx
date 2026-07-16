@@ -42,8 +42,8 @@ export function ReportPage({ type }: { type: "admissions" | "fees" | "attendance
         {loading ? (
           <Loader />
         ) : rows.length ? (
-          <div className="w-full overflow-hidden">
-            <table className="w-full table-fixed text-xs sm:text-sm">
+          <div className="responsive-table">
+            <table>
               <thead>
                 <tr>
                   {keys.map((k) => (
