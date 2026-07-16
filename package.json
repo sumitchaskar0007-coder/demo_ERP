@@ -1,0 +1,30 @@
+{
+  "name": "jadhavr_erp",
+  "version": "1.0.0",
+  "description": "Super Admin is a governance role. It can create colleges and principals, view all staff and students, configure category-aware fees globally, review fee collection/pending balances, and view global analytics. It cannot create operational staff, verify admissions/payments, or manage academic operations. Principal owns Student Section, Fee Section, HOD, Class Teacher, and Subject Teacher creation plus college operations.",
+  "main": "tmp-subject-check.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sumitchaskar0007-coder/Jadhavr-ERP.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sumitchaskar0007-coder/Jadhavr-ERP/issues"
+  },
+  "homepage": "https://github.com/sumitchaskar0007-coder/Jadhavr-ERP#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

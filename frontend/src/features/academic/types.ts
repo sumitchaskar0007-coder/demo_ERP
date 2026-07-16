@@ -110,3 +110,12 @@ export interface FinalAdmission {
   departmentName: string;
   status: string;
 }
+export interface SubjectTeacherAssignment {
+  id: number;
+  subjectId: number;
+  subjectName: string;
+  subjectCode: string;
+  teacherId: number;
+  teacherName: string;
+  academicYear: string;
+}

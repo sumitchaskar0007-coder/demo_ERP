@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
-import type { AcademicClass, CourseYear, Division, FinalAdmission, Section, Subject, TimetableEntry } from "./types";
+import type { AcademicClass, CourseYear, Division, FinalAdmission, Section, Subject, SubjectTeacherAssignment, TimetableEntry } from "./types";
 const get = <T>(url: string, params?: object) =>
   apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
 const post = <T>(url: string, data?: object) =>
@@ -52,6 +52,10 @@ export const searchSubjects = (params?: object) =>
   get<Subject[]>("/api/academic/subjects/search", params);
 export const assignSubjectTeacher = (id: number, data: object) =>
   post(`/api/academic/subjects/${id}/assign-teacher`, data);
+export const unassignSubjectTeacher = (subjectId: number, teacherId: number) =>
+  apiClient.delete(`/api/academic/subjects/${subjectId}/unassign-teacher/${teacherId}`).then((r) => r.data.data);
+export const listSubjectTeacherAssignments = (params?: object) =>
+  get<SubjectTeacherAssignment[]>("/api/academic/subject-teacher-assignments", params);
 export const createTimetableEntry = (data: object) =>
   post<TimetableEntry>("/api/academic/timetable", data);
 export const searchTimetable = (sectionId: number) =>
@@ -70,3 +74,8 @@ export const eligibleStudentsForClass = (id: number) => get<StudentRosterItem[]>
 export const sectionStudents = (id: number) => get<StudentRosterItem[]>(`/api/academic/sections/${id}/students`);
 export const getMyClassRoster = () => get<Record<string, unknown>>("/api/academic/class-teacher/my-class");
 export const getMyStudentClass = () => get<Record<string, unknown>>("/api/student/academic/class");
+// Class teacher timetable
+export const getClassTeacherSection = () => get<Record<string, unknown>>("/api/class-teacher/timetable/my-section");
+export const getClassTeacherSubjects = () => get<Record<string, unknown>[]>("/api/class-teacher/timetable/subjects");
+export const getClassTeacherTeachers = (subjectId: number) => get<Record<string, unknown>[]>("/api/class-teacher/timetable/teachers", { subjectId });
+export const getClassTeacherPeriods = () => get<Record<string, unknown>[]>("/api/class-teacher/timetable/periods");
