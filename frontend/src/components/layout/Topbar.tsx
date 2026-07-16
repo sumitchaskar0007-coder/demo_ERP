@@ -28,7 +28,7 @@ export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unre
     }
   };
   return (
-    <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+    <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 border-b border-slate-200/80 bg-white/95 px-3 shadow-sm backdrop-blur sm:px-6 lg:sticky lg:h-20 lg:gap-4 lg:px-8 lg:shadow-none">
       <button onClick={onMenu} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><Menu className="h-6 w-6" /></button>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <div className="hidden h-11 items-center gap-2 rounded-xl border bg-white px-3 text-xs font-semibold text-slate-600 xl:flex"><CalendarDays className="h-4 w-4 text-brand-600" />Academic Year: {year} / {year + 1}</div>
