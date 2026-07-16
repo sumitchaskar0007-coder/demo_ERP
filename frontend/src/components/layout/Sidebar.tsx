@@ -77,6 +77,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           { label: "Final Admissions", to: ROUTES.finalAdmissions, icon: FileText },
           { label: "Academic", to: ROUTES.academicClasses, icon: GraduationCap },
           { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
+          { label: "Subject Teachers", to: ROUTES.subjectTeacherAssignments, icon: Users },
           { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
           { label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users },
           { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },

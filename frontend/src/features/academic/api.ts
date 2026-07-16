@@ -52,6 +52,10 @@ export const searchSubjects = (params?: object) =>
   get<Subject[]>("/api/academic/subjects/search", params);
 export const assignSubjectTeacher = (id: number, data: object) =>
   post(`/api/academic/subjects/${id}/assign-teacher`, data);
+export const unassignSubjectTeacher = (subjectId: number, teacherId: number) =>
+  apiClient.delete(`/api/academic/subjects/${subjectId}/unassign-teacher/${teacherId}`).then((r) => r.data.data);
+export const listSubjectTeacherAssignments = (params?: object) =>
+  get<SubjectTeacherAssignment[]>("/api/academic/subject-teacher-assignments", params);
 export const createTimetableEntry = (data: object) =>
   post<TimetableEntry>("/api/academic/timetable", data);
 export const searchTimetable = (sectionId: number) =>
