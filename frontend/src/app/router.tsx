@@ -199,6 +199,10 @@ export function AppRouter() {
             <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
           </Route>
 
+          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
+            <Route path={ROUTES.timetable} element={<TimetablePage />} />
+          </Route>
+
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.STUDENT_SECTION]} />}>
             <Route
               path={ROUTES.studentSectionDashboard}

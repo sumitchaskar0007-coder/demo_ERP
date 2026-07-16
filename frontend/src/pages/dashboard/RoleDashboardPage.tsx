@@ -58,15 +58,27 @@ export function RoleDashboardPage() {
 
   if (!data || !user) return <Loader label="Loading dashboard..." />;
 
+  const toNumber = (v: unknown) => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+    return 0;
+  };
+
   const stats = Object.entries(data)
     .filter(([, value]) => typeof value !== "object")
-    .map(([key, value], index) => ({
-      key,
-      label: key.replace(/([A-Z])/g, " $1").trim(),
-      value: String(value),
-      numericValue: typeof value === "number" ? value : 0,
-      ...statStyles[index % statStyles.length],
-    }));
+    .map(([key, value], index) => {
+      const numericValue = toNumber(value);
+      return {
+        key,
+        label: key.replace(/([A-Z])/g, " $1").trim(),
+        value: String(value),
+        numericValue,
+        ...statStyles[index % statStyles.length],
+      };
+    });
   const primaryRole = user.roles[0]?.replaceAll("_", " ") || "ERP";
   const principal = user.roles.includes(ROLES.PRINCIPAL);
   const quickActions = principal

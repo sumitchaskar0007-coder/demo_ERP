@@ -16,10 +16,16 @@ export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unre
   const profileImage = user?.profileImageUrl?.startsWith("/")
     ? `${API_BASE_URL}${user.profileImageUrl}`
     : user?.profileImageUrl;
-  const handleLogout = () => {
-    logout();
-    toast.success("Logged out successfully");
-    navigate(ROUTES.login);
+  const handleLogout = async () => {
+    setOpen(false);
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+    } catch {
+      toast.error("The server session could not be closed. Please try again.");
+    } finally {
+      navigate(ROUTES.login, { replace: true });
+    }
   };
   return (
     <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">

@@ -105,6 +105,7 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
       path.startsWith("/principals") ||
       path === ROUTES.staff ||
       path === ROUTES.students ||
+      path === ROUTES.timetable ||
       path.startsWith("/admin/")
     );
   }
@@ -120,7 +121,7 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
     return path.startsWith("/student/") || path === ROUTES.dashboard || path === ROUTES.account || path === ROUTES.accountChangePassword || path === ROUTES.notices;
   }
   if (roles.includes(ROLES.FEE_SECTION)) return path.startsWith("/fee-section") || path === ROUTES.notices || path === ROUTES.profile;
-  if (roles.some((role) => [ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER].includes(role as never))) return path.startsWith("/academic") || path === ROUTES.notices || path === ROUTES.profile;
+  if (roles.some((role) => [ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER].includes(role as never))) return path.startsWith("/academic") || ((roles.includes(ROLES.HOD)||roles.includes(ROLES.CLASS_TEACHER))&&path===ROUTES.timetable) || path === ROUTES.notices || path === ROUTES.profile;
   return false;
 }
 
