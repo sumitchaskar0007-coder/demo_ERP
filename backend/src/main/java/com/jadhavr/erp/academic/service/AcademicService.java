@@ -18,7 +18,9 @@ public interface AcademicService {
     Map<String, Object> updateSubject(Long id, UpdateSubject r);
     void deleteSubject(Long id);
     List<Map<String, Object>> subjects(Long classId, Long departmentId, String yearName);
-    SubjectTeacherAssignment assignTeacher(Long id, Assign r);
+    Map<String, Object> assignTeacher(Long id, Assign r);
+    void unassignTeacher(Long subjectId, Long teacherId);
+    List<Map<String, Object>> listAssignments(Long teacherId, Long subjectId);
     TimetableEntry createTimetable(CreateTimetable r);
     List<TimetableEntry> timetable(Long sectionId);
     AttendanceSession createAttendance(CreateAttendance r);

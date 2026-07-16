@@ -80,6 +80,7 @@ import {
   SubjectEditPage,
 } from "@/pages/academic/AcademicPages";
 import { MyClassRosterPage, StudentAllocationPage, StudentClassPage } from "@/pages/academic/ClassAllocationPages";
+import { SubjectTeacherAssignmentPage } from "@/pages/academic/SubjectTeacherAssignmentPage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -197,6 +198,7 @@ export function AppRouter() {
               element={<AcademicCreatePage kind="subjects" />}
             />
             <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
+            <Route path={ROUTES.subjectTeacherAssignments} element={<SubjectTeacherAssignmentPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
