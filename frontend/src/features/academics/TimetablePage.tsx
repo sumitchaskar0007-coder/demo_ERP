@@ -1,212 +1,47 @@
-import { FormEvent, useEffect, useState } from "react";
-import { academicApi, timetableApi, Master, Timetable } from "./api";
-import { Card } from "@/components/common/Card";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, CalendarDays, GripVertical, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
+import { Loader } from "@/components/common/Loader";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
-export function TimetablePage() {
-  const [tables, setTables] = useState<Timetable[]>([]);
-  const [master, setMaster] = useState<Record<string, Master[]>>({});
-  const [teachers, setTeachers] = useState<Master[]>([]);
-  const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    academicYearId: "",
-    academicTermId: "",
-    classId: "",
-    sectionId: "",
-    weekStart: "",
-  });
-  const [entry, setEntry] = useState({
-    dayOfWeek: "MONDAY",
-    periodId: "",
-    subjectId: "",
-    teacherId: "",
-    roomId: "",
-    type: "LECTURE",
-  });
-  const load = () =>
-    timetableApi
-      .list()
-      .then(setTables)
-      .catch((e) => setError(handleApiError(e).message));
-  useEffect(() => {
-    load();
-    Promise.all(
-      ["ACADEMIC_YEAR", "TERM", "CLASS", "SECTION", "SUBJECT", "PERIOD", "ROOM"].map(
-        async (t) => [t, await academicApi.masters(t)] as const,
-      ),
-    ).then((x) => setMaster(Object.fromEntries(x)));
-    academicApi.people().then(setTeachers);
-  }, []);
-  async function create(e: FormEvent) {
-    e.preventDefault();
-    try {
-      await timetableApi.create(
-        Object.fromEntries(
-          Object.entries(form).map(([k, v]) => [k, k === "weekStart" ? v : Number(v)]),
-        ),
-      );
-      load();
-    } catch (x) {
-      setError(handleApiError(x).message);
-    }
-  }
-  const opts = (t: string) =>
-    (master[t] || []).map((x) => ({ label: `${x.name} (#${x.id})`, value: String(x.id) }));
-  async function add(id: number) {
-    try {
-      await timetableApi.add(id, {
-        ...entry,
-        periodId: Number(entry.periodId),
-        subjectId: entry.type === "BREAK" ? null : Number(entry.subjectId),
-        teacherId: entry.type === "BREAK" ? null : Number(entry.teacherId),
-        roomId: entry.type === "BREAK" ? null : Number(entry.roomId),
-      });
-      load();
-    } catch (e) {
-      setError(handleApiError(e).message);
-    }
-  }
-  return (
-    <div className="page-container space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Timetable assignment</h1>
-        <p className="text-sm text-slate-500">
-          Draft, validate, publish, and generate attendance sessions.
-        </p>
-      </div>
-      <Card>
-        <form onSubmit={create} className="grid gap-4 md:grid-cols-5">
-          <Select
-            label="Academic year"
-            required
-            value={form.academicYearId}
-            onChange={(e) => setForm({ ...form, academicYearId: e.target.value })}
-            options={opts("ACADEMIC_YEAR")}
-          />
-          <Select
-            label="Term"
-            required
-            value={form.academicTermId}
-            onChange={(e) => setForm({ ...form, academicTermId: e.target.value })}
-            options={opts("TERM")}
-          />
-          <Select
-            label="Class"
-            required
-            value={form.classId}
-            onChange={(e) => setForm({ ...form, classId: e.target.value })}
-            options={opts("CLASS")}
-          />
-          <Select
-            label="Section"
-            required
-            value={form.sectionId}
-            onChange={(e) => setForm({ ...form, sectionId: e.target.value })}
-            options={opts("SECTION")}
-          />
-          <Input
-            label="Week starting"
-            type="date"
-            required
-            value={form.weekStart}
-            onChange={(e) => setForm({ ...form, weekStart: e.target.value })}
-          />
-          <Button type="submit">Create draft</Button>
-        </form>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      </Card>
-      <div className="grid gap-4">
-        {tables.map((t) => (
-          <Card key={t.id}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="font-semibold">
-                  {t.className} · {t.section}
-                </h2>
-                <p className="text-sm text-slate-500">
-                  {t.term} · week {t.weekStart} · {t.status}
-                </p>
-              </div>
-              {t.status === "DRAFT" && (
-                <Button
-                  onClick={async () => {
-                    try {
-                      await timetableApi.publish(t.id);
-                      load();
-                    } catch (e) {
-                      setError(handleApiError(e).message);
-                    }
-                  }}
-                >
-                  Publish
-                </Button>
-              )}
-            </div>
-            {t.status === "DRAFT" && (
-              <div className="mt-4 grid gap-2 rounded-xl bg-slate-50 p-3 md:grid-cols-7">
-                <Select
-                  value={entry.dayOfWeek}
-                  onChange={(e) => setEntry({ ...entry, dayOfWeek: e.target.value })}
-                  options={["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"].map(
-                    (x) => ({ label: x, value: x }),
-                  )}
-                />
-                <Select
-                  value={entry.type}
-                  onChange={(e) => setEntry({ ...entry, type: e.target.value })}
-                  options={["LECTURE", "PRACTICAL", "LAB", "BREAK"].map((x) => ({
-                    label: x,
-                    value: x,
-                  }))}
-                />
-                <Select
-                  value={entry.periodId}
-                  onChange={(e) => setEntry({ ...entry, periodId: e.target.value })}
-                  options={opts("PERIOD")}
-                />
-                <Select
-                  disabled={entry.type === "BREAK"}
-                  value={entry.subjectId}
-                  onChange={(e) => setEntry({ ...entry, subjectId: e.target.value })}
-                  options={opts("SUBJECT")}
-                />
-                <Select
-                  disabled={entry.type === "BREAK"}
-                  value={entry.teacherId}
-                  onChange={(e) => setEntry({ ...entry, teacherId: e.target.value })}
-                  options={teachers.map((x) => ({ label: x.name, value: String(x.id) }))}
-                />
-                <Select
-                  disabled={entry.type === "BREAK"}
-                  value={entry.roomId}
-                  onChange={(e) => setEntry({ ...entry, roomId: e.target.value })}
-                  options={opts("ROOM")}
-                />
-                <Button onClick={() => add(t.id)}>Add period</Button>
-              </div>
-            )}
-            <div className="mt-4 grid gap-2 md:grid-cols-5">
-              {t.entries.map((e) => (
-                <div key={e.id} className="rounded-xl border p-3 text-sm">
-                  <b>
-                    {e.dayOfWeek} P{e.periodNumber}
-                  </b>
-                  <div>
-                    {e.startTime}–{e.endTime}
-                  </div>
-                  <div>{e.subject || e.type}</div>
-                  <div className="text-slate-500">
-                    {e.teacher}
-                    {e.room ? ` · ${e.room}` : ""}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
+import { weeklyTimetableApi, type WeeklyDivision, type WeeklyEntry, type WeeklyPeriod, type WeeklyPeriodInput, type WeeklyTimetable } from "./api";
+
+const DAYS=["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+const PALETTE=["bg-blue-50 border-blue-200 text-blue-900","bg-emerald-50 border-emerald-200 text-emerald-900","bg-orange-50 border-orange-200 text-orange-900","bg-violet-50 border-violet-200 text-violet-900","bg-cyan-50 border-cyan-200 text-cyan-900","bg-rose-50 border-rose-200 text-rose-900"];
+type Editor={day:string;period:WeeklyPeriod;entry?:WeeklyEntry;subjectId:string;teacherId:string;room:string;lectureType:string;remarks:string};
+type PeriodDraft=WeeklyPeriodInput;
+const color=(subjectId:number)=>PALETTE[subjectId%PALETTE.length];
+const displayTime=(time:string)=>{const [h,m]=time.split(":").map(Number);return new Intl.DateTimeFormat("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}).format(new Date(2000,0,1,h,m));};
+const addMinutes=(time:string,minutes:number)=>{const [hour,minute]=time.slice(0,5).split(":").map(Number);const total=(hour*60+minute+minutes)%(24*60);return `${String(Math.floor(total/60)).padStart(2,"0")}:${String(total%60).padStart(2,"0")}`;};
+
+export function TimetablePage(){
+ const [divisions,setDivisions]=useState<WeeklyDivision[]>([]),[sectionId,setSectionId]=useState(""),[table,setTable]=useState<WeeklyTimetable|null>(null),[loading,setLoading]=useState(true),[editor,setEditor]=useState<Editor|null>(null),[timeEditor,setTimeEditor]=useState(false),[times,setTimes]=useState<PeriodDraft[]>([]),[mobileDay,setMobileDay]=useState("MONDAY"),[saving,setSaving]=useState(false);
+ useEffect(()=>{weeklyTimetableApi.divisions().then(rows=>{setDivisions(rows);if(rows[0])setSectionId(String(rows[0].id));}).catch(e=>toast.error(handleApiError(e).message)).finally(()=>setLoading(false));},[]);
+ useEffect(()=>{if(!sectionId)return;setLoading(true);weeklyTimetableApi.get(Number(sectionId)).then(x=>{setTable(x);setTimes(x.periods);}).catch(e=>{setTable(null);toast.error(handleApiError(e).message);}).finally(()=>setLoading(false));},[sectionId]);
+ const entryMap=useMemo(()=>new Map((table?.entries||[]).map(e=>[`${e.dayOfWeek}:${e.periodId}`,e])),[table]);
+ const open=(day:string,period:WeeklyPeriod,entry?:WeeklyEntry,subjectId="")=>{if(!table?.editable||period.kind!=="TEACHING")return;setEditor({day,period,entry,subjectId:subjectId||String(entry?.subjectId||""),teacherId:String(entry?.teacherId||""),room:entry?.room||"",lectureType:entry?.lectureType||"THEORY",remarks:entry?.remarks||""});};
+ const reload=async()=>{if(sectionId){const x=await weeklyTimetableApi.get(Number(sectionId));setTable(x);setTimes(x.periods);}};
+ const addPeriod=()=>{const start=times.at(-1)?.endTime?.slice(0,5)||"08:30";setTimes([...times,{label:`Period ${times.filter(p=>p.kind==="TEACHING").length+1}`,startTime:start,endTime:addMinutes(start,50),kind:"TEACHING"}]);};
+ const updatePeriod=(index:number,change:Partial<PeriodDraft>)=>setTimes(times.map((period,i)=>i===index?{...period,...change}:period));
+ const save=async()=>{if(!editor||!table)return;if(!editor.subjectId||!editor.teacherId){toast.error("Select a subject and teacher");return;}setSaving(true);try{await weeklyTimetableApi.save(table.id,editor.day,editor.period.id,{subjectId:Number(editor.subjectId),teacherId:Number(editor.teacherId),room:editor.room||null,lectureType:editor.lectureType,remarks:editor.remarks||null});await reload();setEditor(null);toast.success("Lecture saved");}catch(e){toast.error(handleApiError(e).message);}finally{setSaving(false);}};
+ const remove=async()=>{if(!editor?.entry||!table)return;setSaving(true);try{await weeklyTimetableApi.remove(table.id,editor.day,editor.period.id);await reload();setEditor(null);toast.success("Lecture removed");}catch(e){toast.error(handleApiError(e).message);}finally{setSaving(false);}};
+ const drop=async(day:string,period:WeeklyPeriod,data:string)=>{if(!table?.editable||period.kind!=="TEACHING"||!data)return;const payload=JSON.parse(data) as {type:string;subjectId?:number;day?:string;periodId?:number};if(payload.type==="subject")open(day,period,undefined,String(payload.subjectId));else if(payload.type==="entry"&&payload.day&&payload.periodId){try{await weeklyTimetableApi.move(table.id,{fromDay:payload.day,fromPeriodId:payload.periodId,toDay:day,toPeriodId:period.id});await reload();toast.success("Lecture moved");}catch(e){toast.error(handleApiError(e).message);}}};
+ if(loading&&!divisions.length)return <div className="page-container"><Loader/></div>;
+ return <div className="page-container min-w-0 space-y-6">
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-600"><CalendarDays className="h-4 w-4"/>Academic planning</div><h1 className="page-title">Weekly timetable</h1><p className="page-subtitle">Create the fixed weekly schedule followed by your division.</p></div>{table?.editable&&<Button variant="secondary" onClick={()=>setTimeEditor(true)}><Settings2 className="h-4 w-4"/>Configure times</Button>}</div>
+  <Card className="p-4 sm:p-5"><Select label="Division" value={sectionId} onChange={e=>setSectionId(e.target.value)} options={divisions.map(d=>({value:String(d.id),label:`${d.department} · ${d.year} · Division ${d.division}`}))}/>{table&&<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">{[["Department",table.department],["Year",table.year],["Division",table.division],["Class Teacher",table.classTeacher],["Academic Year",table.academicYear],["Status",table.status]].map(([k,v])=><div key={k} className="min-w-0 rounded-xl bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k}</p><p className="mt-1 truncate text-sm font-semibold text-slate-800">{v}</p></div>)}</div>}</Card>
+  {table&&<><Card className="p-4 sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen className="h-4 w-4 text-brand-600"/><h2 className="font-semibold">Subjects</h2><span className="text-xs text-slate-400">Drag a subject into a period</span></div><div className="flex flex-wrap gap-2">{table.subjects.map(s=><button key={s.id} draggable={table.editable} onDragStart={e=>e.dataTransfer.setData("application/json",JSON.stringify({type:"subject",subjectId:s.id}))} onClick={()=>toast.info("Drag this subject into a timetable cell")} className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${color(s.id)}`}><GripVertical className="h-3.5 w-3.5 shrink-0"/><span className="truncate">{s.label}</span></button>)}</div></Card>
+  <div className="hidden xl:block"><Card className="overflow-hidden"><div className="grid grid-cols-[150px_repeat(6,minmax(140px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500"><div className="p-3 text-left">Period</div>{DAYS.map(d=><div className="border-l p-3" key={d}>{d}</div>)}</div>{table.periods.map(p=><div key={p.id} className={`grid grid-cols-[150px_repeat(6,minmax(140px,1fr))] border-t ${p.kind!=="TEACHING"?"bg-amber-50/70":""}`}><PeriodLabel period={p}/>{p.kind!=="TEACHING"?<div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.2em] text-amber-700">{p.kind==="SHORT_BREAK"?"SHORT BREAK":"LUNCH BREAK"}</div>:DAYS.map(d=><Cell key={d} day={d} period={p} entry={entryMap.get(`${d}:${p.id}`)} editable={table.editable} onOpen={open} onDrop={drop}/>)}</div>)}</Card></div>
+  <div className="xl:hidden"><div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-6">{DAYS.map(d=><button key={d} onClick={()=>setMobileDay(d)} className={`rounded-xl px-2 py-2 text-xs font-semibold ${mobileDay===d?"bg-brand-600 text-white":"border bg-white text-slate-600"}`}>{d.slice(0,3)}</button>)}</div><Card className="divide-y">{table.periods.map(p=><div key={p.id} className={p.kind!=="TEACHING"?"bg-amber-50":"p-3"}>{p.kind!=="TEACHING"?<div className="p-4 text-center text-xs font-bold tracking-widest text-amber-700">{p.label} · {displayTime(p.startTime)}–{displayTime(p.endTime)}</div>:<div className="grid min-w-0 grid-cols-[100px_1fr] gap-3"><PeriodLabel period={p}/><Cell day={mobileDay} period={p} entry={entryMap.get(`${mobileDay}:${p.id}`)} editable={table.editable} onOpen={open} onDrop={drop}/></div>}</div>)}</Card></div></>}
+  {!divisions.length&&<Card className="p-10 text-center"><h2 className="font-semibold">No assigned divisions</h2><p className="mt-2 text-sm text-slate-500">A class teacher can only view divisions assigned to their account.</p></Card>}
+  {editor&&table&&<Modal title={editor.entry?"Edit lecture":"Add lecture"} onClose={()=>setEditor(null)}><div className="grid gap-4 sm:grid-cols-2"><Select label="Subject" value={editor.subjectId} onChange={e=>setEditor({...editor,subjectId:e.target.value,teacherId:""})} options={[{label:"Select subject",value:""},...table.subjects.map(x=>({label:x.label,value:String(x.id)}))]}/><Select label="Teacher" value={editor.teacherId} onChange={e=>setEditor({...editor,teacherId:e.target.value})} options={[{label:"Select teacher",value:""},...((table.subjectTeachers.find(st=>st.subjectId===Number(editor.subjectId))?.teachers)||table.teachers).map((x:any)=>({label:x.label,value:String(x.id)}))]}/><Input label="Room (optional)" list="weekly-rooms" value={editor.room} onChange={e=>setEditor({...editor,room:e.target.value})}/><datalist id="weekly-rooms">{table.rooms.map(r=><option key={r} value={r}/>)}</datalist><Select label="Lecture type" value={editor.lectureType} onChange={e=>setEditor({...editor,lectureType:e.target.value})} options={["THEORY","PRACTICAL","LAB","TUTORIAL"].map(x=>({label:x[0]+x.slice(1).toLowerCase(),value:x}))}/><div className="sm:col-span-2"><Input label="Remarks (optional)" value={editor.remarks} onChange={e=>setEditor({...editor,remarks:e.target.value})}/></div></div><div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between"><div>{editor.entry&&<Button variant="danger" onClick={remove} disabled={saving}><Trash2 className="h-4 w-4"/>Remove</Button>}</div><div className="flex gap-2"><Button variant="secondary" onClick={()=>setEditor(null)}>Cancel</Button><Button onClick={save} loading={saving}>Save lecture</Button></div></div></Modal>}
+  {timeEditor&&table&&<Modal title="Configure period times" onClose={()=>setTimeEditor(false)}><p className="mb-4 text-sm text-slate-500">Add, remove, rename, or change the time and type of every timetable row. Removing a row also removes lectures scheduled in that row.</p><div className="max-h-[58vh] space-y-3 overflow-y-auto pr-1">{times.map((p,i)=><div key={p.id??`new-${i}`} className="rounded-xl bg-slate-50 p-3"><div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px_130px_130px_auto]"><Input aria-label="Period name" value={p.label} onChange={e=>updatePeriod(i,{label:e.target.value})}/><Select aria-label="Period type" value={p.kind} onChange={e=>updatePeriod(i,{kind:e.target.value as PeriodDraft["kind"]})} options={[{label:"Teaching",value:"TEACHING"},{label:"Short break",value:"SHORT_BREAK"},{label:"Lunch break",value:"LUNCH_BREAK"}]}/><Input aria-label="Start time" type="time" value={p.startTime.slice(0,5)} onChange={e=>updatePeriod(i,{startTime:e.target.value})}/><Input aria-label="End time" type="time" value={p.endTime.slice(0,5)} onChange={e=>updatePeriod(i,{endTime:e.target.value})}/><Button aria-label={`Remove ${p.label}`} variant="secondary" className="text-rose-600 hover:bg-rose-50" disabled={times.length===1} onClick={()=>setTimes(times.filter((_,j)=>j!==i))}><Trash2 className="h-4 w-4"/><span className="sm:hidden">Remove</span></Button></div></div>)}</div><Button variant="secondary" className="mt-4" onClick={addPeriod}><Plus className="h-4 w-4"/>Add period</Button><div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="secondary" onClick={()=>setTimeEditor(false)}>Cancel</Button><Button loading={saving} onClick={async()=>{setSaving(true);try{const x=await weeklyTimetableApi.updatePeriods(table.id,times.map(p=>({...p,startTime:p.startTime.slice(0,5),endTime:p.endTime.slice(0,5)})));setTable(x);setTimes(x.periods);setTimeEditor(false);toast.success("Timetable periods updated");}catch(e){toast.error(handleApiError(e).message);}finally{setSaving(false);}}}>Save times</Button></div></Modal>}
+ </div>;
 }
+
+function PeriodLabel({period:p}:{period:WeeklyPeriod}){return <div className="flex min-w-0 flex-col justify-center p-3"><b className="text-sm text-slate-800">{p.label}</b><span className="mt-1 text-[10px] text-slate-400">{displayTime(p.startTime)}–{displayTime(p.endTime)}</span></div>}
+function Cell({day,period,entry,editable,onOpen,onDrop}:{day:string;period:WeeklyPeriod;entry?:WeeklyEntry;editable:boolean;onOpen:(d:string,p:WeeklyPeriod,e?:WeeklyEntry)=>void;onDrop:(d:string,p:WeeklyPeriod,data:string)=>void}){return <button disabled={!editable} draggable={Boolean(entry&&editable)} onDragStart={e=>entry&&e.dataTransfer.setData("application/json",JSON.stringify({type:"entry",day,periodId:period.id}))} onDragOver={e=>{if(editable)e.preventDefault();}} onDrop={e=>{e.preventDefault();void onDrop(day,period,e.dataTransfer.getData("application/json"));}} onClick={()=>onOpen(day,period,entry)} className="group min-h-24 min-w-0 border-l p-2 text-left transition hover:bg-brand-50/40 disabled:cursor-default">{entry?<div className={`h-full min-w-0 rounded-xl border p-2.5 shadow-sm transition group-hover:-translate-y-0.5 ${color(entry.subjectId)}`}><div className="flex items-start justify-between gap-1"><b className="break-words text-xs leading-5">{entry.subject}</b>{editable&&<Pencil className="h-3 w-3 shrink-0 opacity-50"/>}</div><p className="mt-1 truncate text-[10px] opacity-75">{entry.teacher}</p><p className="mt-1 text-[10px] font-semibold">{entry.lectureType}{entry.room?` · ${entry.room}`:""}</p></div>:editable?<div className="grid h-full min-h-20 place-items-center rounded-xl border border-dashed border-slate-200 text-slate-300 transition group-hover:border-brand-300 group-hover:text-brand-500"><Plus className="h-5 w-5"/></div>:<span className="text-xs text-slate-300">—</span>}</button>}
+function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}){return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-3 backdrop-blur-sm" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><div className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-5 py-4"><h2 className="font-bold text-slate-900">{title}</h2><button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5"/></button></div><div className="p-5">{children}</div></div></div>}

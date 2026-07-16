@@ -62,8 +62,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse("A resource with the same unique value already exists"));
+        String sqlState = exception.getMostSpecificCause() instanceof java.sql.SQLException sql
+                ? sql.getSQLState() : null;
+        if ("23505".equals(sqlState)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ErrorResponse("A resource with the same unique value already exists"));
+        }
+        String message = switch (sqlState == null ? "" : sqlState) {
+            case "23503" -> "The selected related record is invalid or no longer exists";
+            case "23502" -> "A required value is missing";
+            case "23514" -> "A value violates a database validation rule";
+            default -> "The request violates a database constraint";
+        };
+        return ResponseEntity.badRequest().body(new ErrorResponse(message));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

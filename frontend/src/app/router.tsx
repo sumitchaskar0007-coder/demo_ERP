@@ -112,7 +112,6 @@ export function AppRouter() {
           <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
           <Route path={ROUTES.dashboard} element={<SmartDashboard />} />
           <Route path={ROUTES.notices} element={<NoticesPage />} />
-          <Route path={ROUTES.timetable} element={<TimetablePage />} />
           <Route path={ROUTES.attendance} element={<AttendancePage />} />
 
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRINCIPAL, ROLES.HOD]} />}>
@@ -196,6 +195,10 @@ export function AppRouter() {
               element={<AcademicCreatePage kind="subjects" />}
             />
             <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
+            <Route path={ROUTES.timetable} element={<TimetablePage />} />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.STUDENT_SECTION]} />}>

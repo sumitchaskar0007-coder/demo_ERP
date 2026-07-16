@@ -19,6 +19,7 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        removeLegacyAcademicForeignKeys();
         synchronizeApplicationEnumConstraints();
         addStudentCategoryConstraints();
         addFinancialConstraints();
@@ -34,6 +35,35 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
                     'PRINCIPAL_APPROVED', 'PRINCIPAL_REJECTED'
                 ))
                 """);
+    }
+
+    /**
+     * Course-year entities were moved out of the legacy academic master tables.
+     * Hibernate adds the new foreign keys but cannot remove the obsolete ones,
+     * leaving inserts required to exist in both unrelated tables.
+     */
+    private void removeLegacyAcademicForeignKeys() {
+        dropForeignKeysReferencing("student_section_enrollments", "academic_classes");
+        dropForeignKeysReferencing("student_section_enrollments", "academic_sections");
+        dropForeignKeysReferencing("subject_teacher_assignments", "academic_subjects");
+    }
+
+    private void dropForeignKeysReferencing(String sourceTable, String legacyTargetTable) {
+        jdbc.execute("""
+                DO $migration$
+                DECLARE constraint_name text;
+                BEGIN
+                  FOR constraint_name IN
+                    SELECT c.conname
+                    FROM pg_constraint c
+                    WHERE c.contype = 'f'
+                      AND c.conrelid = '%s'::regclass
+                      AND c.confrelid = '%s'::regclass
+                  LOOP
+                    EXECUTE format('ALTER TABLE %%I DROP CONSTRAINT %%I', '%s', constraint_name);
+                  END LOOP;
+                END $migration$;
+                """.formatted(sourceTable, legacyTargetTable, sourceTable));
     }
 
     private void synchronizeApplicationEnumConstraints() {
