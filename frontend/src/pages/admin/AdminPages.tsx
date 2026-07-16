@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowRight, Building2, CheckCircle2, Clock3, GraduationCap, UserRound, Users, WalletCards } from "lucide-react";
+import { Activity, ArrowRight, Building2, CalendarDays, CheckCircle2, Clock3, GraduationCap, Hash, IndianRupee, UserRound, Users, WalletCards } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -401,7 +401,7 @@ export function AdminFeeSetupPage() {
   );
 }
 export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
-  const [result, setResult] = useState<PageResponse<api.Row> | null>(null);
+  const [result, setResult] = useState<PageResponse<api.FeeCollectionRow | api.PendingFeeRow> | null>(null);
   const [page, setPage] = useState(0);
 
   useEffect(() => {
@@ -411,21 +411,37 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
   useEffect(() => {
     setResult(null);
     (pending ? api.getPendingFees({ page, size: 20 }) : api.getCollections({ page, size: 20 }))
-      .then(setResult)
+      .then((data) => setResult(data as PageResponse<api.FeeCollectionRow | api.PendingFeeRow>))
       .catch((e) => toast.error(handleApiError(e).message));
   }, [page, pending]);
 
   const rows = result?.content ?? [];
+  const displayedAmount = rows.reduce(
+    (sum, row) => sum + (pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount),
+    0,
+  );
   return (
     <div className="page-container">
-      <h1 className="page-title">{pending ? "Pending Fees" : "Fee Collection"}</h1>
-      <p className="page-subtitle">Global college and department fee overview.</p>
-      <Card className="mt-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div><h1 className="page-title">{pending ? "Pending Fees" : "Fee Collection"}</h1><p className="page-subtitle">Global college and department fee overview.</p></div>
+        {result && <div className={`rounded-2xl px-5 py-3 ${pending ? "bg-orange-50 text-orange-800" : "bg-emerald-50 text-emerald-800"}`}><p className="text-[10px] font-bold uppercase tracking-wider">{pending ? "Pending on this page" : "Collected on this page"}</p><p className="mt-1 text-xl font-black">₹{displayedAmount.toLocaleString("en-IN")}</p></div>}
+      </div>
+      <Card className="mt-6 overflow-hidden">
         {!result ? (
           <Loader />
         ) : rows.length ? (
           <>
-            <pre className="overflow-auto p-5 text-sm">{JSON.stringify(rows, null, 2)}</pre>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left">
+                <thead><tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="px-5 py-4">Student</th><th className="px-5 py-4">College & Department</th><th className="px-5 py-4">Category</th>{pending ? <><th className="px-5 py-4 text-right">Total / Paid</th><th className="px-5 py-4 text-right">Remaining</th></> : <><th className="px-5 py-4">Payment Date</th><th className="px-5 py-4">Transaction Reference</th><th className="px-5 py-4 text-right">Amount</th></>}</tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map((row) => pending ? <PendingFeeTableRow key={row.id} row={row as api.PendingFeeRow} /> : <CollectionTableRow key={row.id} row={row as api.FeeCollectionRow} />)}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid gap-3 p-4 md:hidden">
+              {rows.map((row) => pending ? <PendingFeeCard key={row.id} row={row as api.PendingFeeRow} /> : <CollectionCard key={row.id} row={row as api.FeeCollectionRow} />)}
+            </div>
             <div className="border-t p-4">
               <Pagination
                 page={result.page}
@@ -441,6 +457,26 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
       </Card>
     </div>
   );
+}
+
+function StudentIdentity({ name, detail }: { name: string; detail?: string }) {
+  return <div className="flex items-center gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-50 font-bold text-brand-700">{name.charAt(0).toUpperCase()}</div><div><p className="font-semibold text-slate-900">{name}</p>{detail && <p className="mt-0.5 text-xs text-slate-400">{detail}</p>}</div></div>;
+}
+function CategoryBadge({ value }: { value: string }) {
+  return <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">{value}</span>;
+}
+function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
+  return <tr className="transition hover:bg-slate-50/70"><td className="px-5 py-4"><StudentIdentity name={row.studentName} detail={`Payment #${row.id}`} /></td><td className="px-5 py-4"><p className="text-sm font-semibold text-slate-700">{row.collegeName}</p><p className="mt-0.5 text-xs text-slate-400">{row.departmentName}</p></td><td className="px-5 py-4"><CategoryBadge value={row.studentCategory} /></td><td className="px-5 py-4 text-sm text-slate-600">{new Date(`${row.paymentDate}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</td><td className="px-5 py-4"><span className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-xs text-slate-600">{row.transactionReference}</span></td><td className="px-5 py-4 text-right text-base font-black text-emerald-600">₹{row.amount.toLocaleString("en-IN")}</td></tr>;
+}
+function PendingFeeTableRow({ row }: { row: api.PendingFeeRow }) {
+  return <tr className="transition hover:bg-slate-50/70"><td className="px-5 py-4"><StudentIdentity name={row.studentName} detail={row.admissionNumber} /></td><td className="px-5 py-4"><p className="text-sm font-semibold text-slate-700">{row.collegeName}</p><p className="mt-0.5 text-xs text-slate-400">{row.departmentName}</p></td><td className="px-5 py-4"><CategoryBadge value={row.studentCategory} /></td><td className="px-5 py-4 text-right"><p className="text-sm font-semibold">₹{row.totalFee.toLocaleString("en-IN")}</p><p className="text-xs text-emerald-600">₹{row.paidAmount.toLocaleString("en-IN")} paid</p></td><td className="px-5 py-4 text-right text-base font-black text-orange-600">₹{row.remainingAmount.toLocaleString("en-IN")}</td></tr>;
+}
+function CollectionCard({ row }: { row: api.FeeCollectionRow }) {
+  return <div className="rounded-2xl border border-slate-100 p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><StudentIdentity name={row.studentName} detail={`${row.collegeName} · ${row.departmentName}`} /><CategoryBadge value={row.studentCategory} /></div><div className="mt-4 grid gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500"><span className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5" />{new Date(`${row.paymentDate}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span><span className="flex items-center gap-2"><Hash className="h-3.5 w-3.5" /><span className="break-all font-mono">{row.transactionReference}</span></span></div><div className="mt-4 flex items-center justify-between"><span className="text-xs font-semibold text-slate-400">Verified payment</span><span className="flex items-center text-xl font-black text-emerald-600"><IndianRupee className="h-4 w-4" />{row.amount.toLocaleString("en-IN")}</span></div></div>;
+}
+function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
+  const paidRate = row.totalFee > 0 ? Math.round((row.paidAmount / row.totalFee) * 100) : 0;
+  return <div className="rounded-2xl border border-slate-100 p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><StudentIdentity name={row.studentName} detail={`${row.collegeName} · ${row.departmentName}`} /><CategoryBadge value={row.studentCategory} /></div><div className="mt-4 flex justify-between text-xs"><span className="text-slate-500">Paid ₹{row.paidAmount.toLocaleString("en-IN")}</span><b className="text-orange-600">₹{row.remainingAmount.toLocaleString("en-IN")} pending</b></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${paidRate}%` }} /></div><p className="mt-2 text-right text-[10px] font-bold text-slate-400">{paidRate}% of ₹{row.totalFee.toLocaleString("en-IN")} paid</p></div>;
 }
 export function AdminAnalyticsPage() {
   return <AdminDashboardPage />;

@@ -150,8 +150,8 @@ export function AcademicSetupPage() {
         </form>
       </Card>
       <Card>
-        <div className="w-full overflow-hidden">
-          <table className="w-full table-fixed text-xs sm:text-sm">
+        <div className="responsive-table">
+          <table>
             <thead>
               <tr className="border-b text-left text-slate-500">
                 <th className="p-3">ID</th>
