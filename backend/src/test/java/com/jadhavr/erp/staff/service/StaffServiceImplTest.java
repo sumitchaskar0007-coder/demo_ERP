@@ -178,6 +178,28 @@ class StaffServiceImplTest {
     }
 
     @Test
+    void unifiedFormCreatesTeacherWithMultipleRolesAndDepartments() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        Department bca = department(5L, 1L);
+        Department bba = department(6L, 1L);
+        bba.setName("BBA"); bba.setCode("BBA");
+        when(departments.findById(5L)).thenReturn(Optional.of(bca));
+        when(departments.findById(6L)).thenReturn(Optional.of(bba));
+        stubUnifiedCreation(RoleName.SUBJECT_TEACHER);
+        when(roles.findByName(RoleName.CLASS_TEACHER))
+                .thenReturn(Optional.of(role(RoleName.CLASS_TEACHER)));
+        CreateStaffRequest request = new CreateStaffRequest("Multi Teacher", "multi@example.com",
+                "9876543210", "Teacher@123", 5L, StaffType.SUBJECT_TEACHER,
+                Set.of(5L, 6L), Set.of(StaffType.SUBJECT_TEACHER, StaffType.CLASS_TEACHER),
+                LocalDate.of(2026, 7, 10));
+
+        var result = service.createStaff(request);
+
+        assertEquals(Set.of(RoleName.SUBJECT_TEACHER.name(), RoleName.CLASS_TEACHER.name()), result.roles());
+        assertEquals(Set.of(5L, 6L), Set.copyOf(result.departmentIds()));
+    }
+
+    @Test
     void unifiedFormCreatesStudentSectionWithoutDepartment() {
         authenticate(2L, 1L, RoleName.PRINCIPAL);
         stubUnifiedCreation(RoleName.STUDENT_SECTION);
@@ -230,7 +252,7 @@ class StaffServiceImplTest {
 
     private CreateStaffRequest unified(StaffType type, Long departmentId, String email) {
         return new CreateStaffRequest("Mr. Kale", email, "9876543210", "Teacher@123",
-                departmentId, type, LocalDate.of(2026, 7, 10));
+                departmentId, type, null, null, LocalDate.of(2026, 7, 10));
     }
 
     private Department department(Long id, Long collegeId) {

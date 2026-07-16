@@ -15,6 +15,7 @@ import {
   FileText,
   Printer,
   Bell,
+  CheckCircle2,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
@@ -44,7 +45,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const isFeeSection = isRole([ROLES.FEE_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
   const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
-  const canManageTimetable = isRole([ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]);
+  const isTeacher = isRole([ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
+  const isClassTeacher = isRole([ROLES.CLASS_TEACHER]);
   const nav = isAdmin
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
@@ -58,6 +60,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
         { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
+        { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
         { label: "Account", to: ROUTES.account, icon: UserRound },
       ]
     : isPrincipal
@@ -72,13 +75,18 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
           { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
           { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
-          { label: "Student Section Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+          {
+            label: "Student Section Admissions",
+            to: ROUTES.studentSectionAdmissions,
+            icon: GraduationCap,
+          },
           { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
           { label: "Final Admissions", to: ROUTES.finalAdmissions, icon: FileText },
           { label: "Academic", to: ROUTES.academicClasses, icon: GraduationCap },
           { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
           { label: "Subject Teachers", to: ROUTES.subjectTeacherAssignments, icon: Users },
           { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
+          { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
           { label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users },
           { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
           { label: "Audit Logs", to: ROUTES.auditLogs, icon: FileText },
@@ -120,8 +128,22 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               ]
             : isOtherStaff
               ? [
-                  { label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap },
-                  { label: "My Timetable", to: ROUTES.classTeacherTimetable, icon: CalendarDays },
+                  { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+                  ...(isClassTeacher
+                    ? [{ label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap }]
+                    : []),
+                  ...(isTeacher
+                    ? [
+                        { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
+                        { label: "Take Attendance", to: ROUTES.teacherAttendance, icon: CheckCircle2 },
+                      ]
+                    : []),
+                  ...(isClassTeacher
+                    ? [{ label: "Manage Timetable", to: ROUTES.timetable, icon: CalendarDays }]
+                    : []),
+                  ...(isClassTeacher || isRole([ROLES.HOD])
+                    ? [{ label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 }]
+                    : []),
                   { label: "Notices", to: ROUTES.notices, icon: Bell },
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
                 ]
@@ -155,32 +177,101 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       : futureItems;
 
   return (
-    <aside className={cn("flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300", !mobile && (collapsed ? "w-20" : "w-64"))}>
-      <div className={cn("flex h-20 items-center border-b border-slate-100 px-5", collapsed && !mobile ? "justify-center" : "gap-3")}>
+    <aside
+      className={cn(
+        "flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300",
+        !mobile && (collapsed ? "w-20" : "w-64"),
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-20 items-center border-b border-slate-100 px-5",
+          collapsed && !mobile ? "justify-center" : "gap-3",
+        )}
+      >
         {collapsed && !mobile ? <BrandLogo compact /> : <BrandLogo className="w-[185px]" />}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">
-        <p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400", collapsed && !mobile && "sr-only")}>{sectionLabel}</p>
+        <p
+          className={cn(
+            "mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400",
+            collapsed && !mobile && "sr-only",
+          )}
+        >
+          {sectionLabel}
+        </p>
         <nav className="space-y-1">
           {nav.map(({ label, to, icon: Icon }) => (
-            <NavLink key={to} to={to} onClick={onNavigate} title={collapsed && !mobile ? label : undefined} className={({ isActive }) => cn("relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition", isActive ? "bg-brand-50 text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900", collapsed && !mobile && "justify-center")}>
+            <NavLink
+              key={to}
+              to={to}
+              onClick={onNavigate}
+              title={collapsed && !mobile ? label : undefined}
+              className={({ isActive }) =>
+                cn(
+                  "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition",
+                  isActive
+                    ? "bg-brand-50 text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                  collapsed && !mobile && "justify-center",
+                )
+              }
+            >
               <Icon className="h-5 w-5 shrink-0" />
               {(!collapsed || mobile) && <span>{label}</span>}
             </NavLink>
           ))}
         </nav>
         <div className="my-5 border-t" />
-        <p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400", collapsed && !mobile && "sr-only")}>Future modules</p>
+        <p
+          className={cn(
+            "mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400",
+            collapsed && !mobile && "sr-only",
+          )}
+        >
+          Future modules
+        </p>
         <div className="space-y-1">
-          {roleFuture.filter((item) => isAdmin || item.label !== "Analytics").map(({ label, icon: Icon }) => (
-            <div key={label} title={`${label} — coming soon`} className={cn("flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm text-slate-400", collapsed && !mobile && "justify-center")}>
-              <Icon className="h-4 w-4 shrink-0" />
-              {(!collapsed || mobile) && <><span className="flex-1">{label}</span><span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase">Soon</span></>}
-            </div>
-          ))}
+          {roleFuture
+            .filter((item) => isAdmin || item.label !== "Analytics")
+            .map(({ label, icon: Icon }) => (
+              <div
+                key={label}
+                title={`${label} — coming soon`}
+                className={cn(
+                  "flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm text-slate-400",
+                  collapsed && !mobile && "justify-center",
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {(!collapsed || mobile) && (
+                  <>
+                    <span className="flex-1">{label}</span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase">
+                      Soon
+                    </span>
+                  </>
+                )}
+              </div>
+            ))}
         </div>
       </div>
-      {!mobile && <button onClick={onToggle} className="flex h-12 items-center justify-center border-t border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-slate-700" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <ChevronRight className="h-5 w-5" /> : <><ChevronLeft className="mr-2 h-5 w-5" /><span className="text-sm">Collapse</span></>}</button>}
+      {!mobile && (
+        <button
+          onClick={onToggle}
+          className="flex h-12 items-center justify-center border-t border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-5 w-5" />
+          ) : (
+            <>
+              <ChevronLeft className="mr-2 h-5 w-5" />
+              <span className="text-sm">Collapse</span>
+            </>
+          )}
+        </button>
+      )}
     </aside>
   );
 }

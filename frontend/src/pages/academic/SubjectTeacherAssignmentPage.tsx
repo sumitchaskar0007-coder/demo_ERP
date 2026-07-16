@@ -97,8 +97,7 @@ export function SubjectTeacherAssignmentPage() {
     if (selectedTeacher) void loadAssignments(selectedTeacher.id);
   }, [selectedTeacher, loadAssignments]);
 
-  const isAssigned = (subjectId: number) =>
-    assignments.some((a) => a.subjectId === subjectId);
+  const isAssigned = (subjectId: number) => assignments.some((a) => a.subjectId === subjectId);
 
   const toggle = async (subject: Subject) => {
     if (!selectedTeacher) return;
@@ -108,7 +107,7 @@ export function SubjectTeacherAssignmentPage() {
       if (assigned) {
         await unassignSubjectTeacher(subject.id, selectedTeacher.id);
         setAssignments((prev) =>
-          prev.filter((a) => !(a.subjectId === subject.id && a.teacherId === selectedTeacher.id))
+          prev.filter((a) => !(a.subjectId === subject.id && a.teacherId === selectedTeacher.id)),
         );
         toast.success(`${subject.name} unassigned from ${selectedTeacher.fullName}`);
       } else {
@@ -137,10 +136,10 @@ export function SubjectTeacherAssignmentPage() {
   const filteredTeachers = teachers.filter(
     (t) =>
       t.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      t.email.toLowerCase().includes(search.toLowerCase())
+      t.email.toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (loading) return <Loader fullScreen />;
+  if (loading) return <Loader label="Loading subject-teacher assignments…" />;
 
   return (
     <div className="page-container">
@@ -193,7 +192,10 @@ export function SubjectTeacherAssignmentPage() {
           </div>
           <div className="flex-1 divide-y overflow-y-auto">
             {filteredTeachers.length === 0 && (
-              <EmptyState title="No teachers found" subtitle="No active teaching staff available." />
+              <EmptyState
+                title="No teachers found"
+                description="No active teaching staff available."
+              />
             )}
             {filteredTeachers.map((teacher) => (
               <button
@@ -228,7 +230,7 @@ export function SubjectTeacherAssignmentPage() {
             <div className="flex h-full min-h-[20rem] items-center justify-center">
               <EmptyState
                 title="Select a teacher"
-                subtitle="Click on a teacher from the list to manage their subject assignments."
+                description="Click on a teacher from the list to manage their subject assignments."
               />
             </div>
           ) : (
@@ -236,13 +238,11 @@ export function SubjectTeacherAssignmentPage() {
               <div className="border-b px-5 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      {selectedTeacher.fullName}
-                    </h2>
+                    <h2 className="text-lg font-bold text-slate-900">{selectedTeacher.fullName}</h2>
                     <p className="text-sm text-slate-500">
                       {selectedTeacher.departmentName || "No department"} &middot;{" "}
-                      {selectedTeacher.staffType.replace("_", " ")} &middot;{" "}
-                      {assignments.length} subject{assignments.length !== 1 ? "s" : ""} assigned
+                      {selectedTeacher.staffType.replace("_", " ")} &middot; {assignments.length}{" "}
+                      subject{assignments.length !== 1 ? "s" : ""} assigned
                     </p>
                   </div>
                   <Button variant="secondary" onClick={() => setSelectedTeacher(null)}>
@@ -254,7 +254,7 @@ export function SubjectTeacherAssignmentPage() {
                 {subjects.length === 0 && (
                   <EmptyState
                     title="No subjects"
-                    subtitle="Select a department and year, or create subjects first."
+                    description="Select a department and year, or create subjects first."
                   />
                 )}
                 {subjects.map((subject) => {
@@ -282,7 +282,9 @@ export function SubjectTeacherAssignmentPage() {
                           {subject.subjectType || "General"}
                         </p>
                       </div>
-                      {saving === subject.id && <Loader className="h-4 w-4" />}
+                      {saving === subject.id && (
+                        <span className="text-xs text-slate-400">Saving…</span>
+                      )}
                     </button>
                   );
                 })}

@@ -201,8 +201,7 @@ public class DivisionServiceImpl implements DivisionService {
     public List<StaffResponse> eligibleClassTeachers(Long id) {
         Section division = findScoped(id);
         return staffProfiles.findByCollegeId(division.getCollege().getId()).stream()
-                .filter(staff -> staff.getDepartment() != null
-                        && staff.getDepartment().getId().equals(division.getDepartment().getId()))
+                .filter(staff -> staff.belongsToDepartment(division.getDepartment().getId()))
                 .filter(staff -> staff.getStatus() == StaffStatus.ACTIVE)
                 .filter(staff -> CLASS_TEACHER_TYPES.contains(staff.getStaffType()))
                 .map(staffMapper::toResponse)
@@ -213,8 +212,7 @@ public class DivisionServiceImpl implements DivisionService {
         if (teacher.getStatus() != StaffStatus.ACTIVE
                 || !CLASS_TEACHER_TYPES.contains(teacher.getStaffType())
                 || !teacher.getCollege().getId().equals(division.getCollege().getId())
-                || teacher.getDepartment() == null
-                || !teacher.getDepartment().getId().equals(division.getDepartment().getId())) {
+                || !teacher.belongsToDepartment(division.getDepartment().getId())) {
             throw new BadRequestException("Class Teacher must be active and belong to the Division department");
         }
     }

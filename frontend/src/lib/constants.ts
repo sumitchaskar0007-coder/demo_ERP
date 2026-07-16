@@ -63,6 +63,8 @@ export const ROUTES = {
   studentAllocation: "/academic/student-allocation",
   classTeacherClass: "/academic/class-teacher/my-class",
   classTeacherTimetable: "/academic/class-teacher/timetable",
+  teacherTimetable: "/teacher/timetable",
+  teacherAttendance: "/teacher/attendance",
   notices: "/notices",
   academicSetup: "/academic-setup",
   timetable: "/timetable",
@@ -87,11 +89,17 @@ export const ROLES = {
 export type AppRole = (typeof ROLES)[keyof typeof ROLES];
 
 export function defaultRouteForRoles(roles: string[] = []) {
-  if (roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.ADMIN) || roles.includes(ROLES.PRINCIPAL)) return ROUTES.dashboard;
+  if (
+    roles.includes(ROLES.SUPER_ADMIN) ||
+    roles.includes(ROLES.ADMIN) ||
+    roles.includes(ROLES.PRINCIPAL)
+  )
+    return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
   if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
   if (roles.includes(ROLES.HOD)) return ROUTES.studentAllocation;
-  if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER)) return ROUTES.classTeacherClass;
+  if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER))
+    return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
   return ROUTES.dashboard;
 }
@@ -116,13 +124,38 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
     );
   }
   if (roles.includes(ROLES.STUDENT_SECTION)) {
-    return path.startsWith("/student-section") || path === ROUTES.profile || path === ROUTES.notices;
+    return (
+      path.startsWith("/student-section") || path === ROUTES.profile || path === ROUTES.notices
+    );
   }
   if (roles.includes(ROLES.STUDENT)) {
-    return path.startsWith("/student/") || path === ROUTES.dashboard || path === ROUTES.account || path === ROUTES.accountChangePassword || path === ROUTES.notices;
+    return (
+      path.startsWith("/student/") ||
+      path === ROUTES.dashboard ||
+      path === ROUTES.account ||
+      path === ROUTES.accountChangePassword ||
+      path === ROUTES.notices
+    );
   }
-  if (roles.includes(ROLES.FEE_SECTION)) return path.startsWith("/fee-section") || path === ROUTES.notices || path === ROUTES.profile;
-  if (roles.some((role) => [ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER].includes(role as never))) return path.startsWith("/academic") || ((roles.includes(ROLES.HOD)||roles.includes(ROLES.CLASS_TEACHER))&&path===ROUTES.timetable) || path === ROUTES.notices || path === ROUTES.profile;
+  if (roles.includes(ROLES.FEE_SECTION))
+    return path.startsWith("/fee-section") || path === ROUTES.notices || path === ROUTES.profile;
+  if (
+    roles.some((role) =>
+      [ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER].includes(role as never),
+    )
+  )
+    return (
+      path.startsWith("/academic") ||
+      ((roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER)) &&
+        (path === ROUTES.teacherTimetable || path === ROUTES.teacherAttendance)) ||
+      ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&
+        path === ROUTES.attendanceReport) ||
+      ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&
+        path === ROUTES.timetable) ||
+      path === ROUTES.dashboard ||
+      path === ROUTES.notices ||
+      path === ROUTES.profile
+    );
   return false;
 }
 

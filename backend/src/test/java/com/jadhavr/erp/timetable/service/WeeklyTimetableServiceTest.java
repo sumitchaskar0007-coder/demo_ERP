@@ -122,7 +122,6 @@ class WeeklyTimetableServiceTest {
 
         when(tables.findById(1L)).thenReturn(Optional.of(timetable));
         when(periods.findById(2L)).thenReturn(Optional.of(period));
-        when(entries.findByTimetableIdAndDayOfWeekAndPeriodId(1L, DayOfWeek.MONDAY, 2L)).thenReturn(Optional.empty());
         when(subjects.findById(50L)).thenReturn(Optional.of(subject));
         when(staff.findById(60L)).thenReturn(Optional.of(teacher));
         when(subjectTeacherAssignments.existsBySubjectIdAndTeacherIdAndStatus(50L, 60L, AcademicStatus.ACTIVE)).thenReturn(false);

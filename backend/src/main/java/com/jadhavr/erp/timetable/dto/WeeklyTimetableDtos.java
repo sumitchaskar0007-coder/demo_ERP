@@ -16,6 +16,10 @@ public final class WeeklyTimetableDtos {
     public record TimetableResponse(Long id,Long sectionId,String department,String year,String division,String classTeacher,String academicYear,String status,boolean editable,List<PeriodResponse> periods,List<EntryResponse> entries,List<Option> subjects,List<Option> teachers,List<SubjectTeacherOption> subjectTeachers,List<String> rooms){}
     public record SaveEntryRequest(@NotNull Long subjectId,@NotNull Long teacherId,@Size(max=80) String room,@NotBlank String lectureType,@Size(max=500) String remarks){}
     public record MoveEntryRequest(@NotNull String fromDay,@NotNull Long fromPeriodId,@NotNull String toDay,@NotNull Long toPeriodId){}
+    public record CopyDayRequest(@NotNull String sourceDay,@NotNull String targetDay,boolean overwrite){}
+    public record CopyTimetableRequest(@NotNull Long sourceTimetableId,boolean overwrite){}
+    public record EntryItem(@NotNull String dayOfWeek,@NotNull Long periodId,@NotNull Long subjectId,@NotNull Long teacherId,@Size(max=80) String room,@NotBlank String lectureType,@Size(max=500) String remarks){}
+    public record ReplaceEntriesRequest(@NotNull List<@Valid EntryItem> entries){}
     /** An id is supplied for an existing row; omit it to add a new period. */
     public record PeriodItem(Long id,@NotBlank @Size(max=40) String label,@NotNull LocalTime startTime,@NotNull LocalTime endTime,@NotNull WeeklyPeriod.Kind kind){}
     public record UpdatePeriodsRequest(@NotEmpty List<@Valid PeriodItem> periods){}

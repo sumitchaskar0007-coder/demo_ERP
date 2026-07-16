@@ -2,6 +2,7 @@ import {
   Activity,
   ArrowRight,
   Building2,
+  CalendarDays,
   CheckCircle2,
   Clock3,
   GraduationCap,
@@ -20,6 +21,8 @@ import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/dashboard/api";
 import { ROLES, ROUTES } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
+import { TeacherDashboardTimetable } from "@/features/teacherTimetable/TeacherDashboardTimetable";
+import { TeacherAttendanceWidget } from "@/features/attendance/TeacherAttendanceWidget";
 
 const statStyles: Array<{
   icon: ComponentType<{ className?: string }>;
@@ -29,8 +32,18 @@ const statStyles: Array<{
 }> = [
   { icon: Building2, color: "bg-blue-50 text-blue-600", accent: "bg-blue-500", chart: "#3b82f6" },
   { icon: Users, color: "bg-violet-50 text-violet-600", accent: "bg-violet-500", chart: "#8b5cf6" },
-  { icon: LibraryBig, color: "bg-amber-50 text-amber-600", accent: "bg-amber-500", chart: "#f59e0b" },
-  { icon: CheckCircle2, color: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-500", chart: "#22c55e" },
+  {
+    icon: LibraryBig,
+    color: "bg-amber-50 text-amber-600",
+    accent: "bg-amber-500",
+    chart: "#f59e0b",
+  },
+  {
+    icon: CheckCircle2,
+    color: "bg-emerald-50 text-emerald-600",
+    accent: "bg-emerald-500",
+    chart: "#22c55e",
+  },
   { icon: Activity, color: "bg-cyan-50 text-cyan-600", accent: "bg-cyan-500", chart: "#06b6d4" },
   { icon: Sparkles, color: "bg-rose-50 text-rose-600", accent: "bg-rose-500", chart: "#f43f5e" },
 ];
@@ -81,22 +94,72 @@ export function RoleDashboardPage() {
     });
   const primaryRole = user.roles[0]?.replaceAll("_", " ") || "ERP";
   const principal = user.roles.includes(ROLES.PRINCIPAL);
+  const teacher =
+    user.roles.includes(ROLES.CLASS_TEACHER) || user.roles.includes(ROLES.SUBJECT_TEACHER);
   const quickActions = principal
     ? [
-        { label: "Departments", detail: "Manage academic departments", to: ROUTES.departments, icon: LibraryBig },
-        { label: "Create Course Year", detail: "Set up the academic year", to: ROUTES.createCourseYear, icon: GraduationCap },
-        { label: "Create Staff", detail: "Add a staff account", to: ROUTES.createStaff, icon: Users },
+        {
+          label: "Departments",
+          detail: "Manage academic departments",
+          to: ROUTES.departments,
+          icon: LibraryBig,
+        },
+        {
+          label: "Create Course Year",
+          detail: "Set up the academic year",
+          to: ROUTES.createCourseYear,
+          icon: GraduationCap,
+        },
+        {
+          label: "Create Staff",
+          detail: "Add a staff account",
+          to: ROUTES.createStaff,
+          icon: Users,
+        },
       ]
-    : [
-        { label: "Open Profile", detail: "Review your account details", to: ROUTES.profile, icon: Users },
-        { label: "Dashboard", detail: "Refresh your role overview", to: ROUTES.dashboard, icon: Activity },
-      ];
+    : teacher
+      ? [
+          {
+            label: "My Timetable",
+            detail: "View your weekly teaching schedule",
+            to: ROUTES.teacherTimetable,
+            icon: CalendarDays,
+          },
+          {
+            label: "Take Attendance",
+            detail: "Mark your current scheduled lecture",
+            to: ROUTES.teacherAttendance,
+            icon: CheckCircle2,
+          },
+          {
+            label: "Open Profile",
+            detail: "Review your account details",
+            to: ROUTES.profile,
+            icon: Users,
+          },
+        ]
+      : [
+          {
+            label: "Open Profile",
+            detail: "Review your account details",
+            to: ROUTES.profile,
+            icon: Users,
+          },
+          {
+            label: "Dashboard",
+            detail: "Refresh your role overview",
+            to: ROUTES.dashboard,
+            icon: Activity,
+          },
+        ];
 
   return (
     <div className="page-container pb-10">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-semibold text-slate-400">Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;{primaryRole}</p>
+          <p className="text-xs font-semibold text-slate-400">
+            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;{primaryRole}
+          </p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">{primaryRole} Dashboard</h1>
           <p className="mt-1 text-sm text-slate-500">Overview of your current ERP workspace.</p>
         </div>
@@ -112,7 +175,9 @@ export function RoleDashboardPage() {
           <div>
             <p className="text-sm text-blue-100">{user.collegeName || "Jadhavr ERP Workspace"}</p>
             <h2 className="mt-2 text-3xl font-bold">Welcome back, {user.fullName.split(" ")[0]}</h2>
-            <p className="mt-2 text-sm text-blue-100">Have a productive day managing your education workspace.</p>
+            <p className="mt-2 text-sm text-blue-100">
+              Have a productive day managing your education workspace.
+            </p>
           </div>
           <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-right backdrop-blur sm:block">
             <p className="text-xs text-blue-200">Account status</p>
@@ -126,8 +191,12 @@ export function RoleDashboardPage() {
           <Card key={key} className="relative overflow-hidden p-5">
             <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
             <div className="flex items-center justify-between">
-              <div className={`grid h-11 w-11 place-items-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></div>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600">Live</span>
+              <div className={`grid h-11 w-11 place-items-center rounded-xl ${color}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600">
+                Live
+              </span>
             </div>
             <p className="mt-4 text-2xl font-bold text-slate-900">{value}</p>
             <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
@@ -135,27 +204,49 @@ export function RoleDashboardPage() {
         ))}
       </div>
 
+      {teacher && <TeacherDashboardTimetable />}
+      {teacher && <TeacherAttendanceWidget />}
+
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <Card className="overflow-hidden">
           <div className="erp-panel-header">
-            <div><h2 className="font-bold">Workspace overview</h2><p className="mt-1 text-xs text-slate-500">Live role-specific data</p></div>
+            <div>
+              <h2 className="font-bold">Workspace overview</h2>
+              <p className="mt-1 text-xs text-slate-500">Live role-specific data</p>
+            </div>
             <Activity className="h-5 w-5 text-brand-600" />
           </div>
           <div className="flex min-h-[300px] items-center justify-center p-6">
             <DonutChart
               centerLabel="ERP Records"
-              segments={stats.map(({ label, numericValue, chart }) => ({ label, value: numericValue, color: chart }))}
+              segments={stats.map(({ label, numericValue, chart }) => ({
+                label,
+                value: numericValue,
+                color: chart,
+              }))}
             />
           </div>
         </Card>
 
         <Card className="overflow-hidden">
-          <div className="border-b px-6 py-5"><h2 className="font-bold">Quick actions</h2><p className="mt-1 text-xs text-slate-500">Frequently used tools for your role</p></div>
+          <div className="border-b px-6 py-5">
+            <h2 className="font-bold">Quick actions</h2>
+            <p className="mt-1 text-xs text-slate-500">Frequently used tools for your role</p>
+          </div>
           <div className="space-y-2 p-4">
             {quickActions.map(({ label, detail, to, icon: Icon }) => (
-              <Link key={label} to={to} className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-slate-50">
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-brand-600"><Icon className="h-5 w-5" /></div>
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{label}</p><p className="truncate text-xs text-slate-400">{detail}</p></div>
+              <Link
+                key={label}
+                to={to}
+                className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-slate-50"
+              >
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-brand-600">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="truncate text-xs text-slate-400">{detail}</p>
+                </div>
                 <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-brand-600" />
               </Link>
             ))}
@@ -166,13 +257,25 @@ export function RoleDashboardPage() {
       {principal && (
         <Card className="mt-6 p-5">
           <h2 className="font-bold">Principal setup workflow</h2>
-          <p className="mt-1 text-sm text-slate-500">Department - Course Year - Division - Staff - Class Teacher</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Department - Course Year - Division - Staff - Class Teacher
+          </p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Link to={ROUTES.departments}><Button variant="secondary">Create Department</Button></Link>
-            <Link to={ROUTES.createCourseYear}><Button variant="secondary">Create Course Year</Button></Link>
-            <Link to={ROUTES.createDivision}><Button variant="secondary">Create Division</Button></Link>
-            <Link to={ROUTES.createStaff}><Button variant="secondary">Create Staff</Button></Link>
-            <Link to={ROUTES.divisions}><Button>Assign Class Teacher</Button></Link>
+            <Link to={ROUTES.departments}>
+              <Button variant="secondary">Create Department</Button>
+            </Link>
+            <Link to={ROUTES.createCourseYear}>
+              <Button variant="secondary">Create Course Year</Button>
+            </Link>
+            <Link to={ROUTES.createDivision}>
+              <Button variant="secondary">Create Division</Button>
+            </Link>
+            <Link to={ROUTES.createStaff}>
+              <Button variant="secondary">Create Staff</Button>
+            </Link>
+            <Link to={ROUTES.divisions}>
+              <Button>Assign Class Teacher</Button>
+            </Link>
           </div>
         </Card>
       )}

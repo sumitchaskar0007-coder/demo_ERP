@@ -1,5 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, CalendarDays, GripVertical, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  Check,
+  ClipboardCopy,
+  FileDown,
+  GripVertical,
+  Pencil,
+  Plus,
+  Printer,
+  Redo2,
+  Search,
+  Settings2,
+  Sheet,
+  Trash2,
+  Undo2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
@@ -7,41 +24,982 @@ import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
-import { weeklyTimetableApi, type WeeklyDivision, type WeeklyEntry, type WeeklyPeriod, type WeeklyPeriodInput, type WeeklyTimetable } from "./api";
+import {
+  weeklyTimetableApi,
+  type WeeklyDivision,
+  type WeeklyEntry,
+  type WeeklyEntryInput,
+  type WeeklyPeriod,
+  type WeeklyPeriodInput,
+  type WeeklyTimetable,
+} from "./api";
+import { exportWeeklyTimetableExcel, exportWeeklyTimetablePdf } from "./weeklyTimetableExport";
 
-const DAYS=["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
-const PALETTE=["bg-blue-50 border-blue-200 text-blue-900","bg-emerald-50 border-emerald-200 text-emerald-900","bg-orange-50 border-orange-200 text-orange-900","bg-violet-50 border-violet-200 text-violet-900","bg-cyan-50 border-cyan-200 text-cyan-900","bg-rose-50 border-rose-200 text-rose-900"];
-type Editor={day:string;period:WeeklyPeriod;entry?:WeeklyEntry;subjectId:string;teacherId:string;room:string;lectureType:string;remarks:string};
-type PeriodDraft=WeeklyPeriodInput;
-const color=(subjectId:number)=>PALETTE[subjectId%PALETTE.length];
-const displayTime=(time:string)=>{const [h,m]=time.split(":").map(Number);return new Intl.DateTimeFormat("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}).format(new Date(2000,0,1,h,m));};
-const addMinutes=(time:string,minutes:number)=>{const [hour,minute]=time.slice(0,5).split(":").map(Number);const total=(hour*60+minute+minutes)%(24*60);return `${String(Math.floor(total/60)).padStart(2,"0")}:${String(total%60).padStart(2,"0")}`;};
+const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+const DAY_LABELS: Record<string, string> = {
+  MONDAY: "Monday",
+  TUESDAY: "Tuesday",
+  WEDNESDAY: "Wednesday",
+  THURSDAY: "Thursday",
+  FRIDAY: "Friday",
+  SATURDAY: "Saturday",
+};
+const PALETTE = [
+  "bg-blue-50 border-blue-200 text-blue-950 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-100",
+  "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100",
+  "bg-orange-50 border-orange-200 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-100",
+  "bg-violet-50 border-violet-200 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100",
+  "bg-cyan-50 border-cyan-200 text-cyan-950 dark:bg-cyan-950/40 dark:border-cyan-800 dark:text-cyan-100",
+  "bg-rose-50 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-100",
+];
 
-export function TimetablePage(){
- const [divisions,setDivisions]=useState<WeeklyDivision[]>([]),[sectionId,setSectionId]=useState(""),[table,setTable]=useState<WeeklyTimetable|null>(null),[loading,setLoading]=useState(true),[editor,setEditor]=useState<Editor|null>(null),[timeEditor,setTimeEditor]=useState(false),[times,setTimes]=useState<PeriodDraft[]>([]),[mobileDay,setMobileDay]=useState("MONDAY"),[saving,setSaving]=useState(false);
- useEffect(()=>{weeklyTimetableApi.divisions().then(rows=>{setDivisions(rows);if(rows[0])setSectionId(String(rows[0].id));}).catch(e=>toast.error(handleApiError(e).message)).finally(()=>setLoading(false));},[]);
- useEffect(()=>{if(!sectionId)return;setLoading(true);weeklyTimetableApi.get(Number(sectionId)).then(x=>{setTable(x);setTimes(x.periods);}).catch(e=>{setTable(null);toast.error(handleApiError(e).message);}).finally(()=>setLoading(false));},[sectionId]);
- const entryMap=useMemo(()=>new Map((table?.entries||[]).map(e=>[`${e.dayOfWeek}:${e.periodId}`,e])),[table]);
- const open=(day:string,period:WeeklyPeriod,entry?:WeeklyEntry,subjectId="")=>{if(!table?.editable||period.kind!=="TEACHING")return;setEditor({day,period,entry,subjectId:subjectId||String(entry?.subjectId||""),teacherId:String(entry?.teacherId||""),room:entry?.room||"",lectureType:entry?.lectureType||"THEORY",remarks:entry?.remarks||""});};
- const reload=async()=>{if(sectionId){const x=await weeklyTimetableApi.get(Number(sectionId));setTable(x);setTimes(x.periods);}};
- const addPeriod=()=>{const start=times.at(-1)?.endTime?.slice(0,5)||"08:30";setTimes([...times,{label:`Period ${times.filter(p=>p.kind==="TEACHING").length+1}`,startTime:start,endTime:addMinutes(start,50),kind:"TEACHING"}]);};
- const updatePeriod=(index:number,change:Partial<PeriodDraft>)=>setTimes(times.map((period,i)=>i===index?{...period,...change}:period));
- const save=async()=>{if(!editor||!table)return;if(!editor.subjectId||!editor.teacherId){toast.error("Select a subject and teacher");return;}setSaving(true);try{await weeklyTimetableApi.save(table.id,editor.day,editor.period.id,{subjectId:Number(editor.subjectId),teacherId:Number(editor.teacherId),room:editor.room||null,lectureType:editor.lectureType,remarks:editor.remarks||null});await reload();setEditor(null);toast.success("Lecture saved");}catch(e){toast.error(handleApiError(e).message);}finally{setSaving(false);}};
- const remove=async()=>{if(!editor?.entry||!table)return;setSaving(true);try{await weeklyTimetableApi.remove(table.id,editor.day,editor.period.id);await reload();setEditor(null);toast.success("Lecture removed");}catch(e){toast.error(handleApiError(e).message);}finally{setSaving(false);}};
- const drop=async(day:string,period:WeeklyPeriod,data:string)=>{if(!table?.editable||period.kind!=="TEACHING"||!data)return;const payload=JSON.parse(data) as {type:string;subjectId?:number;day?:string;periodId?:number};if(payload.type==="subject")open(day,period,undefined,String(payload.subjectId));else if(payload.type==="entry"&&payload.day&&payload.periodId){try{await weeklyTimetableApi.move(table.id,{fromDay:payload.day,fromPeriodId:payload.periodId,toDay:day,toPeriodId:period.id});await reload();toast.success("Lecture moved");}catch(e){toast.error(handleApiError(e).message);}}};
- if(loading&&!divisions.length)return <div className="page-container"><Loader/></div>;
- return <div className="page-container min-w-0 space-y-6">
-  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-600"><CalendarDays className="h-4 w-4"/>Academic planning</div><h1 className="page-title">Weekly timetable</h1><p className="page-subtitle">Create the fixed weekly schedule followed by your division.</p></div>{table?.editable&&<Button variant="secondary" onClick={()=>setTimeEditor(true)}><Settings2 className="h-4 w-4"/>Configure times</Button>}</div>
-  <Card className="p-4 sm:p-5"><Select label="Division" value={sectionId} onChange={e=>setSectionId(e.target.value)} options={divisions.map(d=>({value:String(d.id),label:`${d.department} · ${d.year} · Division ${d.division}`}))}/>{table&&<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">{[["Department",table.department],["Year",table.year],["Division",table.division],["Class Teacher",table.classTeacher],["Academic Year",table.academicYear],["Status",table.status]].map(([k,v])=><div key={k} className="min-w-0 rounded-xl bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k}</p><p className="mt-1 truncate text-sm font-semibold text-slate-800">{v}</p></div>)}</div>}</Card>
-  {table&&<><Card className="p-4 sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen className="h-4 w-4 text-brand-600"/><h2 className="font-semibold">Subjects</h2><span className="text-xs text-slate-400">Drag a subject into a period</span></div><div className="flex flex-wrap gap-2">{table.subjects.map(s=><button key={s.id} draggable={table.editable} onDragStart={e=>e.dataTransfer.setData("application/json",JSON.stringify({type:"subject",subjectId:s.id}))} onClick={()=>toast.info("Drag this subject into a timetable cell")} className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${color(s.id)}`}><GripVertical className="h-3.5 w-3.5 shrink-0"/><span className="truncate">{s.label}</span></button>)}</div></Card>
-  <div className="hidden xl:block"><Card className="overflow-hidden"><div className="grid grid-cols-[150px_repeat(6,minmax(140px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500"><div className="p-3 text-left">Period</div>{DAYS.map(d=><div className="border-l p-3" key={d}>{d}</div>)}</div>{table.periods.map(p=><div key={p.id} className={`grid grid-cols-[150px_repeat(6,minmax(140px,1fr))] border-t ${p.kind!=="TEACHING"?"bg-amber-50/70":""}`}><PeriodLabel period={p}/>{p.kind!=="TEACHING"?<div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.2em] text-amber-700">{p.kind==="SHORT_BREAK"?"SHORT BREAK":"LUNCH BREAK"}</div>:DAYS.map(d=><Cell key={d} day={d} period={p} entry={entryMap.get(`${d}:${p.id}`)} editable={table.editable} onOpen={open} onDrop={drop}/>)}</div>)}</Card></div>
-  <div className="xl:hidden"><div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-6">{DAYS.map(d=><button key={d} onClick={()=>setMobileDay(d)} className={`rounded-xl px-2 py-2 text-xs font-semibold ${mobileDay===d?"bg-brand-600 text-white":"border bg-white text-slate-600"}`}>{d.slice(0,3)}</button>)}</div><Card className="divide-y">{table.periods.map(p=><div key={p.id} className={p.kind!=="TEACHING"?"bg-amber-50":"p-3"}>{p.kind!=="TEACHING"?<div className="p-4 text-center text-xs font-bold tracking-widest text-amber-700">{p.label} · {displayTime(p.startTime)}–{displayTime(p.endTime)}</div>:<div className="grid min-w-0 grid-cols-[100px_1fr] gap-3"><PeriodLabel period={p}/><Cell day={mobileDay} period={p} entry={entryMap.get(`${mobileDay}:${p.id}`)} editable={table.editable} onOpen={open} onDrop={drop}/></div>}</div>)}</Card></div></>}
-  {!divisions.length&&<Card className="p-10 text-center"><h2 className="font-semibold">No assigned divisions</h2><p className="mt-2 text-sm text-slate-500">A class teacher can only view divisions assigned to their account.</p></Card>}
-  {editor&&table&&<Modal title={editor.entry?"Edit lecture":"Add lecture"} onClose={()=>setEditor(null)}><div className="grid gap-4 sm:grid-cols-2"><Select label="Subject" value={editor.subjectId} onChange={e=>setEditor({...editor,subjectId:e.target.value,teacherId:""})} options={[{label:"Select subject",value:""},...table.subjects.map(x=>({label:x.label,value:String(x.id)}))]}/><Select label="Teacher" value={editor.teacherId} onChange={e=>setEditor({...editor,teacherId:e.target.value})} options={[{label:"Select teacher",value:""},...((table.subjectTeachers.find(st=>st.subjectId===Number(editor.subjectId))?.teachers)||table.teachers).map((x:any)=>({label:x.label,value:String(x.id)}))]}/><Input label="Room (optional)" list="weekly-rooms" value={editor.room} onChange={e=>setEditor({...editor,room:e.target.value})}/><datalist id="weekly-rooms">{table.rooms.map(r=><option key={r} value={r}/>)}</datalist><Select label="Lecture type" value={editor.lectureType} onChange={e=>setEditor({...editor,lectureType:e.target.value})} options={["THEORY","PRACTICAL","LAB","TUTORIAL"].map(x=>({label:x[0]+x.slice(1).toLowerCase(),value:x}))}/><div className="sm:col-span-2"><Input label="Remarks (optional)" value={editor.remarks} onChange={e=>setEditor({...editor,remarks:e.target.value})}/></div></div><div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between"><div>{editor.entry&&<Button variant="danger" onClick={remove} disabled={saving}><Trash2 className="h-4 w-4"/>Remove</Button>}</div><div className="flex gap-2"><Button variant="secondary" onClick={()=>setEditor(null)}>Cancel</Button><Button onClick={save} loading={saving}>Save lecture</Button></div></div></Modal>}
-  {timeEditor&&table&&<Modal title="Configure period times" onClose={()=>setTimeEditor(false)}><p className="mb-4 text-sm text-slate-500">Add, remove, rename, or change the time and type of every timetable row. Removing a row also removes lectures scheduled in that row.</p><div className="max-h-[58vh] space-y-3 overflow-y-auto pr-1">{times.map((p,i)=><div key={p.id??`new-${i}`} className="rounded-xl bg-slate-50 p-3"><div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px_130px_130px_auto]"><Input aria-label="Period name" value={p.label} onChange={e=>updatePeriod(i,{label:e.target.value})}/><Select aria-label="Period type" value={p.kind} onChange={e=>updatePeriod(i,{kind:e.target.value as PeriodDraft["kind"]})} options={[{label:"Teaching",value:"TEACHING"},{label:"Short break",value:"SHORT_BREAK"},{label:"Lunch break",value:"LUNCH_BREAK"}]}/><Input aria-label="Start time" type="time" value={p.startTime.slice(0,5)} onChange={e=>updatePeriod(i,{startTime:e.target.value})}/><Input aria-label="End time" type="time" value={p.endTime.slice(0,5)} onChange={e=>updatePeriod(i,{endTime:e.target.value})}/><Button aria-label={`Remove ${p.label}`} variant="secondary" className="text-rose-600 hover:bg-rose-50" disabled={times.length===1} onClick={()=>setTimes(times.filter((_,j)=>j!==i))}><Trash2 className="h-4 w-4"/><span className="sm:hidden">Remove</span></Button></div></div>)}</div><Button variant="secondary" className="mt-4" onClick={addPeriod}><Plus className="h-4 w-4"/>Add period</Button><div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="secondary" onClick={()=>setTimeEditor(false)}>Cancel</Button><Button loading={saving} onClick={async()=>{setSaving(true);try{const x=await weeklyTimetableApi.updatePeriods(table.id,times.map(p=>({...p,startTime:p.startTime.slice(0,5),endTime:p.endTime.slice(0,5)})));setTable(x);setTimes(x.periods);setTimeEditor(false);toast.success("Timetable periods updated");}catch(e){toast.error(handleApiError(e).message);}finally{setSaving(false);}}}>Save times</Button></div></Modal>}
- </div>;
+type Editor = {
+  day: string;
+  period: WeeklyPeriod;
+  entry?: WeeklyEntry;
+  subjectId: string;
+  teacherId: string;
+  room: string;
+  lectureType: string;
+  remarks: string;
+};
+type SaveState = "idle" | "saving" | "saved";
+
+const color = (subjectId: number) => PALETTE[subjectId % PALETTE.length];
+const displayTime = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(2000, 0, 1, hours, minutes));
+};
+const addMinutes = (time: string, minutes: number) => {
+  const [hour, minute] = time.slice(0, 5).split(":").map(Number);
+  const total = (hour * 60 + minute + minutes) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+};
+const toInput = (entry: WeeklyEntry): WeeklyEntryInput => ({
+  dayOfWeek: entry.dayOfWeek,
+  periodId: entry.periodId,
+  subjectId: entry.subjectId,
+  teacherId: entry.teacherId,
+  room: entry.room,
+  lectureType: entry.lectureType,
+  remarks: entry.remarks,
+});
+
+export function TimetablePage() {
+  const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
+  const [sectionId, setSectionId] = useState("");
+  const [table, setTable] = useState<WeeklyTimetable | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [timeEditor, setTimeEditor] = useState(false);
+  const [times, setTimes] = useState<WeeklyPeriodInput[]>([]);
+  const [mobileDay, setMobileDay] = useState("MONDAY");
+  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [query, setQuery] = useState("");
+  const [sourceDay, setSourceDay] = useState("MONDAY");
+  const [targetDay, setTargetDay] = useState("TUESDAY");
+  const [sourceSectionId, setSourceSectionId] = useState("");
+  const [copyBuffer, setCopyBuffer] = useState<WeeklyEntry | null>(null);
+  const [past, setPast] = useState<WeeklyEntry[][]>([]);
+  const [future, setFuture] = useState<WeeklyEntry[][]>([]);
+
+  useEffect(() => {
+    weeklyTimetableApi
+      .divisions()
+      .then((rows) => {
+        setDivisions(rows);
+        if (rows[0]) setSectionId(String(rows[0].id));
+      })
+      .catch((error) => toast.error(handleApiError(error).message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!sectionId) return;
+    setLoading(true);
+    weeklyTimetableApi
+      .get(Number(sectionId))
+      .then((next) => {
+        setTable(next);
+        setTimes(next.periods);
+        setPast([]);
+        setFuture([]);
+      })
+      .catch((error) => {
+        setTable(null);
+        toast.error(handleApiError(error).message);
+      })
+      .finally(() => setLoading(false));
+  }, [sectionId]);
+
+  const entryMap = useMemo(
+    () =>
+      new Map(
+        (table?.entries ?? []).map((entry) => [`${entry.dayOfWeek}:${entry.periodId}`, entry]),
+      ),
+    [table],
+  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchesSearch = (entry?: WeeklyEntry) =>
+    !normalizedQuery ||
+    Boolean(
+      entry &&
+        [entry.subject, entry.teacher, entry.room, entry.lectureType, table?.division]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedQuery)),
+    );
+
+  const setSavedSoon = () => {
+    setSaveState("saved");
+    window.setTimeout(() => setSaveState("idle"), 2200);
+  };
+
+  const mutate = async (operation: () => Promise<WeeklyTimetable>) => {
+    if (!table) return;
+    const snapshot = table.entries.map((entry) => ({ ...entry }));
+    setSaving(true);
+    setSaveState("saving");
+    try {
+      const next = await operation();
+      setPast((items) => [...items.slice(-29), snapshot]);
+      setFuture([]);
+      setTable(next);
+      setTimes(next.periods);
+      setSavedSoon();
+    } catch (error) {
+      setSaveState("idle");
+      toast.error(handleApiError(error).message);
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openEditor = (day: string, period: WeeklyPeriod, entry?: WeeklyEntry, subjectId = "") => {
+    if (!table?.editable || period.kind !== "TEACHING") return;
+    const template = entry ?? copyBuffer ?? undefined;
+    setEditor({
+      day,
+      period,
+      entry,
+      subjectId: subjectId || String(template?.subjectId ?? ""),
+      teacherId: String(template?.teacherId ?? ""),
+      room: template?.room ?? "",
+      lectureType: template?.lectureType ?? "THEORY",
+      remarks: template?.remarks ?? "",
+    });
+  };
+
+  const saveLecture = async () => {
+    if (!editor || !table) return;
+    if (!editor.subjectId || !editor.teacherId) {
+      toast.error("Select a subject and teacher");
+      return;
+    }
+    try {
+      await mutate(async () => {
+        await weeklyTimetableApi.save(table.id, editor.day, editor.period.id, {
+          subjectId: Number(editor.subjectId),
+          teacherId: Number(editor.teacherId),
+          room: editor.room || null,
+          lectureType: editor.lectureType,
+          remarks: editor.remarks || null,
+        });
+        return weeklyTimetableApi.get(table.sectionId);
+      });
+      setEditor(null);
+      setCopyBuffer(null);
+      toast.success("Lecture saved");
+    } catch {
+      // The shared mutation handler displays the API validation message.
+    }
+  };
+
+  const removeLecture = async () => {
+    if (!editor?.entry || !table || !window.confirm("Delete this lecture from the timetable?"))
+      return;
+    try {
+      await mutate(async () => {
+        await weeklyTimetableApi.remove(table.id, editor.day, editor.period.id);
+        return weeklyTimetableApi.get(table.sectionId);
+      });
+      setEditor(null);
+      toast.success("Lecture removed");
+    } catch {
+      // Error already shown.
+    }
+  };
+
+  const drop = async (day: string, period: WeeklyPeriod, raw: string) => {
+    if (!table?.editable || period.kind !== "TEACHING" || !raw) return;
+    try {
+      const payload = JSON.parse(raw) as {
+        type: string;
+        subjectId?: number;
+        day?: string;
+        periodId?: number;
+      };
+      if (payload.type === "subject") {
+        openEditor(day, period, undefined, String(payload.subjectId ?? ""));
+      } else if (payload.type === "entry" && payload.day && payload.periodId) {
+        await mutate(() =>
+          weeklyTimetableApi.move(table.id, {
+            fromDay: payload.day,
+            fromPeriodId: payload.periodId,
+            toDay: day,
+            toPeriodId: period.id,
+          }),
+        );
+        toast.success("Lecture moved");
+      }
+    } catch (error) {
+      if (error instanceof SyntaxError) toast.error("Unsupported drag data");
+    }
+  };
+
+  const restore = async (entries: WeeklyEntry[], direction: "undo" | "redo") => {
+    if (!table) return;
+    const current = table.entries.map((entry) => ({ ...entry }));
+    setSaving(true);
+    setSaveState("saving");
+    try {
+      const next = await weeklyTimetableApi.replaceEntries(table.id, entries.map(toInput));
+      setTable(next);
+      if (direction === "undo") {
+        setPast((items) => items.slice(0, -1));
+        setFuture((items) => [current, ...items]);
+      } else {
+        setFuture((items) => items.slice(1));
+        setPast((items) => [...items, current]);
+      }
+      setSavedSoon();
+      toast.success(direction === "undo" ? "Last change undone" : "Change restored");
+    } catch (error) {
+      setSaveState("idle");
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyDay = async () => {
+    if (!table) return;
+    try {
+      await mutate(() => weeklyTimetableApi.copyDay(table.id, sourceDay, targetDay, true));
+      toast.success(`${DAY_LABELS[sourceDay]} copied to ${DAY_LABELS[targetDay]}`);
+    } catch {
+      // Error already shown.
+    }
+  };
+
+  const copyDayToWeek = async () => {
+    if (
+      !table ||
+      !window.confirm(
+        `Copy ${DAY_LABELS[sourceDay]} to every other day? Existing lectures will be replaced.`,
+      )
+    )
+      return;
+    try {
+      await mutate(async () => {
+        let next = table;
+        for (const day of DAYS.filter((item) => item !== sourceDay)) {
+          next = await weeklyTimetableApi.copyDay(table.id, sourceDay, day, true);
+        }
+        return next;
+      });
+      toast.success(`${DAY_LABELS[sourceDay]} copied to the entire week`);
+    } catch {
+      // Error already shown.
+    }
+  };
+
+  const copyOtherDivision = async () => {
+    if (!table || !sourceSectionId) return;
+    if (!window.confirm("Replace this timetable with the selected division's timetable?")) return;
+    try {
+      const source = await weeklyTimetableApi.get(Number(sourceSectionId));
+      await mutate(() => weeklyTimetableApi.copyTimetable(table.id, source.id, true));
+      toast.success("Division timetable copied");
+    } catch {
+      // Error already shown by the shared mutation handler.
+    }
+  };
+
+  const addPeriod = () => {
+    const start = times.at(-1)?.endTime?.slice(0, 5) || "08:30";
+    setTimes([
+      ...times,
+      {
+        label: `Period ${times.filter((period) => period.kind === "TEACHING").length + 1}`,
+        startTime: start,
+        endTime: addMinutes(start, 50),
+        kind: "TEACHING",
+      },
+    ]);
+  };
+
+  if (loading && !divisions.length)
+    return (
+      <div className="page-container">
+        <Loader label="Loading weekly timetable…" />
+      </div>
+    );
+
+  return (
+    <div className="page-container min-w-0 space-y-6 print:p-0">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between print:hidden">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-600">
+            <CalendarDays className="h-4 w-4" />
+            Academic planning
+          </div>
+          <h1 className="page-title">Weekly timetable</h1>
+          <p className="page-subtitle">Build the fixed weekly schedule for each division.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {saveState !== "idle" && (
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-semibold ${saveState === "saved" ? "text-emerald-600" : "text-slate-500"}`}
+            >
+              {saveState === "saved" && <Check className="h-3.5 w-3.5" />}
+              {saveState === "saving" ? "Saving…" : "Saved successfully"}
+            </span>
+          )}
+          <Button
+            variant="secondary"
+            disabled={!past.length || saving}
+            onClick={() => void restore(past.at(-1) ?? [], "undo")}
+          >
+            <Undo2 className="h-4 w-4" />
+            Undo
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={!future.length || saving}
+            onClick={() => void restore(future[0], "redo")}
+          >
+            <Redo2 className="h-4 w-4" />
+            Redo
+          </Button>
+          {table?.editable && (
+            <Button variant="secondary" onClick={() => setTimeEditor(true)}>
+              <Settings2 className="h-4 w-4" />
+              Configure times
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Card className="p-4 sm:p-5 print:border-0 print:shadow-none">
+        <Select
+          label="Division"
+          value={sectionId}
+          onChange={(event) => setSectionId(event.target.value)}
+          options={divisions.map((division) => ({
+            value: String(division.id),
+            label: `${division.department} · ${division.year} · Division ${division.division}`,
+          }))}
+        />
+        {table && (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            {[
+              ["Department", table.department],
+              ["Year", table.year],
+              ["Division", table.division],
+              ["Class Teacher", table.classTeacher],
+              ["Academic Year", table.academicYear],
+              ["Status", table.status],
+            ].map(([key, value]) => (
+              <div key={key} className="min-w-0 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  {key}
+                </p>
+                <p className="mt-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {table && (
+        <>
+          <Card className="space-y-4 p-4 sm:p-5 print:hidden">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-brand-600" />
+                <h2 className="font-semibold">Subjects</h2>
+                <span className="text-xs text-slate-400">Drag into a teaching period</span>
+              </div>
+              <div className="w-full lg:w-80">
+                <Input
+                  aria-label="Search timetable"
+                  placeholder="Search teacher, subject, room…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  icon={<Search className="h-4 w-4" />}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {table.subjects.map((subject) => (
+                <button
+                  key={subject.id}
+                  draggable={table.editable}
+                  onDragStart={(event) =>
+                    event.dataTransfer.setData(
+                      "application/json",
+                      JSON.stringify({ type: "subject", subjectId: subject.id }),
+                    )
+                  }
+                  className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition hover:-translate-y-0.5 ${color(subject.id)}`}
+                >
+                  <GripVertical className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{subject.label}</span>
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {table.editable && (
+            <Card className="grid gap-3 p-4 print:hidden xl:grid-cols-[1fr_1fr_auto_auto]">
+              <Select
+                label="Copy from day"
+                value={sourceDay}
+                onChange={(event) => setSourceDay(event.target.value)}
+                options={DAYS.map((day) => ({ label: DAY_LABELS[day], value: day }))}
+              />
+              <Select
+                label="Copy to day"
+                value={targetDay}
+                onChange={(event) => setTargetDay(event.target.value)}
+                options={DAYS.map((day) => ({ label: DAY_LABELS[day], value: day }))}
+              />
+              <Button
+                className="self-end"
+                variant="secondary"
+                disabled={saving || sourceDay === targetDay}
+                onClick={() => void copyDay()}
+              >
+                <ClipboardCopy className="h-4 w-4" />
+                Copy day
+              </Button>
+              <Button
+                className="self-end"
+                variant="secondary"
+                disabled={saving}
+                onClick={() => void copyDayToWeek()}
+              >
+                <ClipboardCopy className="h-4 w-4" />
+                Copy to week
+              </Button>
+              <div className="xl:col-span-3">
+                <Select
+                  label="Copy previous division"
+                  value={sourceSectionId}
+                  onChange={(event) => setSourceSectionId(event.target.value)}
+                  options={[
+                    { label: "Select source division", value: "" },
+                    ...divisions
+                      .filter(
+                        (division) =>
+                          String(division.id) !== sectionId &&
+                          division.department === table.department &&
+                          division.year === table.year,
+                      )
+                      .map((division) => ({
+                        label: `${division.department} · ${division.year} · ${division.division}`,
+                        value: String(division.id),
+                      })),
+                  ]}
+                />
+              </div>
+              <Button
+                className="self-end"
+                variant="secondary"
+                disabled={!sourceSectionId || saving}
+                onClick={() => void copyOtherDivision()}
+              >
+                <ClipboardCopy className="h-4 w-4" />
+                Copy timetable
+              </Button>
+            </Card>
+          )}
+
+          <div className="flex flex-wrap justify-end gap-2 print:hidden">
+            <Button variant="secondary" onClick={() => window.print()}>
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+            <Button variant="secondary" onClick={() => void exportWeeklyTimetablePdf(table)}>
+              <FileDown className="h-4 w-4" />
+              PDF
+            </Button>
+            <Button variant="secondary" onClick={() => void exportWeeklyTimetableExcel(table)}>
+              <Sheet className="h-4 w-4" />
+              Excel
+            </Button>
+          </div>
+
+          <DesktopGrid
+            table={table}
+            entryMap={entryMap}
+            matchesSearch={matchesSearch}
+            onOpen={openEditor}
+            onDrop={drop}
+          />
+          <MobileGrid
+            table={table}
+            day={mobileDay}
+            setDay={setMobileDay}
+            entryMap={entryMap}
+            matchesSearch={matchesSearch}
+            onOpen={openEditor}
+            onDrop={drop}
+          />
+        </>
+      )}
+
+      {!divisions.length && (
+        <Card className="p-10 text-center">
+          <h2 className="font-semibold">No assigned divisions</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Class teachers only see divisions assigned to their account.
+          </p>
+        </Card>
+      )}
+
+      {editor && table && (
+        <Modal
+          title={editor.entry ? "Edit lecture" : copyBuffer ? "Duplicate lecture" : "Add lecture"}
+          onClose={() => setEditor(null)}
+        >
+          <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <b>{DAY_LABELS[editor.day]}</b> · {editor.period.label} ·{" "}
+            {displayTime(editor.period.startTime)}–{displayTime(editor.period.endTime)}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Subject"
+              value={editor.subjectId}
+              onChange={(event) =>
+                setEditor({ ...editor, subjectId: event.target.value, teacherId: "" })
+              }
+              options={[
+                { label: "Select subject", value: "" },
+                ...table.subjects.map((option) => ({
+                  label: option.label,
+                  value: String(option.id),
+                })),
+              ]}
+            />
+            <Select
+              label="Teacher"
+              value={editor.teacherId}
+              onChange={(event) => setEditor({ ...editor, teacherId: event.target.value })}
+              options={[
+                { label: "Select teacher", value: "" },
+                ...(
+                  table.subjectTeachers.find((item) => item.subjectId === Number(editor.subjectId))
+                    ?.teachers ?? []
+                ).map((option) => ({ label: option.label, value: String(option.id) })),
+              ]}
+            />
+            <Input
+              label="Room (optional)"
+              list="weekly-rooms"
+              value={editor.room}
+              onChange={(event) => setEditor({ ...editor, room: event.target.value })}
+            />
+            <datalist id="weekly-rooms">
+              {table.rooms.map((room) => (
+                <option key={room} value={room} />
+              ))}
+            </datalist>
+            <Select
+              label="Lecture type"
+              value={editor.lectureType}
+              onChange={(event) => setEditor({ ...editor, lectureType: event.target.value })}
+              options={["THEORY", "PRACTICAL", "LAB", "TUTORIAL"].map((value) => ({
+                label: value[0] + value.slice(1).toLowerCase(),
+                value,
+              }))}
+            />
+            <div className="sm:col-span-2">
+              <Input
+                label="Remarks (optional)"
+                value={editor.remarks}
+                onChange={(event) => setEditor({ ...editor, remarks: event.target.value })}
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+            <div className="flex gap-2">
+              {editor.entry && (
+                <>
+                  <Button variant="danger" disabled={saving} onClick={() => void removeLecture()}>
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setCopyBuffer(editor.entry ?? null);
+                      setEditor(null);
+                      toast.success("Lecture copied. Select an empty cell to duplicate it.");
+                    }}
+                  >
+                    <ClipboardCopy className="h-4 w-4" />
+                    Copy
+                  </Button>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setEditor(null)}>
+                Cancel
+              </Button>
+              <Button loading={saving} onClick={() => void saveLecture()}>
+                Save lecture
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {timeEditor && table && (
+        <Modal title="Configure period times" onClose={() => setTimeEditor(false)}>
+          <p className="mb-4 text-sm text-slate-500">
+            Add, remove, rename, or change timetable rows. Break rows cannot contain lectures.
+          </p>
+          <div className="max-h-[58vh] space-y-3 overflow-y-auto pr-1">
+            {times.map((period, index) => (
+              <div key={period.id ?? `new-${index}`} className="rounded-xl bg-slate-50 p-3">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px_130px_130px_auto]">
+                  <Input
+                    aria-label="Period name"
+                    value={period.label}
+                    onChange={(event) =>
+                      setTimes(
+                        times.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, label: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Select
+                    aria-label="Period type"
+                    value={period.kind}
+                    onChange={(event) =>
+                      setTimes(
+                        times.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, kind: event.target.value as WeeklyPeriodInput["kind"] }
+                            : item,
+                        ),
+                      )
+                    }
+                    options={[
+                      { label: "Teaching", value: "TEACHING" },
+                      { label: "Short break", value: "SHORT_BREAK" },
+                      { label: "Lunch break", value: "LUNCH_BREAK" },
+                    ]}
+                  />
+                  <Input
+                    aria-label="Start time"
+                    type="time"
+                    value={period.startTime.slice(0, 5)}
+                    onChange={(event) =>
+                      setTimes(
+                        times.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, startTime: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Input
+                    aria-label="End time"
+                    type="time"
+                    value={period.endTime.slice(0, 5)}
+                    onChange={(event) =>
+                      setTimes(
+                        times.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, endTime: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Button
+                    aria-label={`Remove ${period.label}`}
+                    variant="secondary"
+                    className="text-rose-600"
+                    disabled={times.length === 1}
+                    onClick={() => setTimes(times.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button variant="secondary" className="mt-4" onClick={addPeriod}>
+            <Plus className="h-4 w-4" />
+            Add period
+          </Button>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setTimeEditor(false)}>
+              Cancel
+            </Button>
+            <Button
+              loading={saving}
+              onClick={async () => {
+                setSaving(true);
+                setSaveState("saving");
+                try {
+                  const next = await weeklyTimetableApi.updatePeriods(
+                    table.id,
+                    times.map((period) => ({
+                      ...period,
+                      startTime: period.startTime.slice(0, 5),
+                      endTime: period.endTime.slice(0, 5),
+                    })),
+                  );
+                  setTable(next);
+                  setTimes(next.periods);
+                  setTimeEditor(false);
+                  setSavedSoon();
+                  toast.success("Period times updated");
+                } catch (error) {
+                  setSaveState("idle");
+                  toast.error(handleApiError(error).message);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              Save times
+            </Button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
 }
 
-function PeriodLabel({period:p}:{period:WeeklyPeriod}){return <div className="flex min-w-0 flex-col justify-center p-3"><b className="text-sm text-slate-800">{p.label}</b><span className="mt-1 text-[10px] text-slate-400">{displayTime(p.startTime)}–{displayTime(p.endTime)}</span></div>}
-function Cell({day,period,entry,editable,onOpen,onDrop}:{day:string;period:WeeklyPeriod;entry?:WeeklyEntry;editable:boolean;onOpen:(d:string,p:WeeklyPeriod,e?:WeeklyEntry)=>void;onDrop:(d:string,p:WeeklyPeriod,data:string)=>void}){return <button disabled={!editable} draggable={Boolean(entry&&editable)} onDragStart={e=>entry&&e.dataTransfer.setData("application/json",JSON.stringify({type:"entry",day,periodId:period.id}))} onDragOver={e=>{if(editable)e.preventDefault();}} onDrop={e=>{e.preventDefault();void onDrop(day,period,e.dataTransfer.getData("application/json"));}} onClick={()=>onOpen(day,period,entry)} className="group min-h-24 min-w-0 border-l p-2 text-left transition hover:bg-brand-50/40 disabled:cursor-default">{entry?<div className={`h-full min-w-0 rounded-xl border p-2.5 shadow-sm transition group-hover:-translate-y-0.5 ${color(entry.subjectId)}`}><div className="flex items-start justify-between gap-1"><b className="break-words text-xs leading-5">{entry.subject}</b>{editable&&<Pencil className="h-3 w-3 shrink-0 opacity-50"/>}</div><p className="mt-1 truncate text-[10px] opacity-75">{entry.teacher}</p><p className="mt-1 text-[10px] font-semibold">{entry.lectureType}{entry.room?` · ${entry.room}`:""}</p></div>:editable?<div className="grid h-full min-h-20 place-items-center rounded-xl border border-dashed border-slate-200 text-slate-300 transition group-hover:border-brand-300 group-hover:text-brand-500"><Plus className="h-5 w-5"/></div>:<span className="text-xs text-slate-300">—</span>}</button>}
-function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}){return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-3 backdrop-blur-sm" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><div className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-5 py-4"><h2 className="font-bold text-slate-900">{title}</h2><button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5"/></button></div><div className="p-5">{children}</div></div></div>}
+type GridProps = {
+  table: WeeklyTimetable;
+  entryMap: Map<string, WeeklyEntry>;
+  matchesSearch: (entry?: WeeklyEntry) => boolean;
+  onOpen: (day: string, period: WeeklyPeriod, entry?: WeeklyEntry) => void;
+  onDrop: (day: string, period: WeeklyPeriod, data: string) => void;
+};
+
+function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridProps) {
+  return (
+    <div className="hidden overflow-x-auto rounded-2xl border bg-white shadow-sm print:block xl:block">
+      <div className="min-w-[1120px]">
+        <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="sticky left-0 z-30 bg-slate-100 p-3 text-left">Period</div>
+          {DAYS.map((day) => (
+            <div className="border-l p-3" key={day}>
+              {DAY_LABELS[day]}
+            </div>
+          ))}
+        </div>
+        {table.periods.map((period) => (
+          <div
+            key={period.id}
+            className={`grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-t ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}
+          >
+            <div className="sticky left-0 z-10 flex min-w-0 flex-col justify-center bg-white p-3">
+              <PeriodLabel period={period} />
+            </div>
+            {period.kind !== "TEACHING" ? (
+              <div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.2em] text-amber-700">
+                {period.kind === "SHORT_BREAK" ? "SHORT BREAK" : "LUNCH BREAK"}
+              </div>
+            ) : (
+              DAYS.map((day) => (
+                <Cell
+                  key={day}
+                  day={day}
+                  period={period}
+                  entry={entryMap.get(`${day}:${period.id}`)}
+                  editable={table.editable}
+                  highlighted={matchesSearch(entryMap.get(`${day}:${period.id}`))}
+                  onOpen={onOpen}
+                  onDrop={onDrop}
+                />
+              ))
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MobileGrid({
+  table,
+  day,
+  setDay,
+  entryMap,
+  matchesSearch,
+  onOpen,
+  onDrop,
+}: GridProps & { day: string; setDay: (day: string) => void }) {
+  return (
+    <div className="xl:hidden print:hidden">
+      <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {DAYS.map((item) => (
+          <button
+            key={item}
+            onClick={() => setDay(item)}
+            className={`rounded-xl px-2 py-2 text-xs font-semibold ${day === item ? "bg-brand-600 text-white" : "border bg-white text-slate-600"}`}
+          >
+            {DAY_LABELS[item].slice(0, 3)}
+          </button>
+        ))}
+      </div>
+      <Card className="divide-y overflow-hidden">
+        {table.periods.map((period) => (
+          <div key={period.id} className={period.kind !== "TEACHING" ? "bg-amber-50" : "p-3"}>
+            {period.kind !== "TEACHING" ? (
+              <div className="p-4 text-center text-xs font-bold tracking-widest text-amber-700">
+                {period.label} · {displayTime(period.startTime)}–{displayTime(period.endTime)}
+              </div>
+            ) : (
+              <div className="grid min-w-0 grid-cols-[100px_1fr] gap-3">
+                <PeriodLabel period={period} />
+                <Cell
+                  day={day}
+                  period={period}
+                  entry={entryMap.get(`${day}:${period.id}`)}
+                  editable={table.editable}
+                  highlighted={matchesSearch(entryMap.get(`${day}:${period.id}`))}
+                  onOpen={onOpen}
+                  onDrop={onDrop}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+function PeriodLabel({ period }: { period: WeeklyPeriod }) {
+  return (
+    <>
+      <b className="text-sm text-slate-800">{period.label}</b>
+      <span className="mt-1 text-[10px] text-slate-400">
+        {displayTime(period.startTime)}–{displayTime(period.endTime)}
+      </span>
+    </>
+  );
+}
+
+function Cell({
+  day,
+  period,
+  entry,
+  editable,
+  highlighted,
+  onOpen,
+  onDrop,
+}: {
+  day: string;
+  period: WeeklyPeriod;
+  entry?: WeeklyEntry;
+  editable: boolean;
+  highlighted: boolean;
+  onOpen: GridProps["onOpen"];
+  onDrop: GridProps["onDrop"];
+}) {
+  return (
+    <button
+      disabled={!editable}
+      draggable={Boolean(entry && editable)}
+      title={
+        entry
+          ? `${entry.subject}\n${entry.teacher}\n${entry.room ?? "No room"}\n${entry.lectureType}${entry.remarks ? `\n${entry.remarks}` : ""}`
+          : undefined
+      }
+      onDragStart={(event) =>
+        entry &&
+        event.dataTransfer.setData(
+          "application/json",
+          JSON.stringify({ type: "entry", day, periodId: period.id }),
+        )
+      }
+      onDragOver={(event) => {
+        if (editable) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        void onDrop(day, period, event.dataTransfer.getData("application/json"));
+      }}
+      onClick={() => onOpen(day, period, entry)}
+      className={`group min-h-24 min-w-0 border-l p-2 text-left transition hover:bg-brand-50/40 disabled:cursor-default ${highlighted ? "opacity-100" : "opacity-25"}`}
+    >
+      {entry ? (
+        <div
+          className={`h-full min-w-0 rounded-xl border p-2.5 shadow-sm transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md ${color(entry.subjectId)}`}
+        >
+          <div className="flex items-start justify-between gap-1">
+            <b className="break-words text-xs leading-5">{entry.subject}</b>
+            {editable && <Pencil className="h-3 w-3 shrink-0 opacity-50" />}
+          </div>
+          <p className="mt-1 truncate text-[10px] opacity-75">{entry.teacher}</p>
+          <p className="mt-1 text-[10px] font-semibold">
+            {entry.lectureType}
+            {entry.room ? ` · ${entry.room}` : ""}
+          </p>
+        </div>
+      ) : editable ? (
+        <div className="grid h-full min-h-20 place-items-center rounded-xl border border-dashed border-slate-200 text-slate-300 transition group-hover:border-brand-300 group-hover:text-brand-500">
+          <Plus className="h-5 w-5" />
+        </div>
+      ) : (
+        <span className="text-xs text-slate-300">—</span>
+      )}
+    </button>
+  );
+}
+
+function Modal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-3 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-5 py-4 dark:bg-slate-900">
+          <h2 className="font-bold text-slate-900 dark:text-white">{title}</h2>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}

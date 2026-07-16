@@ -22,7 +22,9 @@ export interface CreateStaffRequest {
   phone?: string;
   password: string;
   departmentId?: number;
-  staffType: StaffType;
+  staffType?: StaffType;
+  departmentIds?: number[];
+  staffTypes?: StaffType[];
   joiningDate?: string;
 }
 export interface StaffResponse {
@@ -34,11 +36,14 @@ export interface StaffResponse {
   departmentId?: number | null;
   departmentName?: string | null;
   departmentCode?: string | null;
+  departmentIds: number[];
+  departmentNames: string[];
   employeeCode: string;
   fullName: string;
   email: string;
   phone?: string | null;
   staffType: StaffType;
+  staffTypes: StaffType[];
   status: StaffStatus;
   roles: string[];
   joiningDate?: string | null;

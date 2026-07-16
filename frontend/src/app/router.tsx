@@ -42,7 +42,12 @@ import {
 } from "@/pages/fees/FeeSectionPages";
 import { StaffListPage } from "@/pages/staff/StaffListPage";
 import { CreateStaffPage } from "@/pages/staff/CreateStaffPage";
-import { CourseYearFormPage, CourseYearListPage, DivisionFormPage, DivisionListPage } from "@/pages/academic/CourseYearDivisionPages";
+import {
+  CourseYearFormPage,
+  CourseYearListPage,
+  DivisionFormPage,
+  DivisionListPage,
+} from "@/pages/academic/CourseYearDivisionPages";
 import { StudentAdmissionPage } from "@/pages/student/StudentAdmissionPage";
 import { AdminStudentListPage } from "@/pages/student/AdminStudentListPage";
 import { StudentDashboardPage } from "@/pages/student/StudentDashboardPage";
@@ -54,7 +59,6 @@ import { UserListPage } from "@/pages/users/UserListPage";
 import { NoticesPage } from "@/features/notices/NoticesPage";
 import { AcademicSetupPage } from "@/features/academics/AcademicSetupPage";
 import { TimetablePage } from "@/features/academics/TimetablePage";
-import { WeeklyTimetablePage } from "@/features/timetable/TimetablePage";
 import { AttendancePage } from "@/features/academics/AttendancePage";
 import { ClassTeacherTimetablePage } from "@/pages/academic/ClassTeacherTimetablePage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
@@ -80,8 +84,16 @@ import {
   StudentAcademicPage,
   SubjectEditPage,
 } from "@/pages/academic/AcademicPages";
-import { MyClassRosterPage, StudentAllocationPage, StudentClassPage } from "@/pages/academic/ClassAllocationPages";
+import {
+  MyClassRosterPage,
+  StudentAllocationPage,
+  StudentClassPage,
+} from "@/pages/academic/ClassAllocationPages";
 import { SubjectTeacherAssignmentPage } from "@/pages/academic/SubjectTeacherAssignmentPage";
+import { TeacherTimetablePage } from "@/features/teacherTimetable/TeacherTimetablePage";
+import { TeacherAttendancePage } from "@/features/attendance/TeacherAttendancePage";
+import { StudentAttendancePage } from "@/features/attendance/StudentAttendancePage";
+import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -115,10 +127,13 @@ export function AppRouter() {
           <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
           <Route path={ROUTES.dashboard} element={<SmartDashboard />} />
           <Route path={ROUTES.notices} element={<NoticesPage />} />
-          <Route path={ROUTES.timetable} element={<WeeklyTimetablePage />} />
           <Route path={ROUTES.attendance} element={<AttendancePage />} />
 
-          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRINCIPAL, ROLES.HOD]} />}>
+          <Route
+            element={
+              <RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRINCIPAL, ROLES.HOD]} />
+            }
+          >
             <Route path={ROUTES.academicSetup} element={<AcademicSetupPage />} />
           </Route>
 
@@ -177,8 +192,11 @@ export function AppRouter() {
           >
             <Route path={ROUTES.admissionReport} element={<ReportPage type="admissions" />} />
             <Route path={ROUTES.feeReport} element={<ReportPage type="fees" />} />
-            <Route path={ROUTES.attendanceReport} element={<ReportPage type="attendance" />} />
             <Route path={ROUTES.studentReport} element={<ReportPage type="students" />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
+            <Route path={ROUTES.attendanceReport} element={<AttendanceReportPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />}>
@@ -199,10 +217,19 @@ export function AppRouter() {
               element={<AcademicCreatePage kind="subjects" />}
             />
             <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
-            <Route path={ROUTES.subjectTeacherAssignments} element={<SubjectTeacherAssignmentPage />} />
+            <Route
+              path={ROUTES.subjectTeacherAssignments}
+              element={<SubjectTeacherAssignmentPage />}
+            />
           </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
+          <Route
+            element={
+              <RoleRoute
+                roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]}
+              />
+            }
+          >
             <Route path={ROUTES.timetable} element={<TimetablePage />} />
           </Route>
 
@@ -225,7 +252,14 @@ export function AppRouter() {
             />
           </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}><Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} /><Route path={ROUTES.classTeacherTimetable} element={<ClassTeacherTimetablePage />} /></Route>
+          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}>
+            <Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} />
+            <Route path={ROUTES.classTeacherTimetable} element={<ClassTeacherTimetablePage />} />
+          </Route>
+          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]} />}>
+            <Route path={ROUTES.teacherTimetable} element={<TeacherTimetablePage />} />
+            <Route path={ROUTES.teacherAttendance} element={<TeacherAttendancePage />} />
+          </Route>
           <Route element={<RoleRoute roles={[ROLES.STUDENT]} />}>
             <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
             <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
@@ -235,7 +269,7 @@ export function AppRouter() {
             <Route path="/student/fees/payments/new" element={<SubmitPaymentPage />} />
             <Route path="/student/fees/transactions" element={<MyFeeTransactionsPage />} />
             <Route path={ROUTES.studentTimetable} element={<StudentAcademicPage />} />
-            <Route path={ROUTES.studentAttendance} element={<StudentAcademicPage attendance />} />
+            <Route path={ROUTES.studentAttendance} element={<StudentAttendancePage />} />
             <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
           </Route>
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>

@@ -110,8 +110,17 @@ export function StaffListPage() {
       header: "Type",
       render: (row) => <Badge>{row.staffType.replaceAll("_", " ")}</Badge>,
     },
-    { key: "department", header: "Department", render: (row) => row.departmentName || "All departments" },
-    { key: "roles", header: "Roles", render: (row) => row.roles.join(", ") },
+    {
+      key: "department",
+      header: "Departments",
+      render: (row) =>
+        row.departmentNames.length ? row.departmentNames.join(", ") : "All departments",
+    },
+    {
+      key: "roles",
+      header: "Roles",
+      render: (row) => row.roles.map((role) => role.replaceAll("_", " ")).join(", "),
+    },
     { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
     { key: "joining", header: "Joining", render: (row) => formatDate(row.joiningDate) },
     {
@@ -181,7 +190,6 @@ export function StaffListPage() {
             }}
             aria-label="Status"
           />
-
         </div>
         {loading ? (
           <Loader label="Loading staff..." />

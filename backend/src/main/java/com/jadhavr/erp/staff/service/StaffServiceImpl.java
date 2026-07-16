@@ -41,6 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Year;
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -92,25 +94,25 @@ public class StaffServiceImpl implements StaffService {
         Long collegeId = currentUser.getCollegeId();
         if (collegeId == null) throw new AccessDeniedException("Principal college is required");
 
-        StaffType staffType = request.staffType();
-        Department department = resolveDepartment(request.departmentId(), staffType, collegeId);
-        if (staffType == StaffType.HOD && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(
+        Set<StaffType> staffTypes = requestedStaffTypes(request);
+        validateRoleCombination(staffTypes);
+        Set<Department> assignedDepartments = resolveDepartments(request, staffTypes, collegeId);
+        StaffType staffType = primaryStaffType(request.staffType(), staffTypes);
+        Department department = assignedDepartments.stream().findFirst().orElse(null);
+        if (staffTypes.contains(StaffType.HOD) && assignedDepartments.size() != 1) {
+            throw new BadRequestException("HOD accounts must have exactly one department");
+        }
+        if (staffTypes.contains(StaffType.HOD) && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(
                 department.getId(), StaffType.HOD, StaffStatus.ACTIVE)) {
             throw new DuplicateResourceException("Department already has an active HOD");
         }
 
-        RoleName roleName = switch (staffType) {
-            case STUDENT_SECTION -> RoleName.STUDENT_SECTION;
-            case FEE_SECTION -> RoleName.FEE_SECTION;
-            case HOD -> RoleName.HOD;
-            case TEACHER, SUBJECT_TEACHER -> RoleName.SUBJECT_TEACHER;
-            case CLASS_TEACHER -> RoleName.CLASS_TEACHER;
-            case GENERAL_STAFF -> RoleName.GENERAL_STAFF;
-        };
+        Set<RoleName> roleNames = staffTypes.stream().map(this::roleFor).collect(java.util.stream.Collectors.toSet());
         StaffResponse created = createStaff(collegeId, request.fullName(), request.email(),
-                request.phone(), request.password(), request.joiningDate(), roleName, staffType, false);
+                request.phone(), request.password(), request.joiningDate(), roleNames, staffType, false);
         StaffProfile profile = staffProfiles.findById(created.id()).orElseThrow();
         profile.setDepartment(department);
+        profile.setDepartments(assignedDepartments);
         return mapper.toResponse(staffProfiles.save(profile));
     }
 
@@ -122,8 +124,8 @@ public class StaffServiceImpl implements StaffService {
         if (type == StaffType.HOD && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(department.getId(), type, StaffStatus.ACTIVE)) throw new DuplicateResourceException("Department already has an active HOD");
         RoleName role = switch(type){case HOD -> RoleName.HOD; case CLASS_TEACHER -> RoleName.CLASS_TEACHER; default -> RoleName.SUBJECT_TEACHER;};
         StaffResponse response = createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(),
-                request.phone(), request.joiningDate(), role, type, true);
-        StaffProfile profile = staffProfiles.findById(response.id()).orElseThrow(); profile.setDepartment(department); staffProfiles.save(profile);
+                request.phone(), request.joiningDate(), Set.of(role), type, true);
+        StaffProfile profile = staffProfiles.findById(response.id()).orElseThrow(); profile.setDepartment(department); profile.setDepartments(Set.of(department)); staffProfiles.save(profile);
         return mapper.toResponse(profile);
     }
 
@@ -131,19 +133,19 @@ public class StaffServiceImpl implements StaffService {
     @Transactional
     public StaffResponse createStudentSectionStaff(CreateStudentSectionStaffRequest request) {
         return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.phone(),
-                request.joiningDate(), RoleName.STUDENT_SECTION, StaffType.STUDENT_SECTION, true);
+                request.joiningDate(), Set.of(RoleName.STUDENT_SECTION), StaffType.STUDENT_SECTION, true);
     }
 
     @Override
     @Transactional
     public StaffResponse createFeeSectionStaff(CreateFeeSectionStaffRequest request) {
         return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.phone(),
-                request.joiningDate(), RoleName.FEE_SECTION, StaffType.FEE_SECTION, true);
+                request.joiningDate(), Set.of(RoleName.FEE_SECTION), StaffType.FEE_SECTION, true);
     }
 
     private StaffResponse createStaff(Long collegeId, String fullName, String requestedEmail, String phone,
                                       String rawPassword, java.time.LocalDate joiningDate,
-                                      RoleName roleName, StaffType staffType, boolean mustChangePassword) {
+                                       Set<RoleName> roleNames, StaffType staffType, boolean mustChangePassword) {
         CustomUserDetails currentUser = SecurityUtils.requireCurrentUser();
         if (!SecurityUtils.isSuperAdmin() && !SecurityUtils.isPrincipal()) {
             throw new AccessDeniedException("Access denied");
@@ -161,8 +163,9 @@ public class StaffServiceImpl implements StaffService {
         if (users.existsByEmail(email)) {
             throw new DuplicateResourceException("User already exists with this email");
         }
-        Role role = roles.findByName(roleName)
-                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
+        Set<Role> assignedRoles = roleNames.stream().map(roleName -> roles.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName)))
+                .collect(java.util.stream.Collectors.toSet());
 
         User user = new User();
         user.setCollege(college);
@@ -173,7 +176,7 @@ public class StaffServiceImpl implements StaffService {
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
         user.setMustChangePassword(mustChangePassword);
         user.setStatus(UserStatus.ACTIVE);
-        user.setRoles(Set.of(role));
+        user.setRoles(assignedRoles);
         User savedUser = users.save(user);
         if (emailNotifications != null) emailNotifications.queueUserCreatedEmail(savedUser);
 
@@ -212,10 +215,21 @@ public class StaffServiceImpl implements StaffService {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("college").get("id"), scopedCollegeId));
         }
         if (staffType != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("staffType"), staffType));
+            RoleName requestedRole = roleFor(staffType);
+            spec = spec.and((root, query, cb) -> {
+                query.distinct(true);
+                var assignedRole = root.join("user").join("roles");
+                return cb.or(cb.equal(root.get("staffType"), staffType),
+                        cb.equal(assignedRole.get("name"), requestedRole));
+            });
         }
         if (departmentId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("department").get("id"), departmentId));
+            spec = spec.and((root, query, cb) -> {
+                query.distinct(true);
+                var assigned = root.join("departments", jakarta.persistence.criteria.JoinType.LEFT);
+                return cb.or(cb.equal(root.get("department").get("id"), departmentId),
+                        cb.equal(assigned.get("id"), departmentId));
+            });
         }
         if (status != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
@@ -311,22 +325,69 @@ public class StaffServiceImpl implements StaffService {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
-    private Department resolveDepartment(Long departmentId, StaffType staffType, Long collegeId) {
-        if (departmentId == null) {
-            if (DEPARTMENT_REQUIRED_TYPES.contains(staffType)) {
-                throw new BadRequestException("Department is required for " + staffType);
+    private Set<StaffType> requestedStaffTypes(CreateStaffRequest request) {
+        Set<StaffType> requested = new LinkedHashSet<>();
+        if (request.staffTypes() != null) requested.addAll(request.staffTypes());
+        if (requested.isEmpty() && request.staffType() != null) requested.add(request.staffType());
+        if (requested.isEmpty()) throw new BadRequestException("Select at least one staff role");
+        return requested;
+    }
+
+    private void validateRoleCombination(Set<StaffType> staffTypes) {
+        if (staffTypes.contains(StaffType.HOD) && staffTypes.size() > 1) {
+            throw new BadRequestException("HOD must be selected as a standalone role");
+        }
+        boolean teaching = staffTypes.stream().anyMatch(DEPARTMENT_REQUIRED_TYPES::contains);
+        boolean operational = staffTypes.stream().anyMatch(type -> !DEPARTMENT_REQUIRED_TYPES.contains(type));
+        if (teaching && operational) {
+            throw new BadRequestException("Teaching roles cannot be combined with operational staff roles");
+        }
+        if (operational && staffTypes.size() > 1) {
+            throw new BadRequestException("Select only one operational staff role");
+        }
+    }
+
+    private StaffType primaryStaffType(StaffType requestedPrimary, Set<StaffType> staffTypes) {
+        if (requestedPrimary != null && staffTypes.contains(requestedPrimary)) return requestedPrimary;
+        for (StaffType preferred : List.of(StaffType.CLASS_TEACHER, StaffType.HOD,
+                StaffType.SUBJECT_TEACHER, StaffType.TEACHER)) {
+            if (staffTypes.contains(preferred)) return preferred;
+        }
+        return staffTypes.iterator().next();
+    }
+
+    private RoleName roleFor(StaffType staffType) {
+        return switch (staffType) {
+            case STUDENT_SECTION -> RoleName.STUDENT_SECTION;
+            case FEE_SECTION -> RoleName.FEE_SECTION;
+            case HOD -> RoleName.HOD;
+            case TEACHER, SUBJECT_TEACHER -> RoleName.SUBJECT_TEACHER;
+            case CLASS_TEACHER -> RoleName.CLASS_TEACHER;
+            case GENERAL_STAFF -> RoleName.GENERAL_STAFF;
+        };
+    }
+
+    private Set<Department> resolveDepartments(CreateStaffRequest request, Set<StaffType> staffTypes,
+                                               Long collegeId) {
+        Set<Long> requestedIds = new LinkedHashSet<>();
+        if (request.departmentId() != null) requestedIds.add(request.departmentId());
+        if (request.departmentIds() != null) requestedIds.addAll(request.departmentIds());
+        if (staffTypes.stream().anyMatch(DEPARTMENT_REQUIRED_TYPES::contains) && requestedIds.isEmpty()) {
+            throw new BadRequestException("Select at least one department for teaching staff");
+        }
+        Set<Department> result = new LinkedHashSet<>();
+        for (Long departmentId : requestedIds) {
+            Department department = departments.findById(departmentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + departmentId));
+            if (!department.getCollege().getId().equals(collegeId)) {
+                throw new AccessDeniedException("Department is outside Principal college");
             }
-            return null;
+            if (department.getStatus() != DepartmentStatus.ACTIVE) {
+                throw new BadRequestException("Department must be active: " + department.getName());
+            }
+            result.add(department);
         }
-        Department department = departments.findById(departmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
-        if (!department.getCollege().getId().equals(collegeId)) {
-            throw new AccessDeniedException("Department is outside Principal college");
-        }
-        if (department.getStatus() != DepartmentStatus.ACTIVE) {
-            throw new BadRequestException("Department must be active");
-        }
-        return department;
+        return result;
     }
 
     private String trimToNull(String value) {
