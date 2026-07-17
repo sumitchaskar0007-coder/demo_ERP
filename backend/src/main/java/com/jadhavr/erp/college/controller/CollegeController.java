@@ -4,6 +4,7 @@ import com.jadhavr.erp.college.dto.CollegeResponse;
 import com.jadhavr.erp.college.dto.CreateCollegeRequest;
 import com.jadhavr.erp.college.dto.UpdateCollegeRequest;
 import com.jadhavr.erp.college.service.CollegeService;
+import com.jadhavr.erp.college.service.CollegeImageStorageService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.common.dto.PageResponse;
@@ -21,15 +22,26 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.util.Map;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/super-admin/colleges")
 public class CollegeController {
 
     private final CollegeService collegeService;
+    private final CollegeImageStorageService imageStorage;
 
-    public CollegeController(CollegeService collegeService) {
+    public CollegeController(CollegeService collegeService, CollegeImageStorageService imageStorage) {
         this.collegeService = collegeService;
+        this.imageStorage = imageStorage;
+    }
+
+    @PostMapping("/images/{kind}")
+    public ApiResponse<Map<String, String>> uploadImage(@PathVariable String kind,
+            @RequestParam("file") MultipartFile file) {
+        return ApiResponse.success("College image uploaded successfully",
+                Map.of("url", imageStorage.store(file, kind)));
     }
 
     @PostMapping

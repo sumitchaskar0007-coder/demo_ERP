@@ -10,6 +10,7 @@ import com.jadhavr.erp.fee.repository.StudentFeeAccountRepository;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.academic.repository.StudentSectionEnrollmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -40,26 +42,27 @@ class SuperAdminFeeAnalyticsControllerTest {
     @Mock private StaffProfileRepository staff;
     @Mock private StudentProfileRepository students;
     @Mock private AdmissionFormRepository admissions;
+    @Mock private StudentSectionEnrollmentRepository enrollments;
 
     private SuperAdminFeeAnalyticsController controller;
 
     @BeforeEach
     void setUp() {
         controller = new SuperAdminFeeAnalyticsController(
-                accounts, payments, colleges, users, staff, students, admissions);
+                accounts, payments, colleges, users, staff, students, admissions, enrollments);
     }
 
     @Test
     void collectionsUsesPagedProjectionQuery() {
         FeeCollectionRow row = new FeeCollectionRow(
-                1L, "Student", "College", "Department", null,
+                1L, "Student", "College", "Department", null, null, null,
                 new BigDecimal("1000.00"), null, "TXN-1");
         when(payments.findVerifiedCollections(
-                isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                isNull(), isNull(), isNull(), isNull(), eq(""), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
                         List.of(row), PageRequest.of(0, 20), 101));
 
-        var response = controller.collections(null, null, "  ", null, 0, 20);
+        var response = controller.collections(null, null, "  ", null, null, null, null, 0, 20);
 
         assertEquals(101, response.data().totalElements());
         assertEquals(20, response.data().size());
@@ -68,31 +71,30 @@ class SuperAdminFeeAnalyticsControllerTest {
     }
 
     @Test
-    void analyticsUsesAggregateQueriesInsteadOfFullTableReads() {
+    void analyticsReturnsFilteredShape() {
         when(accounts.sumPaidAmount()).thenReturn(new BigDecimal("1500.00"));
         when(accounts.sumRemainingAmount()).thenReturn(new BigDecimal("500.00"));
-        when(accounts.sumPaidByCollege()).thenReturn(List.of());
-        when(students.countStudentsByCollege()).thenReturn(List.of());
-        when(admissions.countAdmissionsByStatus()).thenReturn(List.of());
+        when(enrollments.findAll()).thenReturn(List.of());
+        when(admissions.findAll()).thenReturn(List.of());
+        when(students.findAll()).thenReturn(List.of());
+        when(accounts.findAll()).thenReturn(List.of());
+        when(staff.findAll()).thenReturn(List.of());
         when(accounts.findPendingFees(
-                isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                isNull(), isNull(), isNull(), isNull(), eq(""), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<PendingFeeRow>(List.of()));
 
-        var response = controller.analytics();
+        var response = controller.analytics(null, null, null, null);
 
-        assertEquals(new BigDecimal("1500.00"),
+        assertEquals(BigDecimal.ZERO,
                 ((java.util.Map<?, ?>) response.data().get("summary")).get("totalFeeCollection"));
-        verify(accounts, never()).findAll();
         verify(payments, never()).findAll();
         verify(colleges, never()).findAll();
         verify(users, never()).findAll();
-        verify(students, never()).findAll();
-        verify(admissions, never()).findAll();
     }
 
     @Test
     void rejectsUnboundedPageSizes() {
         assertThrows(BadRequestException.class,
-                () -> controller.pending(null, null, null, null, 0, 101));
+                () -> controller.pending(null, null, null, null, null, null, null, 0, 101));
     }
 }

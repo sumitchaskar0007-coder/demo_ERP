@@ -85,29 +85,42 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
                 a.student.admissionNumber,
                 a.college.name,
                 a.department.name,
+                e.academicClass.name,
+                e.section.name,
                 a.studentCategory,
                 a.totalFee,
                 a.paidAmount,
                 a.remainingAmount)
             from StudentFeeAccount a
+            left join StudentSectionEnrollment e on e.student = a.student and e.status = com.jadhavr.erp.academic.enums.AcademicStatus.ACTIVE
             where a.remainingAmount > 0
               and (:collegeId is null or a.college.id = :collegeId)
               and (:departmentId is null or a.department.id = :departmentId)
               and (:academicYear is null or a.academicYear = :academicYear)
               and (:studentCategory is null or a.studentCategory = :studentCategory)
+              and lower(a.student.fullName) like concat('%', lower(:keyword), '%')
+              and (:courseYearId is null or e.academicClass.id = :courseYearId)
+              and (:divisionId is null or e.section.id = :divisionId)
             """, countQuery = """
             select count(a.id)
             from StudentFeeAccount a
+            left join StudentSectionEnrollment e on e.student = a.student and e.status = com.jadhavr.erp.academic.enums.AcademicStatus.ACTIVE
             where a.remainingAmount > 0
               and (:collegeId is null or a.college.id = :collegeId)
               and (:departmentId is null or a.department.id = :departmentId)
               and (:academicYear is null or a.academicYear = :academicYear)
               and (:studentCategory is null or a.studentCategory = :studentCategory)
+              and lower(a.student.fullName) like concat('%', lower(:keyword), '%')
+              and (:courseYearId is null or e.academicClass.id = :courseYearId)
+              and (:divisionId is null or e.section.id = :divisionId)
             """)
     Page<PendingFeeRow> findPendingFees(
             @Param("collegeId") Long collegeId,
             @Param("departmentId") Long departmentId,
             @Param("academicYear") String academicYear,
             @Param("studentCategory") StudentCategory studentCategory,
+            @Param("keyword") String keyword,
+            @Param("courseYearId") Long courseYearId,
+            @Param("divisionId") Long divisionId,
             Pageable pageable);
 }

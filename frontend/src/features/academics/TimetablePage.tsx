@@ -34,6 +34,10 @@ import {
   type WeeklyTimetable,
 } from "./api";
 import { exportWeeklyTimetableExcel, exportWeeklyTimetablePdf } from "./weeklyTimetableExport";
+import { getActiveColleges } from "@/features/colleges/api";
+import type { College } from "@/features/colleges/types";
+import { useAuth } from "@/features/auth/authStore";
+import { ROLES } from "@/lib/constants";
 
 const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const DAY_LABELS: Record<string, string> = {
@@ -66,6 +70,15 @@ type Editor = {
 type SaveState = "idle" | "saving" | "saved";
 
 const color = (subjectId: number) => PALETTE[subjectId % PALETTE.length];
+const academicYearRank = (label: string) => {
+  const value = label.toLowerCase();
+  if (/\b(first|1st)\b/.test(value)) return 1;
+  if (/\b(second|2nd)\b/.test(value)) return 2;
+  if (/\b(third|3rd)\b/.test(value)) return 3;
+  if (/\b(fourth|4th)\b/.test(value)) return 4;
+  if (/\b(fifth|5th)\b/.test(value)) return 5;
+  return Number.MAX_SAFE_INTEGER;
+};
 const displayTime = (time: string) => {
   const [hours, minutes] = time.split(":").map(Number);
   return new Intl.DateTimeFormat("en-IN", {
@@ -90,7 +103,11 @@ const toInput = (entry: WeeklyEntry): WeeklyEntryInput => ({
 });
 
 export function TimetablePage() {
+  const { isRole } = useAuth();
+  const isSuperAdmin = isRole([ROLES.SUPER_ADMIN]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [scope, setScope] = useState({ collegeId: "", departmentId: "", courseYearId: "" });
   const [sectionId, setSectionId] = useState("");
   const [table, setTable] = useState<WeeklyTimetable | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,10 +130,22 @@ export function TimetablePage() {
       .divisions()
       .then((rows) => {
         setDivisions(rows);
-        if (rows[0]) setSectionId(String(rows[0].id));
+        if (rows[0] && !isSuperAdmin) {
+          setSectionId(String(rows[0].id));
+          setScope({
+            collegeId: String(rows[0].collegeId),
+            departmentId: String(rows[0].departmentId),
+            courseYearId: String(rows[0].courseYearId),
+          });
+        }
       })
       .catch((error) => toast.error(handleApiError(error).message))
       .finally(() => setLoading(false));
+  }, [isSuperAdmin]);
+  useEffect(() => {
+    getActiveColleges()
+      .then(setColleges)
+      .catch(() => setColleges([]));
   }, []);
 
   useEffect(() => {
@@ -360,9 +389,13 @@ export function TimetablePage() {
             Academic planning
           </div>
           <h1 className="page-title">Weekly timetable</h1>
-          <p className="page-subtitle">Build the fixed weekly schedule for each division.</p>
+          <p className="page-subtitle">
+            {table?.editable
+              ? "Build the fixed weekly schedule for each division."
+              : "View the weekly schedule by college, department, year and division."}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {table?.editable && <div className="flex flex-wrap items-center gap-2">
           {saveState !== "idle" && (
             <span
               className={`inline-flex items-center gap-1 text-xs font-semibold ${saveState === "saved" ? "text-emerald-600" : "text-slate-500"}`}
@@ -387,25 +420,101 @@ export function TimetablePage() {
             <Redo2 className="h-4 w-4" />
             Redo
           </Button>
-          {table?.editable && (
-            <Button variant="secondary" onClick={() => setTimeEditor(true)}>
-              <Settings2 className="h-4 w-4" />
-              Configure times
-            </Button>
-          )}
-        </div>
+          <Button variant="secondary" onClick={() => setTimeEditor(true)}>
+            <Settings2 className="h-4 w-4" />
+            Configure times
+          </Button>
+        </div>}
       </div>
 
       <Card className="p-4 sm:p-5 print:border-0 print:shadow-none">
-        <Select
-          label="Division"
-          value={sectionId}
-          onChange={(event) => setSectionId(event.target.value)}
-          options={divisions.map((division) => ({
-            value: String(division.id),
-            label: `${division.department} · ${division.year} · Division ${division.division}`,
-          }))}
-        />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <Select
+            label="College"
+            value={scope.collegeId}
+            onChange={(event) => {
+              setScope({ collegeId: event.target.value, departmentId: "", courseYearId: "" });
+              setSectionId("");
+            }}
+            options={[
+              { label: "Select college", value: "" },
+              ...colleges
+                .filter((college) =>
+                  divisions.some((division) => division.collegeId === college.id),
+                )
+                .map((college) => ({ label: college.name, value: college.id })),
+            ]}
+          />
+          <Select
+            label="Department"
+            disabled={!scope.collegeId}
+            value={scope.departmentId}
+            onChange={(event) => {
+              setScope({ ...scope, departmentId: event.target.value, courseYearId: "" });
+              setSectionId("");
+            }}
+            options={[
+              { label: "Select department", value: "" },
+              ...Array.from(
+                new Map(
+                  divisions
+                    .filter(
+                      (division) =>
+                        !scope.collegeId || division.collegeId === Number(scope.collegeId),
+                    )
+                    .map((division) => [division.departmentId, division.department]),
+                ).entries(),
+              ).map(([value, label]) => ({ value, label })),
+            ]}
+          />
+          <Select
+            label="Year / Class"
+            disabled={!scope.collegeId || !scope.departmentId}
+            value={scope.courseYearId}
+            onChange={(event) => {
+              setScope({ ...scope, courseYearId: event.target.value });
+              setSectionId("");
+            }}
+            options={[
+              { label: "Select year/class", value: "" },
+              ...Array.from(
+                new Map(
+                  divisions
+                    .filter(
+                      (division) =>
+                        (!scope.collegeId || division.collegeId === Number(scope.collegeId)) &&
+                        (!scope.departmentId ||
+                          division.departmentId === Number(scope.departmentId)),
+                    )
+                    .map((division) => [division.courseYearId, division.year]),
+                ).entries(),
+              )
+                .sort(([, firstLabel], [, secondLabel]) => {
+                  const rankDifference =
+                    academicYearRank(firstLabel) - academicYearRank(secondLabel);
+                  return rankDifference || firstLabel.localeCompare(secondLabel);
+                })
+                .map(([value, label]) => ({ value, label })),
+            ]}
+          />
+          <Select
+            label="Division"
+            disabled={!scope.collegeId || !scope.departmentId || !scope.courseYearId}
+            value={sectionId}
+            onChange={(event) => setSectionId(event.target.value)}
+            options={[
+              { label: "Select division", value: "" },
+              ...divisions
+                .filter(
+                  (division) =>
+                    (!scope.collegeId || division.collegeId === Number(scope.collegeId)) &&
+                    (!scope.departmentId || division.departmentId === Number(scope.departmentId)) &&
+                    (!scope.courseYearId || division.courseYearId === Number(scope.courseYearId)),
+                )
+                .map((division) => ({ value: String(division.id), label: division.division })),
+            ]}
+          />
+        </div>
         {table && (
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             {[
@@ -431,7 +540,7 @@ export function TimetablePage() {
 
       {table && (
         <>
-          <Card className="space-y-4 p-4 sm:p-5 print:hidden">
+          {table.editable && <Card className="space-y-4 p-4 sm:p-5 print:hidden">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-brand-600" />
@@ -466,7 +575,7 @@ export function TimetablePage() {
                 </button>
               ))}
             </div>
-          </Card>
+          </Card>}
 
           {table.editable && (
             <Card className="grid gap-3 p-4 print:hidden xl:grid-cols-[1fr_1fr_auto_auto]">
@@ -565,6 +674,15 @@ export function TimetablePage() {
             onDrop={drop}
           />
         </>
+      )}
+
+      {isSuperAdmin && divisions.length > 0 && !table && !loading && (
+        <Card className="p-10 text-center">
+          <h2 className="font-semibold">Select a division to view its timetable</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Choose college, department, year/class and division from the filters above.
+          </p>
+        </Card>
       )}
 
       {!divisions.length && (

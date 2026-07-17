@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
     @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
-    List<Notice> findByCreatedByIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    List<Notice> findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
     @Query("""
@@ -21,6 +21,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             join n.audienceRoles role
             left join n.colleges college
             where n.createdBy.id <> :userId
+              and n.deletedAt is null
               and role in :roles
               and (college is null or college.id = :collegeId)
               and (n.department is null or n.department.id = :departmentId)

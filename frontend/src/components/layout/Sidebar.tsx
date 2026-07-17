@@ -60,7 +60,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
         { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
-        { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
+        { label: "Staff Lecture Load", to: ROUTES.adminLectureLoad, icon: BarChart3 },
         { label: "Account", to: ROUTES.account, icon: UserRound },
       ]
     : isPrincipal
@@ -135,14 +135,24 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                   ...(isTeacher
                     ? [
                         { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
-                        { label: "Take Attendance", to: ROUTES.teacherAttendance, icon: CheckCircle2 },
+                        {
+                          label: "Take Attendance",
+                          to: ROUTES.teacherAttendance,
+                          icon: CheckCircle2,
+                        },
                       ]
                     : []),
                   ...(isClassTeacher
                     ? [{ label: "Manage Timetable", to: ROUTES.timetable, icon: CalendarDays }]
                     : []),
                   ...(isClassTeacher || isRole([ROLES.HOD])
-                    ? [{ label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 }]
+                    ? [
+                        {
+                          label: "Attendance Reports",
+                          to: ROUTES.attendanceReport,
+                          icon: BarChart3,
+                        },
+                      ]
                     : []),
                   { label: "Notices", to: ROUTES.notices, icon: Bell },
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
@@ -177,8 +187,18 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       : futureItems;
 
   return (
-    <aside className={cn("flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300", !mobile && (collapsed ? "w-20" : "w-64"))}>
-      <div className={cn("flex h-16 shrink-0 items-center border-b border-slate-100 px-5 lg:h-20", collapsed && !mobile ? "justify-center" : "gap-3")}>
+    <aside
+      className={cn(
+        "flex h-full flex-col border-r border-slate-200/80 bg-white transition-all duration-300",
+        !mobile && (collapsed ? "w-20" : "w-64"),
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center border-b border-slate-100 px-5 lg:h-20",
+          collapsed && !mobile ? "justify-center" : "gap-3",
+        )}
+      >
         {collapsed && !mobile ? <BrandLogo compact /> : <BrandLogo className="w-[185px]" />}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">

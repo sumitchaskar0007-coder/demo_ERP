@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
+import java.time.LocalDateTime;
 
 @Service
 @Transactional(readOnly = true)
@@ -93,8 +94,21 @@ public class NoticeServiceImpl implements NoticeService {
     @Override
     public List<NoticeResponse> sent() {
         Long id = SecurityUtils.getCurrentUserId();
-        return notices.findByCreatedByIdOrderByCreatedAtDesc(id, PageRequest.of(0, 100))
+        return notices.findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(id, PageRequest.of(0, 100))
                 .stream().map(this::map).toList();
+    }
+
+    @Override @Transactional
+    public void delete(Long id) {
+        if (!SecurityUtils.isSuperAdmin()) throw new AccessDeniedException("Only Super Admin can delete notices");
+        Notice notice = notices.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notice not found"));
+        if (notice.getDeletedAt() != null) return;
+        User admin = users.findById(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        notice.setDeletedAt(LocalDateTime.now());
+        notice.setDeletedBy(admin);
+        notices.save(notice);
     }
 
     private Set<RoleName> resolveRoles(CustomUserDetails current) {

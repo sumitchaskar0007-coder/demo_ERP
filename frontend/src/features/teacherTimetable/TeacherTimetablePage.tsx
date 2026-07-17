@@ -378,3 +378,9 @@ function LectureCard({
     </div>
   );
 }
+
+export {
+  Stat as TeacherTimetableStat,
+  WeeklyGrid as TeacherWeeklyGrid,
+  DayView as TeacherDayView,
+};

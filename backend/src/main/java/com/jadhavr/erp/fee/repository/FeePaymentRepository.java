@@ -51,29 +51,42 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long>,
                 p.student.fullName,
                 p.college.name,
                 p.department.name,
+                e.academicClass.name,
+                e.section.name,
                 p.studentFeeAccount.studentCategory,
                 p.amount,
                 p.paymentDate,
                 p.transactionReference)
             from FeePayment p
+            left join StudentSectionEnrollment e on e.student = p.student and e.status = com.jadhavr.erp.academic.enums.AcademicStatus.ACTIVE
             where p.status = com.jadhavr.erp.fee.enums.PaymentStatus.VERIFIED
               and (:collegeId is null or p.college.id = :collegeId)
               and (:departmentId is null or p.department.id = :departmentId)
               and (:academicYear is null or p.studentFeeAccount.academicYear = :academicYear)
               and (:studentCategory is null or p.studentFeeAccount.studentCategory = :studentCategory)
+              and lower(p.student.fullName) like concat('%', lower(:keyword), '%')
+              and (:courseYearId is null or e.academicClass.id = :courseYearId)
+              and (:divisionId is null or e.section.id = :divisionId)
             """, countQuery = """
             select count(p.id)
             from FeePayment p
+            left join StudentSectionEnrollment e on e.student = p.student and e.status = com.jadhavr.erp.academic.enums.AcademicStatus.ACTIVE
             where p.status = com.jadhavr.erp.fee.enums.PaymentStatus.VERIFIED
               and (:collegeId is null or p.college.id = :collegeId)
               and (:departmentId is null or p.department.id = :departmentId)
               and (:academicYear is null or p.studentFeeAccount.academicYear = :academicYear)
               and (:studentCategory is null or p.studentFeeAccount.studentCategory = :studentCategory)
+              and lower(p.student.fullName) like concat('%', lower(:keyword), '%')
+              and (:courseYearId is null or e.academicClass.id = :courseYearId)
+              and (:divisionId is null or e.section.id = :divisionId)
             """)
     Page<FeeCollectionRow> findVerifiedCollections(
             @Param("collegeId") Long collegeId,
             @Param("departmentId") Long departmentId,
             @Param("academicYear") String academicYear,
             @Param("studentCategory") StudentCategory studentCategory,
+            @Param("keyword") String keyword,
+            @Param("courseYearId") Long courseYearId,
+            @Param("divisionId") Long divisionId,
             Pageable pageable);
 }

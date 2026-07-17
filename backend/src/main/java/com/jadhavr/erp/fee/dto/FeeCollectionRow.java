@@ -10,6 +10,8 @@ public record FeeCollectionRow(
         String studentName,
         String collegeName,
         String departmentName,
+        String courseYear,
+        String division,
         StudentCategory studentCategory,
         BigDecimal amount,
         LocalDate paymentDate,

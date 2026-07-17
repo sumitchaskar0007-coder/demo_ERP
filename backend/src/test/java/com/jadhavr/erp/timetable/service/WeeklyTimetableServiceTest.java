@@ -73,7 +73,7 @@ class WeeklyTimetableServiceTest {
     void setUpSecurityContext() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(userDetails(), null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))));
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_PRINCIPAL"))));
     }
 
     @AfterEach
@@ -149,7 +149,10 @@ class WeeklyTimetableServiceTest {
         user.setStatus(UserStatus.ACTIVE);
         user.setPasswordHash("secret");
         Role role = new Role();
-        role.setName(RoleName.SUPER_ADMIN);
+        College college = new College();
+        college.setId(10L);
+        user.setCollege(college);
+        role.setName(RoleName.PRINCIPAL);
         user.setRoles(Set.of(role));
         return new CustomUserDetails(user);
     }

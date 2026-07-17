@@ -41,3 +41,16 @@ export async function setCollegeStatus(id: number, active: boolean) {
   const { data } = await apiClient.patch<ApiResponse<College>>(`${BASE}/${id}/${action}`);
   return data;
 }
+
+export async function uploadCollegeImage(file: File, kind: "logo" | "qr-code") {
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<{ url: string }>>(
+    `${BASE}/images/${kind}`,
+    body,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
+  return data.data.url;
+}
