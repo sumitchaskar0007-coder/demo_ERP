@@ -48,6 +48,72 @@ const statStyles: Array<{
   { icon: Sparkles, color: "bg-rose-50 text-rose-600", accent: "bg-rose-500", chart: "#f43f5e" },
 ];
 
+const principalStatConfig: Record<string, { label: string; to: string; helper: string }> = {
+  totalClasses: {
+    label: "Total Classes",
+    to: ROUTES.academicClasses,
+    helper: "View academic classes",
+  },
+  totalStaff: { label: "Total Staff", to: ROUTES.staff, helper: "View college staff" },
+  totalTeachingStaff: {
+    label: "Teaching Staff",
+    to: ROUTES.staff,
+    helper: "View teachers and staff",
+  },
+  totalStudents: { label: "Total Students", to: ROUTES.studentReport, helper: "View student list" },
+  totalFeePending: {
+    label: "Fee Pending",
+    to: ROUTES.feeAccounts,
+    helper: "View outstanding accounts",
+  },
+  totalSections: {
+    label: "Total Sections",
+    to: ROUTES.academicSections,
+    helper: "View academic sections",
+  },
+  totalSubjects: { label: "Total Subjects", to: ROUTES.academicSubjects, helper: "View subjects" },
+  totalDepartments: {
+    label: "Total Departments",
+    to: ROUTES.departments,
+    helper: "View departments",
+  },
+  totalFeeCollected: {
+    label: "Fee Collected",
+    to: ROUTES.feePayments,
+    helper: "View payment records",
+  },
+  rejectedAdmissions: {
+    label: "Rejected Admissions",
+    to: `${ROUTES.admissionReport}?status=PRINCIPAL_REJECTED`,
+    helper: "View rejected applications",
+  },
+  pendingAdmissions: {
+    label: "Pending Admissions",
+    to: `${ROUTES.admissionReport}?status=PRINCIPAL_REVIEW_PENDING`,
+    helper: "View pending applications",
+  },
+  approvedAdmissions: {
+    label: "Approved Admissions",
+    to: `${ROUTES.admissionReport}?status=PRINCIPAL_APPROVED`,
+    helper: "View approved applications",
+  },
+};
+
+const principalStatOrder = [
+  "totalDepartments",
+  "totalClasses",
+  "totalSections",
+  "totalSubjects",
+  "totalTeachingStaff",
+  "totalStaff",
+  "totalStudents",
+  "pendingAdmissions",
+  "approvedAdmissions",
+  "rejectedAdmissions",
+  "totalFeeCollected",
+  "totalFeePending",
+];
+
 export function RoleDashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<api.DashboardData | null>(null);
@@ -71,6 +137,8 @@ export function RoleDashboardPage() {
 
   if (!data || !user) return <Loader label="Loading dashboard..." />;
 
+  const principal = user.roles.includes(ROLES.PRINCIPAL);
+
   const toNumber = (v: unknown) => {
     if (typeof v === "number" && Number.isFinite(v)) return v;
     if (typeof v === "string") {
@@ -81,19 +149,32 @@ export function RoleDashboardPage() {
   };
 
   const stats = Object.entries(data)
-    .filter(([, value]) => typeof value !== "object")
+    .filter(([key, value]) => typeof value !== "object" && key !== "collegeId")
     .map(([key, value], index) => {
       const numericValue = toNumber(value);
+      const config = principal ? principalStatConfig[key] : undefined;
+      const money = key === "totalFeeCollected" || key === "totalFeePending";
       return {
         key,
-        label: key.replace(/([A-Z])/g, " $1").trim(),
-        value: String(value),
+        label: config?.label ?? key.replace(/([A-Z])/g, " $1").trim(),
+        value: money
+          ? `₹${numericValue.toLocaleString("en-IN")}`
+          : numericValue.toLocaleString("en-IN"),
         numericValue,
+        to: config?.to,
+        helper: config?.helper,
         ...statStyles[index % statStyles.length],
       };
-    });
+    })
+    .sort((a, b) =>
+      principal ? principalStatOrder.indexOf(a.key) - principalStatOrder.indexOf(b.key) : 0,
+    );
   const primaryRole = user.roles[0]?.replaceAll("_", " ") || "ERP";
-  const principal = user.roles.includes(ROLES.PRINCIPAL);
+  const overviewStats = principal
+    ? stats.filter(({ key }) =>
+        ["pendingAdmissions", "approvedAdmissions", "rejectedAdmissions"].includes(key),
+      )
+    : stats.filter(({ key }) => !["totalFeeCollected", "totalFeePending"].includes(key));
   const teacher =
     user.roles.includes(ROLES.CLASS_TEACHER) || user.roles.includes(ROLES.SUBJECT_TEACHER);
   const quickActions = principal
@@ -187,21 +268,42 @@ export function RoleDashboardPage() {
       </section>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map(({ key, label, value, icon: Icon, color, accent }) => (
-          <Card key={key} className="relative overflow-hidden p-5">
-            <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
-            <div className="flex items-center justify-between">
-              <div className={`grid h-11 w-11 place-items-center rounded-xl ${color}`}>
-                <Icon className="h-5 w-5" />
+        {stats.map(({ key, label, value, icon: Icon, color, accent, to, helper }) => {
+          const content = (
+            <Card
+              className={`relative h-full overflow-hidden p-5 transition duration-200 ${to ? "group-hover:-translate-y-0.5 group-hover:border-brand-200 group-hover:shadow-lg" : ""}`}
+            >
+              <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
+              <div className="flex items-center justify-between">
+                <div className={`grid h-11 w-11 place-items-center rounded-xl ${color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600">
+                  Live
+                </span>
               </div>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600">
-                Live
-              </span>
-            </div>
-            <p className="mt-4 text-2xl font-bold text-slate-900">{value}</p>
-            <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
-          </Card>
-        ))}
+              <p className="mt-4 text-2xl font-bold text-slate-900">{value}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-600">{label}</p>
+              {to && (
+                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-semibold text-brand-600">
+                  <span>{helper}</span>
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </div>
+              )}
+            </Card>
+          );
+          return to ? (
+            <Link
+              key={key}
+              to={to}
+              className="group rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={key}>{content}</div>
+          );
+        })}
       </div>
 
       {teacher && <TeacherDashboardTimetable />}
@@ -211,15 +313,19 @@ export function RoleDashboardPage() {
         <Card className="overflow-hidden">
           <div className="erp-panel-header">
             <div>
-              <h2 className="font-bold">Workspace overview</h2>
-              <p className="mt-1 text-xs text-slate-500">Live role-specific data</p>
+              <h2 className="font-bold">
+                {principal ? "Admission overview" : "Workspace overview"}
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                {principal ? "Principal review status distribution" : "Live role-specific data"}
+              </p>
             </div>
             <Activity className="h-5 w-5 text-brand-600" />
           </div>
           <div className="flex min-h-[300px] items-center justify-center p-6">
             <DonutChart
-              centerLabel="ERP Records"
-              segments={stats.map(({ label, numericValue, chart }) => ({
+              centerLabel={principal ? "Admissions" : "ERP Records"}
+              segments={overviewStats.map(({ label, numericValue, chart }) => ({
                 label,
                 value: numericValue,
                 color: chart,

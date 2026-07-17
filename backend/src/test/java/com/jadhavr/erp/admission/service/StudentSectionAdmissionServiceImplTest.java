@@ -3,6 +3,7 @@ package com.jadhavr.erp.admission.service;
 import com.jadhavr.erp.admission.dto.MarkAdmissionPrintedRequest;
 import com.jadhavr.erp.admission.dto.RejectAdmissionRequest;
 import com.jadhavr.erp.admission.dto.VerifyAdmissionRequest;
+import com.jadhavr.erp.admission.entity.AdmissionAcademicRecord;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
 import com.jadhavr.erp.admission.enums.AdmissionAction;
@@ -37,6 +38,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -155,10 +157,26 @@ class StudentSectionAdmissionServiceImplTest {
     }
 
     @Test
-    void printDataFailsBeforeApproval() {
-        when(admissions.findById(100L)).thenReturn(Optional.of(admission(100L, 1L, AdmissionStatus.SUBMITTED)));
+    void printDataIsAvailableAsSoonAsAdmissionIsSubmitted() {
+        AdmissionForm admission = admission(100L, 1L, AdmissionStatus.SUBMITTED);
+        admission.setPhotoStorageName("student-photo.jpg");
+        admission.setPlaceOfBirth("Pune");
+        admission.setAadhaarNumber("123456789012");
+        admission.setCorrespondenceAddress("Narhe Road");
+        admission.setQualifyingEntranceSeatNumber("CET-101");
+        admission.setAcademicRecords(List.of(new AdmissionAcademicRecord(
+                "12TH", "ABC College", "State Board", "2025", new BigDecimal("82.50"))));
+        when(admissions.findById(100L)).thenReturn(Optional.of(admission));
 
-        assertThrows(BadRequestException.class, () -> service.getPrintData(100L));
+        var result = service.getPrintData(100L);
+
+        assertEquals("ADM-ABC001-2026-000001", result.admissionReferenceNumber());
+        assertTrue(result.student().hasPhoto());
+        assertEquals("Pune", result.student().placeOfBirth());
+        assertEquals("123456789012", result.student().aadhaarNumber());
+        assertEquals("Narhe Road", result.student().correspondenceAddress());
+        assertEquals("CET-101", result.academic().qualifyingEntranceSeatNumber());
+        assertEquals("ABC College", result.academic().academicRecords().get(0).instituteName());
     }
 
     @Test
@@ -186,6 +204,20 @@ class StudentSectionAdmissionServiceImplTest {
 
         assertEquals(2, result.printCount());
         assertEquals(AdmissionStatus.STUDENT_SECTION_APPROVED, result.status());
+        verifyHistory(AdmissionAction.ADMISSION_FORM_PRINTED);
+    }
+
+    @Test
+    void markDownloadedWorksBeforeApprovalAndKeepsCurrentStatus() {
+        AdmissionForm admission = admission(100L, 1L, AdmissionStatus.SUBMITTED);
+        when(admissions.findById(100L)).thenReturn(Optional.of(admission));
+        when(admissions.save(admission)).thenReturn(admission);
+        when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
+
+        var result = service.markAdmissionPrinted(100L, new MarkAdmissionPrintedRequest("PDF downloaded"));
+
+        assertEquals(1, result.printCount());
+        assertEquals(AdmissionStatus.SUBMITTED, result.status());
         verifyHistory(AdmissionAction.ADMISSION_FORM_PRINTED);
     }
 

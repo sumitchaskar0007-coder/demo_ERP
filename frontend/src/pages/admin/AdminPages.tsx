@@ -16,18 +16,11 @@ import {
   WalletCards,
 } from "lucide-react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -49,11 +42,7 @@ import type { Department } from "@/features/departments/types";
 import type { FeeStructureResponse } from "@/features/fees/types";
 import type { PageResponse } from "@/types/api";
 import { weeklyTimetableApi, type WeeklyDivision } from "@/features/academics/api";
-import type {
-  TeacherDay,
-  TeacherLecture,
-  TeacherTimetable,
-} from "@/features/teacherTimetable/api";
+import type { TeacherDay, TeacherLecture, TeacherTimetable } from "@/features/teacherTimetable/api";
 import {
   TeacherDayView,
   TeacherTimetableStat,
@@ -293,17 +282,23 @@ export function AdminDashboardPage() {
   );
 }
 function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
-  const admissions = Object.entries(analytics.admissionStatusDistribution).map(
-    ([label, value]) => ({
-      label: label.replaceAll("_", " "),
+  const chartColors = ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#f43f5e"];
+  const feeCollection = analytics.collegeWiseFeeCollection
+    .map((item) => ({ ...item, value: Number(item.value) || 0 }))
+    .filter((item) => item.value > 0);
+  const admissions = Object.entries(analytics.admissionStatusDistribution)
+    .map(([label, value], index) => ({
+      label: label
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (letter) => letter.toUpperCase()),
       value: Number(value) || 0,
-    }),
-  );
-  const academics = analytics.collegeWiseStudents.map((item, index) => ({
-    ...item,
-    value: Number(item.value) || 0,
-    color: ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#f43f5e"][index % 5],
-  }));
+      color: chartColors[index % chartColors.length],
+    }))
+    .filter((item) => item.value > 0);
+  const academics = analytics.collegeWiseStudents
+    .map((item) => ({ ...item, value: Number(item.value) || 0 }))
+    .filter((item) => item.value > 0);
   const staffCards = [
     {
       label: "Total Staff",
@@ -330,122 +325,111 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
       tone: "bg-emerald-50 text-emerald-600",
     },
   ];
-  const payroll = [
-    { label: "Processed", value: 0 },
-    { label: "Pending", value: 0 },
-    { label: "On Hold", value: 0 },
+  const feeBalance = [
+    {
+      label: "Collected",
+      value: Number(analytics.summary.totalFeeCollection) || 0,
+      color: "#10b981",
+    },
+    { label: "Pending", value: Number(analytics.summary.pendingFee) || 0, color: "#f59e0b" },
   ];
 
   return (
     <section className="mt-6 space-y-6">
       <div className="grid gap-6 xl:grid-cols-2">
-        <AnalyticsCard title="Fee Collection" subtitle="College-wise collection trend">
-          {analytics.collegeWiseFeeCollection.some((item) => Number(item.value) > 0) ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={analytics.collegeWiseFeeCollection}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip formatter={(value) => `₹${Number(value ?? 0).toLocaleString("en-IN")}`} />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#2563eb"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: "#2563eb" }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+        <AnalyticsCard
+          title="Fee Collection"
+          subtitle="College-wise verified collection"
+          contentClassName="h-[380px]"
+        >
+          {feeCollection.length ? (
+            <CollegeBarList
+              items={feeCollection}
+              barClassName="bg-blue-600"
+              valueLabel="Collection"
+              currency
+            />
           ) : (
             <ChartEmpty message="No verified fee collections yet" />
           )}
         </AnalyticsCard>
 
         <AnalyticsCard title="Admissions" subtitle="Application status distribution">
-          {admissions.some((item) => item.value > 0) ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={admissions} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} maxBarSize={48} />
-              </BarChart>
-            </ResponsiveContainer>
+          {admissions.length ? (
+            <div className="flex h-full flex-col items-center gap-3 sm:flex-row">
+              <div className="h-full min-h-52 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={admissions}
+                      dataKey="value"
+                      nameKey="label"
+                      innerRadius={58}
+                      outerRadius={82}
+                      paddingAngle={3}
+                      stroke="none"
+                    >
+                      {admissions.map((item) => (
+                        <Cell key={item.label} fill={item.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => Number(value ?? 0).toLocaleString("en-IN")} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ChartLegend items={admissions} />
+            </div>
           ) : (
             <ChartEmpty message="No admission records yet" />
           )}
         </AnalyticsCard>
 
-        <AnalyticsCard title="Academics" subtitle="Students allocated across colleges">
-          <div className="flex h-full flex-col items-center gap-3 sm:flex-row">
-            <div className="h-full min-h-52 flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={
-                      academics.length
-                        ? academics
-                        : [{ label: "No data", value: 1, color: "#e2e8f0" }]
-                    }
-                    dataKey="value"
-                    nameKey="label"
-                    innerRadius={58}
-                    outerRadius={82}
-                    paddingAngle={academics.length ? 3 : 0}
-                    stroke="none"
-                  >
-                    {(academics.length
-                      ? academics
-                      : [{ label: "No data", value: 1, color: "#e2e8f0" }]
-                    ).map((item) => (
-                      <Cell key={item.label} fill={item.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="w-full space-y-2 sm:w-48">
-              {academics.slice(0, 5).map((item) => (
-                <div key={item.label} className="flex items-center gap-2 text-xs">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-slate-500">{item.label}</span>
-                  <b>{item.value}</b>
-                </div>
-              ))}
-            </div>
-          </div>
+        <AnalyticsCard
+          title="Academics"
+          subtitle="Students allocated across colleges"
+          contentClassName="h-[380px]"
+        >
+          {academics.length ? (
+            <CollegeBarList
+              items={academics}
+              barClassName="bg-teal-500"
+              valueLabel="Students"
+            />
+          ) : (
+            <ChartEmpty message="No students allocated yet" />
+          )}
         </AnalyticsCard>
 
-        <AnalyticsCard title="Payroll" subtitle="Payroll processing allocation">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={payroll} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis
-                allowDecimals={false}
-                tick={{ fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip />
-              <Bar dataKey="value" fill="#f59e0b" radius={[8, 8, 0, 0]} maxBarSize={52} />
-            </BarChart>
-          </ResponsiveContainer>
-          <p className="-mt-6 text-center text-xs text-slate-400">Awaiting payroll API data</p>
+        <AnalyticsCard title="Fee Balance" subtitle="Collected and pending student fees">
+          {feeBalance.some((item) => item.value > 0) ? (
+            <div className="flex h-full flex-col items-center gap-3 sm:flex-row">
+              <div className="h-full min-h-52 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={feeBalance}
+                      dataKey="value"
+                      nameKey="label"
+                      innerRadius={58}
+                      outerRadius={82}
+                      paddingAngle={3}
+                      stroke="none"
+                    >
+                      {feeBalance.map((item) => (
+                        <Cell key={item.label} fill={item.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => `₹${Number(value ?? 0).toLocaleString("en-IN")}`}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ChartLegend items={feeBalance} currency />
+            </div>
+          ) : (
+            <ChartEmpty message="No fee accounts created yet" />
+          )}
         </AnalyticsCard>
       </div>
 
@@ -475,20 +459,93 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
   );
 }
 
+function ChartLegend({
+  items,
+  currency = false,
+}: {
+  items: { label: string; value: number; color: string }[];
+  currency?: boolean;
+}) {
+  return (
+    <div className="w-full space-y-2 sm:w-48">
+      {items.slice(0, 6).map((item) => (
+        <div key={item.label} className="flex items-center gap-2 text-xs">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: item.color }}
+          />
+          <span className="min-w-0 flex-1 truncate text-slate-500" title={item.label}>
+            {item.label}
+          </span>
+          <b>
+            {currency
+              ? `₹${item.value.toLocaleString("en-IN")}`
+              : item.value.toLocaleString("en-IN")}
+          </b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CollegeBarList({
+  items,
+  barClassName,
+  valueLabel,
+  currency = false,
+}: {
+  items: { label: string; value: number }[];
+  barClassName: string;
+  valueLabel: string;
+  currency?: boolean;
+}) {
+  const maximum = Math.max(...items.map((item) => item.value), 1);
+  const formatValue = (value: number) =>
+    currency ? `₹${value.toLocaleString("en-IN")}` : value.toLocaleString("en-IN");
+
+  return (
+    <div className="dashboard-chart-scroll h-full overflow-auto pr-1">
+      <div className="college-bar-chart" role="img" aria-label={`College-wise ${valueLabel}`}>
+        <div className="college-bar-chart__header" aria-hidden="true">
+          <span>College name</span>
+          <span>{valueLabel}</span>
+          <span className="text-right">Total</span>
+        </div>
+        {items.map((item) => (
+          <div className="college-bar-chart__row" key={item.label}>
+            <span className="college-bar-chart__name" title={item.label}>
+              {item.label}
+            </span>
+            <span className="college-bar-chart__track" aria-hidden="true">
+              <span
+                className={`college-bar-chart__fill ${barClassName}`}
+                style={{ width: `${Math.max((item.value / maximum) * 100, 2)}%` }}
+              />
+            </span>
+            <strong className="college-bar-chart__value">{formatValue(item.value)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AnalyticsCard({
   title,
   subtitle,
   children,
+  contentClassName = "h-64",
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  contentClassName?: string;
 }) {
   return (
-    <Card className="p-6">
-      <h2 className="font-bold">{title}</h2>
-      <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-      <div className="mt-4 h-64">{children}</div>
+    <Card className="overflow-hidden p-5 sm:p-6">
+      <h2 className="text-base font-bold tracking-tight text-slate-900">{title}</h2>
+      <p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p>
+      <div className={`mt-4 ${contentClassName}`}>{children}</div>
     </Card>
   );
 }
@@ -967,8 +1024,8 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
           <Loader />
         ) : rows.length ? (
           <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-left">
+            <div className="erp-table-scroll hidden md:block">
+              <table className="erp-table">
                 <thead>
                   <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="px-5 py-4">Student</th>
@@ -1443,9 +1500,7 @@ export function AdminLectureLoadPage() {
             options={[
               { label: filters.collegeId ? "All departments" : "Select college first", value: "" },
               ...uniqueOptions(
-                divisions.filter(
-                  (d) => d.collegeId === Number(filters.collegeId),
-                ),
+                divisions.filter((d) => d.collegeId === Number(filters.collegeId)),
                 "departmentId",
                 "department",
               ),
@@ -1567,17 +1622,12 @@ export function AdminLectureLoadPage() {
                   label="Day"
                   value={selectedDay}
                   onChange={(event) => setSelectedDay(event.target.value)}
-                  options={[
-                    "MONDAY",
-                    "TUESDAY",
-                    "WEDNESDAY",
-                    "THURSDAY",
-                    "FRIDAY",
-                    "SATURDAY",
-                  ].map((day) => ({
-                    value: day,
-                    label: day[0] + day.slice(1).toLowerCase(),
-                  }))}
+                  options={["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"].map(
+                    (day) => ({
+                      value: day,
+                      label: day[0] + day.slice(1).toLowerCase(),
+                    }),
+                  )}
                 />
               </Card>
               {dayData && (

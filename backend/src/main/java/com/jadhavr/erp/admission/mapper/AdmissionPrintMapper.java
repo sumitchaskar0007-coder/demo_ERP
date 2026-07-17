@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Component
 public class AdmissionPrintMapper {
@@ -41,7 +42,24 @@ public class AdmissionPrintMapper {
                         admission.getAddressLine2(),
                         admission.getCity(),
                         admission.getState(),
-                        admission.getPincode()
+                        admission.getPincode(),
+                        admission.getPhotoStorageName() != null,
+                        admission.getPlaceOfBirth(),
+                        admission.getMaritalStatus(),
+                        admission.getAadhaarNumber(),
+                        admission.getApaarId(),
+                        admission.getNationality(),
+                        admission.getReligion(),
+                        admission.getCaste(),
+                        admission.getPermanentPhone(),
+                        admission.getPermanentEmail(),
+                        admission.getCorrespondenceAddress(),
+                        admission.getCorrespondenceCity(),
+                        admission.getCorrespondencePincode(),
+                        admission.getCorrespondenceState(),
+                        admission.getCorrespondencePhone(),
+                        admission.getCorrespondenceMobile(),
+                        admission.getCorrespondenceEmail()
                 ),
                 new AdmissionPrintParentSection(
                         admission.getParentName(),
@@ -54,7 +72,18 @@ public class AdmissionPrintMapper {
                         admission.getDepartment().getCode(),
                         admission.getPreviousSchoolName(),
                         admission.getPreviousClassName(),
-                        admission.getPreviousPercentage()
+                        admission.getPreviousPercentage(),
+                        admission.getAcademicRecords().stream()
+                                .filter(Objects::nonNull)
+                                .map(record -> new com.jadhavr.erp.admission.dto.AcademicRecordDto(
+                                        record.getQualification(), record.getInstituteName(),
+                                        record.getBoardUniversity(), record.getYearOfPassing(),
+                                        record.getMarksPercentage()))
+                                .toList(),
+                        admission.getQualifyingEntranceSeatNumber(),
+                        admission.getQualifyingEntranceTotalScore(),
+                        admission.getLastGraduationCollegeName(),
+                        admission.getLastGraduationCollegeAddress()
                 ),
                 new AdmissionPrintVerificationSection(
                         admission.getStatus(),

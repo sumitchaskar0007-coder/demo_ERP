@@ -1,4 +1,4 @@
-import { Eye, FileText, Search } from "lucide-react";
+import { Download, Eye, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -114,7 +114,7 @@ export function StudentSectionAdmissionListPage() {
       key: "actions",
       header: "",
       render: (row) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="table-action-group">
           <Button
             variant="secondary"
             onClick={() => navigate(`/student-section/admissions/${row.id}`)}
@@ -133,15 +133,13 @@ export function StudentSectionAdmissionListPage() {
           {["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(row.status) && (
             <Button onClick={() => setAction({ type: "approve", admission: row })}>Approve</Button>
           )}
-          {row.status === "STUDENT_SECTION_APPROVED" && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
-            >
-              <FileText className="h-4 w-4" />
-              Print
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </Button>
         </div>
       ),
     },
@@ -152,8 +150,8 @@ export function StudentSectionAdmissionListPage() {
         <h1 className="page-title">Student Section Admissions</h1>
         <p className="page-subtitle">Search and verify public admission forms.</p>
       </div>
-      <Card className="mt-6">
-        <div className="grid gap-3 border-b p-4 md:grid-cols-[1fr_260px]">
+      <Card className="mt-6 overflow-hidden">
+        <div className="filter-grid md:grid-cols-[minmax(0,1fr)_260px]">
           <Input
             placeholder="Search reference, student, email..."
             icon={<Search className="h-4 w-4" />}
@@ -200,9 +198,11 @@ export function StudentSectionAdmissionListPage() {
         onConfirm={runAction}
         loading={actionLoading}
         title={`${action?.type === "start" ? "Start review" : "Approve admission"}?`}
-        description={action?.type === "approve"
-          ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
-          : "This will record a status history entry."}
+        description={
+          action?.type === "approve"
+            ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
+            : "This will record a status history entry."
+        }
         confirmLabel={action?.type === "start" ? "Start Review" : "Approve"}
       />
     </div>

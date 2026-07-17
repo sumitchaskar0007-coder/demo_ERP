@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileText } from "lucide-react";
+import { Download } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useParams } from "react-router-dom";
@@ -14,7 +14,6 @@ import { Textarea } from "@/components/common/Textarea";
 import { handleApiError } from "@/lib/handleApiError";
 import {
   approveAdmissionSchema,
-  markAdmissionPrintedSchema,
   rejectAdmissionSchema,
 } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
@@ -36,7 +35,7 @@ export function StudentSectionAdmissionDetailPage() {
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [history, setHistory] = useState<AdmissionStatusHistoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<"approve" | "reject" | "printed" | null>(null);
+  const [modal, setModal] = useState<"approve" | "reject" | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -92,19 +91,12 @@ export function StudentSectionAdmissionDetailPage() {
               Reject
             </Button>
           )}
-          {admission.status === "STUDENT_SECTION_APPROVED" && (
-            <Link to={`/student-section/admissions/${id}/print`}>
-              <Button variant="secondary">
-                <FileText className="h-4 w-4" />
-                View Print Format
-              </Button>
-            </Link>
-          )}
-          {admission.status === "STUDENT_SECTION_APPROVED" && (
-            <Button variant="secondary" onClick={() => setModal("printed")}>
-              Mark Printed
+          <Link to={`/student-section/admissions/${id}/print`}>
+            <Button variant="secondary">
+              <Download className="h-4 w-4" />
+              Download Admission PDF
             </Button>
-          )}
+          </Link>
         </div>
       </Card>
       {canVerify ? (
@@ -180,7 +172,7 @@ function ActionModal({
   requestedCategory,
   reload,
 }: {
-  modal: "approve" | "reject" | "printed" | null;
+  modal: "approve" | "reject" | null;
   onClose: () => void;
   id: number;
   requestedCategory: StudentSectionAdmissionResponse["studentCategory"];
@@ -194,10 +186,6 @@ function ActionModal({
     resolver: zodResolver(rejectAdmissionSchema),
     defaultValues: { rejectionReason: "" },
   });
-  const printedForm = useForm<z.infer<typeof markAdmissionPrintedSchema>>({
-    resolver: zodResolver(markAdmissionPrintedSchema),
-    defaultValues: { remarks: "" },
-  });
   const submit = async (values: Record<string, string>) => {
     try {
       if (modal === "approve")
@@ -207,7 +195,6 @@ function ActionModal({
         });
       if (modal === "reject")
         await api.rejectAdmission(id, { rejectionReason: values.rejectionReason });
-      if (modal === "printed") await api.markAdmissionPrinted(id, values);
       toast.success("Admission updated");
       onClose();
       await reload();
@@ -222,9 +209,7 @@ function ActionModal({
       title={
         modal === "reject"
           ? "Reject admission"
-          : modal === "printed"
-            ? "Mark as printed"
-            : "Approve admission"
+          : "Approve admission"
       }
     >
       {modal === "approve" && (
@@ -263,18 +248,6 @@ function ActionModal({
           />
           <Button type="submit" variant="danger" loading={rejectForm.formState.isSubmitting}>
             Reject
-          </Button>
-        </form>
-      )}
-      {modal === "printed" && (
-        <form onSubmit={printedForm.handleSubmit(submit)} className="space-y-4">
-          <Textarea
-            label="Remarks"
-            {...printedForm.register("remarks")}
-            error={printedForm.formState.errors.remarks?.message}
-          />
-          <Button type="submit" loading={printedForm.formState.isSubmitting}>
-            Mark Printed
           </Button>
         </form>
       )}

@@ -255,7 +255,6 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     @Override
     public AdmissionPrintResponse getPrintData(Long admissionId) {
         AdmissionForm admission = findScopedAdmission(admissionId);
-        ensurePrintable(admission);
         return printMapper.toResponse(admission);
     }
 
@@ -263,12 +262,12 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     @Transactional
     public StudentSectionAdmissionResponse markAdmissionPrinted(Long admissionId, MarkAdmissionPrintedRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
-        ensurePrintable(admission);
+        AdmissionStatus currentStatus = admission.getStatus();
         admission.setLastPrintedAt(LocalDateTime.now());
         admission.setLastPrintedBy(currentUserEntity());
         admission.setPrintCount((admission.getPrintCount() == null ? 0 : admission.getPrintCount()) + 1);
         AdmissionForm saved = admissions.save(admission);
-        saveHistory(saved, AdmissionStatus.STUDENT_SECTION_APPROVED, AdmissionStatus.STUDENT_SECTION_APPROVED,
+        saveHistory(saved, currentStatus, currentStatus,
                 AdmissionAction.ADMISSION_FORM_PRINTED,
                 trimToNull(request.remarks()) == null ? "Admission form printed" : request.remarks().trim());
         return admissionMapper.toResponse(saved);
@@ -325,12 +324,6 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private void ensureVerifiable(AdmissionForm admission, String action) {
         if (!VERIFIABLE.contains(admission.getStatus())) {
             throw new BadRequestException("Admission cannot be " + action + "d in current status");
-        }
-    }
-
-    private void ensurePrintable(AdmissionForm admission) {
-        if (admission.getStatus() != AdmissionStatus.STUDENT_SECTION_APPROVED) {
-            throw new BadRequestException("Admission form can be printed only after Student Section approval");
         }
     }
 

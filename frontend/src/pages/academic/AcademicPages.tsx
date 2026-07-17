@@ -32,7 +32,7 @@ function Shell({
     <div className="page-container">
       <h1 className="page-title">{title}</h1>
       <p className="page-subtitle">{subtitle}</p>
-      <Card className="mt-6 p-5">{children}</Card>
+      <Card className="mt-6 p-4 sm:p-5">{children}</Card>
     </div>
   );
 }
@@ -176,10 +176,15 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
               </div>
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold sm:text-xl">Subject catalogue</h2>
-                <p className="mt-1 text-sm text-white/80">Organise subjects by department and course year.</p>
+                <p className="mt-1 text-sm text-white/80">
+                  Organise subjects by department and course year.
+                </p>
               </div>
             </div>
-            <Button className="w-full shrink-0 bg-white text-brand-700 hover:bg-brand-50 sm:w-auto" onClick={() => navigate("/academic/subjects/create")}>
+            <Button
+              className="w-full shrink-0 bg-white text-brand-700 hover:bg-brand-50 sm:w-auto"
+              onClick={() => navigate("/academic/subjects/create")}
+            >
               <Plus className="h-4 w-4" /> Create subject
             </Button>
           </div>
@@ -194,7 +199,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                 onChange={(e) => handleDeptChange(e.target.value)}
                 options={[
                   { label: "All departments", value: "" },
-                  ...departments.map((d) => ({ label: `${d.code} - ${d.name}`, value: String(d.id) })),
+                  ...departments.map((d) => ({
+                    label: `${d.code} - ${d.name}`,
+                    value: String(d.id),
+                  })),
                 ]}
               />
               <Select
@@ -203,7 +211,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                 onChange={(e) => setYearFilter(e.target.value)}
                 disabled={!deptFilter}
                 options={[
-                  { label: deptFilter ? "All course years" : "Select a department first", value: "" },
+                  {
+                    label: deptFilter ? "All course years" : "Select a department first",
+                    value: "",
+                  },
                   ...yearOptions.map((y) => ({ label: y.replaceAll("_", " "), value: y })),
                 ]}
               />
@@ -212,7 +223,9 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
         </div>
       ) : (
         <div className="mb-4">
-          <Button onClick={() => navigate(`/academic/${kind}/create`)}><Plus className="h-4 w-4" /> Create new</Button>
+          <Button onClick={() => navigate(`/academic/${kind}/create`)}>
+            <Plus className="h-4 w-4" /> Create new
+          </Button>
         </div>
       )}
       {loading ? (
@@ -220,7 +233,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
       ) : rows.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
-            <div key={r.id} className="min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-brand-200 hover:shadow-sm">
+            <div
+              key={r.id}
+              className="min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-brand-200 hover:shadow-sm"
+            >
               <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <b className="block break-words text-slate-900">{r.name}</b>
@@ -234,8 +250,11 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                   </p>
                 </div>
                 {kind === "subjects" && (
-                  <div className="flex w-full gap-2 sm:w-auto">
-                    <Button className="h-9 flex-1 px-3 text-xs sm:flex-none" onClick={() => navigate(`/academic/subjects/${r.id}/edit`)}>
+                  <div className="table-action-group sm:w-auto">
+                    <Button
+                      className="h-9 flex-1 px-3 text-xs sm:flex-none"
+                      onClick={() => navigate(`/academic/subjects/${r.id}/edit`)}
+                    >
                       Edit
                     </Button>
                     <Button
@@ -263,8 +282,18 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
       ) : (
         <EmptyState
           title={`No ${kind} found`}
-          description={kind === "subjects" ? "Create a subject or adjust the department and course-year filters." : "Create the first record to begin."}
-          action={kind === "subjects" ? <Button onClick={() => navigate("/academic/subjects/create")}><Plus className="h-4 w-4" /> Create subject</Button> : undefined}
+          description={
+            kind === "subjects"
+              ? "Create a subject or adjust the department and course-year filters."
+              : "Create the first record to begin."
+          }
+          action={
+            kind === "subjects" ? (
+              <Button onClick={() => navigate("/academic/subjects/create")}>
+                <Plus className="h-4 w-4" /> Create subject
+              </Button>
+            ) : undefined
+          }
         />
       )}
     </Shell>
@@ -436,7 +465,8 @@ export function SubjectEditPage() {
 
   useEffect(() => {
     if (!id) return;
-    api.searchSubjects()
+    api
+      .searchSubjects()
       .then((rows) => {
         const sub = rows.find((s) => s.id === Number(id));
         if (sub) {
@@ -468,14 +498,31 @@ export function SubjectEditPage() {
     }
   };
 
-  if (loading) return <Shell title="Edit Subject" subtitle="Loading..."><Loader /></Shell>;
+  if (loading)
+    return (
+      <Shell title="Edit Subject" subtitle="Loading...">
+        <Loader />
+      </Shell>
+    );
 
   return (
     <Shell title="Edit Subject" subtitle="Update subject details.">
       <div className="grid gap-4 md:grid-cols-2">
-        <Input label="Name" value={v.name || ""} onChange={(e) => setV({ ...v, name: e.target.value })} />
-        <Input label="Code" value={v.code || ""} onChange={(e) => setV({ ...v, code: e.target.value })} />
-        <Input label="Credits" value={v.credits || ""} onChange={(e) => setV({ ...v, credits: e.target.value })} />
+        <Input
+          label="Name"
+          value={v.name || ""}
+          onChange={(e) => setV({ ...v, name: e.target.value })}
+        />
+        <Input
+          label="Code"
+          value={v.code || ""}
+          onChange={(e) => setV({ ...v, code: e.target.value })}
+        />
+        <Input
+          label="Credits"
+          value={v.credits || ""}
+          onChange={(e) => setV({ ...v, credits: e.target.value })}
+        />
         <Select
           label="Subject Type"
           value={v.subjectType || ""}
@@ -487,9 +534,15 @@ export function SubjectEditPage() {
             { label: "Other (Soft Skill etc.)", value: "OTHER" },
           ]}
         />
-        <Input label="Description" value={v.description || ""} onChange={(e) => setV({ ...v, description: e.target.value })} />
+        <Input
+          label="Description"
+          value={v.description || ""}
+          onChange={(e) => setV({ ...v, description: e.target.value })}
+        />
       </div>
-      <Button className="mt-5" onClick={save}>Update</Button>
+      <Button className="mt-5" onClick={save}>
+        Update
+      </Button>
     </Shell>
   );
 }

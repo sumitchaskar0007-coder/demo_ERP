@@ -72,21 +72,45 @@ class SuperAdminFeeAnalyticsControllerTest {
 
     @Test
     void analyticsReturnsFilteredShape() {
-        when(accounts.sumPaidAmount()).thenReturn(new BigDecimal("1500.00"));
+        when(payments.sumByStatus(com.jadhavr.erp.fee.enums.PaymentStatus.VERIFIED))
+                .thenReturn(BigDecimal.ZERO);
         when(accounts.sumRemainingAmount()).thenReturn(new BigDecimal("500.00"));
         when(enrollments.findAll()).thenReturn(List.of());
         when(admissions.findAll()).thenReturn(List.of());
         when(students.findAll()).thenReturn(List.of());
         when(accounts.findAll()).thenReturn(List.of());
         when(staff.findAll()).thenReturn(List.of());
+
+        when(accounts.findPendingFees(
+                isNull(), isNull(), isNull(), isNull(), eq(""), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<PendingFeeRow>(List.of()));
+
+        var response = controller.analytics(1L, null, null, null);
+
+        assertEquals(BigDecimal.ZERO,
+                ((java.util.Map<?, ?>) response.data().get("summary")).get("totalFeeCollection"));
+    }
+
+    @Test
+    void analyticsUsesAggregateQueriesInsteadOfFullTableReads() {
+        when(payments.sumByStatus(com.jadhavr.erp.fee.enums.PaymentStatus.VERIFIED))
+                .thenReturn(new BigDecimal("1500.00"));
+        when(accounts.sumRemainingAmount()).thenReturn(new BigDecimal("500.00"));
+        when(payments.sumVerifiedByCollege()).thenReturn(List.of());
+        when(students.countStudentsByCollege()).thenReturn(List.of());
+        when(admissions.countAdmissionsByStatus()).thenReturn(List.of());
         when(accounts.findPendingFees(
                 isNull(), isNull(), isNull(), isNull(), eq(""), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<PendingFeeRow>(List.of()));
 
         var response = controller.analytics(null, null, null, null);
 
-        assertEquals(BigDecimal.ZERO,
+        assertEquals(new BigDecimal("1500.00"),
                 ((java.util.Map<?, ?>) response.data().get("summary")).get("totalFeeCollection"));
+        verify(enrollments, never()).findAll();
+        verify(admissions, never()).findAll();
+        verify(students, never()).findAll();
+        verify(accounts, never()).findAll();
         verify(payments, never()).findAll();
         verify(colleges, never()).findAll();
         verify(users, never()).findAll();

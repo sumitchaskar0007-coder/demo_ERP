@@ -17,6 +17,7 @@ import com.jadhavr.erp.fee.repository.StudentFeeAccountRepository;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.user.entity.RoleName;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -147,6 +149,8 @@ public class DashboardController {
                 Map.entry("collegeId", collegeId),
                 Map.entry("totalDepartments", departments.countByCollegeId(collegeId)),
                 Map.entry("totalStaff", staff.countByCollegeId(collegeId)),
+                Map.entry("totalTeachingStaff", staff.countTeachingStaffByCollegeId(collegeId,
+                        Set.of(RoleName.HOD, RoleName.CLASS_TEACHER, RoleName.SUBJECT_TEACHER))),
                 Map.entry("totalStudents", students.countByCollegeId(collegeId)),
                 Map.entry("pendingAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.PRINCIPAL_REVIEW_PENDING)),
                 Map.entry("approvedAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.PRINCIPAL_APPROVED)),

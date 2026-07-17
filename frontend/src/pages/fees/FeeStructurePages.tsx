@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { Eye, Pencil, Plus, Power, Search, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
+import { Select } from "@/components/common/Select";
 import { StatusBadge } from "@/components/common/Badge";
 import { DataTable, type Column } from "@/components/table/DataTable";
 import { useAuth } from "@/features/auth/authStore";
@@ -38,16 +40,32 @@ export function FeeStructureListPage() {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <div className="flex gap-2">
+        <div className="table-action-group">
           <Link to={`/fee-structures/${r.id}`}>
-            <Button variant="secondary">View</Button>
+            <Button variant="secondary">
+              <Eye className="h-4 w-4" /> View
+            </Button>
           </Link>
-          <Link to={`/fee-structures/${r.id}/edit`}><Button variant="secondary">Edit</Button></Link>
-          <Button variant="danger" onClick={async () => {
-            if (!window.confirm(`Delete fee structure "${r.title}"?`)) return;
-            try { await api.deleteFeeStructure(r.id); toast.success("Fee structure deleted"); load(); }
-            catch (e) { toast.error(handleApiError(e).message); }
-          }}>Delete</Button>
+          <Link to={`/fee-structures/${r.id}/edit`}>
+            <Button variant="secondary">
+              <Pencil className="h-4 w-4" /> Edit
+            </Button>
+          </Link>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              if (!window.confirm(`Delete fee structure "${r.title}"?`)) return;
+              try {
+                await api.deleteFeeStructure(r.id);
+                toast.success("Fee structure deleted");
+                load();
+              } catch (e) {
+                toast.error(handleApiError(e).message);
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" /> Delete
+          </Button>
           <Button
             variant="ghost"
             onClick={() =>
@@ -56,6 +74,7 @@ export function FeeStructureListPage() {
                 .then(load)
             }
           >
+            <Power className="h-4 w-4" />
             {r.status === "ACTIVE" ? "Deactivate" : "Activate"}
           </Button>
         </div>
@@ -64,26 +83,35 @@ export function FeeStructureListPage() {
   ];
   return (
     <div className="page-container space-y-5">
-      <div className="flex justify-between">
+      <div className="page-header">
         <div>
           <h1 className="page-title">Fee Structures</h1>
           <p className="page-subtitle">Manage department fee plans without deleting history.</p>
         </div>
-        <Link to="/fee-structures/create">
-          <Button>Create Fee Structure</Button>
-        </Link>
+        <div className="page-header__actions">
+          <Link to="/fee-structures/create">
+            <Button>
+              <Plus className="h-4 w-4" /> Create Fee Structure
+            </Button>
+          </Link>
+        </div>
       </div>
-      <Card className="p-4">
-        <div className="flex gap-3">
+      <Card className="overflow-hidden">
+        <div className="filter-grid border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <Input
             placeholder="Search fee structures"
+            icon={<Search className="h-4 w-4" />}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <Button onClick={load}>Search</Button>
+          <Button className="w-full sm:w-auto" onClick={load}>
+            Search
+          </Button>
         </div>
       </Card>
-      <DataTable columns={cols} data={data} rowKey={(r) => r.id} />
+      <Card className="overflow-hidden">
+        <DataTable columns={cols} data={data} rowKey={(r) => r.id} />
+      </Card>
     </div>
   );
 }
@@ -132,7 +160,7 @@ export function FeeStructureFormPage() {
   };
   return (
     <div className="page-container">
-      <Card className="mx-auto max-w-4xl p-6">
+      <Card className="mx-auto max-w-4xl p-4 sm:p-6">
         <h1 className="page-title">{id ? "Edit Fee Structure" : "Create Fee Structure"}</h1>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Input
@@ -142,22 +170,19 @@ export function FeeStructureFormPage() {
             disabled={Boolean(user?.collegeId) || Boolean(id)}
             onChange={(e) => set("collegeId", Number(e.target.value))}
           />
-          <label className="text-sm font-semibold">
-            Department
-            <select
-              className="mt-2 h-10 w-full rounded-xl border px-3"
-              value={v.departmentId}
-              disabled={Boolean(id)}
-              onChange={(e) => set("departmentId", Number(e.target.value))}
-            >
-              <option value={0}>Select department</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Department"
+            value={v.departmentId}
+            disabled={Boolean(id)}
+            onChange={(e) => set("departmentId", Number(e.target.value))}
+            options={[
+              { label: "Select department", value: 0 },
+              ...departments.map((department) => ({
+                label: department.name,
+                value: department.id,
+              })),
+            ]}
+          />
           <Input
             label="Academic Year"
             value={v.academicYear}
@@ -185,7 +210,7 @@ export function FeeStructureFormPage() {
             />
           ))}
         </div>
-        <Button className="mt-6" onClick={submit}>
+        <Button className="mt-6 w-full sm:w-auto" onClick={submit}>
           {id ? "Update Fee Structure" : "Create Fee Structure"}
         </Button>
       </Card>
@@ -202,7 +227,7 @@ export function FeeStructureDetailsPage() {
   return (
     <div className="page-container">
       <Card className="p-7">
-        <div className="flex justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="page-title">{x.title}</h1>
           <StatusBadge status={x.status} />
         </div>

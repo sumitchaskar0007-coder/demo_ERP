@@ -143,8 +143,8 @@ export function StaffListPage() {
           <Loader label="Loading staff..." />
         ) : result.content.length ? (
           <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full table-fixed text-left">
+            <div className="erp-table-scroll hidden lg:block">
+              <table className="erp-table table-fixed">
                 <thead><tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="w-[26%] px-5 py-4">Staff Member</th><th className="w-[21%] px-5 py-4">Contact</th><th className="w-[24%] px-5 py-4">Assignment</th><th className="w-[11%] px-5 py-4">Status</th><th className="w-[11%] px-5 py-4">Joined</th><th className="w-[7%] px-5 py-4 text-right">Action</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">{result.content.map((row) => <StaffTableRow key={row.id} row={row} admin={admin} onToggle={setConfirming} />)}</tbody>
               </table>

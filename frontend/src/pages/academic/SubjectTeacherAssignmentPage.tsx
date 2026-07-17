@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Search, UserRound, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, GraduationCap, Search, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
@@ -30,6 +30,7 @@ export function SubjectTeacherAssignmentPage() {
   const [assignments, setAssignments] = useState<SubjectTeacherAssignment[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [saving, setSaving] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState<number | "">("");
@@ -74,11 +75,14 @@ export function SubjectTeacherAssignmentPage() {
   }, []);
 
   const loadAssignments = useCallback(async (teacherId: number) => {
+    setLoadingAssignments(true);
     try {
       const data = await listSubjectTeacherAssignments({ teacherId });
       setAssignments(data as SubjectTeacherAssignment[]);
     } catch {
       setAssignments([]);
+    } finally {
+      setLoadingAssignments(false);
     }
   }, []);
 
@@ -94,6 +98,7 @@ export function SubjectTeacherAssignmentPage() {
   }, [departmentId, yearName, loadTeachers, loadSubjects]);
 
   useEffect(() => {
+    setAssignments([]);
     if (selectedTeacher) void loadAssignments(selectedTeacher.id);
   }, [selectedTeacher, loadAssignments]);
 
@@ -154,7 +159,7 @@ export function SubjectTeacherAssignmentPage() {
         </p>
       </div>
 
-      <Card className="mb-6 p-4">
+      <Card className="mb-6 p-4 sm:p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
             label="Department"
@@ -177,11 +182,28 @@ export function SubjectTeacherAssignmentPage() {
               ...YEAR_OPTIONS.map((y) => ({ label: y.replaceAll("_", " "), value: y })),
             ]}
           />
+          <div className="sm:col-span-2 lg:hidden">
+            <Select
+              label="Select teacher"
+              value={selectedTeacher?.id ?? ""}
+              onChange={(e) => {
+                const teacher = teachers.find((item) => item.id === Number(e.target.value));
+                setSelectedTeacher(teacher ?? null);
+              }}
+              options={[
+                { label: "Choose a teacher", value: "" },
+                ...teachers.map((teacher) => ({
+                  label: `${teacher.fullName} — ${teacher.departmentName || "No department"}`,
+                  value: teacher.id,
+                })),
+              ]}
+            />
+          </div>
         </div>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        <Card className="flex max-h-[calc(100vh-16rem)] flex-col p-0">
+        <Card className="hidden max-h-[calc(100vh-16rem)] flex-col p-0 lg:flex">
           <div className="border-b px-4 py-3">
             <Input
               placeholder="Search teachers..."
@@ -235,21 +257,98 @@ export function SubjectTeacherAssignmentPage() {
             </div>
           ) : (
             <>
-              <div className="border-b px-5 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">{selectedTeacher.fullName}</h2>
-                    <p className="text-sm text-slate-500">
-                      {selectedTeacher.departmentName || "No department"} &middot;{" "}
-                      {selectedTeacher.staffType.replace("_", " ")} &middot; {assignments.length}{" "}
-                      subject{assignments.length !== 1 ? "s" : ""} assigned
-                    </p>
+              <div className="border-b bg-gradient-to-r from-brand-50/80 to-white px-4 py-4 sm:px-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-600 text-base font-bold text-white shadow-sm">
+                      {selectedTeacher.fullName.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="truncate text-base font-bold text-slate-900 sm:text-lg">
+                        {selectedTeacher.fullName}
+                      </h2>
+                      <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+                        {selectedTeacher.departmentName || "No department"} &middot;{" "}
+                        {selectedTeacher.staffType.replaceAll("_", " ")}
+                      </p>
+                    </div>
                   </div>
-                  <Button variant="secondary" onClick={() => setSelectedTeacher(null)}>
+                  <Button
+                    className="w-11 shrink-0 px-0"
+                    variant="secondary"
+                    onClick={() => setSelectedTeacher(null)}
+                    aria-label="Clear selected teacher"
+                    title="Clear selected teacher"
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
+
+              <div className="border-b p-3 sm:p-4">
+                <details
+                  key={selectedTeacher.id}
+                  open
+                  className="group overflow-hidden rounded-xl border border-brand-100 bg-brand-50/40"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:hidden">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-brand-600 shadow-sm ring-1 ring-brand-100">
+                        <BookOpen className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-900">Allocated subjects</p>
+                        <p className="text-xs text-slate-500">
+                          {loadingAssignments
+                            ? "Loading assignments…"
+                            : `${assignments.length} subject${assignments.length === 1 ? "" : "s"} assigned`}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronDown className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="border-t border-brand-100 bg-white p-3">
+                    {loadingAssignments ? (
+                      <p className="py-3 text-center text-sm text-slate-500">Loading subjects…</p>
+                    ) : assignments.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center">
+                        <GraduationCap className="mx-auto h-5 w-5 text-slate-400" />
+                        <p className="mt-2 text-sm font-semibold text-slate-700">
+                          No subjects allocated yet
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Select a subject below to assign it.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {assignments.map((assignment) => (
+                          <div
+                            key={assignment.id}
+                            className="min-w-0 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2.5"
+                          >
+                            <p className="truncate text-xs font-bold uppercase tracking-wide text-emerald-700">
+                              {assignment.subjectCode}
+                            </p>
+                            <p className="mt-0.5 line-clamp-2 text-sm font-semibold leading-5 text-slate-800">
+                              {assignment.subjectName}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">{assignment.academicYear}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </div>
+
+              <div className="border-b px-4 py-3 sm:px-5">
+                <h3 className="text-sm font-bold text-slate-900">Manage subject allocation</h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Tap a subject to assign or remove it for this teacher.
+                </p>
+              </div>
+
               <div className="divide-y">
                 {subjects.length === 0 && (
                   <EmptyState
@@ -264,7 +363,9 @@ export function SubjectTeacherAssignmentPage() {
                       key={subject.id}
                       onClick={() => toggle(subject)}
                       disabled={saving === subject.id}
-                      className="flex w-full items-center gap-4 px-5 py-3.5 text-left transition hover:bg-slate-50"
+                      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition sm:gap-4 sm:px-5 ${
+                        assigned ? "bg-emerald-50/40 hover:bg-emerald-50" : "hover:bg-slate-50"
+                      }`}
                     >
                       <div
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition ${
@@ -274,7 +375,7 @@ export function SubjectTeacherAssignmentPage() {
                         {assigned && <Check className="h-4 w-4 text-white" />}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="text-sm font-semibold leading-5 text-slate-800">
                           {subject.code} - {subject.name}
                         </p>
                         <p className="text-xs text-slate-400">
@@ -282,9 +383,15 @@ export function SubjectTeacherAssignmentPage() {
                           {subject.subjectType || "General"}
                         </p>
                       </div>
-                      {saving === subject.id && (
-                        <span className="text-xs text-slate-400">Saving…</span>
-                      )}
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold sm:text-xs ${
+                          assigned
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {saving === subject.id ? "Saving…" : assigned ? "Assigned" : "Available"}
+                      </span>
                     </button>
                   );
                 })}

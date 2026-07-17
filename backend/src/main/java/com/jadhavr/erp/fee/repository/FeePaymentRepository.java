@@ -1,6 +1,7 @@
 package com.jadhavr.erp.fee.repository;
 
 import com.jadhavr.erp.fee.dto.FeeCollectionRow;
+import com.jadhavr.erp.fee.dto.CollegeAmountPoint;
 import com.jadhavr.erp.fee.entity.FeePayment;
 import com.jadhavr.erp.fee.enums.PaymentStatus;
 import com.jadhavr.erp.fee.enums.StudentCategory;
@@ -38,6 +39,16 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long>,
 
     @Query("select coalesce(sum(p.amount),0) from FeePayment p where p.status=:s")
     BigDecimal sumByStatus(PaymentStatus s);
+
+    @Query("""
+            select new com.jadhavr.erp.fee.dto.CollegeAmountPoint(
+                p.college.name, coalesce(sum(p.amount), 0))
+            from FeePayment p
+            where p.status = com.jadhavr.erp.fee.enums.PaymentStatus.VERIFIED
+            group by p.college.id, p.college.name
+            order by p.college.name
+            """)
+    List<CollegeAmountPoint> sumVerifiedByCollege();
 
     @Query("select coalesce(sum(p.amount),0) from FeePayment p where p.college.id=:c and p.status='VERIFIED' and p.verifiedAt>=:start")
     BigDecimal sumToday(Long c, LocalDateTime start);

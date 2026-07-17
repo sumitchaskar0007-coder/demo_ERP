@@ -4,6 +4,8 @@ import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 @Component
 public class StudentSectionAdmissionMapper {
     public StudentSectionAdmissionResponse toResponse(AdmissionForm admission) {
@@ -53,6 +55,7 @@ public class StudentSectionAdmissionMapper {
                 admission.getCorrespondenceMobile(),
                 admission.getCorrespondenceEmail(),
                 admission.getAcademicRecords().stream()
+                        .filter(Objects::nonNull)
                         .map(record -> new com.jadhavr.erp.admission.dto.AcademicRecordDto(
                                 record.getQualification(), record.getInstituteName(),
                                 record.getBoardUniversity(), record.getYearOfPassing(),

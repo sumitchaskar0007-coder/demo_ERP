@@ -49,12 +49,12 @@ const DAY_LABELS: Record<string, string> = {
   SATURDAY: "Saturday",
 };
 const PALETTE = [
-  "bg-blue-50 border-blue-200 text-blue-950 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-100",
-  "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100",
-  "bg-orange-50 border-orange-200 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-100",
-  "bg-violet-50 border-violet-200 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100",
-  "bg-cyan-50 border-cyan-200 text-cyan-950 dark:bg-cyan-950/40 dark:border-cyan-800 dark:text-cyan-100",
-  "bg-rose-50 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-100",
+  "bg-blue-50 border-blue-200 border-l-blue-600 text-blue-950 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-100",
+  "bg-emerald-50 border-emerald-200 border-l-emerald-600 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100",
+  "bg-amber-50 border-amber-200 border-l-amber-500 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100",
+  "bg-violet-50 border-violet-200 border-l-violet-600 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100",
+  "bg-cyan-50 border-cyan-200 border-l-cyan-600 text-cyan-950 dark:bg-cyan-950/40 dark:border-cyan-800 dark:text-cyan-100",
+  "bg-rose-50 border-rose-200 border-l-rose-600 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-100",
 ];
 
 type Editor = {
@@ -381,7 +381,7 @@ export function TimetablePage() {
     );
 
   return (
-    <div className="page-container min-w-0 space-y-6 print:p-0">
+    <div className="timetable-print-page page-container min-w-0 space-y-6 print:p-0">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between print:hidden">
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-600">
@@ -395,40 +395,42 @@ export function TimetablePage() {
               : "View the weekly schedule by college, department, year and division."}
           </p>
         </div>
-        {table?.editable && <div className="flex flex-wrap items-center gap-2">
-          {saveState !== "idle" && (
-            <span
-              className={`inline-flex items-center gap-1 text-xs font-semibold ${saveState === "saved" ? "text-emerald-600" : "text-slate-500"}`}
+        {table?.editable && (
+          <div className="flex flex-wrap items-center gap-2">
+            {saveState !== "idle" && (
+              <span
+                className={`inline-flex items-center gap-1 text-xs font-semibold ${saveState === "saved" ? "text-emerald-600" : "text-slate-500"}`}
+              >
+                {saveState === "saved" && <Check className="h-3.5 w-3.5" />}
+                {saveState === "saving" ? "Saving…" : "Saved successfully"}
+              </span>
+            )}
+            <Button
+              variant="secondary"
+              disabled={!past.length || saving}
+              onClick={() => void restore(past.at(-1) ?? [], "undo")}
             >
-              {saveState === "saved" && <Check className="h-3.5 w-3.5" />}
-              {saveState === "saving" ? "Saving…" : "Saved successfully"}
-            </span>
-          )}
-          <Button
-            variant="secondary"
-            disabled={!past.length || saving}
-            onClick={() => void restore(past.at(-1) ?? [], "undo")}
-          >
-            <Undo2 className="h-4 w-4" />
-            Undo
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={!future.length || saving}
-            onClick={() => void restore(future[0], "redo")}
-          >
-            <Redo2 className="h-4 w-4" />
-            Redo
-          </Button>
-          <Button variant="secondary" onClick={() => setTimeEditor(true)}>
-            <Settings2 className="h-4 w-4" />
-            Configure times
-          </Button>
-        </div>}
+              <Undo2 className="h-4 w-4" />
+              Undo
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!future.length || saving}
+              onClick={() => void restore(future[0], "redo")}
+            >
+              <Redo2 className="h-4 w-4" />
+              Redo
+            </Button>
+            <Button variant="secondary" onClick={() => setTimeEditor(true)}>
+              <Settings2 className="h-4 w-4" />
+              Configure times
+            </Button>
+          </div>
+        )}
       </div>
 
       <Card className="p-4 sm:p-5 print:border-0 print:shadow-none">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 print:hidden">
           <Select
             label="College"
             value={scope.collegeId}
@@ -516,8 +518,9 @@ export function TimetablePage() {
           />
         </div>
         {table && (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 print:mt-0 print:grid-cols-7 print:gap-1">
             {[
+              ["College", table.college],
               ["Department", table.department],
               ["Year", table.year],
               ["Division", table.division],
@@ -525,7 +528,10 @@ export function TimetablePage() {
               ["Academic Year", table.academicYear],
               ["Status", table.status],
             ].map(([key, value]) => (
-              <div key={key} className="min-w-0 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+              <div
+                key={key}
+                className="min-w-0 rounded-xl bg-slate-50 p-3 dark:bg-slate-800 print:rounded-none print:border print:bg-white print:p-2"
+              >
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                   {key}
                 </p>
@@ -540,42 +546,44 @@ export function TimetablePage() {
 
       {table && (
         <>
-          {table.editable && <Card className="space-y-4 p-4 sm:p-5 print:hidden">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-brand-600" />
-                <h2 className="font-semibold">Subjects</h2>
-                <span className="text-xs text-slate-400">Drag into a teaching period</span>
+          {table.editable && (
+            <Card className="space-y-4 p-4 sm:p-5 print:hidden">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-brand-600" />
+                  <h2 className="font-semibold">Subjects</h2>
+                  <span className="text-xs text-slate-400">Drag into a teaching period</span>
+                </div>
+                <div className="w-full lg:w-80">
+                  <Input
+                    aria-label="Search timetable"
+                    placeholder="Search teacher, subject, room…"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    icon={<Search className="h-4 w-4" />}
+                  />
+                </div>
               </div>
-              <div className="w-full lg:w-80">
-                <Input
-                  aria-label="Search timetable"
-                  placeholder="Search teacher, subject, room…"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  icon={<Search className="h-4 w-4" />}
-                />
+              <div className="flex flex-wrap gap-2">
+                {table.subjects.map((subject) => (
+                  <button
+                    key={subject.id}
+                    draggable={table.editable}
+                    onDragStart={(event) =>
+                      event.dataTransfer.setData(
+                        "application/json",
+                        JSON.stringify({ type: "subject", subjectId: subject.id }),
+                      )
+                    }
+                    className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition hover:-translate-y-0.5 ${color(subject.id)}`}
+                  >
+                    <GripVertical className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{subject.label}</span>
+                  </button>
+                ))}
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {table.subjects.map((subject) => (
-                <button
-                  key={subject.id}
-                  draggable={table.editable}
-                  onDragStart={(event) =>
-                    event.dataTransfer.setData(
-                      "application/json",
-                      JSON.stringify({ type: "subject", subjectId: subject.id }),
-                    )
-                  }
-                  className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition hover:-translate-y-0.5 ${color(subject.id)}`}
-                >
-                  <GripVertical className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{subject.label}</span>
-                </button>
-              ))}
-            </div>
-          </Card>}
+            </Card>
+          )}
 
           {table.editable && (
             <Card className="grid gap-3 p-4 print:hidden xl:grid-cols-[1fr_1fr_auto_auto]">
@@ -649,11 +657,11 @@ export function TimetablePage() {
             </Button>
             <Button variant="secondary" onClick={() => void exportWeeklyTimetablePdf(table)}>
               <FileDown className="h-4 w-4" />
-              PDF
+              Download PDF
             </Button>
             <Button variant="secondary" onClick={() => void exportWeeklyTimetableExcel(table)}>
               <Sheet className="h-4 w-4" />
-              Excel
+              Download Excel
             </Button>
           </div>
 
@@ -921,9 +929,9 @@ type GridProps = {
 
 function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridProps) {
   return (
-    <div className="hidden overflow-x-auto rounded-2xl border bg-white shadow-sm print:block xl:block">
-      <div className="min-w-[1120px]">
-        <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+    <div className="timetable-print-sheet hidden overflow-x-auto rounded-2xl border bg-white shadow-sm print:block print:overflow-visible print:rounded-none print:shadow-none xl:block">
+      <div className="min-w-[1120px] print:min-w-0">
+        <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500 print:static print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] print:text-[8px]">
           <div className="sticky left-0 z-30 bg-slate-100 p-3 text-left">Period</div>
           {DAYS.map((day) => (
             <div className="border-l p-3" key={day}>
@@ -934,7 +942,7 @@ function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridPro
         {table.periods.map((period) => (
           <div
             key={period.id}
-            className={`grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-t ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}
+            className={`grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-t print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}
           >
             <div className="sticky left-0 z-10 flex min-w-0 flex-col justify-center bg-white p-3">
               <PeriodLabel period={period} />
@@ -1066,18 +1074,18 @@ function Cell({
         void onDrop(day, period, event.dataTransfer.getData("application/json"));
       }}
       onClick={() => onOpen(day, period, entry)}
-      className={`group min-h-24 min-w-0 border-l p-2 text-left transition hover:bg-brand-50/40 disabled:cursor-default ${highlighted ? "opacity-100" : "opacity-25"}`}
+      className={`group min-h-24 min-w-0 rounded-xl border bg-slate-50/60 p-1.5 text-left transition hover:border-brand-200 hover:bg-brand-50/50 disabled:cursor-default xl:rounded-none xl:border-y-0 xl:border-r-0 xl:border-l xl:bg-white xl:p-2 print:min-h-0 print:rounded-none print:border-l print:bg-white print:p-1 ${highlighted ? "opacity-100" : "opacity-25"}`}
     >
       {entry ? (
         <div
-          className={`h-full min-w-0 rounded-xl border p-2.5 shadow-sm transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md ${color(entry.subjectId)}`}
+          className={`h-full min-w-0 rounded-xl border border-l-4 p-3 shadow-sm transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md print:rounded-none print:border-l print:p-1 print:shadow-none ${color(entry.subjectId)}`}
         >
           <div className="flex items-start justify-between gap-1">
             <b className="break-words text-xs leading-5">{entry.subject}</b>
             {editable && <Pencil className="h-3 w-3 shrink-0 opacity-50" />}
           </div>
-          <p className="mt-1 truncate text-[10px] opacity-75">{entry.teacher}</p>
-          <p className="mt-1 text-[10px] font-semibold">
+          <p className="mt-1 break-words text-[11px] leading-4 opacity-75">{entry.teacher}</p>
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide opacity-80">
             {entry.lectureType}
             {entry.room ? ` · ${entry.room}` : ""}
           </p>

@@ -10,3 +10,6 @@ target/
 *.pem
 *.key
 backend/uploads/
+backups/
+output/
+tmp/

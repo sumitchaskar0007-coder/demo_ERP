@@ -116,6 +116,7 @@ export interface WeeklyEntry {
 export interface WeeklyTimetable {
   id: number;
   sectionId: number;
+  college: string;
   department: string;
   year: string;
   division: string;

@@ -1,6 +1,8 @@
 package com.jadhavr.erp.fee.controller;
 
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
+import com.jadhavr.erp.academic.enums.AcademicStatus;
+import com.jadhavr.erp.academic.repository.StudentSectionEnrollmentRepository;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.api.ApiResponse;
@@ -25,14 +27,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import com.jadhavr.erp.academic.repository.StudentSectionEnrollmentRepository;
-import com.jadhavr.erp.academic.enums.AcademicStatus;
-import java.math.BigDecimal;
 
 @Transactional(readOnly = true)
 @RestController
@@ -131,6 +131,24 @@ public class SuperAdminFeeAnalyticsController {
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long courseYearId,
             @RequestParam(required = false) Long divisionId) {
+        boolean unfiltered = collegeId == null
+                && departmentId == null
+                && courseYearId == null
+                && divisionId == null;
+        if (unfiltered) {
+            Map<String, Long> admissionDistribution = new LinkedHashMap<>();
+            admissions.countAdmissionsByStatus().forEach(row ->
+                    admissionDistribution.put(row.status().name(), row.value()));
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("summary", summary());
+            result.put("collegeWiseStudents", students.countStudentsByCollege());
+            result.put("collegeWiseFeeCollection", payments.sumVerifiedByCollege());
+            result.put("admissionStatusDistribution", admissionDistribution);
+            result.put("pendingFees", largestPendingFees());
+            return ApiResponse.success("Admin analytics", result);
+        }
+
         Set<Long> scopedStudentIds = enrollments.findAll().stream()
                 .filter(e -> e.getStatus() == AcademicStatus.ACTIVE)
                 .filter(e -> collegeId == null || collegeId.equals(e.getSection().getCollege().getId()))
@@ -145,23 +163,6 @@ public class SuperAdminFeeAnalyticsController {
                 .filter(a -> departmentId == null || departmentId.equals(a.getDepartment().getId()))
                 .filter(a -> !academicScope || (a.getStudent() != null && scopedStudentIds.contains(a.getStudent().getId())))
                 .forEach(a -> admissionDistribution.merge(a.getStatus().name(), 1L, Long::sum));
-
-        List<Map<String, Object>> largestPendingFees = accounts.findPendingFees(
-                        null,
-                        null,
-                        null,
-                        null,
-                        "",
-                        null,
-                        null,
-                        PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "remainingAmount")))
-                .getContent()
-                .stream()
-                .map(row -> Map.<String, Object>of(
-                        "student", row.studentName(),
-                        "college", row.collegeName(),
-                        "remaining", row.remainingAmount()))
-                .toList();
 
         Map<String, Object> result = new LinkedHashMap<>();
         var scopedStudents = students.findAll().stream()
@@ -198,8 +199,27 @@ public class SuperAdminFeeAnalyticsController {
                 Collectors.reducing(BigDecimal.ZERO, a -> a.getPaidAmount(), BigDecimal::add))).entrySet().stream()
                 .map(e -> Map.of("label", e.getKey(), "value", e.getValue())).toList());
         result.put("admissionStatusDistribution", admissionDistribution);
-        result.put("pendingFees", largestPendingFees);
+        result.put("pendingFees", largestPendingFees());
         return ApiResponse.success("Admin analytics", result);
+    }
+
+    private List<Map<String, Object>> largestPendingFees() {
+        return accounts.findPendingFees(
+                        null,
+                        null,
+                        null,
+                        null,
+                        "",
+                        null,
+                        null,
+                        PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "remainingAmount")))
+                .getContent()
+                .stream()
+                .map(row -> Map.<String, Object>of(
+                        "student", row.studentName(),
+                        "college", row.collegeName(),
+                        "remaining", row.remainingAmount()))
+                .toList();
     }
 
     private Map<String, Object> summary() {
@@ -209,7 +229,7 @@ public class SuperAdminFeeAnalyticsController {
                 "totalPrincipals", users.countByRole(RoleName.PRINCIPAL),
                 "totalStaff", staff.count(),
                 "totalStudents", students.count(),
-                "totalFeeCollection", accounts.sumPaidAmount(),
+                "totalFeeCollection", payments.sumByStatus(com.jadhavr.erp.fee.enums.PaymentStatus.VERIFIED),
                 "pendingFee", accounts.sumRemainingAmount());
     }
 

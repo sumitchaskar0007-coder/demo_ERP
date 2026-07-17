@@ -147,7 +147,6 @@ export function AppRouter() {
             <Route path={ROUTES.createPrincipal} element={<CreatePrincipalPage />} />
             <Route path={ROUTES.editPrincipal} element={<EditPrincipalPage />} />
             <Route path="/principals/create" element={<CreatePrincipalPage />} />
-            <Route path={ROUTES.staff} element={<StaffListPage />} />
             <Route path={ROUTES.students} element={<AdminStudentListPage />} />
             <Route path={ROUTES.adminFeeSetup} element={<AdminFeeSetupPage />} />
             <Route path={ROUTES.adminFeeCollection} element={<AdminMoneyPage />} />
@@ -159,7 +158,6 @@ export function AppRouter() {
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
             <Route path={ROUTES.departments} element={<DepartmentListPage />} />
             <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
-            <Route path={ROUTES.staff} element={<StaffListPage />} />
             <Route path={ROUTES.createStaff} element={<CreateStaffPage />} />
             <Route path={ROUTES.courseYears} element={<CourseYearListPage />} />
             <Route path={ROUTES.createCourseYear} element={<CourseYearFormPage />} />
@@ -183,6 +181,10 @@ export function AppRouter() {
             />
             <Route path={ROUTES.finalAdmissions} element={<FinalAdmissionsPage />} />
             <Route path={ROUTES.auditLogs} element={<AuditLogPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
+            <Route path={ROUTES.staff} element={<StaffListPage />} />
           </Route>
 
           <Route
@@ -248,6 +250,9 @@ export function AppRouter() {
               path="/student-section/admissions/:admissionId"
               element={<StudentSectionAdmissionDetailPage />}
             />
+          </Route>
+
+          <Route element={<RoleRoute roles={[ROLES.STUDENT_SECTION]} />}>
             <Route
               path="/student-section/admissions/:admissionId/print"
               element={<AdmissionPrintPage />}

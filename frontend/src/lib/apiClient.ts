@@ -1,8 +1,9 @@
 import axios from "axios";
 import { ROUTES } from "@/lib/constants";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-  || `${window.location.protocol}//${window.location.hostname}:8081`;
+// Keep development requests on the same origin so phones and tablets connected
+// over Wi-Fi can use Vite's API proxy without separate CORS configuration.
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15_000,
@@ -13,25 +14,31 @@ export const apiClient = axios.create({
   xsrfHeaderName: "X-XSRF-TOKEN",
 });
 
-const authClient = axios.create({ baseURL: API_BASE_URL, timeout: 15_000, withCredentials: true, withXSRFToken: true });
+const authClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15_000,
+  withCredentials: true,
+  withXSRFToken: true,
+});
 let refreshPromise: Promise<void> | null = null;
 let csrfPromise: Promise<void> | null = null;
 
 const unsafeMethods = new Set(["post", "put", "patch", "delete"]);
 
 function csrfTokenFromCookie() {
-  const entry = document.cookie
-    .split("; ")
-    .find((cookie) => cookie.startsWith("XSRF-TOKEN="));
+  const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith("XSRF-TOKEN="));
   return entry ? decodeURIComponent(entry.slice("XSRF-TOKEN=".length)) : null;
 }
 
 async function ensureCsrfToken(force = false) {
   if (!force && csrfTokenFromCookie()) return;
   if (!csrfPromise) {
-    csrfPromise = authClient.get("/api/v1/auth/csrf")
+    csrfPromise = authClient
+      .get("/api/v1/auth/csrf")
       .then(() => undefined)
-      .finally(() => { csrfPromise = null; });
+      .finally(() => {
+        csrfPromise = null;
+      });
   }
   await csrfPromise;
 }
@@ -47,10 +54,13 @@ apiClient.interceptors.request.use(async (config) => {
 
 async function refreshSession() {
   if (!refreshPromise) {
-    refreshPromise = authClient.get("/api/v1/auth/csrf")
+    refreshPromise = authClient
+      .get("/api/v1/auth/csrf")
       .then(() => authClient.post("/api/v1/auth/refresh"))
       .then(() => undefined)
-      .finally(() => { refreshPromise = null; });
+      .finally(() => {
+        refreshPromise = null;
+      });
   }
   return refreshPromise;
 }
@@ -61,12 +71,19 @@ apiClient.interceptors.response.use(
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const path = window.location.pathname;
-      const original = error.config as (typeof error.config & { _retried?: boolean; _csrfRetried?: boolean }) | undefined;
+      const original = error.config as
+        | (typeof error.config & { _retried?: boolean; _csrfRetried?: boolean })
+        | undefined;
       const authRequest = original?.url?.startsWith("/api/v1/auth/");
       if (status === 401 && original && !original._retried && !authRequest) {
         original._retried = true;
-        try { await refreshSession(); return apiClient.request(original); }
-        catch { window.dispatchEvent(new Event("auth:unauthorized")); if (path !== ROUTES.login) window.location.assign(ROUTES.login); }
+        try {
+          await refreshSession();
+          return apiClient.request(original);
+        } catch {
+          window.dispatchEvent(new Event("auth:unauthorized"));
+          if (path !== ROUTES.login) window.location.assign(ROUTES.login);
+        }
       } else if (status === 401) {
         window.dispatchEvent(new Event("auth:unauthorized"));
       } else if (
@@ -87,4 +104,6 @@ apiClient.interceptors.response.use(
   },
 );
 
-export async function initializeCsrf() { await ensureCsrfToken(true); }
+export async function initializeCsrf() {
+  await ensureCsrfToken(true);
+}

@@ -63,7 +63,6 @@ export interface DetailedAdmissionRequest {
   lastGraduationCollegeAddress?: string;
 }
 
-
 export interface AdmissionDepartmentOptionResponse {
   id: number;
   name: string;
@@ -222,6 +221,23 @@ export interface AdmissionPrintStudentSection {
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
+  hasPhoto: boolean;
+  placeOfBirth?: string | null;
+  maritalStatus?: string | null;
+  aadhaarNumber?: string | null;
+  apaarId?: string | null;
+  nationality?: string | null;
+  religion?: string | null;
+  caste?: string | null;
+  permanentPhone?: string | null;
+  permanentEmail?: string | null;
+  correspondenceAddress?: string | null;
+  correspondenceCity?: string | null;
+  correspondencePincode?: string | null;
+  correspondenceState?: string | null;
+  correspondencePhone?: string | null;
+  correspondenceMobile?: string | null;
+  correspondenceEmail?: string | null;
 }
 export interface AdmissionPrintParentSection {
   parentName: string;
@@ -235,6 +251,11 @@ export interface AdmissionPrintAcademicSection {
   previousSchoolName?: string | null;
   previousClassName?: string | null;
   previousPercentage?: number | null;
+  academicRecords: AcademicRecord[];
+  qualifyingEntranceSeatNumber?: string | null;
+  qualifyingEntranceTotalScore?: number | null;
+  lastGraduationCollegeName?: string | null;
+  lastGraduationCollegeAddress?: string | null;
 }
 export interface AdmissionPrintResponse {
   admissionId: number;
