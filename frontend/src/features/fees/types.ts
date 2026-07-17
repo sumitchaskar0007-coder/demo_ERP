@@ -12,6 +12,7 @@ export interface CreateFeeStructureRequest {
   collegeId: number;
   departmentId: number;
   academicYear: string;
+  courseYear?: string;
   studentCategory?: "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
   title: string;
   description?: string;

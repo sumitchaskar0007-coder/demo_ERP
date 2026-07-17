@@ -28,3 +28,23 @@ export interface StudentProfileResponse {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface AdminStudentDetails {
+  profile: StudentProfileResponse;
+  admission?: {
+    id: number;
+    referenceNumber: string;
+    academicYear: string;
+    status: string;
+    submittedAt?: string;
+  };
+  academic?: { courseYear: string; division: string; academicYear: string; rollNumber: string };
+  attendance: {
+    totalLectures: number;
+    present: number;
+    absent: number;
+    late: number;
+    leave: number;
+    percentage: number;
+  };
+}

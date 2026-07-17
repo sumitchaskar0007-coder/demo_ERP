@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/common/Button";
@@ -7,6 +7,9 @@ import { Input } from "@/components/common/Input";
 import { Textarea } from "@/components/common/Textarea";
 import { createCollegeSchema, updateCollegeSchema } from "@/lib/validators";
 import type { College } from "@/features/colleges/types";
+import { uploadCollegeImage } from "@/features/colleges/api";
+import { toast } from "sonner";
+import { handleApiError } from "@/lib/handleApiError";
 
 type CreateForm = z.infer<typeof createCollegeSchema>;
 type UpdateForm = z.infer<typeof updateCollegeSchema>;
@@ -37,6 +40,8 @@ export function CollegeForm({
   const schema = editing ? updateCollegeSchema : createCollegeSchema;
   const {
     register,
+    setValue,
+    watch,
     reset,
     handleSubmit,
     formState: { errors, isSubmitting },
@@ -44,6 +49,22 @@ export function CollegeForm({
     resolver: zodResolver(schema),
     defaultValues: defaults,
   });
+  const [uploading, setUploading] = useState<"logo" | "qr-code" | null>(null);
+  const logoUrl = watch("logoUrl");
+  const qrCodeUrl = watch("qrCodeUrl");
+  const upload = async (file: File | undefined, kind: "logo" | "qr-code") => {
+    if (!file) return;
+    setUploading(kind);
+    try {
+      const url = await uploadCollegeImage(file, kind);
+      setValue(kind === "logo" ? "logoUrl" : "qrCodeUrl", url, { shouldDirty: true });
+      toast.success(`${kind === "logo" ? "Logo" : "QR code"} uploaded`);
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setUploading(null);
+    }
+  };
   useEffect(() => {
     if (!college) return reset(defaults);
     reset({
@@ -90,8 +111,20 @@ export function CollegeForm({
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input label="Logo URL" error={errors.logoUrl?.message} {...register("logoUrl")} />
-        <Input label="QR code URL" error={errors.qrCodeUrl?.message} {...register("qrCodeUrl")} />
+        <ImageUpload
+          label="College logo"
+          value={logoUrl}
+          loading={uploading === "logo"}
+          onFile={(file) => void upload(file, "logo")}
+        />
+        <ImageUpload
+          label="Admission QR code"
+          value={qrCodeUrl}
+          loading={uploading === "qr-code"}
+          onFile={(file) => void upload(file, "qr-code")}
+        />
+        <input type="hidden" {...register("logoUrl")} />
+        <input type="hidden" {...register("qrCodeUrl")} />
       </div>
       <div className="flex justify-end gap-3 border-t pt-5">
         <Button type="button" variant="secondary" onClick={onCancel}>
@@ -102,5 +135,39 @@ export function CollegeForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function ImageUpload({
+  label,
+  value,
+  loading,
+  onFile,
+}: {
+  label: string;
+  value?: string;
+  loading: boolean;
+  onFile: (file?: File) => void;
+}) {
+  return (
+    <label className="block rounded-xl border border-dashed border-slate-300 p-4 text-sm transition hover:border-brand-400">
+      <span className="font-semibold text-slate-700">{label}</span>
+      <span className="mt-1 block text-xs text-slate-400">JPG, PNG or WebP, maximum 5 MB</span>
+      <input
+        className="mt-3 block w-full text-xs"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        disabled={loading}
+        onChange={(event) => onFile(event.target.files?.[0])}
+      />
+      {loading && <span className="mt-2 block text-xs text-brand-600">Uploading…</span>}
+      {value && (
+        <img
+          src={value}
+          alt={`${label} preview`}
+          className="mt-3 h-20 max-w-full rounded-lg border bg-white object-contain p-1"
+        />
+      )}
+    </label>
   );
 }

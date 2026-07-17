@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -61,8 +62,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse("A resource with the same unique value already exists"));
+        String sqlState = exception.getMostSpecificCause() instanceof java.sql.SQLException sql
+                ? sql.getSQLState() : null;
+        if ("23505".equals(sqlState)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ErrorResponse("A resource with the same unique value already exists"));
+        }
+        String message = switch (sqlState == null ? "" : sqlState) {
+            case "23503" -> "The selected related record is invalid or no longer exists";
+            case "23502" -> "A required value is missing";
+            case "23514" -> "A value violates a database validation rule";
+            default -> "The request violates a database constraint";
+        };
+        return ResponseEntity.badRequest().body(new ErrorResponse(message));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -78,15 +90,15 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException exception) {
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException exception, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse("Authentication is required"));
+                .body(new ErrorResponse("Unauthorized", request.getRequestURI()));
     }
 
     @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
-    public ResponseEntity<ErrorResponse> handleBadCredentials(RuntimeException exception) {
+    public ResponseEntity<ErrorResponse> handleBadCredentials(RuntimeException exception, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse("Invalid email or password"));
+                .body(new ErrorResponse("Invalid email or password", request.getRequestURI()));
     }
 
     @ExceptionHandler(DisabledException.class)
@@ -95,9 +107,19 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("User account is inactive"));
     }
 
+    // @ExceptionHandler(Exception.class)
+    // public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+    //     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+    //             .body(new ErrorResponse("An unexpected error occurred"));
+    // }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("An unexpected error occurred"));
-    }
+public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+
+    System.err.println("===== UNEXPECTED EXCEPTION =====");
+    exception.printStackTrace();
+
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponse("An unexpected error occurred"));
+}
 }

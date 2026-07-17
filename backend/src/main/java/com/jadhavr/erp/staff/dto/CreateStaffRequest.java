@@ -3,11 +3,11 @@ package com.jadhavr.erp.staff.dto;
 import com.jadhavr.erp.staff.enums.StaffType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 public record CreateStaffRequest(
         @NotBlank @Size(min = 2, max = 150) String fullName,
@@ -19,7 +19,9 @@ public record CreateStaffRequest(
                 message = "Password must contain uppercase, lowercase, number and special character")
         String password,
         Long departmentId,
-        @NotNull StaffType staffType,
+        StaffType staffType,
+        Set<Long> departmentIds,
+        Set<StaffType> staffTypes,
         LocalDate joiningDate
 ) {
 }

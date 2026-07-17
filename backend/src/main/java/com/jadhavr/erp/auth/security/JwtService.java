@@ -24,27 +24,37 @@ public class JwtService {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(CustomUserDetails user) {
+    public String generateAccessToken(CustomUserDetails user) {
         List<String> roles = user.getAuthorities().stream()
                 .map(authority -> authority.getAuthority()).toList();
         var builder = Jwts.builder()
                 .subject(user.getUsername())
                 .claim("userId", user.getId())
                 .claim("email", user.getUsername())
+                .claim("sessionVersion", user.getSessionVersion())
                 .claim("roles", roles);
-        if (user.getCollegeId() != null) builder.claim("collegeId", user.getCollegeId());
+        if (user.getCollegeId() != null) {
+            builder.claim("collegeId", user.getCollegeId());
+            builder.claim("institution_id", user.getCollegeId());
+        }
         Date now = new Date();
         return builder.issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMs))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
+    /** @deprecated use generateAccessToken; retained for source compatibility. */
+    @Deprecated
+    public String generateToken(CustomUserDetails user) { return generateAccessToken(user); }
 
     public String extractUsername(String token) { return claims(token).getSubject(); }
     public Date extractExpiration(String token) { return claims(token).getExpiration(); }
     public boolean isTokenValid(String token, UserDetails user) {
-        return extractUsername(token).equals(user.getUsername())
-                && extractExpiration(token).after(new Date()) && user.isEnabled();
+        Object versionClaim = claims(token).get("sessionVersion");
+        boolean versionMatches = !(user instanceof CustomUserDetails custom)
+                || (versionClaim instanceof Number number && number.longValue() == custom.getSessionVersion());
+        return extractUsername(token).equals(user.getUsername()) && versionMatches
+                && extractExpiration(token).after(new Date()) && user.isEnabled() && user.isAccountNonLocked();
     }
     public long getExpirationMs() { return expirationMs; }
     private Claims claims(String token) {

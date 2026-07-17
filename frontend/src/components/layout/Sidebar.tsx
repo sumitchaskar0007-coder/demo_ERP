@@ -14,6 +14,8 @@ import {
   WalletCards,
   FileText,
   Printer,
+  Bell,
+  CheckCircle2,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
@@ -42,6 +44,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
   const isFeeSection = isRole([ROLES.FEE_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
+  const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
+  const isTeacher = isRole([ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
+  const isClassTeacher = isRole([ROLES.CLASS_TEACHER]);
   const nav = isAdmin
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
@@ -53,6 +58,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Fee Collection", to: ROUTES.adminFeeCollection, icon: WalletCards },
         { label: "Pending Fees", to: ROUTES.adminPendingFees, icon: CreditCard },
         { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
+        { label: "Notices", to: ROUTES.notices, icon: Bell },
+        { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
+        { label: "Staff Lecture Load", to: ROUTES.adminLectureLoad, icon: BarChart3 },
         { label: "Account", to: ROUTES.account, icon: UserRound },
       ]
     : isPrincipal
@@ -74,10 +82,15 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           },
           { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
           { label: "Final Admissions", to: ROUTES.finalAdmissions, icon: FileText },
-          { label: "Academic", to: ROUTES.academicSubjects, icon: GraduationCap },
+          { label: "Academic", to: ROUTES.academicClasses, icon: GraduationCap },
           { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
+          { label: "Subject Teachers", to: ROUTES.subjectTeacherAssignments, icon: Users },
+          { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
+          { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
+          { label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users },
           { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
           { label: "Audit Logs", to: ROUTES.auditLogs, icon: FileText },
+          { label: "Notices", to: ROUTES.notices, icon: Bell },
           { label: "Account", to: ROUTES.account, icon: UserRound },
           { label: "Profile", to: ROUTES.profile, icon: UserRound },
         ]
@@ -86,6 +99,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
             { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
             { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
             { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
+            { label: "Notices", to: ROUTES.notices, icon: Bell },
             { label: "Account", to: ROUTES.account, icon: UserRound },
             { label: "Profile", to: ROUTES.profile, icon: UserRound },
           ]
@@ -95,6 +109,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               { label: "Fee Accounts", to: ROUTES.feeAccounts, icon: WalletCards },
               { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
               { label: "Fee Report", to: ROUTES.feeReport, icon: BarChart3 },
+              { label: "Notices", to: ROUTES.notices, icon: Bell },
               { label: "Account", to: ROUTES.account, icon: UserRound },
               { label: "Profile", to: ROUTES.profile, icon: UserRound },
             ]
@@ -106,10 +121,43 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                 { label: "My Payments", to: ROUTES.studentPayments, icon: CreditCard },
                 { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
                 { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
+                { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
+                { label: "Notices", to: ROUTES.notices, icon: Bell },
                 { label: "Account", to: ROUTES.account, icon: UserRound },
                 { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
               ]
-            : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
+            : isOtherStaff
+              ? [
+                  { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+                  ...(isClassTeacher
+                    ? [{ label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap }]
+                    : []),
+                  ...(isTeacher
+                    ? [
+                        { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
+                        {
+                          label: "Take Attendance",
+                          to: ROUTES.teacherAttendance,
+                          icon: CheckCircle2,
+                        },
+                      ]
+                    : []),
+                  ...(isClassTeacher
+                    ? [{ label: "Manage Timetable", to: ROUTES.timetable, icon: CalendarDays }]
+                    : []),
+                  ...(isClassTeacher || isRole([ROLES.HOD])
+                    ? [
+                        {
+                          label: "Attendance Reports",
+                          to: ROUTES.attendanceReport,
+                          icon: BarChart3,
+                        },
+                      ]
+                    : []),
+                  { label: "Notices", to: ROUTES.notices, icon: Bell },
+                  { label: "Profile", to: ROUTES.profile, icon: UserRound },
+                ]
+              : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
   const sectionLabel = isAdmin
     ? "Admin"
     : isPrincipal
@@ -120,7 +168,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           ? "Accountant"
           : isStudent
             ? "Student"
-            : "Menu";
+            : isOtherStaff
+              ? "Staff"
+              : "Menu";
   const roleFuture = isStudentSection
     ? [
         { label: "Fee Verification", icon: CreditCard },
@@ -145,15 +195,11 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     >
       <div
         className={cn(
-          "flex h-20 items-center border-b border-slate-100 px-5",
+          "flex h-16 shrink-0 items-center border-b border-slate-100 px-5 lg:h-20",
           collapsed && !mobile ? "justify-center" : "gap-3",
         )}
       >
-        {collapsed && !mobile ? (
-          <BrandLogo compact />
-        ) : (
-          <BrandLogo className="w-[185px]" />
-        )}
+        {collapsed && !mobile ? <BrandLogo compact /> : <BrandLogo className="w-[185px]" />}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">
         <p
@@ -175,7 +221,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                 cn(
                   "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition",
                   isActive
-                    ? "bg-[#eef1ff] text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600"
+                    ? "bg-brand-50 text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                   collapsed && !mobile && "justify-center",
                 )

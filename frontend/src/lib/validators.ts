@@ -54,10 +54,14 @@ export const updatePrincipalSchema = z.object({
   phone: z.string().max(20).optional().default(""),
   password: z.union([
     z.literal(""),
-    z.string().min(8).max(100).regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
-      "Include uppercase, lowercase, number, and special character",
-    ),
+    z
+      .string()
+      .min(8)
+      .max(100)
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,100}$/,
+        "Include uppercase, lowercase, number, and special character",
+      ),
   ]),
 });
 
@@ -93,23 +97,71 @@ export const createStudentSectionStaffSchema = z.object({
 });
 
 const departmentStaffTypes = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
-export const createStaffSchema = z.object({
-  fullName: z.string().trim().min(2).max(150),
-  email: z.string().email("Enter a valid email").max(150),
-  phone: z.string().max(20).optional().default(""),
-  password: z.string().min(8).max(72)
-    .regex(/[a-z]/, "Add a lowercase letter")
-    .regex(/[A-Z]/, "Add an uppercase letter")
-    .regex(/\d/, "Add a number")
-    .regex(/[^A-Za-z0-9]/, "Add a special character"),
-  staffType: z.enum(["STUDENT_SECTION", "FEE_SECTION", "HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "GENERAL_STAFF"]),
-  departmentId: z.coerce.number().optional(),
-  joiningDate: z.string().optional().default(""),
-}).superRefine((value, context) => {
-  if (departmentStaffTypes.includes(value.staffType) && !value.departmentId) {
-    context.addIssue({ code: "custom", path: ["departmentId"], message: "Department is required" });
-  }
-});
+const staffTypeSchema = z.enum([
+  "STUDENT_SECTION",
+  "FEE_SECTION",
+  "HOD",
+  "TEACHER",
+  "CLASS_TEACHER",
+  "SUBJECT_TEACHER",
+  "GENERAL_STAFF",
+]);
+export const createStaffSchema = z
+  .object({
+    fullName: z.string().trim().min(2).max(150),
+    email: z.string().email("Enter a valid email").max(150),
+    phone: z.string().max(20).optional().default(""),
+    password: z
+      .string()
+      .min(8)
+      .max(72)
+      .regex(/[a-z]/, "Add a lowercase letter")
+      .regex(/[A-Z]/, "Add an uppercase letter")
+      .regex(/\d/, "Add a number")
+      .regex(/[^A-Za-z0-9]/, "Add a special character"),
+    staffTypes: z.array(staffTypeSchema).min(1, "Select at least one role"),
+    departmentIds: z.array(z.number()).default([]),
+    joiningDate: z.string().optional().default(""),
+  })
+  .superRefine((value, context) => {
+    const teaching = value.staffTypes.some((type) => departmentStaffTypes.includes(type));
+    const operational = value.staffTypes.some((type) => !departmentStaffTypes.includes(type));
+    if (teaching && value.departmentIds.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["departmentIds"],
+        message: "Select at least one department",
+      });
+    }
+    if (teaching && operational) {
+      context.addIssue({
+        code: "custom",
+        path: ["staffTypes"],
+        message: "Teaching and operational roles cannot be combined",
+      });
+    }
+    if (operational && value.staffTypes.length > 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["staffTypes"],
+        message: "Select only one operational role",
+      });
+    }
+    if (value.staffTypes.includes("HOD") && value.departmentIds.length !== 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["departmentIds"],
+        message: "HOD must have exactly one department",
+      });
+    }
+    if (value.staffTypes.includes("HOD") && value.staffTypes.length > 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["staffTypes"],
+        message: "HOD must be selected as a standalone role",
+      });
+    }
+  });
 
 export const courseYearSchema = z.object({
   departmentId: z.coerce.number().positive("Department is required"),

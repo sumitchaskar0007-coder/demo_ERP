@@ -14,11 +14,12 @@ import { Textarea } from "@/components/common/Textarea";
 import { initials } from "@/lib/utils";
 import { updateOwnProfileSchema } from "@/lib/validators";
 import { useAuth } from "@/features/auth/authStore";
+import { API_BASE_URL } from "@/lib/apiClient";
 
 type ProfileForm = z.infer<typeof updateOwnProfileSchema>;
 
 function ProfileField({ label, value }: { label: string; value: string }) {
-  return <div><p className="mb-2 text-sm font-semibold text-slate-700">{label}</p><div className="flex min-h-12 items-center rounded-xl border border-slate-200 bg-[#fbfcfe] px-4 text-sm font-medium text-slate-700">{value || "—"}</div></div>;
+  return <div><p className="mb-2 text-sm font-semibold text-slate-700">{label}</p><div className="flex min-h-12 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{value || "—"}</div></div>;
 }
 
 export function ProfilePage() {
@@ -51,7 +52,7 @@ export function ProfilePage() {
   };
   const refresh = async () => { setRefreshing(true); try { await refreshProfile(); } finally { setRefreshing(false); } };
   const imageUrl = user.profileImageUrl?.startsWith("/")
-    ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8081"}${user.profileImageUrl}`
+    ? `${API_BASE_URL}${user.profileImageUrl}`
     : user.profileImageUrl;
 
   return (

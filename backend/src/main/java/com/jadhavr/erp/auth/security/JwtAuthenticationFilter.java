@@ -1,13 +1,11 @@
 package com.jadhavr.erp.auth.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jadhavr.erp.common.api.ErrorResponse;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.MediaType;
+import jakarta.servlet.http.Cookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,38 +17,27 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
-    private final ObjectMapper objectMapper;
 
     public JwtAuthenticationFilter(JwtService jwtService,
-            CustomUserDetailsService userDetailsService, ObjectMapper objectMapper) {
+            CustomUserDetailsService userDetailsService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
-        this.objectMapper = objectMapper;
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return path.equals("/api/auth/login")
-                || path.startsWith("/api/auth/password/")
-                || path.equals("/api/auth/email-verification/confirm")
-                || path.startsWith("/api/public/")
-                || path.equals("/actuator/health")
-                || path.equals("/api/health")
-                || path.startsWith("/swagger-ui/")
-                || path.startsWith("/v3/api-docs/");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
+        String token = accessTokenCookie(request);
+        // Optional bearer support is retained for trusted non-browser API clients.
         String header = request.getHeader(SecurityConstants.AUTHORIZATION_HEADER);
-        if (header == null || !header.startsWith(SecurityConstants.TOKEN_PREFIX)) {
+        if (token == null && header != null && header.startsWith(SecurityConstants.TOKEN_PREFIX)) {
+            token = header.substring(SecurityConstants.TOKEN_PREFIX.length());
+        }
+        if (token == null) {
             chain.doFilter(request, response);
             return;
         }
         try {
-            String token = header.substring(SecurityConstants.TOKEN_PREFIX.length());
             String email = jwtService.extractUsername(token);
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails user = userDetailsService.loadUserByUsername(email);
@@ -58,24 +45,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     var authentication = new UsernamePasswordAuthenticationToken(
                             user, null, user.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    if (user instanceof CustomUserDetails details
-                            && details.isMustChangePassword()
-                            && !request.getRequestURI().equals("/api/auth/change-password")
-                            && !request.getRequestURI().equals("/api/auth/profile")) {
-                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                        objectMapper.writeValue(response.getOutputStream(),
-                                new ErrorResponse("Password change required before using the platform"));
-                        return;
-                    }
                 }
             }
             chain.doFilter(request, response);
         } catch (JwtException | IllegalArgumentException exception) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            objectMapper.writeValue(response.getOutputStream(),
-                    new ErrorResponse("Invalid or expired token"));
+            // Continue unauthenticated so the public refresh endpoint can rotate an
+            // expired access token. Protected endpoints are rejected by Spring Security.
+            SecurityContextHolder.clearContext();
+            chain.doFilter(request, response);
         }
+    }
+
+    private String accessTokenCookie(HttpServletRequest request) {
+        if (request.getCookies() == null) return null;
+        for (Cookie cookie : request.getCookies()) {
+            if (AuthCookieService.ACCESS_COOKIE.equals(cookie.getName())) return cookie.getValue();
+        }
+        return null;
     }
 }
