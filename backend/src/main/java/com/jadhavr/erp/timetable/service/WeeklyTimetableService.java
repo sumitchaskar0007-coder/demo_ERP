@@ -14,6 +14,7 @@ import com.jadhavr.erp.timetable.entity.*;
 import com.jadhavr.erp.timetable.repository.*;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
 import java.util.*;
@@ -25,7 +26,21 @@ public class WeeklyTimetableService {
     private final SectionRepository sections; private final SubjectRepository subjects; private final StaffProfileRepository staff; private final SubjectTeacherAssignmentRepository subjectTeacherAssignments;
     public WeeklyTimetableService(WeeklyTimetableRepository t,WeeklyPeriodRepository p,WeeklyTimetableEntryRepository e,SectionRepository s,SubjectRepository u,StaffProfileRepository f,SubjectTeacherAssignmentRepository a){tables=t;periods=p;entries=e;sections=s;subjects=u;staff=f;subjectTeacherAssignments=a;}
 
-    @Transactional(readOnly=true) public List<DivisionOption> divisions(){requireViewer();return sections.findAll().stream().filter(this::visible).filter(s->s.getStatus()==SectionStatus.ACTIVE).map(s->new DivisionOption(s.getId(),s.getCollege().getId(),s.getDepartment().getId(),s.getAcademicClass().getId(),s.getDepartment().getName(),s.getAcademicClass().getName(),s.getName(),s.getClassTeacher()==null?"Not assigned":s.getClassTeacher().getFullName(),s.getAcademicYear(),editable(s))).toList();}
+    @Cacheable(cacheNames="activeDivisions",key="T(com.jadhavr.erp.auth.security.SecurityUtils).getCurrentUserId()",sync=true)
+    @Transactional(readOnly=true) public List<DivisionOption> divisions(){
+        requireViewer();
+        var user=SecurityUtils.requireCurrentUser();
+        List<Section> visibleSections;
+        if(SecurityUtils.isSuperAdmin()) visibleSections=sections.findByStatus(SectionStatus.ACTIVE);
+        else if(SecurityUtils.hasRole("PRINCIPAL")) visibleSections=sections.findByCollegeIdAndStatus(user.getCollegeId(),SectionStatus.ACTIVE);
+        else {
+            StaffProfile profile=staff.findByUserId(user.getId()).orElseThrow(()->new AccessDeniedException("Staff profile is required"));
+            if(SecurityUtils.hasRole("HOD")&&profile.getDepartment()!=null) visibleSections=sections.findByDepartmentIdAndStatus(profile.getDepartment().getId(),SectionStatus.ACTIVE);
+            else if(SecurityUtils.hasRole("CLASS_TEACHER")) visibleSections=sections.findByClassTeacherIdAndStatus(profile.getId(),SectionStatus.ACTIVE);
+            else visibleSections=List.of();
+        }
+        return visibleSections.stream().map(s->new DivisionOption(s.getId(),s.getCollege().getId(),s.getDepartment().getId(),s.getAcademicClass().getId(),s.getDepartment().getName(),s.getAcademicClass().getName(),s.getName(),s.getClassTeacher()==null?"Not assigned":s.getClassTeacher().getFullName(),s.getAcademicYear(),editable(s))).toList();
+    }
     public TimetableResponse getOrCreate(Long sectionId){Section s=section(sectionId);WeeklyTimetable t=tables.findBySectionId(sectionId).orElseGet(()->{if(!editable(s))throw new ResourceNotFoundException("Timetable has not been created yet");return create(s);});return map(t);}
     public EntryResponse save(Long id,String dayValue,Long periodId,SaveEntryRequest r){WeeklyTimetable t=table(id);requireEditor(t.getSection());return saveEntry(t,day(dayValue),period(t,periodId),r);}
     private EntryResponse saveEntry(WeeklyTimetable t,DayOfWeek day,WeeklyPeriod p,SaveEntryRequest r){if(p.getKind()!=WeeklyPeriod.Kind.TEACHING)throw new BadRequestException("Break cells cannot contain lectures");

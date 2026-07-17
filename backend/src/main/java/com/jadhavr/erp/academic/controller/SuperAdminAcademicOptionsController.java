@@ -6,6 +6,7 @@ import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.common.api.ApiResponse;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +26,7 @@ public class SuperAdminAcademicOptionsController {
     }
 
     @GetMapping("/course-years")
+    @Cacheable(cacheNames = "activeCourseYears", key = "#collegeId+':'+#departmentId", sync = true)
     public ApiResponse<List<AdminCourseYearOption>> courseYears(
             @RequestParam Long collegeId,
             @RequestParam Long departmentId) {

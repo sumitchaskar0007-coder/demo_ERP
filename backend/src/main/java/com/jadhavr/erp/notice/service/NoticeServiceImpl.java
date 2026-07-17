@@ -18,6 +18,7 @@ import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -82,26 +83,20 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
+    @Cacheable(cacheNames = "noticeInbox", key = "T(com.jadhavr.erp.auth.security.SecurityUtils).getCurrentUserId()", sync = true)
     public List<NoticeResponse> inbox() {
         CustomUserDetails current = SecurityUtils.requireCurrentUser();
         Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
-        return notices.findAll().stream()
-                .filter(n -> n.getDeletedAt() == null)
-                .filter(n -> !n.getCreatedBy().getId().equals(current.getId()))
-                .filter(n -> n.getAudienceRoles().stream().anyMatch(roles::contains))
-                .filter(n -> n.getColleges().isEmpty() || n.getColleges().stream()
-                        .anyMatch(college -> college.getId().equals(current.getCollegeId())))
-                .filter(n -> n.getDepartment() == null || n.getDepartment().getId().equals(departmentId))
-                .sorted(Comparator.comparing(Notice::getCreatedAt).reversed()).map(this::map).toList();
+        return notices.findInbox(current.getId(), roles, current.getCollegeId(), departmentId)
+                .stream().map(this::map).toList();
     }
 
     @Override
     public List<NoticeResponse> sent() {
         Long id = SecurityUtils.getCurrentUserId();
-        return notices.findAll().stream().filter(n -> n.getCreatedBy().getId().equals(id))
-                .filter(n -> n.getDeletedAt() == null)
-                .sorted(Comparator.comparing(Notice::getCreatedAt).reversed()).map(this::map).toList();
+        return notices.findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(id)
+                .stream().map(this::map).toList();
     }
 
     @Override @Transactional

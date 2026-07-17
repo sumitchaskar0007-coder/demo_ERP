@@ -18,6 +18,7 @@ import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
@@ -116,6 +117,8 @@ public class WeeklyAttendanceService {
                 .map(this::summary).toList();
     }
 
+    @Cacheable(cacheNames = "studentAttendanceSummary",
+            key = "T(com.jadhavr.erp.auth.security.SecurityUtils).getCurrentUserId()+':' + (#year?:'all') + ':' + (#month?:'all')", sync = true)
     public StudentAttendanceResponse studentAttendance(Integer year, Integer month) {
         StudentProfile student = currentStudent();
         List<WeeklyAttendanceRecord> all = records.findByStudentIdOrderBySessionAttendanceDateDescSessionStartTimeDesc(student.getId())

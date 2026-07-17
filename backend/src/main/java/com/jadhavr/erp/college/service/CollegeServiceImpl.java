@@ -9,6 +9,7 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -103,6 +104,7 @@ public class CollegeServiceImpl implements CollegeService {
     }
 
     @Override
+    @Cacheable(cacheNames = "activeColleges", key = "'all'", sync = true)
     public List<CollegeResponse> getActiveColleges() {
         return collegeRepository.findByStatus(CollegeStatus.ACTIVE).stream()
                 .map(this::toResponse)

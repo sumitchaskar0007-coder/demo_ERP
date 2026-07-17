@@ -70,11 +70,15 @@ export function AdminDashboardPage() {
   const [collegeId, setCollegeId] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     setD(null);
     api
-      .getAdminAnalytics({ collegeId: collegeId || undefined })
+      .getAdminAnalytics({ collegeId: collegeId || undefined }, controller.signal)
       .then(setD)
-      .catch((error) => toast.error(handleApiError(error).message));
+      .catch((error) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(error).message);
+      });
+    return () => controller.abort();
   }, [collegeId]);
   useEffect(() => {
     getActiveColleges()
@@ -1237,6 +1241,7 @@ export function AdminAnalyticsPage() {
     });
   }, []);
   useEffect(() => {
+    const controller = new AbortController();
     setData(null);
     api
       .getAdminAnalytics({
@@ -1244,9 +1249,12 @@ export function AdminAnalyticsPage() {
         departmentId: filters.departmentId || undefined,
         courseYearId: filters.courseYearId || undefined,
         divisionId: filters.divisionId || undefined,
-      })
+      }, controller.signal)
       .then(setData)
-      .catch((e) => toast.error(handleApiError(e).message));
+      .catch((e) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(e).message);
+      });
+    return () => controller.abort();
   }, [filters]);
   return (
     <div className="page-container pb-10">
@@ -1382,25 +1390,30 @@ export function AdminLectureLoadPage() {
   }, [filters.collegeId, filters.departmentId]);
 
   useEffect(() => {
+    const controller = new AbortController();
     api
       .getLectureLoad({
         collegeId: filters.collegeId || undefined,
         departmentId: filters.departmentId || undefined,
         courseYearId: filters.courseYearId || undefined,
         divisionId: filters.divisionId || undefined,
-      })
+      }, controller.signal)
       .then(setRows)
-      .catch((e) => toast.error(handleApiError(e).message));
+      .catch((e) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(e).message);
+      });
+    return () => controller.abort();
   }, [filters]);
 
   useEffect(() => {
+    const controller = new AbortController();
     if (!staffId) {
       setTable(null);
       return;
     }
     setTableLoading(true);
     api
-      .getStaffTimetable(Number(staffId))
+      .getStaffTimetable(Number(staffId), controller.signal)
       .then((response) => {
         setTable(response);
         setSelectedDay(
@@ -1412,10 +1425,14 @@ export function AdminLectureLoadPage() {
         );
       })
       .catch((error) => {
+        if (controller.signal.aborted) return;
         setTable(null);
         toast.error(handleApiError(error).message);
       })
-      .finally(() => setTableLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setTableLoading(false);
+      });
+    return () => controller.abort();
   }, [staffId]);
 
   const clearTeacher = () => {

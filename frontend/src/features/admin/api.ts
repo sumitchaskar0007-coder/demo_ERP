@@ -45,16 +45,10 @@ export interface AdminAnalytics {
   admissionStatusDistribution: Record<string, number>;
   pendingFees: Row[];
 }
-const get = <T>(url: string, params?: object) =>
-  apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
-export const getAdminAnalytics = (params?: object) =>
-  apiClient
-    .get<ApiResponse<AdminAnalytics>>("/api/super-admin/analytics", {
-      params,
-      // Large review datasets aggregate across admissions, students and fee accounts.
-      timeout: 60_000,
-    })
-    .then((response) => response.data.data);
+const get = <T>(url: string, params?: object, signal?: AbortSignal) =>
+  apiClient.get<ApiResponse<T>>(url, { params, signal }).then((r) => r.data.data);
+export const getAdminAnalytics = (params?: object, signal?: AbortSignal) =>
+  get<AdminAnalytics>("/api/super-admin/analytics", params, signal);
 
 export interface LectureLoadRow {
   staffId: number;
@@ -76,10 +70,10 @@ export interface AdminCourseYearOption {
   displayName: string;
   yearName: string;
 }
-export const getLectureLoad = (params?: object) =>
-  get<LectureLoadRow[]>("/api/super-admin/lecture-load", params);
-export const getStaffTimetable = (staffId: number) =>
-  get<TeacherTimetable>(`/api/super-admin/lecture-load/${staffId}/timetable`);
+export const getLectureLoad = (params?: object, signal?: AbortSignal) =>
+  get<LectureLoadRow[]>("/api/super-admin/lecture-load", params, signal);
+export const getStaffTimetable = (staffId: number, signal?: AbortSignal) =>
+  get<TeacherTimetable>(`/api/super-admin/lecture-load/${staffId}/timetable`, undefined, signal);
 export const getCourseYearOptions = (collegeId: number, departmentId: number) =>
   get<AdminCourseYearOption[]>("/api/super-admin/academic-options/course-years", {
     collegeId,

@@ -15,6 +15,7 @@ import com.jadhavr.erp.department.entity.DepartmentStatus;
 import com.jadhavr.erp.department.mapper.DepartmentMapper;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -102,6 +103,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     @Override
+    @Cacheable(cacheNames = "activeDepartments", key = "#collegeId", sync = true)
     public List<DepartmentResponse> getActiveDepartmentsByCollege(Long collegeId) {
         findCollege(collegeId);
         return departmentRepository

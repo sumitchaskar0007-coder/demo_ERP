@@ -43,16 +43,11 @@ public class AdminLectureLoadController {
             @RequestParam(required = false) Long courseYearId,
             @RequestParam(required = false) Long divisionId,
             @RequestParam(required = false) Long staffId) {
-        Map<Long, MutableLoad> loads = new LinkedHashMap<>();
-        entries.findAll().stream()
-                .filter(e -> collegeId == null || collegeId.equals(e.getTimetable().getCollege().getId()))
-                .filter(e -> departmentId == null || departmentId.equals(e.getTimetable().getSection().getDepartment().getId()))
-                .filter(e -> courseYearId == null || courseYearId.equals(e.getTimetable().getSection().getAcademicClass().getId()))
-                .filter(e -> divisionId == null || divisionId.equals(e.getTimetable().getSection().getId()))
-                .filter(e -> staffId == null || staffId.equals(e.getTeacher().getId()))
-                .forEach(e -> loads.computeIfAbsent(e.getTeacher().getId(), id -> new MutableLoad(e)).add(e));
-        List<LectureLoadRow> result = loads.values().stream().map(MutableLoad::row)
-                .sorted(Comparator.comparing(LectureLoadRow::staffName)).toList();
+        List<LectureLoadRow> result = entries.lectureLoad(collegeId, departmentId, courseYearId, divisionId, staffId)
+                .stream().map(row -> new LectureLoadRow(row.getStaffId(), row.getEmployeeCode(), row.getStaffName(),
+                        row.getCollegeId(), row.getCollegeName(), row.getDepartmentId(), row.getDepartmentName(),
+                        row.getWeeklyLectures(), row.getWeeklyMinutes(), row.getTheoryLectures(), row.getPracticalLectures()))
+                .toList();
         return ApiResponse.success("Staff lecture load retrieved", result);
     }
 
