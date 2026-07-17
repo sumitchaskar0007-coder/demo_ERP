@@ -8,7 +8,7 @@ import java.util.List;
 
 public final class WeeklyTimetableDtos {
     private WeeklyTimetableDtos() {}
-    public record DivisionOption(Long id,String department,String year,String division,String classTeacher,String academicYear,boolean editable){}
+    public record DivisionOption(Long id,Long collegeId,Long departmentId,Long courseYearId,String department,String year,String division,String classTeacher,String academicYear,boolean editable){}
     public record Option(Long id,String label){}
     public record SubjectTeacherOption(Long subjectId,List<Option> teachers){}
     public record PeriodResponse(Long id,Integer position,String label,LocalTime startTime,LocalTime endTime,String kind){}

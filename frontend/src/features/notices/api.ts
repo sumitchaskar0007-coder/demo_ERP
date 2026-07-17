@@ -14,3 +14,6 @@ export async function sendNotice(request: CreateNoticeRequest) {
   const { data } = await apiClient.post<ApiResponse<Notice>>("/api/notices", request);
   return data.data;
 }
+export async function deleteNotice(id: number) {
+  await apiClient.delete(`/api/notices/${id}`);
+}

@@ -76,6 +76,7 @@ import {
   AdminDashboardPage,
   AdminFeeSetupPage,
   AdminMoneyPage,
+  AdminLectureLoadPage,
 } from "@/pages/admin/AdminPages";
 import {
   AcademicCreatePage,
@@ -152,6 +153,7 @@ export function AppRouter() {
             <Route path={ROUTES.adminFeeCollection} element={<AdminMoneyPage />} />
             <Route path={ROUTES.adminPendingFees} element={<AdminMoneyPage pending />} />
             <Route path={ROUTES.adminAnalytics} element={<AdminAnalyticsPage />} />
+            <Route path={ROUTES.adminLectureLoad} element={<AdminLectureLoadPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
@@ -195,7 +197,7 @@ export function AppRouter() {
             <Route path={ROUTES.studentReport} element={<ReportPage type="students" />} />
           </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
+          <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
             <Route path={ROUTES.attendanceReport} element={<AttendanceReportPage />} />
           </Route>
 

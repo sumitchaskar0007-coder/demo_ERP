@@ -75,6 +75,9 @@ export const timetableApi = {
 };
 export interface WeeklyDivision {
   id: number;
+  collegeId: number;
+  departmentId: number;
+  courseYearId: number;
   department: string;
   year: string;
   division: string;

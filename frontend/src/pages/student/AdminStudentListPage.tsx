@@ -1,4 +1,4 @@
-import { GraduationCap, Search } from "lucide-react";
+import { Eye, GraduationCap, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/common/Badge";
@@ -8,6 +8,8 @@ import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Pagination } from "@/components/common/Pagination";
 import { Select } from "@/components/common/Select";
+import { Button } from "@/components/common/Button";
+import { Modal } from "@/components/common/Modal";
 import { DataTable, type Column } from "@/components/table/DataTable";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
@@ -16,7 +18,11 @@ import { PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import type { PageResponse } from "@/types/api";
 import * as api from "@/features/student/api";
-import type { StudentProfileResponse, StudentStatus } from "@/features/student/types";
+import type {
+  AdminStudentDetails,
+  StudentProfileResponse,
+  StudentStatus,
+} from "@/features/student/types";
 
 const emptyPage: PageResponse<StudentProfileResponse> = {
   content: [],
@@ -45,6 +51,19 @@ export function AdminStudentListPage() {
   const [collegeId, setCollegeId] = useState<number | "">("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [details, setDetails] = useState<AdminStudentDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  const openDetails = async (id: number) => {
+    setDetailsLoading(true);
+    try {
+      setDetails(await api.getStudentDetails(id));
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   useEffect(() => {
     getActiveColleges()
@@ -134,6 +153,16 @@ export function AdminStudentListPage() {
       ),
     },
     { key: "created", header: "Created", render: (row) => formatDate(row.createdAt) },
+    {
+      key: "actions",
+      header: "",
+      render: (row) => (
+        <Button variant="secondary" onClick={() => void openDetails(row.id)}>
+          <Eye className="h-4 w-4" />
+          View details
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -196,6 +225,91 @@ export function AdminStudentListPage() {
           />
         )}
       </Card>
+      <Modal
+        open={Boolean(details) || detailsLoading}
+        onClose={() => {
+          setDetails(null);
+          setDetailsLoading(false);
+        }}
+        title="Student details"
+        size="xl"
+      >
+        {detailsLoading ? (
+          <Loader label="Loading complete student record…" />
+        ) : (
+          details && <StudentDetailContent details={details} />
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function StudentDetailContent({ details }: { details: AdminStudentDetails }) {
+  const p = details.profile;
+  return (
+    <div className="space-y-5">
+      <section className="grid gap-3 rounded-2xl bg-slate-50 p-5 sm:grid-cols-2">
+        <Detail label="Student" value={p.fullName} />
+        <Detail label="Admission number" value={p.admissionNumber} />
+        <Detail label="Email" value={p.email} />
+        <Detail label="Phone" value={p.phone} />
+        <Detail label="College" value={p.collegeName} />
+        <Detail label="Department" value={p.departmentName} />
+        <Detail label="Parent" value={`${p.parentName} · ${p.parentPhone}`} />
+        <Detail label="Status" value={p.status.replaceAll("_", " ")} />
+      </section>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="p-5">
+          <h3 className="font-bold">Admission & academics</h3>
+          <div className="mt-4 space-y-3">
+            <Detail
+              label="Reference"
+              value={details.admission?.referenceNumber || "Not available"}
+            />
+            <Detail
+              label="Admission status"
+              value={details.admission?.status?.replaceAll("_", " ") || "Not available"}
+            />
+            <Detail
+              label="Academic year"
+              value={
+                details.academic?.academicYear || details.admission?.academicYear || "Not allocated"
+              }
+            />
+            <Detail
+              label="Course year / Division"
+              value={
+                details.academic
+                  ? `${details.academic.courseYear} · ${details.academic.division}`
+                  : "Not allocated"
+              }
+            />
+          </div>
+        </Card>
+        <Card className="p-5">
+          <h3 className="font-bold">Attendance</h3>
+          <p className="mt-4 text-4xl font-black text-brand-600">
+            {details.attendance.percentage}%
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <Detail label="Total lectures" value={details.attendance.totalLectures} />
+            <Detail label="Present" value={details.attendance.present} />
+            <Detail label="Absent" value={details.attendance.absent} />
+            <Detail
+              label="Late / Leave"
+              value={`${details.attendance.late} / ${details.attendance.leave}`}
+            />
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+function Detail({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-700">{value}</p>
     </div>
   );
 }

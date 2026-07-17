@@ -8,4 +8,5 @@ public interface NoticeService {
     NoticeResponse create(CreateNoticeRequest request);
     List<NoticeResponse> inbox();
     List<NoticeResponse> sent();
+    void delete(Long id);
 }

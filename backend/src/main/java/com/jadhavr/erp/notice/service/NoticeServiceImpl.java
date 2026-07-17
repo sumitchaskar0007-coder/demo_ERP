@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 @Service
 @Transactional(readOnly = true)
@@ -86,6 +87,7 @@ public class NoticeServiceImpl implements NoticeService {
         Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
         return notices.findAll().stream()
+                .filter(n -> n.getDeletedAt() == null)
                 .filter(n -> !n.getCreatedBy().getId().equals(current.getId()))
                 .filter(n -> n.getAudienceRoles().stream().anyMatch(roles::contains))
                 .filter(n -> n.getColleges().isEmpty() || n.getColleges().stream()
@@ -98,7 +100,21 @@ public class NoticeServiceImpl implements NoticeService {
     public List<NoticeResponse> sent() {
         Long id = SecurityUtils.getCurrentUserId();
         return notices.findAll().stream().filter(n -> n.getCreatedBy().getId().equals(id))
+                .filter(n -> n.getDeletedAt() == null)
                 .sorted(Comparator.comparing(Notice::getCreatedAt).reversed()).map(this::map).toList();
+    }
+
+    @Override @Transactional
+    public void delete(Long id) {
+        if (!SecurityUtils.isSuperAdmin()) throw new AccessDeniedException("Only Super Admin can delete notices");
+        Notice notice = notices.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notice not found"));
+        if (notice.getDeletedAt() != null) return;
+        User admin = users.findById(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        notice.setDeletedAt(LocalDateTime.now());
+        notice.setDeletedBy(admin);
+        notices.save(notice);
     }
 
     private Set<RoleName> resolveRoles(CustomUserDetails current) {

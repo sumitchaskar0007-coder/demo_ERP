@@ -10,6 +10,8 @@ public record PendingFeeRow(
         String admissionNumber,
         String collegeName,
         String departmentName,
+        String courseYear,
+        String division,
         StudentCategory studentCategory,
         BigDecimal totalFee,
         BigDecimal paidAmount,

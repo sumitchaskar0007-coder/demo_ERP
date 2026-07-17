@@ -7,6 +7,7 @@ import com.jadhavr.erp.user.entity.User;
 import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notices")
@@ -31,6 +32,11 @@ public class Notice extends BaseAuditEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role_name", nullable = false, length = 40)
     private Set<RoleName> audienceRoles = new HashSet<>();
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by_user_id")
+    private User deletedBy;
 
     public Long getId() { return id; }
     public String getTitle() { return title; }
@@ -45,4 +51,8 @@ public class Notice extends BaseAuditEntity {
     public void setDepartment(Department department) { this.department = department; }
     public Set<RoleName> getAudienceRoles() { return audienceRoles; }
     public void setAudienceRoles(Set<RoleName> audienceRoles) { this.audienceRoles = audienceRoles; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+    public User getDeletedBy() { return deletedBy; }
+    public void setDeletedBy(User deletedBy) { this.deletedBy = deletedBy; }
 }

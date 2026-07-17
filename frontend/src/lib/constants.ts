@@ -26,6 +26,7 @@ export const ROUTES = {
   adminFeeCollection: "/admin/fee-collection",
   adminPendingFees: "/admin/pending-fees",
   adminAnalytics: "/admin/analytics",
+  adminLectureLoad: "/admin/lecture-load",
   publicAdmission: "/admission/:collegeCode",
   publicAdmissionSuccess: "/admission/:collegeCode/success",
   studentDashboard: "/student/dashboard",

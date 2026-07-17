@@ -1,6 +1,7 @@
 package com.jadhavr.erp.timetable.service;
 
 import com.jadhavr.erp.auth.security.SecurityUtils;
+import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import com.jadhavr.erp.timetable.dto.TeacherTimetableDtos.*;
@@ -47,7 +48,16 @@ public class TeacherTimetableService {
     }
 
     public TimetableResponse timetable() {
-        StaffProfile teacher = currentTeacher();
+        return timetable(currentTeacher());
+    }
+
+    public TimetableResponse timetableFor(Long staffId) {
+        StaffProfile teacher = staff.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff member not found"));
+        return timetable(teacher);
+    }
+
+    private TimetableResponse timetable(StaffProfile teacher) {
         List<WeeklyTimetableEntry> teacherEntries = teacherEntries(teacher);
         DayOfWeek today = LocalDate.now(clock).getDayOfWeek();
         return new TimetableResponse(teacher.getFullName(), teacher.getEmployeeCode(),
