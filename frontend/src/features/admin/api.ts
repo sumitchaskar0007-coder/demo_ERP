@@ -48,7 +48,13 @@ export interface AdminAnalytics {
 const get = <T>(url: string, params?: object) =>
   apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
 export const getAdminAnalytics = (params?: object) =>
-  get<AdminAnalytics>("/api/super-admin/analytics", params);
+  apiClient
+    .get<ApiResponse<AdminAnalytics>>("/api/super-admin/analytics", {
+      params,
+      // Large review datasets aggregate across admissions, students and fee accounts.
+      timeout: 60_000,
+    })
+    .then((response) => response.data.data);
 
 export interface LectureLoadRow {
   staffId: number;
@@ -63,10 +69,22 @@ export interface LectureLoadRow {
   theoryLectures: number;
   practicalLectures: number;
 }
+export interface AdminCourseYearOption {
+  id: number;
+  collegeId: number;
+  departmentId: number;
+  displayName: string;
+  yearName: string;
+}
 export const getLectureLoad = (params?: object) =>
   get<LectureLoadRow[]>("/api/super-admin/lecture-load", params);
 export const getStaffTimetable = (staffId: number) =>
   get<TeacherTimetable>(`/api/super-admin/lecture-load/${staffId}/timetable`);
+export const getCourseYearOptions = (collegeId: number, departmentId: number) =>
+  get<AdminCourseYearOption[]>("/api/super-admin/academic-options/course-years", {
+    collegeId,
+    departmentId,
+  });
 export const getCollections = (params?: object) =>
   get<PageResponse<FeeCollectionRow>>("/api/super-admin/fees/collections", params);
 export const getPendingFees = (params?: object) =>

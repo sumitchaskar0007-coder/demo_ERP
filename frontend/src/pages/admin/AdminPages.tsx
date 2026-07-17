@@ -863,7 +863,9 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
   const displayedAmount = rows.reduce(
     (sum, row) =>
       sum +
-      (pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount),
+      moneyValue(
+        pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount,
+      ),
     0,
   );
   return (
@@ -1040,9 +1042,38 @@ function uniqueOptions(
   idKey: "departmentId" | "courseYearId",
   labelKey: "department" | "year",
 ) {
-  return Array.from(new Map(items.map((item) => [item[idKey], item[labelKey]])).entries()).map(
+  const options = Array.from(
+    new Map(items.map((item) => [item[idKey], item[labelKey]])).entries(),
+  ).map(
     ([value, label]) => ({ label, value }),
   );
+
+  if (idKey === "courseYearId") {
+    options.sort(
+      (left, right) =>
+        academicYearSequence(left.label) - academicYearSequence(right.label) ||
+        left.label.localeCompare(right.label, undefined, { numeric: true }),
+    );
+  }
+
+  return options;
+}
+
+function academicYearSequence(label: string) {
+  const normalized = label.toLowerCase();
+  const namedYears: Array<[RegExp, number]> = [
+    [/\b(first|fy)\b/, 1],
+    [/\b(second|sy)\b/, 2],
+    [/\b(third|ty)\b/, 3],
+    [/\bfourth\b/, 4],
+    [/\bfifth\b/, 5],
+    [/\bsixth\b/, 6],
+  ];
+  const namedYear = namedYears.find(([pattern]) => pattern.test(normalized));
+  if (namedYear) return namedYear[1];
+
+  const numericYear = normalized.match(/\byear\s*(\d+)\b|\b(\d+)(?:st|nd|rd|th)\s+year\b/);
+  return numericYear ? Number(numericYear[1] ?? numericYear[2]) : Number.MAX_SAFE_INTEGER;
 }
 
 function StudentIdentity({ name, detail }: { name: string; detail?: string }) {
@@ -1065,6 +1096,16 @@ function CategoryBadge({ value }: { value: string }) {
     </span>
   );
 }
+
+function moneyValue(value: number | null | undefined) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatMoney(value: number | null | undefined) {
+  return moneyValue(value).toLocaleString("en-IN");
+}
+
 function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
   return (
     <tr className="transition hover:bg-slate-50/70">
@@ -1091,7 +1132,7 @@ function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
         </span>
       </td>
       <td className="px-5 py-4 text-right text-base font-black text-emerald-600">
-        ₹{row.amount.toLocaleString("en-IN")}
+        ₹{formatMoney(row.amount)}
       </td>
     </tr>
   );
@@ -1110,11 +1151,11 @@ function PendingFeeTableRow({ row }: { row: api.PendingFeeRow }) {
         <CategoryBadge value={row.studentCategory} />
       </td>
       <td className="px-5 py-4 text-right">
-        <p className="text-sm font-semibold">₹{row.totalFee.toLocaleString("en-IN")}</p>
-        <p className="text-xs text-emerald-600">₹{row.paidAmount.toLocaleString("en-IN")} paid</p>
+        <p className="text-sm font-semibold">₹{formatMoney(row.totalFee)}</p>
+        <p className="text-xs text-emerald-600">₹{formatMoney(row.paidAmount)} paid</p>
       </td>
       <td className="px-5 py-4 text-right text-base font-black text-orange-600">
-        ₹{row.remainingAmount.toLocaleString("en-IN")}
+        ₹{formatMoney(row.remainingAmount)}
       </td>
     </tr>
   );
@@ -1147,14 +1188,16 @@ function CollectionCard({ row }: { row: api.FeeCollectionRow }) {
         <span className="text-xs font-semibold text-slate-400">Verified payment</span>
         <span className="flex items-center text-xl font-black text-emerald-600">
           <IndianRupee className="h-4 w-4" />
-          {row.amount.toLocaleString("en-IN")}
+          {formatMoney(row.amount)}
         </span>
       </div>
     </div>
   );
 }
 function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
-  const paidRate = row.totalFee > 0 ? Math.round((row.paidAmount / row.totalFee) * 100) : 0;
+  const totalFee = Number(row.totalFee) || 0;
+  const paidAmount = Number(row.paidAmount) || 0;
+  const paidRate = totalFee > 0 ? Math.round((paidAmount / totalFee) * 100) : 0;
   return (
     <div className="rounded-2xl border border-slate-100 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -1165,14 +1208,14 @@ function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
         <CategoryBadge value={row.studentCategory} />
       </div>
       <div className="mt-4 flex justify-between text-xs">
-        <span className="text-slate-500">Paid ₹{row.paidAmount.toLocaleString("en-IN")}</span>
-        <b className="text-orange-600">₹{row.remainingAmount.toLocaleString("en-IN")} pending</b>
+        <span className="text-slate-500">Paid ₹{formatMoney(row.paidAmount)}</span>
+        <b className="text-orange-600">₹{formatMoney(row.remainingAmount)} pending</b>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
         <div className="h-full rounded-full bg-emerald-500" style={{ width: `${paidRate}%` }} />
       </div>
       <p className="mt-2 text-right text-[10px] font-bold text-slate-400">
-        {paidRate}% of ₹{row.totalFee.toLocaleString("en-IN")} paid
+        {paidRate}% of ₹{formatMoney(row.totalFee)} paid
       </p>
     </div>
   );
@@ -1281,6 +1324,8 @@ export function AdminAnalyticsPage() {
 export function AdminLectureLoadPage() {
   const [rows, setRows] = useState<api.LectureLoadRow[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [courseYears, setCourseYears] = useState<api.AdminCourseYearOption[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [staffId, setStaffId] = useState("");
   const [teacherSearch, setTeacherSearch] = useState("");
@@ -1304,6 +1349,37 @@ export function AdminLectureLoadPage() {
       })
       .catch((error) => toast.error(handleApiError(error).message));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDepartments([]);
+    if (!filters.collegeId) return;
+
+    getActiveDepartmentsForAdmin(Number(filters.collegeId))
+      .then((response) => {
+        if (!cancelled) setDepartments(response);
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.collegeId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCourseYears([]);
+    if (!filters.collegeId || !filters.departmentId) return;
+
+    api
+      .getCourseYearOptions(Number(filters.collegeId), Number(filters.departmentId))
+      .then((response) => {
+        if (!cancelled) setCourseYears(response);
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.collegeId, filters.departmentId]);
 
   useEffect(() => {
     api
@@ -1442,13 +1518,10 @@ export function AdminLectureLoadPage() {
             disabled={!filters.collegeId}
             options={[
               { label: filters.collegeId ? "All departments" : "Select college first", value: "" },
-              ...uniqueOptions(
-                divisions.filter(
-                  (d) => d.collegeId === Number(filters.collegeId),
-                ),
-                "departmentId",
-                "department",
-              ),
+              ...departments.map((department) => ({
+                label: department.name,
+                value: department.id,
+              })),
             ]}
             value={filters.departmentId}
             onChange={(e) => {
@@ -1466,7 +1539,10 @@ export function AdminLectureLoadPage() {
             disabled={!filters.departmentId}
             options={[
               { label: "All years/classes", value: "" },
-              ...uniqueOptions(scopedDivisions(divisions, filters), "courseYearId", "year"),
+              ...courseYears.map((courseYear) => ({
+                label: courseYear.displayName,
+                value: courseYear.id,
+              })),
             ]}
             value={filters.courseYearId}
             onChange={(e) => {
