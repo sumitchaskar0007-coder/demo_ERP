@@ -63,7 +63,7 @@ const categories = ["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"].ma
   label: v,
   value: v,
 }));
-export function AdminDashboardPage() {
+export function AdminDashboardPage({ principal = false }: { principal?: boolean }) {
   const { user } = useAuth();
   const [d, setD] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
@@ -73,22 +73,29 @@ export function AdminDashboardPage() {
     const controller = new AbortController();
     setD(null);
     api
-      .getAdminAnalytics({ collegeId: collegeId || undefined }, controller.signal)
+      [principal ? "getPrincipalAnalytics" : "getAdminAnalytics"](
+        principal ? {} : { collegeId: collegeId || undefined }, controller.signal)
       .then(setD)
       .catch((error) => {
         if (!controller.signal.aborted) toast.error(handleApiError(error).message);
       });
     return () => controller.abort();
-  }, [collegeId]);
+  }, [collegeId, principal]);
   useEffect(() => {
+    if (principal) return;
     getActiveColleges()
       .then(setColleges)
       .catch(() => setColleges([]));
-  }, []);
+  }, [principal]);
 
-  if (!d) return <Loader label="Preparing Super Admin dashboard..." />;
+  if (!d) return <Loader label={`Preparing ${principal ? "Principal" : "Super Admin"} dashboard...`} />;
 
-  const organizationMetrics = [
+  const organizationMetrics = principal ? [
+    { key: "totalStaff", label: "College Staff", value: d.summary.totalStaff, icon: Users, color: "bg-blue-50 text-blue-600", accent: "bg-blue-500" },
+    { key: "totalStudents", label: "College Students", value: d.summary.totalStudents, icon: GraduationCap, color: "bg-cyan-50 text-cyan-600", accent: "bg-cyan-500" },
+    { key: "totalFeeCollection", label: "Fees Collected", value: `₹${d.summary.totalFeeCollection.toLocaleString("en-IN")}`, icon: WalletCards, color: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-500" },
+    { key: "pendingFee", label: "Pending Fees", value: `₹${d.summary.pendingFee.toLocaleString("en-IN")}`, icon: Activity, color: "bg-orange-50 text-orange-600", accent: "bg-orange-500" },
+  ] : [
     {
       key: "totalStaff",
       label: "Total Staff",
@@ -139,12 +146,12 @@ export function AdminDashboardPage() {
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-semibold text-slate-400">
-            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Super Admin
+            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;{principal ? "Principal" : "Super Admin"}
           </p>
-          <h1 className="mt-2 text-2xl font-bold">Super Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">Global college, student, and fee overview.</p>
+          <h1 className="mt-2 text-2xl font-bold">{principal ? "Principal" : "Super Admin"} Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">{principal ? "College academics, students, and finance overview." : "Global college, student, and fee overview."}</p>
         </div>
-        <div className="w-full sm:w-72">
+        {!principal && <div className="w-full sm:w-72">
           <Select
             aria-label="Dashboard college"
             options={[
@@ -154,7 +161,7 @@ export function AdminDashboardPage() {
             value={collegeId}
             onChange={(event) => setCollegeId(event.target.value)}
           />
-        </div>
+        </div>}
       </div>
 
       <section className="erp-welcome-banner px-7 py-7 sm:px-9">
@@ -162,7 +169,7 @@ export function AdminDashboardPage() {
         <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-blue-100">Jadhavr ERP Administration</p>
+            <p className="text-sm text-blue-100">{principal ? user?.collegeName : "Jadhavr ERP Administration"}</p>
             <h2 className="mt-2 text-3xl font-bold">
               Welcome back, {user?.fullName?.split(" ")[0] || "Admin"}
             </h2>
@@ -184,7 +191,7 @@ export function AdminDashboardPage() {
             Live people and institution counts from the database
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className={`grid gap-4 sm:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
           {organizationMetrics.map(({ key, label, value, icon: Icon, color, accent }) => (
             <Card className="relative overflow-hidden p-5" key={key}>
               <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
@@ -253,7 +260,11 @@ export function AdminDashboardPage() {
             <p className="mt-1 text-xs text-slate-500">Frequently used administration tools</p>
           </div>
           <div className="space-y-2 p-4">
-            {[
+            {(principal ? [
+              { label: "Departments", detail: "Manage college departments", to: ROUTES.departments, icon: Building2 },
+              { label: "Fee Structures", detail: "Configure college fee structures", to: ROUTES.feeStructures, icon: WalletCards },
+              { label: "Pending Fees", detail: "Review outstanding student balances", to: ROUTES.principalPendingFees, icon: Activity },
+            ] : [
               {
                 label: "Create College",
                 detail: "Add a new college workspace",
@@ -272,7 +283,7 @@ export function AdminDashboardPage() {
                 to: ROUTES.adminFeeSetup,
                 icon: WalletCards,
               },
-            ].map(({ label, detail, to, icon: Icon }) => (
+            ]).map(({ label, detail, to, icon: Icon }) => (
               <Link
                 key={label}
                 to={to}
@@ -802,7 +813,8 @@ export function AdminFeeSetupPage() {
     </div>
   );
 }
-export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
+export function AdminMoneyPage({ pending = false, principal = false }: { pending?: boolean; principal?: boolean }) {
+  const { user } = useAuth();
   const [result, setResult] = useState<PageResponse<
     api.FeeCollectionRow | api.PendingFeeRow
   > | null>(null);
@@ -811,20 +823,20 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [filters, setFilters] = useState({
     keyword: "",
-    collegeId: "",
+    collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
     courseYearId: "",
     divisionId: "",
   });
 
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()])
+    Promise.all([principal ? Promise.resolve([]) : getActiveColleges(), weeklyTimetableApi.divisions()])
       .then(([c, d]) => {
         setColleges(c);
         setDivisions(d);
       })
       .catch(() => undefined);
-  }, []);
+  }, [principal]);
 
   useEffect(() => {
     setPage(0);
@@ -835,7 +847,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
     const timer = window.setTimeout(
       () =>
         (pending
-          ? api.getPendingFees({
+          ? (principal ? api.getPrincipalPendingFees : api.getPendingFees)({
               ...filters,
               keyword: filters.keyword || undefined,
               collegeId: filters.collegeId || undefined,
@@ -845,7 +857,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               page,
               size: 20,
             })
-          : api.getCollections({
+          : (principal ? api.getPrincipalCollections : api.getCollections)({
               ...filters,
               keyword: filters.keyword || undefined,
               collegeId: filters.collegeId || undefined,
@@ -861,7 +873,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
       250,
     );
     return () => window.clearTimeout(timer);
-  }, [page, pending, filters]);
+  }, [page, pending, principal, filters]);
 
   const rows = result?.content ?? [];
   const displayedAmount = rows.reduce(
@@ -877,7 +889,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <h1 className="page-title">{pending ? "Pending Fees" : "Fee Collection"}</h1>
-          <p className="page-subtitle">Global college and department fee overview.</p>
+          <p className="page-subtitle">{principal ? "College and department fee overview." : "Global college and department fee overview."}</p>
         </div>
         {result && (
           <div
@@ -891,7 +903,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
         )}
       </div>
       <Card className="mt-6 p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
           <Input
             placeholder="Search student name…"
             icon={<Search className="h-4 w-4" />}
@@ -901,7 +913,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               setPage(0);
             }}
           />
-          <Select
+          {!principal && <Select
             options={[
               { label: "All colleges", value: "" },
               ...colleges.map((c) => ({ label: c.name, value: c.id })),
@@ -917,7 +929,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               });
               setPage(0);
             }}
-          />
+          />}
           <Select
             options={[
               { label: "All departments", value: "" },
@@ -1224,28 +1236,29 @@ function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
     </div>
   );
 }
-export function AdminAnalyticsPage() {
+export function AdminAnalyticsPage({ principal = false }: { principal?: boolean }) {
+  const { user } = useAuth();
   const [data, setData] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [filters, setFilters] = useState({
-    collegeId: "",
+    collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
     courseYearId: "",
     divisionId: "",
   });
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()]).then(([c, d]) => {
+    Promise.all([principal ? Promise.resolve([]) : getActiveColleges(), weeklyTimetableApi.divisions()]).then(([c, d]) => {
       setColleges(c);
       setDivisions(d);
     });
-  }, []);
+  }, [principal]);
   useEffect(() => {
     const controller = new AbortController();
     setData(null);
     api
-      .getAdminAnalytics({
-        collegeId: filters.collegeId || undefined,
+      [principal ? "getPrincipalAnalytics" : "getAdminAnalytics"]({
+        collegeId: principal ? undefined : filters.collegeId || undefined,
         departmentId: filters.departmentId || undefined,
         courseYearId: filters.courseYearId || undefined,
         divisionId: filters.divisionId || undefined,
@@ -1255,7 +1268,7 @@ export function AdminAnalyticsPage() {
         if (!controller.signal.aborted) toast.error(handleApiError(e).message);
       });
     return () => controller.abort();
-  }, [filters]);
+  }, [filters, principal]);
   return (
     <div className="page-container pb-10">
       <div>
@@ -1263,8 +1276,8 @@ export function AdminAnalyticsPage() {
         <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
       </div>
       <Card className="mt-6 p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Select
+        <div className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
+          {!principal && <Select
             options={[
               { label: "All colleges", value: "" },
               ...colleges.map((c) => ({ label: c.name, value: c.id })),
@@ -1278,7 +1291,7 @@ export function AdminAnalyticsPage() {
                 divisionId: "",
               })
             }
-          />
+          />}
           <Select
             options={[
               { label: "All departments", value: "" },

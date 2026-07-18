@@ -203,6 +203,7 @@ export function DivisionFormPage() {
   const navigate = useNavigate();
   const departments = useDepartments();
   const [years, setYears] = useState<CourseYear[]>([]);
+  const [editDetails, setEditDetails] = useState<Division | null>(null);
   const { register, watch, reset, setValue, handleSubmit, formState: { errors, isSubmitting } } = useForm<DivisionValues>({ resolver: zodResolver(divisionSchema), defaultValues: { departmentId: 0, courseYearId: 0, name: "", code: "", capacity: 60 } });
   const departmentId = watch("departmentId");
   const departmentField = register("departmentId");
@@ -213,7 +214,7 @@ export function DivisionFormPage() {
   }, [departmentId]);
   useEffect(() => {
     if (editId) academicApi.getDivision(editId)
-      .then((r) => reset({ departmentId: r.departmentId, courseYearId: r.courseYearId, name: r.name, code: r.code, capacity: r.capacity }))
+      .then((r) => { setEditDetails(r); reset({ departmentId: r.departmentId, courseYearId: r.courseYearId, name: r.name, code: r.code, capacity: r.capacity }); })
       .catch((e) => toast.error(handleApiError(e).message));
   }, [editId, reset]);
   const submit = async (values: DivisionValues) => {
@@ -224,7 +225,7 @@ export function DivisionFormPage() {
       navigate(ROUTES.divisions);
     } catch (error) { toast.error(handleApiError(error).message); }
   };
-  return <div className="page-container"><h1 className="page-title">{editId ? "Edit" : "Create"} Division</h1><p className="page-subtitle">Choose a Department and one of its active Course Years.</p><Card className="mt-6 p-6"><form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(submit)}><Select label="Department" options={[{ label: "Select department", value: "" }, ...departments.map((d) => ({ label: d.name, value: d.id }))]} error={errors.departmentId?.message} {...departmentField} onChange={(event) => { departmentField.onChange(event); setValue("courseYearId", 0); }} /><Select label="Course Year" options={[{ label: departmentId ? "Select Course Year" : "Select department first", value: "" }, ...years.map((year) => ({ label: `${year.displayName} (${year.academicYear})`, value: year.id }))]} error={errors.courseYearId?.message} {...register("courseYearId")} /><Input label="Division Name" error={errors.name?.message} {...register("name")} /><Input label="Division Code" error={errors.code?.message} {...register("code")} /><Input label="Capacity" type="number" error={errors.capacity?.message} {...register("capacity")} /><div className="md:col-span-2"><Button type="submit" loading={isSubmitting}>Save Division</Button></div></form></Card></div>;
+  return <div className="page-container"><h1 className="page-title">{editId ? "Edit" : "Create"} Division</h1><p className="page-subtitle">{editId ? "Department and Course Year cannot be changed after creation." : "Choose a Department and one of its active Course Years."}</p><Card className="mt-6 p-6"><form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(submit)}>{editId ? <><Input label="Department" readOnly className="cursor-not-allowed bg-slate-100" value={editDetails ? `${editDetails.departmentCode} - ${editDetails.departmentName}` : "Loading..."} /><Input label="Course Year" readOnly className="cursor-not-allowed bg-slate-100" value={editDetails ? `${editDetails.courseYearDisplayName} (${editDetails.academicYear})` : "Loading..."} /></> : <><Select label="Department" options={[{ label: "Select department", value: "" }, ...departments.map((d) => ({ label: d.name, value: d.id }))]} error={errors.departmentId?.message} {...departmentField} onChange={(event) => { departmentField.onChange(event); setValue("courseYearId", 0); }} /><Select label="Course Year" options={[{ label: departmentId ? "Select Course Year" : "Select department first", value: "" }, ...years.map((year) => ({ label: `${year.displayName} (${year.academicYear})`, value: year.id }))]} error={errors.courseYearId?.message} {...register("courseYearId")} /></>}<Input label="Division Name" error={errors.name?.message} {...register("name")} /><Input label="Division Code" error={errors.code?.message} {...register("code")} /><Input label="Capacity" type="number" error={errors.capacity?.message} {...register("capacity")} /><div className="md:col-span-2"><Button type="submit" loading={isSubmitting}>Save Division</Button></div></form></Card></div>;
 }
 
 export function DivisionDetailsPage() {

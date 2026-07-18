@@ -16,8 +16,10 @@ import { handleApiError } from "@/lib/handleApiError";
 import { formatDate } from "@/lib/utils";
 import type { PageResponse } from "@/types/api";
 import { AdmissionStatusBadge } from "@/components/admissions/components";
+import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/admissions/api";
 import type { AdmissionStatus, StudentSectionAdmissionResponse } from "@/features/admissions/types";
+import { ROLES } from "@/lib/constants";
 
 const emptyPage: PageResponse<StudentSectionAdmissionResponse> = {
   content: [],
@@ -30,6 +32,8 @@ const emptyPage: PageResponse<StudentSectionAdmissionResponse> = {
 
 export function StudentSectionAdmissionListPage() {
   const navigate = useNavigate();
+  const { isRole } = useAuth();
+  const canManage = isRole([ROLES.STUDENT_SECTION]);
   const [result, setResult] = useState(emptyPage);
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
@@ -122,7 +126,7 @@ export function StudentSectionAdmissionListPage() {
             <Eye className="h-4 w-4" />
             View
           </Button>
-          {row.status === "SUBMITTED" && (
+          {canManage && row.status === "SUBMITTED" && (
             <Button
               variant="secondary"
               onClick={() => setAction({ type: "start", admission: row })}
@@ -130,10 +134,10 @@ export function StudentSectionAdmissionListPage() {
               Start
             </Button>
           )}
-          {["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(row.status) && (
+          {canManage && ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(row.status) && (
             <Button onClick={() => setAction({ type: "approve", admission: row })}>Approve</Button>
           )}
-          {row.status === "STUDENT_SECTION_APPROVED" && (
+          {canManage && row.status === "STUDENT_SECTION_APPROVED" && (
             <Button
               variant="secondary"
               onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
@@ -149,8 +153,12 @@ export function StudentSectionAdmissionListPage() {
   return (
     <div className="page-container">
       <div>
-        <h1 className="page-title">Student Section Admissions</h1>
-        <p className="page-subtitle">Search and verify public admission forms.</p>
+        <h1 className="page-title">Admission Records</h1>
+        <p className="page-subtitle">
+          {canManage
+            ? "Verify submitted applications and track every admission phase."
+            : "View admission records and their current progress across every phase."}
+        </p>
       </div>
       <Card className="mt-6">
         <div className="grid gap-3 border-b p-4 md:grid-cols-[1fr_260px]">
@@ -194,7 +202,7 @@ export function StudentSectionAdmissionListPage() {
           />
         )}
       </Card>
-      <ConfirmDialog
+      {canManage && <ConfirmDialog
         open={Boolean(action)}
         onClose={() => setAction(null)}
         onConfirm={runAction}
@@ -204,7 +212,7 @@ export function StudentSectionAdmissionListPage() {
           ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
           : "This will record a status history entry."}
         confirmLabel={action?.type === "start" ? "Start Review" : "Approve"}
-      />
+      />}
     </div>
   );
 }

@@ -29,8 +29,12 @@ import type {
   AdmissionStatusHistoryResponse,
   StudentSectionAdmissionResponse,
 } from "@/features/admissions/types";
+import { useAuth } from "@/features/auth/authStore";
+import { ROLES } from "@/lib/constants";
 
 export function StudentSectionAdmissionDetailPage() {
+  const { isRole } = useAuth();
+  const canManage = isRole([ROLES.STUDENT_SECTION]);
   const { admissionId = "" } = useParams();
   const id = Number(admissionId);
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
@@ -66,7 +70,7 @@ export function StudentSectionAdmissionDetailPage() {
   };
   if (loading) return <Loader label="Loading admission detail..." />;
   if (!admission) return null;
-  const canVerify = ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(admission.status);
+  const canVerify = canManage && ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(admission.status);
   const canApprove = canVerify && Boolean(admission.detailsCompletedAt) && admission.photoAvailable;
   return (
     <div className="page-container space-y-5">
@@ -81,7 +85,7 @@ export function StudentSectionAdmissionDetailPage() {
           <AdmissionStatusBadge status={admission.status} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          {admission.status === "SUBMITTED" && (
+          {canManage && admission.status === "SUBMITTED" && (
             <Button variant="secondary" onClick={quick}>
               Start Review
             </Button>
@@ -92,7 +96,7 @@ export function StudentSectionAdmissionDetailPage() {
               Reject
             </Button>
           )}
-          {admission.status === "STUDENT_SECTION_APPROVED" && (
+          {canManage && admission.status === "STUDENT_SECTION_APPROVED" && (
             <Link to={`/student-section/admissions/${id}/print`}>
               <Button variant="secondary">
                 <FileText className="h-4 w-4" />
@@ -100,7 +104,7 @@ export function StudentSectionAdmissionDetailPage() {
               </Button>
             </Link>
           )}
-          {admission.status === "STUDENT_SECTION_APPROVED" && (
+          {canManage && admission.status === "STUDENT_SECTION_APPROVED" && (
             <Button variant="secondary" onClick={() => setModal("printed")}>
               Mark Printed
             </Button>

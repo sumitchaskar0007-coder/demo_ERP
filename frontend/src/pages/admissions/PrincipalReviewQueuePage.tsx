@@ -86,9 +86,9 @@ export function PrincipalReviewQueuePage() {
       key: "actions",
       header: "",
       render: (row) => (
-        <Button variant="secondary" onClick={() => navigate(`/principal/admissions/${row.id}`)}>
-          <Eye className="h-4 w-4" />
-          View
+          <Button variant="secondary" onClick={() => navigate(`/principal/admissions/${row.id}`)}>
+            <Eye className="h-4 w-4" />
+            Review
         </Button>
       ),
     },
@@ -96,10 +96,9 @@ export function PrincipalReviewQueuePage() {
   return (
     <div className="page-container">
       <div>
-        <h1 className="page-title">Fee Verified - Ready for Principal Final Review</h1>
+        <h1 className="page-title">Final Admission Review</h1>
         <p className="page-subtitle">
-          Read-only admissions that reached the required verified fee amount. Final approval will be
-          available in the next module.
+          Review fee-qualified admissions in detail, then approve or reject the final admission.
         </p>
       </div>
       <Card className="mt-6">
@@ -130,8 +129,8 @@ export function PrincipalReviewQueuePage() {
           </>
         ) : (
           <EmptyState
-            title="No review-ready admissions"
-            description="Student Section approved admissions will appear here."
+            title="No admissions awaiting final review"
+            description="Admissions appear here after the required fee amount is verified."
           />
         )}
       </Card>

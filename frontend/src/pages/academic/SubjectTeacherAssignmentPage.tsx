@@ -8,6 +8,7 @@ import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
+import { useAuth } from "@/features/auth/authStore";
 import { searchStaff } from "@/features/staff/api";
 import type { StaffResponse } from "@/features/staff/types";
 import { searchDepartments } from "@/features/departments/api";
@@ -16,14 +17,15 @@ import {
   listSubjectTeacherAssignments,
   assignSubjectTeacher,
   unassignSubjectTeacher,
+  searchAcademicClasses,
   searchSubjects,
 } from "@/features/academic/api";
 import type { Subject, SubjectTeacherAssignment } from "@/features/academic/types";
 
 const TEACHING_TYPES = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
-const YEAR_OPTIONS = ["FIRST_YEAR", "SECOND_YEAR", "THIRD_YEAR", "FOURTH_YEAR", "FIFTH_YEAR"];
 
 export function SubjectTeacherAssignmentPage() {
+  const { user } = useAuth();
   const [teachers, setTeachers] = useState<StaffResponse[]>([]);
   const [selectedTeacher, setSelectedTeacher] = useState<StaffResponse | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -34,13 +36,44 @@ export function SubjectTeacherAssignmentPage() {
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState<number | "">("");
   const [yearName, setYearName] = useState("");
+  const [yearOptions, setYearOptions] = useState<string[]>([]);
 
   const loadDepartments = useCallback(async () => {
     try {
-      const result = await searchDepartments({ size: 100, status: "ACTIVE" as never });
-      setDepartments(result.content);
+      const result = await searchDepartments({
+        collegeId: user?.collegeId ?? undefined,
+        size: 100,
+        status: "ACTIVE" as never,
+      });
+      setDepartments([
+        ...new Map(result.content.map((department) => [
+          `${department.collegeId}:${department.code.trim().toUpperCase()}`,
+          department,
+        ])).values(),
+      ]);
     } catch {
       setDepartments([]);
+    }
+  }, [user?.collegeId]);
+
+  const loadYears = useCallback(async (deptId: number | "") => {
+    setYearName("");
+    if (!deptId) {
+      setYearOptions([]);
+      return;
+    }
+    try {
+      const classes = await searchAcademicClasses({ departmentId: Number(deptId) });
+      setYearOptions([
+        ...new Set(
+          classes
+            .filter((item) => item.status === "ACTIVE")
+            .map((item) => item.yearName),
+        ),
+      ]);
+    } catch (error) {
+      setYearOptions([]);
+      toast.error(handleApiError(error).message);
     }
   }, []);
 
@@ -147,7 +180,7 @@ export function SubjectTeacherAssignmentPage() {
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-600">
           <UserRound className="h-4 w-4" /> Academic Planning
         </div>
-        <h1 className="page-title">Subject-Teacher Assignments</h1>
+        <h1 className="page-title">Teaching Assignments</h1>
         <p className="page-subtitle">
           Assign subjects to teaching staff. One teacher can teach multiple subjects, and one
           subject can have multiple teachers.
@@ -162,6 +195,7 @@ export function SubjectTeacherAssignmentPage() {
             onChange={(e) => {
               const val = e.target.value === "" ? "" : Number(e.target.value);
               setDepartmentId(val);
+              void loadYears(val);
             }}
             options={[
               { label: "All Departments", value: "" },
@@ -172,9 +206,13 @@ export function SubjectTeacherAssignmentPage() {
             label="Year"
             value={yearName}
             onChange={(e) => setYearName(e.target.value)}
+            disabled={!departmentId}
             options={[
-              { label: "All Years", value: "" },
-              ...YEAR_OPTIONS.map((y) => ({ label: y.replaceAll("_", " "), value: y })),
+              {
+                label: departmentId ? "All created course years" : "Select a department first",
+                value: "",
+              },
+              ...yearOptions.map((y) => ({ label: y.replaceAll("_", " "), value: y })),
             ]}
           />
         </div>

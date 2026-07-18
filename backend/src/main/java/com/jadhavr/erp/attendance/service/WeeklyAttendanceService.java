@@ -138,14 +138,14 @@ public class WeeklyAttendanceService {
     public ReportResponse classTeacherReport(LocalDate from, LocalDate to, Long divisionId, Long subjectId) {
         StaffProfile profile = currentStaff();
         return report(from, to, subjectId, divisionId, null, null,
-                s -> s.getSection().getClassTeacher() != null && s.getSection().getClassTeacher().getId().equals(profile.getId()));
+                s -> s.getClassTeacher() != null && s.getClassTeacher().getId().equals(profile.getId()));
     }
 
     public ReportResponse hodReport(LocalDate from, LocalDate to, Long departmentId, Long divisionId,
             Long subjectId, Long teacherId) {
         StaffProfile profile = currentStaff();
         return report(from, to, subjectId, divisionId, departmentId, teacherId,
-                s -> profile.belongsToDepartment(s.getSection().getDepartment().getId()));
+                s -> profile.belongsToDepartment(s.getDepartment().getId()));
     }
 
     public ReportResponse principalReport(LocalDate from, LocalDate to, Long departmentId, Long divisionId,
@@ -156,7 +156,7 @@ public class WeeklyAttendanceService {
     }
 
     private ReportResponse report(LocalDate from, LocalDate to, Long subjectId, Long divisionId,
-            Long departmentId, Long teacherId, Predicate<WeeklyAttendanceSession> scope) {
+            Long departmentId, Long teacherId, Predicate<Section> scope) {
         LocalDate end = to == null ? LocalDate.now() : to;
         LocalDate start = from == null ? end.minusMonths(1) : from;
         validateRange(start, end);
@@ -164,16 +164,116 @@ public class WeeklyAttendanceService {
         List<WeeklyAttendanceSession> list = SecurityUtils.isSuperAdmin()
                 ? sessions.findAll().stream().filter(s -> !s.getAttendanceDate().isBefore(start) && !s.getAttendanceDate().isAfter(end)).toList()
                 : sessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(college, start, end);
-        list = list.stream().filter(s -> s.getStatus() == WeeklyAttendanceSession.Status.SUBMITTED).filter(scope)
+        List<WeeklyAttendanceSession> scoped = list.stream().filter(s -> scope.test(s.getSection()))
                 .filter(s -> subjectId == null || subjectId.equals(s.getSubject().getId()))
                 .filter(s -> divisionId == null || divisionId.equals(s.getSection().getId()))
                 .filter(s -> departmentId == null || departmentId.equals(s.getSection().getDepartment().getId()))
                 .filter(s -> teacherId == null || teacherId.equals(s.getTeacher().getId())).toList();
-        List<WeeklyAttendanceRecord> all = list.stream().flatMap(s -> records.findBySessionIdOrderByStudentFullNameAsc(s.getId()).stream()).toList();
+        list = scoped.stream().filter(s -> s.getStatus() == WeeklyAttendanceSession.Status.SUBMITTED).toList();
+        List<WeeklyAttendanceRecord> all = list.isEmpty() ? List.of()
+                : records.findBySessionIdIn(list.stream().map(WeeklyAttendanceSession::getId).toList());
+        Map<Long, List<WeeklyAttendanceRecord>> sessionRecords = all.stream()
+                .collect(Collectors.groupingBy(r -> r.getSession().getId()));
         long present = count(all, WeeklyAttendanceRecord.Status.PRESENT), absent = count(all, WeeklyAttendanceRecord.Status.ABSENT);
         long late = count(all, WeeklyAttendanceRecord.Status.LATE), leave = count(all, WeeklyAttendanceRecord.Status.LEAVE);
+
+        List<StudentSectionEnrollment> active = enrollments.findAll().stream()
+                .filter(e -> e.getStatus() == AcademicStatus.ACTIVE).filter(e -> scope.test(e.getSection()))
+                .filter(e -> divisionId == null || divisionId.equals(e.getSection().getId()))
+                .filter(e -> departmentId == null || departmentId.equals(e.getSection().getDepartment().getId()))
+                .toList();
+        Set<Long> allowedStudentIds = all.stream().map(r -> r.getStudent().getId()).collect(Collectors.toSet());
+        if (subjectId != null || teacherId != null) active = active.stream()
+                .filter(e -> allowedStudentIds.contains(e.getStudent().getId())).toList();
+        Map<Long, List<WeeklyAttendanceRecord>> studentRecords = all.stream()
+                .collect(Collectors.groupingBy(r -> r.getStudent().getId()));
+        List<StudentAnalyticsRow> studentRows = active.stream().map(e -> studentAnalytics(e,
+                studentRecords.getOrDefault(e.getStudent().getId(), List.of())))
+                .sorted(Comparator.comparing(StudentAnalyticsRow::studentName, String.CASE_INSENSITIVE_ORDER)).toList();
+
+        LocalDate today = LocalDate.now();
+        Set<Long> presentToday = all.stream().filter(r -> r.getSession().getAttendanceDate().equals(today))
+                .filter(this::attended).map(r -> r.getStudent().getId()).collect(Collectors.toSet());
+        Set<Long> absentToday = all.stream().filter(r -> r.getSession().getAttendanceDate().equals(today))
+                .filter(r -> r.getStatus() == WeeklyAttendanceRecord.Status.ABSENT)
+                .map(r -> r.getStudent().getId()).collect(Collectors.toSet());
+        List<WeeklyTimetableEntry> expectedToday = entries.findAll().stream()
+                .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
+                .filter(e -> e.getDayOfWeek() == today.getDayOfWeek()).filter(e -> scope.test(e.getTimetable().getSection()))
+                .filter(e -> subjectId == null || subjectId.equals(e.getSubject().getId()))
+                .filter(e -> divisionId == null || divisionId.equals(e.getTimetable().getSection().getId()))
+                .filter(e -> departmentId == null || departmentId.equals(e.getTimetable().getSection().getDepartment().getId()))
+                .filter(e -> teacherId == null || teacherId.equals(e.getTeacher().getId())).toList();
+        List<WeeklyAttendanceSession> todaySessions = (SecurityUtils.isSuperAdmin() ? sessions.findAll().stream()
+                .filter(s -> s.getAttendanceDate().equals(today)).toList()
+                : sessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(college, today, today))
+                .stream().filter(s -> scope.test(s.getSection()))
+                .filter(s -> subjectId == null || subjectId.equals(s.getSubject().getId()))
+                .filter(s -> divisionId == null || divisionId.equals(s.getSection().getId()))
+                .filter(s -> departmentId == null || departmentId.equals(s.getSection().getDepartment().getId()))
+                .filter(s -> teacherId == null || teacherId.equals(s.getTeacher().getId())).toList();
+        int submittedToday = (int) todaySessions.stream()
+                .filter(s -> s.getStatus() == WeeklyAttendanceSession.Status.SUBMITTED).count();
+        int todayLectures = expectedToday.size();
+        int pendingToday = Math.max(0, todayLectures - submittedToday);
+        int below75 = (int) studentRows.stream().filter(s -> s.total() > 0 && s.percentage() < 75).count();
+        int below50 = (int) studentRows.stream().filter(s -> s.total() > 0 && s.percentage() < 50).count();
+        List<SessionSummary> summaries = list.stream().map(s -> summary(s, sessionRecords.getOrDefault(s.getId(), List.of()))).toList();
         return new ReportResponse(start, end, list.size(), all.size(), present, absent, late, leave,
-                percentage(all), list.stream().map(this::summary).toList(), subjectSummaries(all), monthSummaries(all));
+                percentage(all), studentRows.size(), presentToday.size(), absentToday.size(), todayLectures,
+                submittedToday, pendingToday, (int) active.stream().map(e -> e.getSection().getDepartment().getId()).distinct().count(),
+                (int) active.stream().map(e -> e.getSection().getId()).distinct().count(), below75, below50,
+                trend(all), operations(expectedToday, todaySessions, "DEPARTMENT"),
+                operations(expectedToday, todaySessions, "DIVISION"), operations(expectedToday, todaySessions, "TEACHER"),
+                studentRows, summaries, subjectSummaries(all), monthSummaries(all));
+    }
+
+    private List<OperationalSummary> operations(List<WeeklyTimetableEntry> expected,
+            List<WeeklyAttendanceSession> actual, String level) {
+        Map<Long, List<WeeklyTimetableEntry>> groups = expected.stream().collect(Collectors.groupingBy(e -> switch (level) {
+            case "DEPARTMENT" -> e.getTimetable().getSection().getDepartment().getId();
+            case "DIVISION" -> e.getTimetable().getSection().getId();
+            default -> e.getTeacher().getId();
+        }, LinkedHashMap::new, Collectors.toList()));
+        return groups.entrySet().stream().map(e -> {
+            WeeklyTimetableEntry first = e.getValue().get(0); Long id = e.getKey();
+            String name = switch (level) {
+                case "DEPARTMENT" -> first.getTimetable().getSection().getDepartment().getName();
+                case "DIVISION" -> first.getTimetable().getSection().getName();
+                default -> first.getTeacher().getFullName();
+            };
+            int submitted = (int) actual.stream().filter(s -> s.getStatus() == WeeklyAttendanceSession.Status.SUBMITTED)
+                    .filter(s -> switch (level) {
+                        case "DEPARTMENT" -> s.getSection().getDepartment().getId().equals(id);
+                        case "DIVISION" -> s.getSection().getId().equals(id);
+                        default -> s.getTeacher().getId().equals(id);
+                    }).count();
+            return new OperationalSummary(id, name, e.getValue().size(), submitted,
+                    Math.max(0, e.getValue().size() - submitted));
+        }).sorted(Comparator.comparing(OperationalSummary::name, String.CASE_INSENSITIVE_ORDER)).toList();
+    }
+
+    private StudentAnalyticsRow studentAnalytics(StudentSectionEnrollment enrollment, List<WeeklyAttendanceRecord> rows) {
+        StudentProfile student = enrollment.getStudent(); Section section = enrollment.getSection();
+        List<WeeklyAttendanceRecord> ordered = rows.stream().sorted(Comparator
+                .comparing((WeeklyAttendanceRecord r) -> r.getSession().getAttendanceDate()).reversed()
+                .thenComparing(r -> r.getSession().getStartTime(), Comparator.reverseOrder())).toList();
+        double pct = percentage(rows);
+        return new StudentAnalyticsRow(student.getId(), student.getAdmissionNumber(), enrollment.getRollNumber(),
+                student.getFullName(), student.getGender(), null, student.getParentName(), student.getParentPhone(),
+                section.getDepartment().getId(), section.getDepartment().getName(), enrollment.getAcademicYear(),
+                section.getAcademicClass().getName(), section.getId(), section.getName(),
+                section.getClassTeacher() == null ? "Unassigned" : section.getClassTeacher().getFullName(), rows.size(),
+                count(rows, WeeklyAttendanceRecord.Status.PRESENT), count(rows, WeeklyAttendanceRecord.Status.ABSENT),
+                count(rows, WeeklyAttendanceRecord.Status.LATE), count(rows, WeeklyAttendanceRecord.Status.LEAVE), pct,
+                detailedIndicator(pct, rows.size()), subjectSummaries(rows), monthSummaries(rows),
+                ordered.stream().map(this::studentRow).toList());
+    }
+
+    private List<TrendPoint> trend(List<WeeklyAttendanceRecord> rows) {
+        return rows.stream().collect(Collectors.groupingBy(r -> r.getSession().getAttendanceDate(), TreeMap::new, Collectors.toList()))
+                .entrySet().stream().map(e -> new TrendPoint(e.getKey(), e.getValue().size(),
+                        (int) e.getValue().stream().filter(this::attended).count(), percentage(e.getValue()))).toList();
     }
 
     private WeeklyAttendanceSession createSession(WeeklyTimetableEntry entry, LocalDate date) {
@@ -267,6 +367,9 @@ public class WeeklyAttendanceService {
 
     private SessionSummary summary(WeeklyAttendanceSession s) {
         List<WeeklyAttendanceRecord> rows = records.findBySessionIdOrderByStudentFullNameAsc(s.getId());
+        return summary(s, rows);
+    }
+    private SessionSummary summary(WeeklyAttendanceSession s, List<WeeklyAttendanceRecord> rows) {
         return new SessionSummary(s.getId(), s.getAttendanceDate(), s.getStartTime() + " - " + s.getEndTime(),
                 s.getSubject().getId(), s.getSubject().getName(), s.getSection().getDepartment().getId(),
                 s.getSection().getDepartment().getName(), s.getSection().getId(), s.getSection().getAcademicClass().getName(),
@@ -323,6 +426,14 @@ public class WeeklyAttendanceService {
         catch (Exception ex) { throw new BadRequestException("Attendance status must be PRESENT, ABSENT, LATE, or LEAVE"); }
     }
     private String indicator(double pct) { return pct >= 75 ? "GOOD" : pct >= 60 ? "WARNING" : "CRITICAL"; }
+    private String detailedIndicator(double pct, int total) {
+        if (total == 0) return "NO DATA";
+        if (pct >= 95) return "EXCELLENT";
+        if (pct >= 85) return "GOOD";
+        if (pct >= 75) return "AVERAGE";
+        if (pct >= 50) return "WARNING";
+        return "CRITICAL";
+    }
     private double round(double n) { return Math.round(n * 100.0) / 100.0; }
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private void validateRange(LocalDate from, LocalDate to) {

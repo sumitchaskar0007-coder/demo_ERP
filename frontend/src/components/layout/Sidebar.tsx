@@ -45,6 +45,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const isFeeSection = isRole([ROLES.FEE_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
   const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
+  const isHod = isRole([ROLES.HOD]);
   const isTeacher = isRole([ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
   const isClassTeacher = isRole([ROLES.CLASS_TEACHER]);
   const nav = isAdmin
@@ -72,21 +73,19 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           { label: "Staff", to: ROUTES.staff, icon: Users },
           { label: "Create Staff", to: ROUTES.createStaff, icon: UserPlus },
           { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
-          { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
-          { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
+          { label: "Fee Collection", to: ROUTES.principalFeeCollection, icon: WalletCards },
+          { label: "Pending Fees", to: ROUTES.principalPendingFees, icon: CreditCard },
+          { label: "Analytics", to: ROUTES.principalAnalytics, icon: BarChart3 },
           {
-            label: "Student Section Admissions",
+            label: "Admission Records",
             to: ROUTES.studentSectionAdmissions,
             icon: GraduationCap,
           },
-          { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
-          { label: "Final Admissions", to: ROUTES.finalAdmissions, icon: FileText },
-          { label: "Academic", to: ROUTES.academicClasses, icon: GraduationCap },
+          { label: "Final Admission Review", to: ROUTES.principalReviewReady, icon: FileText },
           { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
-          { label: "Subject Teachers", to: ROUTES.subjectTeacherAssignments, icon: Users },
+          { label: "Teaching Assignments", to: ROUTES.subjectTeacherAssignments, icon: Users },
           { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
           { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
-          { label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users },
           { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
           { label: "Audit Logs", to: ROUTES.auditLogs, icon: FileText },
           { label: "Notices", to: ROUTES.notices, icon: Bell },
@@ -96,7 +95,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       : isStudentSection
         ? [
             { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
-            { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+            { label: "Admission Records", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
             { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
             { label: "Notices", to: ROUTES.notices, icon: Bell },
             { label: "Account", to: ROUTES.account, icon: UserRound },
@@ -128,6 +127,9 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
             : isOtherStaff
               ? [
                   { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+                  ...(isHod
+                    ? [{ label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users }]
+                    : []),
                   ...(isClassTeacher
                     ? [{ label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap }]
                     : []),

@@ -12,6 +12,7 @@ import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
 import { createStaff } from "@/features/staff/api";
 import type { StaffType } from "@/features/staff/types";
+import { useAuth } from "@/features/auth/authStore";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
 import { createStaffSchema } from "@/lib/validators";
@@ -45,6 +46,7 @@ const ROLE_OPTIONS: Array<{ value: StaffType; label: string; description: string
 
 export function CreateStaffPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [departments, setDepartments] = useState<Department[]>([]);
   const {
     register,
@@ -69,10 +71,16 @@ export function CreateStaffPage() {
   const showDepartments = staffTypes.some((type) => TEACHING_ROLES.includes(type));
 
   useEffect(() => {
-    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
-      .then((page) => setDepartments(page.content))
+    if (!user?.collegeId) { setDepartments([]); return; }
+    searchDepartments({ collegeId: user.collegeId, status: "ACTIVE", page: 0, size: 100 })
+      .then((page) => setDepartments([
+        ...new Map(page.content.map((department) => [
+          `${department.collegeId}:${department.code.trim().toUpperCase()}`,
+          department,
+        ])).values(),
+      ]))
       .catch((error) => toast.error(handleApiError(error).message));
-  }, []);
+  }, [user?.collegeId]);
 
   const toggleRole = (role: StaffType) => {
     const next = staffTypes.includes(role)

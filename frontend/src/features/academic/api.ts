@@ -4,7 +4,6 @@ import type {
   AcademicClass,
   CourseYear,
   Division,
-  FinalAdmission,
   Section,
   Subject,
   SubjectTeacherAssignment,
@@ -43,14 +42,6 @@ export const assignDivisionClassTeacher = (id: number, staffProfileId: number) =
   patch<Division>(`/api/principal/divisions/${id}/assign-class-teacher`, { staffProfileId });
 export const removeDivisionClassTeacher = (id: number) =>
   patch<Division>(`/api/principal/divisions/${id}/remove-class-teacher`);
-export const getFinalAdmissionQueue = (params?: object) =>
-  get<FinalAdmission[]>("/api/principal/final-admissions/review-ready", params);
-export const getFinalAdmissionDetail = (id: number) =>
-  get<FinalAdmission>(`/api/principal/final-admissions/${id}`);
-export const approveFinalAdmission = (id: number, data: object) =>
-  patch<FinalAdmission>(`/api/principal/final-admissions/${id}/approve`, data);
-export const rejectFinalAdmission = (id: number, data: object) =>
-  patch<FinalAdmission>(`/api/principal/final-admissions/${id}/reject`, data);
 export const createAcademicClass = (data: object) =>
   post<AcademicClass>("/api/academic/classes", data);
 export const searchAcademicClasses = (params?: object) =>
