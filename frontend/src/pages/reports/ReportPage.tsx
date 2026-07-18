@@ -7,7 +7,11 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Loader } from "@/components/common/Loader";
 import { handleApiError } from "@/lib/handleApiError";
 import { exportReport, getReport, type ReportRow } from "@/features/reports/api";
+import { AdmissionAnalyticsDashboard } from "./AdmissionAnalyticsDashboard";
 export function ReportPage({ type }: { type: "admissions" | "fees" | "attendance" | "students" }) {
+  return type === "admissions" ? <AdmissionAnalyticsDashboard /> : <GenericReportPage type={type} />;
+}
+function GenericReportPage({ type }: { type: "fees" | "attendance" | "students" }) {
   const [rows, setRows] = useState<ReportRow[]>([]),
     [loading, setLoading] = useState(true);
   useEffect(() => {
