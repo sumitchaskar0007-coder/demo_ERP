@@ -71,7 +71,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           { label: "Divisions", to: ROUTES.divisions, icon: Users },
           { label: "Staff", to: ROUTES.staff, icon: Users },
           { label: "Create Staff", to: ROUTES.createStaff, icon: UserPlus },
-          { label: "Class Teacher Assignment", to: ROUTES.divisions, icon: UserRound },
           { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
           { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
           { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },

@@ -46,6 +46,7 @@ import {
   CourseYearFormPage,
   CourseYearListPage,
   DivisionFormPage,
+  DivisionDetailsPage,
   DivisionListPage,
 } from "@/pages/academic/CourseYearDivisionPages";
 import { StudentAdmissionPage } from "@/pages/student/StudentAdmissionPage";
@@ -166,6 +167,7 @@ export function AppRouter() {
             <Route path="/principal/course-years/:id/edit" element={<CourseYearFormPage />} />
             <Route path={ROUTES.divisions} element={<DivisionListPage />} />
             <Route path={ROUTES.createDivision} element={<DivisionFormPage />} />
+            <Route path="/principal/divisions/:id" element={<DivisionDetailsPage />} />
             <Route path="/principal/divisions/:id/edit" element={<DivisionFormPage />} />
             <Route
               path={ROUTES.createStudentSectionStaff}
