@@ -11,7 +11,7 @@ import type { College } from "@/features/colleges/types";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROLES } from "@/lib/constants";
 import * as api from "./api";
-import type { Notice, NoticeRole } from "./types";
+import type { Notice, NoticePriority, NoticeRole } from "./types";
 
 const labels: Record<NoticeRole, string> = {
   PRINCIPAL: "Principals",
@@ -54,6 +54,7 @@ export function NoticesPage() {
   const [tab, setTab] = useState<"inbox" | "sent">("inbox");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [priority, setPriority] = useState<NoticePriority>("NORMAL");
   const [collegeIds, setCollegeIds] = useState<number[]>([]);
   const [roles, setRoles] = useState<NoticeRole[]>(hod ? ["STUDENT"] : []);
   const [loading, setLoading] = useState(true);
@@ -121,12 +122,14 @@ export function NoticesPage() {
       await api.sendNotice({
         title,
         message,
+        priority,
         audienceRoles: roles,
         collegeIds: admin ? collegeIds : [],
       });
       toast.success("Notice sent successfully");
       setTitle("");
       setMessage("");
+      setPriority("NORMAL");
       setRoles(hod ? ["STUDENT"] : []);
       setCollegeIds([]);
       await load();
@@ -193,6 +196,24 @@ export function NoticesPage() {
                 className="min-h-28"
               />
             </div>
+            <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <label className="text-sm font-semibold text-slate-800" htmlFor="notice-priority">
+                Notice priority
+              </label>
+              <p className="mt-1 text-xs text-slate-500">
+                High and urgent notices require every recipient to wait 8 seconds and acknowledge them before opening the dashboard.
+              </p>
+              <select
+                id="notice-priority"
+                value={priority}
+                onChange={(event) => setPriority(event.target.value as NoticePriority)}
+                className="mt-3 h-11 w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              >
+                <option value="NORMAL">Normal</option>
+                <option value="HIGH">High — acknowledgement required</option>
+                <option value="URGENT">Urgent — acknowledgement required</option>
+              </select>
+            </section>
             {admin && (
               <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -329,6 +350,11 @@ export function NoticesPage() {
                     <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
                       <div>
                         <h3 className="text-base font-bold text-slate-900">{notice.title}</h3>
+                        {notice.priority !== "NORMAL" && (
+                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${notice.priority === "URGENT" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>
+                            {notice.priority}
+                          </span>
+                        )}
                         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                           <span className="font-semibold text-brand-700">
                             {tab === "inbox"

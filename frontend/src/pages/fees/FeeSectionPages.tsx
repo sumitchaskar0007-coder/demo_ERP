@@ -50,11 +50,23 @@ export function FeeSectionDashboardPage() {
 export function FeeAccountsPage() {
   const [d, setD] = useState<StudentFeeAccountResponse[]>([]);
   const [q, setQ] = useState("");
+  const [sendingReminder, setSendingReminder] = useState<number | null>(null);
   const load = () =>
     api.searchFeeAccounts({ keyword: q || undefined, size: 50 }).then((x) => setD(x.content));
   useEffect(() => {
     load();
   }, []);
+  const remind = async (account: StudentFeeAccountResponse) => {
+    setSendingReminder(account.id);
+    try {
+      await api.sendPendingFeeReminder(account.id);
+      toast.success("Pending fee reminder queued to the student email");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSendingReminder(null);
+    }
+  };
   const cols: Column<StudentFeeAccountResponse>[] = [
     {
       key: "student",
@@ -74,9 +86,19 @@ export function FeeAccountsPage() {
       key: "action",
       header: "Action",
       render: (r) => (
-        <Link to={`/fee-section/fee-accounts/${r.id}`}>
-          <Button variant="secondary">View</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/fee-section/fee-accounts/${r.id}`}>
+            <Button variant="secondary">View</Button>
+          </Link>
+          {Number(r.remainingAmount) > 0 && (
+            <Button
+              disabled={sendingReminder === r.id}
+              onClick={() => void remind(r)}
+            >
+              {sendingReminder === r.id ? "Sending…" : "Email reminder"}
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -95,6 +117,7 @@ export function FeeAccountDetailsPage() {
   const { feeAccountId } = useParams();
   const [a, setA] = useState<StudentFeeAccountResponse | null>(null);
   const [t, setT] = useState<FeeTransactionResponse[]>([]);
+  const [sendingReminder, setSendingReminder] = useState(false);
   useEffect(() => {
     if (feeAccountId)
       Promise.all([
@@ -106,12 +129,30 @@ export function FeeAccountDetailsPage() {
       });
   }, [feeAccountId]);
   if (!a) return <div className="page-container">Loading…</div>;
+  const remind = async () => {
+    setSendingReminder(true);
+    try {
+      await api.sendPendingFeeReminder(a.id);
+      toast.success("Pending fee reminder queued to the student email");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSendingReminder(false);
+    }
+  };
   return (
     <div className="page-container space-y-5">
       <Card className="p-7">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="page-title">{a.admissionNumber}</h1>
-          <StatusBadge status={a.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={a.status} />
+            {Number(a.remainingAmount) > 0 && (
+              <Button disabled={sendingReminder} onClick={() => void remind()}>
+                {sendingReminder ? "Sending…" : "Email fee reminder"}
+              </Button>
+            )}
+          </div>
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-4">
           {[

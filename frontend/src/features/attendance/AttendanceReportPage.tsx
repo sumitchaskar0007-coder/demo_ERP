@@ -96,7 +96,7 @@ export function AttendanceReportPage() {
   return <div className="page-container space-y-6 pb-12 print:bg-white">
     <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
       <div><p className="text-xs font-bold uppercase tracking-[.18em] text-brand-600">Principal analytics</p><h1 className="page-title mt-1">Attendance Analytics Dashboard</h1><p className="mt-1 text-sm text-slate-500">Monitor attendance risks from college level down to individual student records.</p></div>
-      <ExportActions data={exportData} />
+      <ExportActions data={exportData} collegeName={user?.collegeName ?? undefined} />
     </header>
 
     <Card className="sticky top-0 z-20 border-slate-200/80 bg-white/95 p-5 shadow-sm backdrop-blur dark:bg-slate-900/95 print:hidden">
@@ -161,7 +161,7 @@ export function AttendanceReportPage() {
   </div>;
 }
 
-function ExportActions({data}:{data?:AttendanceReport}) { return <div className="flex flex-wrap gap-2 print:hidden"><Button variant="secondary" disabled={!data} onClick={() => data && void exportAttendancePdf(data)}><Printer className="mr-2 h-4 w-4"/>PDF</Button><Button variant="secondary" disabled={!data} onClick={() => data && void exportAttendanceExcel(data)}><Download className="mr-2 h-4 w-4"/>Excel</Button><Button variant="secondary" disabled={!data} onClick={() => data && exportAttendanceCsv(data)}><Download className="mr-2 h-4 w-4"/>CSV</Button><Button variant="secondary" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4"/>Print</Button></div> }
+function ExportActions({data,collegeName}:{data?:AttendanceReport;collegeName?:string}) { return <div className="flex flex-wrap gap-2 print:hidden"><Button variant="secondary" disabled={!data} onClick={() => data && void exportAttendancePdf(data,collegeName)}><Printer className="mr-2 h-4 w-4"/>PDF</Button><Button variant="secondary" disabled={!data} onClick={() => data && void exportAttendanceExcel(data,collegeName)}><Download className="mr-2 h-4 w-4"/>Excel</Button><Button variant="secondary" disabled={!data} onClick={() => data && exportAttendanceCsv(data)}><Download className="mr-2 h-4 w-4"/>CSV</Button><Button variant="secondary" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4"/>Print</Button></div> }
 function Select({label,value,onChange,options,all}:{label:string;value:string;onChange:(v:string)=>void;options:(string|{value:string;label:string})[];all:string}) { return <ResponsiveSelect label={label} value={value} onChange={e=>onChange(e.target.value)} options={[{value:"",label:all},...options.map(o=>typeof o==="string"?{value:o,label:o}:o)]}/> }
 function Field({label,type,value,onChange}:{label:string;type:string;value:string;onChange:(v:string)=>void}) { return <label className="text-xs font-semibold text-slate-600">{label}<input type={type} value={value} onChange={e=>onChange(e.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"/></label> }
 const tones:Record<string,string>={blue:"bg-blue-50 text-blue-600",indigo:"bg-indigo-50 text-indigo-600",violet:"bg-violet-50 text-violet-600",green:"bg-emerald-50 text-emerald-600",orange:"bg-amber-50 text-amber-600",cyan:"bg-cyan-50 text-cyan-600",red:"bg-rose-50 text-rose-600"};

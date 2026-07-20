@@ -14,11 +14,13 @@ import { SearchPanel } from "./SearchPanel";
 import { useUndoRedo } from "./useUndoRedo";
 import { DAYS, DAY_LABELS, DEFAULT_PERIODS } from "./constants";
 import { exportToPDF, exportToExcel } from "./exportUtils";
+import { useAuth } from "@/features/auth/authStore";
 import type { Timetable, TimetableEntry, TimetableDay } from "./types";
 
 const BTN_SM = "h-8 px-3 text-xs";
 
 export function WeeklyTimetablePage() {
+  const { user } = useAuth();
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,7 +107,7 @@ export function WeeklyTimetablePage() {
         </div>
         <div className="flex items-center gap-2">
           {selected?.status === "DRAFT" && (
-            <Button onClick={publish} loading={publishing} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={publish} loading={publishing} className="bg-teal-600 hover:bg-teal-700">
               Publish
             </Button>
           )}
@@ -138,7 +140,7 @@ export function WeeklyTimetablePage() {
 
         {selected && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${selected.status === "PUBLISHED" ? "bg-green-50 text-green-700" : selected.status === "ARCHIVED" ? "bg-slate-100 text-slate-600" : "bg-yellow-50 text-yellow-700"}`}>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${selected.status === "PUBLISHED" ? "bg-teal-50 text-teal-700" : selected.status === "ARCHIVED" ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-700"}`}>
               {selected.status}
             </span>
             <span>·</span>
@@ -173,7 +175,7 @@ export function WeeklyTimetablePage() {
                 <Button
                   className={BTN_SM}
                   variant="ghost"
-                  onClick={() => exportToPDF(entries, `${selected.className} Timetable`, DEFAULT_PERIODS)}
+                  onClick={() => exportToPDF(entries, `${selected.className} Timetable`, DEFAULT_PERIODS, user?.collegeName ?? undefined)}
                   disabled={entryCount === 0}
                   title="Export PDF"
                 >
@@ -182,7 +184,7 @@ export function WeeklyTimetablePage() {
                 <Button
                   className={BTN_SM}
                   variant="ghost"
-                  onClick={() => exportToExcel(entries, `${selected.className} Timetable`, DEFAULT_PERIODS)}
+                  onClick={() => exportToExcel(entries, `${selected.className} Timetable`, DEFAULT_PERIODS, user?.collegeName ?? undefined)}
                   disabled={entryCount === 0}
                   title="Export Excel"
                 >
@@ -210,15 +212,15 @@ export function WeeklyTimetablePage() {
             )}
           </Card>
 
-          <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
+          <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
             {DAYS.map((day) => (
               <button
                 key={day}
                 onClick={() => setDayTab(day)}
-                className={`whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                   dayTab === day
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-gradient-to-r from-brand-600 to-sky-500 text-white shadow-sm"
+                    : "text-slate-500 hover:bg-white hover:text-sky-700"
                 }`}
               >
                 {DAY_LABELS[day]}

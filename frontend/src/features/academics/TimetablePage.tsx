@@ -49,12 +49,12 @@ const DAY_LABELS: Record<string, string> = {
   SATURDAY: "Saturday",
 };
 const PALETTE = [
-  "bg-blue-50 border-blue-200 border-l-blue-600 text-blue-950 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-100",
-  "bg-emerald-50 border-emerald-200 border-l-emerald-600 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100",
-  "bg-amber-50 border-amber-200 border-l-amber-500 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100",
-  "bg-violet-50 border-violet-200 border-l-violet-600 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100",
-  "bg-cyan-50 border-cyan-200 border-l-cyan-600 text-cyan-950 dark:bg-cyan-950/40 dark:border-cyan-800 dark:text-cyan-100",
-  "bg-rose-50 border-rose-200 border-l-rose-600 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-100",
+  "bg-gradient-to-br from-blue-50 to-sky-100/70 border-sky-200 border-l-brand-500 text-slate-800 dark:from-sky-950/40 dark:to-blue-950/30 dark:border-sky-800 dark:text-sky-100",
+  "bg-gradient-to-br from-teal-50 to-cyan-100/60 border-teal-200 border-l-teal-500 text-slate-800 dark:from-teal-950/40 dark:to-cyan-950/30 dark:border-teal-800 dark:text-teal-100",
+  "bg-gradient-to-br from-orange-50 to-amber-100/60 border-orange-200 border-l-orange-400 text-slate-800 dark:from-orange-950/40 dark:to-amber-950/30 dark:border-orange-800 dark:text-orange-100",
+  "bg-gradient-to-br from-cyan-50 to-sky-100/60 border-cyan-200 border-l-cyan-500 text-slate-800 dark:from-cyan-950/40 dark:to-sky-950/30 dark:border-cyan-800 dark:text-cyan-100",
+  "bg-gradient-to-br from-lime-50 to-emerald-100/50 border-lime-200 border-l-lime-500 text-slate-800 dark:from-lime-950/30 dark:to-emerald-950/30 dark:border-lime-800 dark:text-lime-100",
+  "bg-gradient-to-br from-slate-50 to-blue-100/50 border-slate-200 border-l-slate-500 text-slate-800 dark:from-slate-800 dark:to-blue-950/30 dark:border-slate-700 dark:text-slate-100",
 ];
 
 type Editor = {
@@ -105,6 +105,8 @@ const toInput = (entry: WeeklyEntry): WeeklyEntryInput => ({
 export function TimetablePage() {
   const { isRole } = useAuth();
   const isSuperAdmin = isRole([ROLES.SUPER_ADMIN]);
+  const isPrincipal = isRole([ROLES.PRINCIPAL]);
+  const isClassTeacher = isRole([ROLES.CLASS_TEACHER]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [scope, setScope] = useState({ collegeId: "", departmentId: "", courseYearId: "" });
@@ -204,6 +206,41 @@ export function TimetablePage() {
       setSaveState("idle");
       toast.error(handleApiError(error).message);
       throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitForReview = async () => {
+    if (!table) return;
+    setSaving(true);
+    try {
+      setTable(await weeklyTimetableApi.submitReview(table.id));
+      toast.success("Timetable submitted to the Principal for approval");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reviewTimetable = async (action: "APPROVE" | "REQUEST_CHANGES" | "REJECT") => {
+    if (!table) return;
+    const comment =
+      action === "APPROVE"
+        ? undefined
+        : window.prompt(
+            action === "REJECT" ? "Enter rejection reason" : "Describe the required changes",
+          );
+    if (action !== "APPROVE" && !comment?.trim()) return;
+    setSaving(true);
+    try {
+      setTable(await weeklyTimetableApi.review(table.id, action, comment?.trim()));
+      toast.success(
+        action === "APPROVE" ? "Timetable approved" : "Timetable returned to the class teacher",
+      );
+    } catch (error) {
+      toast.error(handleApiError(error).message);
     } finally {
       setSaving(false);
     }
@@ -530,7 +567,7 @@ export function TimetablePage() {
             ].map(([key, value]) => (
               <div
                 key={key}
-                className="min-w-0 rounded-xl bg-slate-50 p-3 dark:bg-slate-800 print:rounded-none print:border print:bg-white print:p-2"
+                className="min-w-0 rounded-xl border border-sky-100 bg-sky-50/70 p-3 dark:border-slate-700 dark:bg-slate-800 print:rounded-none print:border print:bg-white print:p-2"
               >
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                   {key}
@@ -540,6 +577,11 @@ export function TimetablePage() {
                 </p>
               </div>
             ))}
+            {table.reviewComment && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2 lg:col-span-4 xl:col-span-7 print:hidden">
+                <b>Principal review:</b> {table.reviewComment}
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -651,6 +693,34 @@ export function TimetablePage() {
           )}
 
           <div className="flex flex-wrap justify-end gap-2 print:hidden">
+            {isClassTeacher && table.editable && (
+              <Button disabled={saving || !table.entries.length} onClick={() => void submitForReview()}>
+                <Check className="h-4 w-4" />
+                Submit to Principal
+              </Button>
+            )}
+            {isPrincipal && table.status === "SUBMITTED" && (
+              <>
+                <Button disabled={saving} onClick={() => void reviewTimetable("APPROVE")}>
+                  <Check className="h-4 w-4" />
+                  Approve timetable
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => void reviewTimetable("REQUEST_CHANGES")}
+                >
+                  Request changes
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => void reviewTimetable("REJECT")}
+                >
+                  Reject
+                </Button>
+              </>
+            )}
             <Button variant="secondary" onClick={() => window.print()}>
               <Printer className="h-4 w-4" />
               Print
@@ -931,8 +1001,8 @@ function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridPro
   return (
     <div className="timetable-print-sheet hidden overflow-x-auto rounded-2xl border bg-white shadow-sm print:block print:overflow-visible print:rounded-none print:shadow-none xl:block">
       <div className="min-w-[1120px] print:min-w-0">
-        <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500 print:static print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] print:text-[8px]">
-          <div className="sticky left-0 z-30 bg-slate-100 p-3 text-left">Period</div>
+        <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-b border-sky-200 bg-gradient-to-r from-brand-50 via-sky-50 to-cyan-50 text-center text-xs font-bold uppercase tracking-wide text-brand-700 print:static print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] print:text-[8px]">
+          <div className="sticky left-0 z-30 bg-gradient-to-r from-brand-50 to-sky-50 p-3 text-left">Period</div>
           {DAYS.map((day) => (
             <div className="border-l p-3" key={day}>
               {DAY_LABELS[day]}
@@ -942,13 +1012,13 @@ function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridPro
         {table.periods.map((period) => (
           <div
             key={period.id}
-            className={`grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-t print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}
+            className={`grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-t print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] ${period.kind !== "TEACHING" ? "bg-orange-50/70" : ""}`}
           >
             <div className="sticky left-0 z-10 flex min-w-0 flex-col justify-center bg-white p-3">
               <PeriodLabel period={period} />
             </div>
             {period.kind !== "TEACHING" ? (
-              <div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.2em] text-amber-700">
+              <div className="col-span-6 flex items-center justify-center border-l border-orange-200 p-4 text-xs font-bold tracking-[.2em] text-orange-700">
                 {period.kind === "SHORT_BREAK" ? "SHORT BREAK" : "LUNCH BREAK"}
               </div>
             ) : (
@@ -988,7 +1058,7 @@ function MobileGrid({
           <button
             key={item}
             onClick={() => setDay(item)}
-            className={`rounded-xl px-2 py-2 text-xs font-semibold ${day === item ? "bg-brand-600 text-white" : "border bg-white text-slate-600"}`}
+            className={`rounded-xl px-2 py-2 text-xs font-semibold transition ${day === item ? "bg-gradient-to-r from-brand-600 to-sky-500 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50"}`}
           >
             {DAY_LABELS[item].slice(0, 3)}
           </button>
@@ -996,9 +1066,9 @@ function MobileGrid({
       </div>
       <Card className="divide-y overflow-hidden">
         {table.periods.map((period) => (
-          <div key={period.id} className={period.kind !== "TEACHING" ? "bg-amber-50" : "p-3"}>
+          <div key={period.id} className={period.kind !== "TEACHING" ? "bg-orange-50" : "p-3"}>
             {period.kind !== "TEACHING" ? (
-              <div className="p-4 text-center text-xs font-bold tracking-widest text-amber-700">
+              <div className="p-4 text-center text-xs font-bold tracking-widest text-orange-700">
                 {period.label} · {displayTime(period.startTime)}–{displayTime(period.endTime)}
               </div>
             ) : (

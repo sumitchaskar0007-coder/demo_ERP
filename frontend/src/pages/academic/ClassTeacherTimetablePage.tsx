@@ -113,7 +113,7 @@ export function ClassTeacherTimetablePage() {
         </div>
         {selected && (
           <p className="mt-2 text-xs text-slate-500">
-            Status: <span className={`font-medium ${selected.status === "PUBLISHED" ? "text-green-600" : "text-yellow-600"}`}>{selected.status}</span>
+            Status: <span className={`font-medium ${selected.status === "PUBLISHED" ? "text-teal-600" : "text-orange-600"}`}>{selected.status}</span>
             · {(selected.entries || []).length} entries
           </p>
         )}
@@ -121,15 +121,15 @@ export function ClassTeacherTimetablePage() {
 
       {selected && (
         <>
-          <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
+          <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
             {DAYS.map((day) => (
               <button
                 key={day}
                 onClick={() => setDayTab(day)}
-                className={`whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                   dayTab === day
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-gradient-to-r from-brand-600 to-sky-500 text-white shadow-sm"
+                    : "text-slate-500 hover:bg-white hover:text-sky-700"
                 }`}
               >
                 {DAY_LABELS[day]}

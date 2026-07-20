@@ -9,6 +9,7 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.fee.dto.VerifyPaymentRequest;
 import com.jadhavr.erp.fee.entity.FeePayment;
 import com.jadhavr.erp.fee.entity.FeeStructure;
@@ -60,13 +61,14 @@ class FeeServiceImplTest {
     @Mock private UserRepository users;
     @Mock private AdmissionFormRepository admissions;
     @Mock private AdmissionStatusHistoryRepository histories;
+    @Mock private EmailNotificationService emailNotifications;
 
     private FeeServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new FeeServiceImpl(structures, accounts, payments, transactions,
-                colleges, departments, users, admissions, histories);
+                colleges, departments, users, admissions, histories, emailNotifications);
         authenticateSuperAdmin();
     }
 

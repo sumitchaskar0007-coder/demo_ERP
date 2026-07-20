@@ -20,4 +20,3 @@ export const previewRolls = (sectionId:number,strategy:string) => data<RollPrevi
 export const confirmRolls = (sectionId:number,assignments:{studentId:number;rollNumber:string}[],overwrite=false) => data(apiClient.post("/api/hod/roll-numbers/confirm",{sectionId,assignments,overwrite}));
 export const allocateSubject = (subjectId:number,teacherId:number,divisionIds:number[]) => data(apiClient.put(`/api/hod/subjects/${subjectId}/allocation`,{teacherId,divisionIds}));
 export const assignClassTeacher = (sectionId:number,teacherId:number) => data(apiClient.put(`/api/hod/divisions/${sectionId}/class-teacher`,{teacherId}));
-export const reviewTimetable = (id:number,action:string,comment?:string) => data(apiClient.post(`/api/hod/timetables/${id}/review`,{action,comment}));

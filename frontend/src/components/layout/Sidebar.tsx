@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   BookOpen,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
 import { useAuth } from "@/features/auth/authStore";
 import { ROLES, ROUTES } from "@/lib/constants";
@@ -40,6 +40,7 @@ const futureItems = [
 
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
   const { isRole } = useAuth();
+  const location = useLocation();
   const isAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
@@ -84,7 +85,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           },
           { label: "Final Admission Review", to: ROUTES.principalReviewReady, icon: FileText },
           { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
-          { label: "Teaching Assignments", to: ROUTES.subjectTeacherAssignments, icon: Users },
           { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
           { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
           { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
@@ -134,19 +134,23 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                         { label: "Student Allocation", to: `${ROUTES.hodWorkspace}?tab=students`, icon: Users },
                         { label: "Roll Numbers", to: `${ROUTES.hodWorkspace}?tab=rolls`, icon: GraduationCap },
                         { label: "Subject Allocation", to: `${ROUTES.hodWorkspace}?tab=subjects`, icon: BookOpen },
+                        { label: "Teaching Assignments", to: ROUTES.subjectTeacherAssignments, icon: Users },
                         { label: "Class Teachers", to: `${ROUTES.hodWorkspace}?tab=class-teachers`, icon: UserRound },
-                        { label: "Timetable Review", to: `${ROUTES.hodWorkspace}?tab=timetables`, icon: CalendarDays },
                         { label: "Workload", to: `${ROUTES.hodWorkspace}?tab=workload`, icon: BarChart3 },
                       ]
                     : []),
                   ...(isClassTeacher
-                    ? [{ label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap }]
+                    ? [{ label: "My Class", to: `${ROUTES.teacherWorkspace}?tab=class`, icon: GraduationCap }]
                     : []),
                   ...(isTeacher
                     ? [
                         { label: "Student Directory", to: `${ROUTES.teacherWorkspace}?tab=students`, icon: Users },
                         { label: "Attendance Analytics", to: `${ROUTES.teacherWorkspace}?tab=attendance`, icon: BarChart3 },
+                        { label: "Needs Attention", to: `${ROUTES.teacherWorkspace}?tab=attention`, icon: Bell },
                         { label: "Subject Coverage", to: `${ROUTES.teacherWorkspace}?tab=coverage`, icon: BookOpen },
+                        { label: "Workload", to: `${ROUTES.teacherWorkspace}?tab=workload`, icon: BarChart3 },
+                        { label: "Today's Schedule", to: `${ROUTES.teacherWorkspace}?tab=schedule`, icon: CalendarDays },
+                        { label: "Notices", to: `${ROUTES.teacherWorkspace}?tab=notices`, icon: Bell },
                         { label: "Notifications", to: `${ROUTES.teacherWorkspace}?tab=notifications`, icon: Bell },
                         { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
                         {
@@ -168,7 +172,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                         },
                       ]
                     : []),
-                  { label: "Notices", to: ROUTES.notices, icon: Bell },
+                  ...(!isTeacher ? [{ label: "Notices", to: ROUTES.notices, icon: Bell }] : []),
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
                 ]
               : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
@@ -199,6 +203,22 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           { label: "Results", icon: Printer },
         ]
       : futureItems;
+
+  const isCurrentLink = (to: string, routerActive: boolean) => {
+    const [targetPath, targetQuery = ""] = to.split("?");
+    const currentParams = new URLSearchParams(location.search);
+    if (targetQuery) {
+      if (location.pathname !== targetPath) return false;
+      const targetParams = new URLSearchParams(targetQuery);
+      return [...targetParams.entries()].every(
+        ([key, value]) => currentParams.get(key) === value,
+      );
+    }
+    if (location.pathname === targetPath && currentParams.has("tab")) {
+      return currentParams.get("tab") === "overview";
+    }
+    return routerActive;
+  };
 
   return (
     <aside
@@ -231,15 +251,16 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               to={to}
               onClick={onNavigate}
               title={collapsed && !mobile ? label : undefined}
-              className={({ isActive }) =>
-                cn(
+              className={({ isActive }) => {
+                const active = isCurrentLink(to, isActive);
+                return cn(
                   "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition",
-                  isActive
+                  active
                     ? "bg-brand-50 text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                   collapsed && !mobile && "justify-center",
-                )
-              }
+                );
+              }}
             >
               <Icon className="h-5 w-5 shrink-0" />
               {(!collapsed || mobile) && <span>{label}</span>}

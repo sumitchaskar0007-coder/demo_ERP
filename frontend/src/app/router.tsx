@@ -238,15 +238,15 @@ export function AppRouter() {
               element={<AcademicCreatePage kind="subjects" />}
             />
             <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
-            <Route
-              path={ROUTES.subjectTeacherAssignments}
-              element={<SubjectTeacherAssignmentPage />}
-            />
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.HOD]} />}>
             <Route path={ROUTES.hodWorkspace} element={<HodWorkspacePage />} />
             <Route path={ROUTES.studentAllocation} element={<StudentAllocationPage />} />
+            <Route
+              path={ROUTES.subjectTeacherAssignments}
+              element={<SubjectTeacherAssignmentPage />}
+            />
           </Route>
 
           <Route

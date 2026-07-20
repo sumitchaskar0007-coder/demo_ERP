@@ -27,6 +27,12 @@ public class NoticeController {
     @GetMapping("/sent")
     @PreAuthorize("hasAuthority('PERM_NOTICE_SEND')")
     public ApiResponse<List<NoticeResponse>> sent() { return ApiResponse.success("Sent notices retrieved successfully", service.sent()); }
+    @PostMapping("/{id}/acknowledge")
+    @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
+    public ApiResponse<Void> acknowledge(@PathVariable Long id) {
+        service.acknowledge(id);
+        return ApiResponse.success("Notice acknowledged", null);
+    }
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<Void> delete(@PathVariable Long id) {

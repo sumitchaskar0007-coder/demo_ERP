@@ -119,7 +119,7 @@ export async function exportWeeklyTimetablePdf(table: WeeklyTimetable) {
 }
 
 export async function exportWeeklyTimetableExcel(table: WeeklyTimetable) {
-  const XLSX = await import("xlsx");
+  const { default: XLSX } = await import("xlsx-js-style");
   const headers = ["Period", "Time", ...DAY_LABELS];
   const rows = table.periods.map((period) => [
     period.label,
@@ -160,6 +160,23 @@ export async function exportWeeklyTimetableExcel(table: WeeklyTimetable) {
   worksheet["!autofilter"] = { ref: `A6:H${6 + rows.length}` };
   worksheet["!margins"] = { left: 0.25, right: 0.25, top: 0.4, bottom: 0.4 };
   worksheet["!pageSetup"] = { orientation: "landscape", fitToWidth: 1, fitToHeight: 1 };
+
+  const border = {
+    top: { style: "thin", color: { rgb: "CBD5E1" } },
+    bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+    left: { style: "thin", color: { rgb: "CBD5E1" } },
+    right: { style: "thin", color: { rgb: "CBD5E1" } },
+  } as const;
+  const style = (row: number, column: number, value: object) => {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
+    if (cell) cell.s = value;
+  };
+  style(0, 0, { font: { name: "Calibri", sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "173B6C" } }, alignment: { horizontal: "center", vertical: "center" } });
+  style(1, 0, { font: { name: "Calibri", sz: 14, bold: true, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "2563EB" } }, alignment: { horizontal: "center", vertical: "center" } });
+  style(2, 0, { font: { name: "Calibri", sz: 12, bold: true, color: { rgb: "173B6C" } }, fill: { patternType: "solid", fgColor: { rgb: "DBEAFE" } }, alignment: { horizontal: "center", vertical: "center" } });
+  style(3, 0, { font: { name: "Calibri", sz: 10, bold: true, color: { rgb: "475569" } }, fill: { patternType: "solid", fgColor: { rgb: "F8FAFC" } }, alignment: { horizontal: "center", vertical: "center" } });
+  headers.forEach((_, column) => style(5, column, { font: { name: "Calibri", sz: 10, bold: true, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "2563EB" } }, border, alignment: { horizontal: "center", vertical: "center", wrapText: true } }));
+  rows.forEach((_, rowIndex) => headers.forEach((__, column) => style(6 + rowIndex, column, { font: { name: "Calibri", sz: 9, bold: column < 2, color: { rgb: "1E293B" } }, fill: { patternType: "solid", fgColor: { rgb: rowIndex % 2 === 0 ? "FFFFFF" : "F8FAFC" } }, border, alignment: { horizontal: column < 2 ? "center" : "left", vertical: "center", wrapText: true } })));
 
   const workbook = XLSX.utils.book_new();
   workbook.Props = {

@@ -40,9 +40,9 @@ const ROLE_PRESETS = [
     icon: Building2,
   },
   {
-    label: "Teacher",
-    value: "teacher",
-    email: "teacher.clg01.d011@demo.erp",
+    label: "Class Teacher",
+    value: "class-teacher",
+    email: "ct.clg01.d011@demo.erp",
     icon: BookOpen,
   },
   { label: "Student", value: "student", email: "student00001@demo.erp", icon: UserRound },

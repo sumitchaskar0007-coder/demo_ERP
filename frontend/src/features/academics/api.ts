@@ -123,6 +123,7 @@ export interface WeeklyTimetable {
   classTeacher: string;
   academicYear: string;
   status: string;
+  reviewComment?: string | null;
   editable: boolean;
   periods: WeeklyPeriod[];
   entries: WeeklyEntry[];
@@ -185,6 +186,14 @@ export const weeklyTimetableApi = {
   updatePeriods: async (id: number, periods: WeeklyPeriodInput[]) =>
     unwrap<WeeklyTimetable>(
       await apiClient.put(`/api/weekly-timetables/${id}/periods`, { periods }),
+    ),
+  submitReview: async (id: number) =>
+    unwrap<WeeklyTimetable>(
+      await apiClient.post(`/api/weekly-timetables/${id}/submit-review`),
+    ),
+  review: async (id: number, action: string, comment?: string) =>
+    unwrap<WeeklyTimetable>(
+      await apiClient.post(`/api/weekly-timetables/${id}/review`, { action, comment }),
     ),
 };
 export const attendanceApi = {

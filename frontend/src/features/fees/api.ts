@@ -67,6 +67,8 @@ export const getFeeAccountById = (id: number) =>
   apiClient
     .get<ApiResponse<StudentFeeAccountResponse>>(`/api/fee-section/fee-accounts/${id}`)
     .then(unwrap);
+export const sendPendingFeeReminder = (id: number) =>
+  apiClient.post(`/api/fee-section/fee-accounts/${id}/send-reminder`);
 export const searchPayments = (params: {
   keyword?: string;
   status?: PaymentStatus;

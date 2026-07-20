@@ -291,6 +291,8 @@ public class WeeklyAttendanceService {
     }
 
     private void write(WeeklyAttendanceSession session, List<MarkItem> items, boolean submit) {
+        if (!LocalDate.now().equals(session.getAttendanceDate()))
+            throw new BadRequestException("Attendance can be entered only for today's date");
         if (session.getStatus() == WeeklyAttendanceSession.Status.SUBMITTED)
             throw new BadRequestException("Submitted attendance is locked and cannot be changed");
         Map<Long, StudentSectionEnrollment> roster = activeEnrollments(session.getSection()).stream()
