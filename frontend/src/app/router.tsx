@@ -96,6 +96,7 @@ import { TeacherAttendancePage } from "@/features/attendance/TeacherAttendancePa
 import { StudentAttendancePage } from "@/features/attendance/StudentAttendancePage";
 import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage";
 import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
+import { TeacherWorkspacePage } from "@/pages/teacher/TeacherWorkspacePage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -285,6 +286,7 @@ export function AppRouter() {
             <Route path={ROUTES.classTeacherTimetable} element={<ClassTeacherTimetablePage />} />
           </Route>
           <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]} />}>
+            <Route path={ROUTES.teacherWorkspace} element={<TeacherWorkspacePage />} />
             <Route path={ROUTES.teacherTimetable} element={<TeacherTimetablePage />} />
             <Route path={ROUTES.teacherAttendance} element={<TeacherAttendancePage />} />
           </Route>

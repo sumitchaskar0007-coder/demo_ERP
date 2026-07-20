@@ -127,7 +127,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               ]
             : isOtherStaff
               ? [
-                  { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+                  { label: "Dashboard", to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard, icon: LayoutDashboard },
                   ...(isHod
                     ? [
                         { label: "HOD Overview", to: ROUTES.hodWorkspace, icon: LayoutDashboard },
@@ -144,6 +144,10 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                     : []),
                   ...(isTeacher
                     ? [
+                        { label: "Student Directory", to: `${ROUTES.teacherWorkspace}?tab=students`, icon: Users },
+                        { label: "Attendance Analytics", to: `${ROUTES.teacherWorkspace}?tab=attendance`, icon: BarChart3 },
+                        { label: "Subject Coverage", to: `${ROUTES.teacherWorkspace}?tab=coverage`, icon: BookOpen },
+                        { label: "Notifications", to: `${ROUTES.teacherWorkspace}?tab=notifications`, icon: Bell },
                         { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
                         {
                           label: "Take Attendance",
