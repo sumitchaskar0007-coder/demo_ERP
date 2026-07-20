@@ -16,6 +16,7 @@ import {
   Printer,
   Bell,
   CheckCircle2,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
@@ -128,7 +129,15 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               ? [
                   { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
                   ...(isHod
-                    ? [{ label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users }]
+                    ? [
+                        { label: "HOD Overview", to: ROUTES.hodWorkspace, icon: LayoutDashboard },
+                        { label: "Student Allocation", to: `${ROUTES.hodWorkspace}?tab=students`, icon: Users },
+                        { label: "Roll Numbers", to: `${ROUTES.hodWorkspace}?tab=rolls`, icon: GraduationCap },
+                        { label: "Subject Allocation", to: `${ROUTES.hodWorkspace}?tab=subjects`, icon: BookOpen },
+                        { label: "Class Teachers", to: `${ROUTES.hodWorkspace}?tab=class-teachers`, icon: UserRound },
+                        { label: "Timetable Review", to: `${ROUTES.hodWorkspace}?tab=timetables`, icon: CalendarDays },
+                        { label: "Workload", to: `${ROUTES.hodWorkspace}?tab=workload`, icon: BarChart3 },
+                      ]
                     : []),
                   ...(isClassTeacher
                     ? [{ label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap }]

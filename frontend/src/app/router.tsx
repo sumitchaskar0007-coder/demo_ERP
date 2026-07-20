@@ -95,6 +95,7 @@ import { TeacherTimetablePage } from "@/features/teacherTimetable/TeacherTimetab
 import { TeacherAttendancePage } from "@/features/attendance/TeacherAttendancePage";
 import { StudentAttendancePage } from "@/features/attendance/StudentAttendancePage";
 import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage";
+import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -243,6 +244,7 @@ export function AppRouter() {
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.HOD]} />}>
+            <Route path={ROUTES.hodWorkspace} element={<HodWorkspacePage />} />
             <Route path={ROUTES.studentAllocation} element={<StudentAllocationPage />} />
           </Route>
 

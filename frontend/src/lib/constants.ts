@@ -8,6 +8,7 @@ export const ROUTES = {
   emailNotifications: "/admin/email-notifications",
   changePassword: "/change-password",
   dashboard: "/dashboard",
+  hodWorkspace: "/hod",
   account: "/account",
   accountChangePassword: "/account/change-password",
   auditLogs: "/audit-logs",
@@ -101,7 +102,7 @@ export function defaultRouteForRoles(roles: string[] = []) {
     return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
   if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
-  if (roles.includes(ROLES.HOD)) return ROUTES.studentAllocation;
+  if (roles.includes(ROLES.HOD)) return ROUTES.hodWorkspace;
   if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER))
     return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
@@ -150,6 +151,7 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
   )
     return (
       path.startsWith("/academic") ||
+      (roles.includes(ROLES.HOD) && path.startsWith("/hod")) ||
       ((roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER)) &&
         (path === ROUTES.teacherTimetable || path === ROUTES.teacherAttendance)) ||
       ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&

@@ -1,3 +1,44 @@
 package com.jadhavr.erp.academic.controller;
-import com.jadhavr.erp.academic.repository.*; import com.jadhavr.erp.auth.security.SecurityUtils; import com.jadhavr.erp.common.api.ApiResponse; import com.jadhavr.erp.staff.repository.StaffProfileRepository; import org.springframework.web.bind.annotation.*; import java.util.Map;
-@RestController @RequestMapping("/api/hod/dashboard") public class HodController {private final AcademicClassRepository classes;private final SectionRepository sections;private final SubjectRepository subjects;private final StudentSectionEnrollmentRepository students;private final StaffProfileRepository staff;public HodController(AcademicClassRepository c,SectionRepository s,SubjectRepository u,StudentSectionEnrollmentRepository e,StaffProfileRepository st){classes=c;sections=s;subjects=u;students=e;staff=st;} @GetMapping public ApiResponse<?> dashboard(){var user=SecurityUtils.requireCurrentUser();var profile=staff.findByUserId(user.getId()).orElse(null);Long departmentId=profile==null||profile.getDepartment()==null?null:profile.getDepartment().getId();long c=classes.findAll().stream().filter(x->departmentId==null||departmentId.equals(x.getDepartment().getId())).count();long s=sections.findAll().stream().filter(x->departmentId==null||departmentId.equals(x.getDepartment().getId())).count();long u=subjects.findAll().stream().filter(x->departmentId==null||departmentId.equals(x.getDepartment().getId())).count();return ApiResponse.success("HOD dashboard",Map.of("departmentId",departmentId==null?0:departmentId,"totalClasses",c,"totalSections",s,"totalSubjects",u,"totalStudents",students.count(),"totalTeachers",staff.count(),"todayAttendanceSessions",0,"averageAttendancePercentage",0));}}
+
+import com.jadhavr.erp.academic.dto.HodModuleDtos.*;
+import com.jadhavr.erp.academic.service.HodModuleService;
+import com.jadhavr.erp.common.api.ApiResponse;
+import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/hod")
+@PreAuthorize("hasAnyRole('HOD','PRINCIPAL')")
+public class HodController {
+    private final HodModuleService service;
+    public HodController(HodModuleService service){this.service=service;}
+
+    @GetMapping("/dashboard")
+    public ApiResponse<?> dashboard(@RequestParam(required=false)Long departmentId){
+        Summary s=service.dashboard(departmentId);Map<String,Object> data=new LinkedHashMap<>();
+        data.put("totalStudents",s.totalStudents());data.put("totalTeachers",s.totalTeachers());
+        data.put("totalClasses",s.totalDivisions());data.put("totalSections",s.totalDivisions());
+        data.put("totalSubjects",s.totalSubjects());data.put("todayAttendanceSessions",s.classesRunningToday());
+        data.put("averageAttendancePercentage",s.averageAttendance());data.put("pendingTasks",s.pendingTasks());
+        return ApiResponse.success("HOD dashboard",data);
+    }
+
+    @GetMapping("/workspace")
+    public ApiResponse<?> workspace(@RequestParam(required=false)Long departmentId,@RequestParam(required=false)String search,
+            @RequestParam(required=false)Long courseYearId,@RequestParam(required=false)Long divisionId,
+            @RequestParam(required=false)String allocationStatus,@RequestParam(defaultValue="0")int page,
+            @RequestParam(defaultValue="25")int size){return ApiResponse.success("HOD workspace",service.workspace(departmentId,search,courseYearId,divisionId,allocationStatus,page,size));}
+
+    @PostMapping("/students/allocate") public ApiResponse<?> allocate(@Valid @RequestBody BulkAllocationRequest request){return ApiResponse.success("Students allocated",Map.of("count",service.bulkAllocate(request)));}
+    @PostMapping("/students/auto-allocate") public ApiResponse<?> autoAllocate(@Valid @RequestBody AutomaticAllocationRequest request){return ApiResponse.success("Students distributed",Map.of("count",service.automaticAllocate(request)));}
+    @PostMapping("/students/transfer") public ApiResponse<?> transfer(@Valid @RequestBody TransferRequest request){return ApiResponse.success("Students transferred",Map.of("count",service.transfer(request)));}
+    @PostMapping("/roll-numbers/preview") public ApiResponse<?> rollPreview(@Valid @RequestBody RollPreviewRequest request){return ApiResponse.success("Roll number preview",service.previewRolls(request));}
+    @PostMapping("/roll-numbers/confirm") public ApiResponse<?> rollConfirm(@Valid @RequestBody RollConfirmRequest request){return ApiResponse.success("Roll numbers generated",Map.of("count",service.confirmRolls(request)));}
+    @PutMapping("/subjects/{subjectId}/allocation") public ApiResponse<?> subjectAllocation(@PathVariable Long subjectId,@Valid @RequestBody SubjectAllocationRequest request){service.allocateSubject(subjectId,request);return ApiResponse.success("Subject allocation saved",null);}
+    @PutMapping("/divisions/{sectionId}/class-teacher") public ApiResponse<?> classTeacher(@PathVariable Long sectionId,@Valid @RequestBody ClassTeacherRequest request){service.assignClassTeacher(sectionId,request);return ApiResponse.success("Class teacher assigned",null);}
+    @PostMapping("/timetables/{id}/review") public ApiResponse<?> review(@PathVariable Long id,@Valid @RequestBody TimetableReviewRequest request){service.reviewTimetable(id,request);return ApiResponse.success("Timetable review saved",null);}
+}

@@ -22,4 +22,5 @@ public class WeeklyTimetableController {
     @PostMapping("/{id}/copy-timetable") public ApiResponse<?> copyTimetable(@PathVariable Long id,@Valid @RequestBody CopyTimetableRequest request){return ApiResponse.success("Timetable copied",service.copyTimetable(id,request));}
     @PutMapping("/{id}/entries") public ApiResponse<?> replaceEntries(@PathVariable Long id,@Valid @RequestBody ReplaceEntriesRequest request){return ApiResponse.success("Timetable restored",service.replaceEntries(id,request));}
     @PutMapping("/{id}/periods") public ApiResponse<?> periods(@PathVariable Long id,@Valid @RequestBody UpdatePeriodsRequest request){return ApiResponse.success("Period times updated",service.updatePeriods(id,request));}
+    @PostMapping("/{id}/submit-review") public ApiResponse<?> submitReview(@PathVariable Long id){return ApiResponse.success("Timetable submitted for HOD review",service.submitForReview(id));}
 }
