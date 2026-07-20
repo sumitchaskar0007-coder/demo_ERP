@@ -22,6 +22,16 @@ export interface SessionSummary {
 }
 export interface SubjectSummary { subjectId: number; subject: string; total: number; attended: number; absent: number; late: number; leave: number; percentage: number; indicator: string }
 export interface MonthSummary { month: string; total: number; attended: number; percentage: number }
+export interface TrendPoint { date: string; total: number; attended: number; percentage: number }
+export interface OperationalSummary { id: number; name: string; lectures: number; submitted: number; pending: number }
+export interface StudentAnalyticsRow {
+  studentId: number; admissionNumber: string; rollNumber?: string; studentName: string; gender?: string;
+  photoUrl?: string; guardianName?: string; mobile?: string; departmentId: number; department: string;
+  academicYear: string; year: string; divisionId: number; division: string; classTeacher: string;
+  total: number; present: number; absent: number; late: number; leave: number; percentage: number;
+  indicator: string; subjects: SubjectSummary[]; monthly: MonthSummary[];
+  history: { date: string; time: string; subject: string; teacher: string; status: AttendanceStatus; remarks?: string }[];
+}
 export interface StudentAttendance {
   studentId: number; studentName: string; rollNumber?: string; overallPercentage: number; indicator: string;
   subjects: SubjectSummary[]; monthly: MonthSummary[];
@@ -29,7 +39,11 @@ export interface StudentAttendance {
 }
 export interface AttendanceReport {
   from: string; to: string; sessions: number; totalMarks: number; present: number; absent: number;
-  late: number; leave: number; percentage: number; rows: SessionSummary[]; subjects: SubjectSummary[]; monthly: MonthSummary[];
+  late: number; leave: number; percentage: number; totalStudents: number; uniquePresentToday: number;
+  uniqueAbsentToday: number; todayLectures: number; submittedToday: number; pendingToday: number;
+  departments: number; divisions: number; below75: number; below50: number; trend: TrendPoint[];
+  departmentOperations: OperationalSummary[]; divisionOperations: OperationalSummary[]; teacherOperations: OperationalSummary[];
+  students: StudentAnalyticsRow[]; rows: SessionSummary[]; subjects: SubjectSummary[]; monthly: MonthSummary[];
 }
 
 const unwrap = <T>(response: { data: { data: T } }) => response.data.data;

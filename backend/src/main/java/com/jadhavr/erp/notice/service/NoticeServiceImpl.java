@@ -18,6 +18,7 @@ import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.EnumSet;
 import java.util.List;
@@ -82,6 +83,7 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
+    @Cacheable(cacheNames = "noticeInbox", key = "T(com.jadhavr.erp.auth.security.SecurityUtils).getCurrentUserId()", sync = true)
     public List<NoticeResponse> inbox() {
         CustomUserDetails current = SecurityUtils.requireCurrentUser();
         Set<RoleName> roles = resolveRoles(current);

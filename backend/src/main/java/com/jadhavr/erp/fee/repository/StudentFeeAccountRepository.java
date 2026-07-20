@@ -16,6 +16,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAccount, Long>,
@@ -30,6 +31,7 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
     Optional<StudentFeeAccount> findByIdForUpdate(@Param("id") Long id);
 
     Optional<StudentFeeAccount> findByAdmissionFormId(Long id);
+    List<StudentFeeAccount> findByAdmissionFormIdIn(Collection<Long> ids);
 
     boolean existsByAdmissionFormId(Long id);
 

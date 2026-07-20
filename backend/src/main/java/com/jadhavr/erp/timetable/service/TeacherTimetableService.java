@@ -13,6 +13,7 @@ import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
@@ -51,6 +52,7 @@ public class TeacherTimetableService {
         return timetable(currentTeacher());
     }
 
+    @Cacheable(cacheNames = "teacherTimetable", key = "#staffId", sync = true)
     public TimetableResponse timetableFor(Long staffId) {
         StaffProfile teacher = staff.findById(staffId)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff member not found"));

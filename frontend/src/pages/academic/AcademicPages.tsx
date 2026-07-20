@@ -10,15 +10,40 @@ import { Loader } from "@/components/common/Loader";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/academic/api";
+import { useAuth } from "@/features/auth/authStore";
 import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
 import type {
   AcademicClass,
-  FinalAdmission,
   Section,
   Subject,
   TimetableEntry,
 } from "@/features/academic/types";
+
+const preferredDepartments = (rows: Department[], classes: AcademicClass[]) => {
+  const classCounts = new Map<number, number>();
+  classes.forEach((item) => {
+    classCounts.set(item.department.id, (classCounts.get(item.department.id) ?? 0) + 1);
+  });
+  const preferred = new Map<string, Department>();
+  rows.forEach((row) => {
+    const key = `${row.collegeId}:${row.code.trim().toUpperCase()}`;
+    const current = preferred.get(key);
+    const rowCount = classCounts.get(row.id) ?? 0;
+    const currentCount = current ? (classCounts.get(current.id) ?? 0) : -1;
+    if (!current || rowCount > currentCount || (rowCount === currentCount && row.id > current.id)) {
+      preferred.set(key, row);
+    }
+  });
+  return [...preferred.values()];
+};
+
+const uniqueAcademicClasses = (rows: AcademicClass[]) =>
+  [...new Map(rows.map((row) => [
+    `${row.department.id}:${row.academicYear}:${row.yearName}`,
+    row,
+  ])).values()];
+
 function Shell({
   title,
   subtitle,
@@ -36,83 +61,10 @@ function Shell({
     </div>
   );
 }
-export function FinalAdmissionsPage() {
-  const [rows, setRows] = useState<FinalAdmission[]>([]),
-    [loading, setLoading] = useState(true);
-  const load = () =>
-    api
-      .getFinalAdmissionQueue()
-      .then(setRows)
-      .catch((e) => toast.error(handleApiError(e).message))
-      .finally(() => setLoading(false));
-  useEffect(() => {
-    void load();
-  }, []);
-  const act = async (id: number, approve: boolean) => {
-    const text = window.prompt(approve ? "Approval remarks (optional)" : "Rejection reason");
-    if (!approve && (!text || text.length < 5)) return;
-    try {
-      if (approve) {
-        await api.approveFinalAdmission(id, { remarks: text });
-      } else {
-        await api.rejectFinalAdmission(id, { rejectionReason: text });
-      }
-      toast.success(approve ? "Admission approved" : "Admission rejected");
-      load();
-    } catch (e) {
-      toast.error(handleApiError(e).message);
-    }
-  };
-  return (
-    <Shell
-      title="Principal Final Admissions"
-      subtitle="Approve fee-verified students and activate their academic profile."
-    >
-      {loading ? (
-        <Loader />
-      ) : rows.length ? (
-        <div className="responsive-table">
-          <table>
-            <thead>
-              <tr className="text-left text-slate-500">
-                <th className="p-3">Student</th>
-                <th>Department</th>
-                <th>Year</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr className="border-t" key={r.id}>
-                  <td className="p-3">
-                    <b>{r.fullName}</b>
-                    <div>{r.admissionReferenceNumber}</div>
-                  </td>
-                  <td>{r.departmentName}</td>
-                  <td>{r.academicYear}</td>
-                  <td className="space-x-2">
-                    <Button onClick={() => act(r.id, true)}>Approve</Button>
-                    <Button variant="danger" onClick={() => act(r.id, false)}>
-                      Reject
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <EmptyState
-          title="No admissions ready"
-          description="Fee-verified admissions will appear here."
-        />
-      )}
-    </Shell>
-  );
-}
 type Kind = "classes" | "sections" | "subjects";
 export function AcademicListPage({ kind }: { kind: Kind }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [rows, setRows] = useState<(AcademicClass | Section | Subject)[]>([]),
     [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -122,10 +74,17 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
 
   useEffect(() => {
     if (kind !== "subjects") return;
-    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
-      .then((r) => setDepartments(r.content))
+    if (!user?.collegeId) {
+      setDepartments([]);
+      return;
+    }
+    Promise.all([
+      searchDepartments({ collegeId: user.collegeId, status: "ACTIVE", page: 0, size: 100 }),
+      api.searchAcademicClasses(),
+    ])
+      .then(([result, classes]) => setDepartments(preferredDepartments(result.content, classes)))
       .catch((e) => toast.error(handleApiError(e).message));
-  }, [kind]);
+  }, [kind, user?.collegeId]);
 
   const loadYearOptions = async (departmentId: string) => {
     if (!departmentId) {
@@ -261,10 +220,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                       className="h-9 flex-1 px-3 text-xs sm:flex-none"
                       variant="danger"
                       onClick={async () => {
-                        if (!confirm("Delete this subject?")) return;
+                        if (!confirm("Remove this subject? Existing timetable and attendance history will be preserved.")) return;
                         try {
                           await api.deleteSubject(r.id);
-                          toast.success("Subject deleted");
+                          toast.success("Subject removed");
                           load();
                         } catch (e) {
                           toast.error(handleApiError(e).message);
@@ -301,6 +260,7 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
 }
 export function AcademicCreatePage({ kind }: { kind: Kind }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [v, setV] = useState<Record<string, string>>({ academicYear: "2026-27" });
   const [departments, setDepartments] = useState<Department[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
@@ -315,10 +275,17 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
 
   useEffect(() => {
     if (kind !== "subjects") return;
-    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
-      .then((result) => setDepartments(result.content))
+    if (!user?.collegeId) {
+      setDepartments([]);
+      return;
+    }
+    Promise.all([
+      searchDepartments({ collegeId: user.collegeId, status: "ACTIVE", page: 0, size: 100 }),
+      api.searchAcademicClasses(),
+    ])
+      .then(([result, classes]) => setDepartments(preferredDepartments(result.content, classes)))
       .catch((error) => toast.error(handleApiError(error).message));
-  }, [kind]);
+  }, [kind, user?.collegeId]);
 
   const loadAcademicClasses = async (departmentId: string) => {
     if (!departmentId) {
@@ -327,7 +294,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
     }
     try {
       const items = await api.searchAcademicClasses({ departmentId: Number(departmentId) });
-      setAcademicClasses(items);
+      setAcademicClasses(uniqueAcademicClasses(items.filter((item) => item.status === "ACTIVE")));
     } catch (error) {
       setAcademicClasses([]);
       toast.error(handleApiError(error).message);

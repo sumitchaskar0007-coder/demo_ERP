@@ -23,6 +23,7 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
         synchronizeApplicationEnumConstraints();
         addStudentCategoryConstraints();
         addFinancialConstraints();
+        addPerformanceIndexes();
 
         jdbc.execute("ALTER TABLE admission_status_history DROP CONSTRAINT IF EXISTS admission_status_history_action_check");
         jdbc.execute("""
@@ -109,6 +110,26 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
                 CREATE UNIQUE INDEX IF NOT EXISTS uk_payment_college_reference_ci
                 ON fee_payments (college_id, lower(transaction_reference))
                 """);
+    }
+
+    private void addPerformanceIndexes() {
+        String[] statements = {
+                "CREATE INDEX IF NOT EXISTS idx_admission_scope_status ON admission_forms (college_id, department_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_student_scope_status ON student_profiles (college_id, department_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_staff_scope_status ON staff_profiles (college_id, department_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_fee_account_scope_status ON student_fee_accounts (college_id, department_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_fee_account_pending ON student_fee_accounts (college_id, remaining_amount DESC) WHERE remaining_amount > 0",
+                "CREATE INDEX IF NOT EXISTS idx_payment_verified ON fee_payments (college_id, payment_date DESC) WHERE status = 'VERIFIED'",
+                "CREATE INDEX IF NOT EXISTS idx_enrollment_scope ON student_section_enrollments (academic_class_id, section_id, status, student_id)",
+                "CREATE INDEX IF NOT EXISTS idx_enrollment_student_status ON student_section_enrollments (student_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_attendance_session_scope ON weekly_attendance_sessions (college_id, attendance_date, section_id)",
+                "CREATE INDEX IF NOT EXISTS idx_attendance_record_student ON weekly_attendance_records (student_id, session_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_timetable_teacher_slot ON weekly_timetable_entries (teacher_id, day_of_week, period_id)",
+                "CREATE INDEX IF NOT EXISTS idx_notice_college ON notice_colleges (college_id, notice_id)",
+                "CREATE INDEX IF NOT EXISTS idx_notice_audience ON notice_audience_roles (role_name, notice_id)",
+                "CREATE INDEX IF NOT EXISTS idx_notice_active ON notices (created_at DESC) WHERE deleted_at IS NULL"
+        };
+        for (String statement : statements) jdbc.execute(statement);
     }
 
     private void addCheckConstraintIfMissing(String table, String constraint, String condition) {

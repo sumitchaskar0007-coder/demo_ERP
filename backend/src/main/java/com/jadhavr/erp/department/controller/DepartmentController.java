@@ -1,5 +1,6 @@
 package com.jadhavr.erp.department.controller;
 
+import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.department.dto.CreateDepartmentRequest;
@@ -58,10 +59,13 @@ public class DepartmentController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
+        Long scopedCollegeId = SecurityUtils.isSuperAdmin()
+                ? collegeId
+                : SecurityUtils.requireCurrentUser().getCollegeId();
         return ApiResponse.success(
                 "Departments searched successfully",
                 departmentService.searchDepartments(
-                        keyword, collegeId, status, page, size, sortBy, sortDir)
+                        keyword, scopedCollegeId, status, page, size, sortBy, sortDir)
         );
     }
 

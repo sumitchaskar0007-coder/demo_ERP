@@ -52,28 +52,39 @@ const categories = ["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"].ma
   label: v,
   value: v,
 }));
-export function AdminDashboardPage() {
+export function AdminDashboardPage({ principal = false }: { principal?: boolean }) {
   const { user } = useAuth();
   const [d, setD] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
   const [collegeId, setCollegeId] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     setD(null);
     api
-      .getAdminAnalytics({ collegeId: collegeId || undefined })
+      [principal ? "getPrincipalAnalytics" : "getAdminAnalytics"](
+        principal ? {} : { collegeId: collegeId || undefined }, controller.signal)
       .then(setD)
-      .catch((error) => toast.error(handleApiError(error).message));
-  }, [collegeId]);
+      .catch((error) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(error).message);
+      });
+    return () => controller.abort();
+  }, [collegeId, principal]);
   useEffect(() => {
+    if (principal) return;
     getActiveColleges()
       .then(setColleges)
       .catch(() => setColleges([]));
-  }, []);
+  }, [principal]);
 
-  if (!d) return <Loader label="Preparing Super Admin dashboard..." />;
+  if (!d) return <Loader label={`Preparing ${principal ? "Principal" : "Super Admin"} dashboard...`} />;
 
-  const organizationMetrics = [
+  const organizationMetrics = principal ? [
+    { key: "totalStaff", label: "College Staff", value: d.summary.totalStaff, icon: Users, color: "bg-blue-50 text-blue-600", accent: "bg-blue-500" },
+    { key: "totalStudents", label: "College Students", value: d.summary.totalStudents, icon: GraduationCap, color: "bg-cyan-50 text-cyan-600", accent: "bg-cyan-500" },
+    { key: "totalFeeCollection", label: "Fees Collected", value: `₹${d.summary.totalFeeCollection.toLocaleString("en-IN")}`, icon: WalletCards, color: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-500" },
+    { key: "pendingFee", label: "Pending Fees", value: `₹${d.summary.pendingFee.toLocaleString("en-IN")}`, icon: Activity, color: "bg-orange-50 text-orange-600", accent: "bg-orange-500" },
+  ] : [
     {
       key: "totalStaff",
       label: "Total Staff",
@@ -124,12 +135,12 @@ export function AdminDashboardPage() {
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-semibold text-slate-400">
-            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Super Admin
+            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;{principal ? "Principal" : "Super Admin"}
           </p>
-          <h1 className="mt-2 text-2xl font-bold">Super Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">Global college, student, and fee overview.</p>
+          <h1 className="mt-2 text-2xl font-bold">{principal ? "Principal" : "Super Admin"} Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">{principal ? "College academics, students, and finance overview." : "Global college, student, and fee overview."}</p>
         </div>
-        <div className="w-full sm:w-72">
+        {!principal && <div className="w-full sm:w-72">
           <Select
             aria-label="Dashboard college"
             options={[
@@ -139,7 +150,7 @@ export function AdminDashboardPage() {
             value={collegeId}
             onChange={(event) => setCollegeId(event.target.value)}
           />
-        </div>
+        </div>}
       </div>
 
       <section className="erp-welcome-banner px-7 py-7 sm:px-9">
@@ -147,7 +158,7 @@ export function AdminDashboardPage() {
         <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-blue-100">Jadhavr ERP Administration</p>
+            <p className="text-sm text-blue-100">{principal ? user?.collegeName : "Jadhavr ERP Administration"}</p>
             <h2 className="mt-2 text-3xl font-bold">
               Welcome back, {user?.fullName?.split(" ")[0] || "Admin"}
             </h2>
@@ -169,7 +180,7 @@ export function AdminDashboardPage() {
             Live people and institution counts from the database
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className={`grid gap-4 sm:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
           {organizationMetrics.map(({ key, label, value, icon: Icon, color, accent }) => (
             <Card className="relative overflow-hidden p-5" key={key}>
               <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
@@ -238,7 +249,11 @@ export function AdminDashboardPage() {
             <p className="mt-1 text-xs text-slate-500">Frequently used administration tools</p>
           </div>
           <div className="space-y-2 p-4">
-            {[
+            {(principal ? [
+              { label: "Departments", detail: "Manage college departments", to: ROUTES.departments, icon: Building2 },
+              { label: "Fee Structures", detail: "Configure college fee structures", to: ROUTES.feeStructures, icon: WalletCards },
+              { label: "Pending Fees", detail: "Review outstanding student balances", to: ROUTES.principalPendingFees, icon: Activity },
+            ] : [
               {
                 label: "Create College",
                 detail: "Add a new college workspace",
@@ -257,7 +272,7 @@ export function AdminDashboardPage() {
                 to: ROUTES.adminFeeSetup,
                 icon: WalletCards,
               },
-            ].map(({ label, detail, to, icon: Icon }) => (
+            ]).map(({ label, detail, to, icon: Icon }) => (
               <Link
                 key={label}
                 to={to}
@@ -855,7 +870,8 @@ export function AdminFeeSetupPage() {
     </div>
   );
 }
-export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
+export function AdminMoneyPage({ pending = false, principal = false }: { pending?: boolean; principal?: boolean }) {
+  const { user } = useAuth();
   const [result, setResult] = useState<PageResponse<
     api.FeeCollectionRow | api.PendingFeeRow
   > | null>(null);
@@ -864,20 +880,20 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [filters, setFilters] = useState({
     keyword: "",
-    collegeId: "",
+    collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
     courseYearId: "",
     divisionId: "",
   });
 
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()])
+    Promise.all([principal ? Promise.resolve([]) : getActiveColleges(), weeklyTimetableApi.divisions()])
       .then(([c, d]) => {
         setColleges(c);
         setDivisions(d);
       })
       .catch(() => undefined);
-  }, []);
+  }, [principal]);
 
   useEffect(() => {
     setPage(0);
@@ -888,7 +904,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
     const timer = window.setTimeout(
       () =>
         (pending
-          ? api.getPendingFees({
+          ? (principal ? api.getPrincipalPendingFees : api.getPendingFees)({
               ...filters,
               keyword: filters.keyword || undefined,
               collegeId: filters.collegeId || undefined,
@@ -898,7 +914,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               page,
               size: 20,
             })
-          : api.getCollections({
+          : (principal ? api.getPrincipalCollections : api.getCollections)({
               ...filters,
               keyword: filters.keyword || undefined,
               collegeId: filters.collegeId || undefined,
@@ -914,13 +930,15 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
       250,
     );
     return () => window.clearTimeout(timer);
-  }, [page, pending, filters]);
+  }, [page, pending, principal, filters]);
 
   const rows = result?.content ?? [];
   const displayedAmount = rows.reduce(
     (sum, row) =>
       sum +
-      (pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount),
+      moneyValue(
+        pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount,
+      ),
     0,
   );
   return (
@@ -928,7 +946,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <h1 className="page-title">{pending ? "Pending Fees" : "Fee Collection"}</h1>
-          <p className="page-subtitle">Global college and department fee overview.</p>
+          <p className="page-subtitle">{principal ? "College and department fee overview." : "Global college and department fee overview."}</p>
         </div>
         {result && (
           <div
@@ -942,7 +960,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
         )}
       </div>
       <Card className="mt-6 p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
           <Input
             placeholder="Search student name…"
             icon={<Search className="h-4 w-4" />}
@@ -952,7 +970,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               setPage(0);
             }}
           />
-          <Select
+          {!principal && <Select
             options={[
               { label: "All colleges", value: "" },
               ...colleges.map((c) => ({ label: c.name, value: c.id })),
@@ -968,7 +986,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               });
               setPage(0);
             }}
-          />
+          />}
           <Select
             options={[
               { label: "All departments", value: "" },
@@ -1097,9 +1115,38 @@ function uniqueOptions(
   idKey: "departmentId" | "courseYearId",
   labelKey: "department" | "year",
 ) {
-  return Array.from(new Map(items.map((item) => [item[idKey], item[labelKey]])).entries()).map(
+  const options = Array.from(
+    new Map(items.map((item) => [item[idKey], item[labelKey]])).entries(),
+  ).map(
     ([value, label]) => ({ label, value }),
   );
+
+  if (idKey === "courseYearId") {
+    options.sort(
+      (left, right) =>
+        academicYearSequence(left.label) - academicYearSequence(right.label) ||
+        left.label.localeCompare(right.label, undefined, { numeric: true }),
+    );
+  }
+
+  return options;
+}
+
+function academicYearSequence(label: string) {
+  const normalized = label.toLowerCase();
+  const namedYears: Array<[RegExp, number]> = [
+    [/\b(first|fy)\b/, 1],
+    [/\b(second|sy)\b/, 2],
+    [/\b(third|ty)\b/, 3],
+    [/\bfourth\b/, 4],
+    [/\bfifth\b/, 5],
+    [/\bsixth\b/, 6],
+  ];
+  const namedYear = namedYears.find(([pattern]) => pattern.test(normalized));
+  if (namedYear) return namedYear[1];
+
+  const numericYear = normalized.match(/\byear\s*(\d+)\b|\b(\d+)(?:st|nd|rd|th)\s+year\b/);
+  return numericYear ? Number(numericYear[1] ?? numericYear[2]) : Number.MAX_SAFE_INTEGER;
 }
 
 function StudentIdentity({ name, detail }: { name: string; detail?: string }) {
@@ -1122,6 +1169,16 @@ function CategoryBadge({ value }: { value: string }) {
     </span>
   );
 }
+
+function moneyValue(value: number | null | undefined) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatMoney(value: number | null | undefined) {
+  return moneyValue(value).toLocaleString("en-IN");
+}
+
 function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
   return (
     <tr className="transition hover:bg-slate-50/70">
@@ -1148,7 +1205,7 @@ function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
         </span>
       </td>
       <td className="px-5 py-4 text-right text-base font-black text-emerald-600">
-        ₹{row.amount.toLocaleString("en-IN")}
+        ₹{formatMoney(row.amount)}
       </td>
     </tr>
   );
@@ -1167,11 +1224,11 @@ function PendingFeeTableRow({ row }: { row: api.PendingFeeRow }) {
         <CategoryBadge value={row.studentCategory} />
       </td>
       <td className="px-5 py-4 text-right">
-        <p className="text-sm font-semibold">₹{row.totalFee.toLocaleString("en-IN")}</p>
-        <p className="text-xs text-emerald-600">₹{row.paidAmount.toLocaleString("en-IN")} paid</p>
+        <p className="text-sm font-semibold">₹{formatMoney(row.totalFee)}</p>
+        <p className="text-xs text-emerald-600">₹{formatMoney(row.paidAmount)} paid</p>
       </td>
       <td className="px-5 py-4 text-right text-base font-black text-orange-600">
-        ₹{row.remainingAmount.toLocaleString("en-IN")}
+        ₹{formatMoney(row.remainingAmount)}
       </td>
     </tr>
   );
@@ -1204,14 +1261,16 @@ function CollectionCard({ row }: { row: api.FeeCollectionRow }) {
         <span className="text-xs font-semibold text-slate-400">Verified payment</span>
         <span className="flex items-center text-xl font-black text-emerald-600">
           <IndianRupee className="h-4 w-4" />
-          {row.amount.toLocaleString("en-IN")}
+          {formatMoney(row.amount)}
         </span>
       </div>
     </div>
   );
 }
 function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
-  const paidRate = row.totalFee > 0 ? Math.round((row.paidAmount / row.totalFee) * 100) : 0;
+  const totalFee = Number(row.totalFee) || 0;
+  const paidAmount = Number(row.paidAmount) || 0;
+  const paidRate = totalFee > 0 ? Math.round((paidAmount / totalFee) * 100) : 0;
   return (
     <div className="rounded-2xl border border-slate-100 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -1222,46 +1281,51 @@ function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
         <CategoryBadge value={row.studentCategory} />
       </div>
       <div className="mt-4 flex justify-between text-xs">
-        <span className="text-slate-500">Paid ₹{row.paidAmount.toLocaleString("en-IN")}</span>
-        <b className="text-orange-600">₹{row.remainingAmount.toLocaleString("en-IN")} pending</b>
+        <span className="text-slate-500">Paid ₹{formatMoney(row.paidAmount)}</span>
+        <b className="text-orange-600">₹{formatMoney(row.remainingAmount)} pending</b>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
         <div className="h-full rounded-full bg-emerald-500" style={{ width: `${paidRate}%` }} />
       </div>
       <p className="mt-2 text-right text-[10px] font-bold text-slate-400">
-        {paidRate}% of ₹{row.totalFee.toLocaleString("en-IN")} paid
+        {paidRate}% of ₹{formatMoney(row.totalFee)} paid
       </p>
     </div>
   );
 }
-export function AdminAnalyticsPage() {
+export function AdminAnalyticsPage({ principal = false }: { principal?: boolean }) {
+  const { user } = useAuth();
   const [data, setData] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [filters, setFilters] = useState({
-    collegeId: "",
+    collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
     courseYearId: "",
     divisionId: "",
   });
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()]).then(([c, d]) => {
+    Promise.all([principal ? Promise.resolve([]) : getActiveColleges(), weeklyTimetableApi.divisions()]).then(([c, d]) => {
       setColleges(c);
       setDivisions(d);
     });
-  }, []);
+  }, [principal]);
   useEffect(() => {
+    const controller = new AbortController();
     setData(null);
     api
-      .getAdminAnalytics({
-        collegeId: filters.collegeId || undefined,
+      [principal ? "getPrincipalAnalytics" : "getAdminAnalytics"]({
+        collegeId: principal ? undefined : filters.collegeId || undefined,
         departmentId: filters.departmentId || undefined,
         courseYearId: filters.courseYearId || undefined,
         divisionId: filters.divisionId || undefined,
-      })
+      }, controller.signal)
       .then(setData)
-      .catch((e) => toast.error(handleApiError(e).message));
-  }, [filters]);
+      .catch((e) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(e).message);
+      });
+    return () => controller.abort();
+  }, [filters, principal]);
   return (
     <div className="page-container pb-10">
       <div>
@@ -1269,8 +1333,8 @@ export function AdminAnalyticsPage() {
         <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
       </div>
       <Card className="mt-6 p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Select
+        <div className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
+          {!principal && <Select
             options={[
               { label: "All colleges", value: "" },
               ...colleges.map((c) => ({ label: c.name, value: c.id })),
@@ -1284,7 +1348,7 @@ export function AdminAnalyticsPage() {
                 divisionId: "",
               })
             }
-          />
+          />}
           <Select
             options={[
               { label: "All departments", value: "" },
@@ -1338,6 +1402,8 @@ export function AdminAnalyticsPage() {
 export function AdminLectureLoadPage() {
   const [rows, setRows] = useState<api.LectureLoadRow[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [courseYears, setCourseYears] = useState<api.AdminCourseYearOption[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [staffId, setStaffId] = useState("");
   const [teacherSearch, setTeacherSearch] = useState("");
@@ -1363,25 +1429,61 @@ export function AdminLectureLoadPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    setDepartments([]);
+    if (!filters.collegeId) return;
+
+    getActiveDepartmentsForAdmin(Number(filters.collegeId))
+      .then((response) => {
+        if (!cancelled) setDepartments(response);
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.collegeId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCourseYears([]);
+    if (!filters.collegeId || !filters.departmentId) return;
+
+    api
+      .getCourseYearOptions(Number(filters.collegeId), Number(filters.departmentId))
+      .then((response) => {
+        if (!cancelled) setCourseYears(response);
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.collegeId, filters.departmentId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     api
       .getLectureLoad({
         collegeId: filters.collegeId || undefined,
         departmentId: filters.departmentId || undefined,
         courseYearId: filters.courseYearId || undefined,
         divisionId: filters.divisionId || undefined,
-      })
+      }, controller.signal)
       .then(setRows)
-      .catch((e) => toast.error(handleApiError(e).message));
+      .catch((e) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(e).message);
+      });
+    return () => controller.abort();
   }, [filters]);
 
   useEffect(() => {
+    const controller = new AbortController();
     if (!staffId) {
       setTable(null);
       return;
     }
     setTableLoading(true);
     api
-      .getStaffTimetable(Number(staffId))
+      .getStaffTimetable(Number(staffId), controller.signal)
       .then((response) => {
         setTable(response);
         setSelectedDay(
@@ -1393,10 +1495,14 @@ export function AdminLectureLoadPage() {
         );
       })
       .catch((error) => {
+        if (controller.signal.aborted) return;
         setTable(null);
         toast.error(handleApiError(error).message);
       })
-      .finally(() => setTableLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setTableLoading(false);
+      });
+    return () => controller.abort();
   }, [staffId]);
 
   const clearTeacher = () => {
@@ -1499,11 +1605,10 @@ export function AdminLectureLoadPage() {
             disabled={!filters.collegeId}
             options={[
               { label: filters.collegeId ? "All departments" : "Select college first", value: "" },
-              ...uniqueOptions(
-                divisions.filter((d) => d.collegeId === Number(filters.collegeId)),
-                "departmentId",
-                "department",
-              ),
+              ...departments.map((department) => ({
+                label: department.name,
+                value: department.id,
+              })),
             ]}
             value={filters.departmentId}
             onChange={(e) => {
@@ -1521,7 +1626,10 @@ export function AdminLectureLoadPage() {
             disabled={!filters.departmentId}
             options={[
               { label: "All years/classes", value: "" },
-              ...uniqueOptions(scopedDivisions(divisions, filters), "courseYearId", "year"),
+              ...courseYears.map((courseYear) => ({
+                label: courseYear.displayName,
+                value: courseYear.id,
+              })),
             ]}
             value={filters.courseYearId}
             onChange={(e) => {

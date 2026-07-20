@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -8,21 +7,23 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Loader } from "@/components/common/Loader";
 import { handleApiError } from "@/lib/handleApiError";
 import { exportReport, getReport, type ReportRow } from "@/features/reports/api";
+import { AdmissionAnalyticsDashboard } from "./AdmissionAnalyticsDashboard";
 export function ReportPage({ type }: { type: "admissions" | "fees" | "attendance" | "students" }) {
-  const [searchParams] = useSearchParams();
-  const status = searchParams.get("status") || undefined;
+  return type === "admissions" ? <AdmissionAnalyticsDashboard /> : <GenericReportPage type={type} />;
+}
+function GenericReportPage({ type }: { type: "fees" | "attendance" | "students" }) {
   const [rows, setRows] = useState<ReportRow[]>([]),
     [loading, setLoading] = useState(true);
   useEffect(() => {
     setLoading(true);
-    getReport(type, status ? { status } : undefined)
+    getReport(type)
       .then(setRows)
       .catch((e) => toast.error(handleApiError(e).message))
       .finally(() => setLoading(false));
-  }, [status, type]);
+  }, [type]);
   const exp = async () => {
     try {
-      await exportReport(type, status ? { status } : undefined);
+      await exportReport(type);
       toast.success("CSV exported");
     } catch (e) {
       toast.error(handleApiError(e).message);
@@ -33,8 +34,8 @@ export function ReportPage({ type }: { type: "admissions" | "fees" | "attendance
     <div className="page-container">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="page-title">{status ? status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase()) : type[0].toUpperCase() + type.slice(1)} {status ? "Admissions" : "Report"}</h1>
-          <p className="page-subtitle">College-scoped operational data{status ? " filtered by application status" : ""}.</p>
+          <h1 className="page-title">{type[0].toUpperCase() + type.slice(1)} Report</h1>
+          <p className="page-subtitle">Role-scoped operational data.</p>
         </div>
         <Button onClick={exp}>
           <Download className="h-4 w-4" />

@@ -46,6 +46,7 @@ import {
   CourseYearFormPage,
   CourseYearListPage,
   DivisionFormPage,
+  DivisionDetailsPage,
   DivisionListPage,
 } from "@/pages/academic/CourseYearDivisionPages";
 import { StudentAdmissionPage } from "@/pages/student/StudentAdmissionPage";
@@ -81,7 +82,6 @@ import {
 import {
   AcademicCreatePage,
   AcademicListPage,
-  FinalAdmissionsPage,
   StudentAcademicPage,
   SubjectEditPage,
 } from "@/pages/academic/AcademicPages";
@@ -105,7 +105,9 @@ function HomeRedirect() {
 
 function SmartDashboard() {
   const { isRole } = useAuth();
-  return isRole([ROLES.SUPER_ADMIN]) ? <AdminDashboardPage /> : <RoleDashboardPage />;
+  if (isRole([ROLES.SUPER_ADMIN])) return <AdminDashboardPage />;
+  if (isRole([ROLES.PRINCIPAL])) return <AdminDashboardPage principal />;
+  return <RoleDashboardPage />;
 }
 
 export function AppRouter() {
@@ -138,6 +140,10 @@ export function AppRouter() {
             <Route path={ROUTES.academicSetup} element={<AcademicSetupPage />} />
           </Route>
 
+          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
+            <Route path={ROUTES.staff} element={<StaffListPage />} />
+          </Route>
+
           <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
             <Route path={ROUTES.colleges} element={<CollegeListPage />} />
             <Route path="/colleges/create" element={<CollegeListPage />} />
@@ -164,6 +170,7 @@ export function AppRouter() {
             <Route path="/principal/course-years/:id/edit" element={<CourseYearFormPage />} />
             <Route path={ROUTES.divisions} element={<DivisionListPage />} />
             <Route path={ROUTES.createDivision} element={<DivisionFormPage />} />
+            <Route path="/principal/divisions/:id" element={<DivisionDetailsPage />} />
             <Route path="/principal/divisions/:id/edit" element={<DivisionFormPage />} />
             <Route
               path={ROUTES.createStudentSectionStaff}
@@ -171,6 +178,9 @@ export function AppRouter() {
             />
             <Route path={ROUTES.createFeeSectionStaff} element={<CreateFeeSectionStaffPage />} />
             <Route path={ROUTES.feeStructures} element={<FeeStructureListPage />} />
+            <Route path={ROUTES.principalFeeCollection} element={<AdminMoneyPage principal />} />
+            <Route path={ROUTES.principalPendingFees} element={<AdminMoneyPage pending principal />} />
+            <Route path={ROUTES.principalAnalytics} element={<AdminAnalyticsPage principal />} />
             <Route path="/fee-structures/create" element={<FeeStructureFormPage />} />
             <Route path="/fee-structures/:id/edit" element={<FeeStructureFormPage />} />
             <Route path="/fee-structures/:id" element={<FeeStructureDetailsPage />} />
@@ -179,7 +189,10 @@ export function AppRouter() {
               path="/principal/admissions/:admissionId"
               element={<PrincipalAdmissionDetailPage />}
             />
-            <Route path={ROUTES.finalAdmissions} element={<FinalAdmissionsPage />} />
+            <Route
+              path={ROUTES.finalAdmissions}
+              element={<Navigate to={ROUTES.principalReviewReady} replace />}
+            />
             <Route path={ROUTES.auditLogs} element={<AuditLogPage />} />
           </Route>
 
@@ -204,10 +217,13 @@ export function AppRouter() {
           </Route>
 
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />}>
-            <Route path={ROUTES.academicClasses} element={<AcademicListPage kind="classes" />} />
+            <Route
+              path={ROUTES.academicClasses}
+              element={<Navigate to={ROUTES.courseYears} replace />}
+            />
             <Route
               path="/academic/classes/create"
-              element={<AcademicCreatePage kind="classes" />}
+              element={<Navigate to={ROUTES.createCourseYear} replace />}
             />
             <Route path={ROUTES.academicSections} element={<AcademicListPage kind="sections" />} />
             <Route
@@ -215,7 +231,6 @@ export function AppRouter() {
               element={<AcademicCreatePage kind="sections" />}
             />
             <Route path={ROUTES.academicSubjects} element={<AcademicListPage kind="subjects" />} />
-            <Route path={ROUTES.studentAllocation} element={<StudentAllocationPage />} />
             <Route
               path="/academic/subjects/create"
               element={<AcademicCreatePage kind="subjects" />}
@@ -225,6 +240,10 @@ export function AppRouter() {
               path={ROUTES.subjectTeacherAssignments}
               element={<SubjectTeacherAssignmentPage />}
             />
+          </Route>
+
+          <Route element={<RoleRoute roles={[ROLES.HOD]} />}>
+            <Route path={ROUTES.studentAllocation} element={<StudentAllocationPage />} />
           </Route>
 
           <Route
