@@ -84,7 +84,7 @@ apiClient.interceptors.response.use(
           window.dispatchEvent(new Event("auth:unauthorized"));
           if (path !== ROUTES.login) window.location.assign(ROUTES.login);
         }
-      } else if (status === 401) {
+      } else if (status === 401 && !authRequest) {
         window.dispatchEvent(new Event("auth:unauthorized"));
       } else if (
         status === 403 &&

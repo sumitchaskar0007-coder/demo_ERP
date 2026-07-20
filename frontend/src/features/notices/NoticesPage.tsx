@@ -337,9 +337,9 @@ export function NoticesPage() {
                           </span>
                           <span className="inline-flex items-center gap-1">
                             <Building2 className="h-3.5 w-3.5" />
-                            {notice.collegeNames.length
-                              ? notice.collegeNames.join(", ")
-                              : "All colleges"}
+                            {notice.allColleges || notice.collegeNames.length === 0
+                              ? "All colleges"
+                              : notice.collegeNames.join(", ")}
                             {notice.departmentName ? ` • ${notice.departmentName}` : ""}
                           </span>
                         </div>

@@ -3,6 +3,7 @@ package com.jadhavr.erp.notice.service;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.college.entity.College;
+import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
@@ -79,7 +80,7 @@ public class NoticeServiceImpl implements NoticeService {
             throw new AccessDeniedException("Your role cannot send notices");
         }
         notice.setAudienceRoles(targets);
-        return map(notices.save(notice));
+        return map(notices.save(notice), activeCollegeIds());
     }
 
     @Override
@@ -89,15 +90,15 @@ public class NoticeServiceImpl implements NoticeService {
         Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
         if (roles.isEmpty()) return List.of();
-        return notices.findInbox(current.getId(), current.getCollegeId(), departmentId, roles, PageRequest.of(0, 100))
-                .stream().map(this::map).toList();
+        return mapNotices(notices.findInbox(current.getId(), current.getCollegeId(), departmentId, roles,
+                PageRequest.of(0, 100)));
     }
 
     @Override
     public List<NoticeResponse> sent() {
         Long id = SecurityUtils.getCurrentUserId();
-        return notices.findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(id, PageRequest.of(0, 100))
-                .stream().map(this::map).toList();
+        return mapNotices(notices.findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(id,
+                PageRequest.of(0, 100)));
     }
 
     @Override @Transactional
@@ -135,11 +136,28 @@ public class NoticeServiceImpl implements NoticeService {
         if (user.getCollegeId() == null) throw new BadRequestException("User has no college assigned");
         return findCollege(user.getCollegeId());
     }
-    private NoticeResponse map(Notice n) {
+    private Set<Long> activeCollegeIds() {
+        return colleges.findByStatus(CollegeStatus.ACTIVE).stream()
+                .map(College::getId)
+                .collect(Collectors.toSet());
+    }
+
+    private List<NoticeResponse> mapNotices(List<Notice> source) {
+        Set<Long> activeCollegeIds = activeCollegeIds();
+        return source.stream().map(notice -> map(notice, activeCollegeIds)).toList();
+    }
+
+    private NoticeResponse map(Notice n, Set<Long> activeCollegeIds) {
+        Set<Long> noticeCollegeIds = n.getColleges().stream()
+                .map(College::getId)
+                .collect(Collectors.toSet());
+        boolean allColleges = noticeCollegeIds.isEmpty()
+                || (!activeCollegeIds.isEmpty() && noticeCollegeIds.containsAll(activeCollegeIds));
         return new NoticeResponse(n.getId(), n.getTitle(), n.getMessage(), n.getCreatedBy().getId(),
                 n.getCreatedBy().getFullName(),
-                n.getColleges().stream().map(College::getId).collect(Collectors.toSet()),
+                noticeCollegeIds,
                 n.getColleges().stream().map(College::getName).collect(Collectors.toSet()),
+                allColleges,
                 n.getDepartment() == null ? null : n.getDepartment().getId(),
                 n.getDepartment() == null ? null : n.getDepartment().getName(), Set.copyOf(n.getAudienceRoles()), n.getCreatedAt());
     }

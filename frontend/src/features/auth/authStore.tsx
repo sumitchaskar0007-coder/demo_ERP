@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   useEffect,
   type PropsWithChildren,
@@ -27,22 +28,38 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const authMutationVersion = useRef(0);
 
   useEffect(() => {
-    authApi.bootstrapSession().then(setUser).catch(() => setUser(null)).finally(() => setInitializing(false));
+    const bootstrapVersion = authMutationVersion.current;
+    authApi
+      .bootstrapSession()
+      .then((profile) => {
+        if (authMutationVersion.current === bootstrapVersion) setUser(profile);
+      })
+      .catch(() => {
+        if (authMutationVersion.current === bootstrapVersion) setUser(null);
+      })
+      .finally(() => setInitializing(false));
     const clear = () => setUser(null);
     window.addEventListener("auth:unauthorized", clear);
     return () => window.removeEventListener("auth:unauthorized", clear);
   }, []);
 
   const login = useCallback(async (request: LoginRequest) => {
+    authMutationVersion.current += 1;
     const authenticatedUser = await authApi.login(request);
     setUser(authenticatedUser);
     return authenticatedUser;
   }, []);
 
   const logout = useCallback(async () => {
-    try { await authApi.logout(); } finally { setUser(null); }
+    authMutationVersion.current += 1;
+    try {
+      await authApi.logout();
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {

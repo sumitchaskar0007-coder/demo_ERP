@@ -8,6 +8,7 @@ export interface Notice {
   createdByName: string;
   collegeIds: number[];
   collegeNames: string[];
+  allColleges: boolean;
   departmentId: number | null;
   departmentName: string | null;
   audienceRoles: NoticeRole[];

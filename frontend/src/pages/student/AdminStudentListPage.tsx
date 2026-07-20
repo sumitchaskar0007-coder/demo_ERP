@@ -1,4 +1,4 @@
-import { Eye, GraduationCap, Search } from "lucide-react";
+import { Building2, Eye, GraduationCap, Mail, Phone, Search, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/common/Badge";
@@ -101,43 +101,77 @@ export function AdminStudentListPage() {
     {
       key: "student",
       header: "Student",
+      className: "lg:w-[23%]",
       render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+        <div className="flex min-w-[210px] items-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
             <GraduationCap className="h-5 w-5" />
           </div>
-          <div>
-            <p className="font-semibold text-slate-900">{row.fullName}</p>
-            <p className="text-xs text-slate-400">{row.admissionNumber}</p>
+          <div className="min-w-0">
+            <p className="truncate font-bold text-slate-900" title={row.fullName}>
+              {row.fullName}
+            </p>
+            <p className="mt-0.5 font-mono text-xs font-medium text-slate-400">
+              {row.admissionNumber}
+            </p>
           </div>
         </div>
       ),
     },
-    { key: "email", header: "Email", render: (row) => row.email },
-    { key: "phone", header: "Phone", render: (row) => row.phone },
     {
-      key: "college",
-      header: "College",
+      key: "contact",
+      header: "Contact",
+      className: "lg:w-[22%]",
       render: (row) => (
-        <div>
-          <p>{row.collegeName}</p>
-          <Badge>{row.collegeCode}</Badge>
+        <div className="min-w-[190px] space-y-2">
+          <a
+            href={`mailto:${row.email}`}
+            className="flex min-w-0 items-center gap-2 text-slate-700 hover:text-brand-700"
+            title={row.email}
+          >
+            <Mail className="h-4 w-4 shrink-0 text-slate-400" />
+            <span className="truncate">{row.email}</span>
+          </a>
+          <a
+            href={`tel:${row.phone}`}
+            className="flex items-center gap-2 whitespace-nowrap font-medium tabular-nums text-slate-600 hover:text-brand-700"
+          >
+            <Phone className="h-4 w-4 shrink-0 text-slate-400" />
+            {row.phone}
+          </a>
         </div>
       ),
     },
     {
-      key: "department",
-      header: "Department",
+      key: "academic",
+      header: "Academic placement",
+      className: "lg:w-[30%]",
       render: (row) => (
-        <div>
-          <p>{row.departmentName}</p>
-          <Badge>{row.departmentCode}</Badge>
+        <div className="min-w-[240px] space-y-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-brand-500" />
+            <p className="min-w-0 truncate font-semibold text-slate-800" title={row.collegeName}>
+              {row.collegeName}
+            </p>
+            <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+              {row.collegeCode}
+            </span>
+          </div>
+          <div className="flex min-w-0 items-center gap-2 pl-6">
+            <p className="min-w-0 truncate text-xs text-slate-500" title={row.departmentName}>
+              {row.departmentName}
+            </p>
+            <span className="shrink-0 rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+              {row.departmentCode}
+            </span>
+          </div>
         </div>
       ),
     },
     {
       key: "status",
       header: "Status",
+      className: "whitespace-nowrap lg:w-[11%]",
       render: (row) => (
         <Badge
           tone={
@@ -152,14 +186,32 @@ export function AdminStudentListPage() {
         </Badge>
       ),
     },
-    { key: "created", header: "Created", render: (row) => formatDate(row.createdAt) },
+    {
+      key: "created",
+      header: "Created",
+      className: "lg:w-[12%]",
+      render: (row) => (
+        <time
+          className="block min-w-[115px] text-sm leading-5 text-slate-600"
+          dateTime={row.createdAt}
+        >
+          {formatDate(row.createdAt)}
+        </time>
+      ),
+    },
     {
       key: "actions",
       header: "",
+      className: "lg:w-[1%] lg:whitespace-nowrap",
       render: (row) => (
-        <Button variant="secondary" onClick={() => void openDetails(row.id)}>
+        <Button
+          variant="secondary"
+          className="h-9 whitespace-nowrap px-3"
+          onClick={() => void openDetails(row.id)}
+          aria-label={`View ${row.fullName}`}
+        >
           <Eye className="h-4 w-4" />
-          View details
+          View
         </Button>
       ),
     },
@@ -171,38 +223,68 @@ export function AdminStudentListPage() {
         <h1 className="page-title">Students</h1>
         <p className="page-subtitle">View student profiles separately from staff accounts.</p>
       </div>
-      <Card className="mt-6">
-        <div className="grid gap-3 border-b p-4 lg:grid-cols-[1fr_220px_240px]">
-          <Input
-            placeholder="Search name, email, admission no..."
-            icon={<Search className="h-4 w-4" />}
-            value={keyword}
-            onChange={(event) => {
-              setKeyword(event.target.value);
-              setPage(0);
-            }}
-          />
-          <Select
-            options={[
-              { label: "All colleges", value: "" },
-              ...colleges.map((college) => ({ label: college.name, value: college.id })),
-            ]}
-            value={collegeId}
-            onChange={(event) => {
-              setCollegeId(event.target.value ? Number(event.target.value) : "");
-              setPage(0);
-            }}
-            aria-label="Filter by college"
-          />
-          <Select
-            options={studentStatusOptions}
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(0);
-            }}
-            aria-label="Filter by student status"
-          />
+      <Card className="mt-6 overflow-hidden">
+        <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-bold text-slate-900">Student directory</h2>
+              <p className="text-xs text-slate-500">
+                {loading
+                  ? "Updating records…"
+                  : `${result.totalElements} student${result.totalElements === 1 ? "" : "s"} found`}
+              </p>
+            </div>
+            {(keyword || collegeId || status) && (
+              <Button
+                variant="ghost"
+                className="h-9 px-3"
+                onClick={() => {
+                  setKeyword("");
+                  setCollegeId("");
+                  setStatus("");
+                  setPage(0);
+                }}
+              >
+                <X className="h-4 w-4" />
+                Clear filters
+              </Button>
+            )}
+          </div>
+          <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(280px,1fr)_minmax(220px,300px)_minmax(210px,240px)]">
+            <Input
+              label="Search students"
+              placeholder="Search name, email, admission no..."
+              icon={<Search className="h-4 w-4" />}
+              value={keyword}
+              onChange={(event) => {
+                setKeyword(event.target.value);
+                setPage(0);
+              }}
+            />
+            <Select
+              label="College"
+              options={[
+                { label: "All colleges", value: "" },
+                ...colleges.map((college) => ({ label: college.name, value: college.id })),
+              ]}
+              value={collegeId}
+              onChange={(event) => {
+                setCollegeId(event.target.value ? Number(event.target.value) : "");
+                setPage(0);
+              }}
+              aria-label="Filter by college"
+            />
+            <Select
+              label="Student status"
+              options={studentStatusOptions}
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(0);
+              }}
+              aria-label="Filter by student status"
+            />
+          </div>
         </div>
         {loading ? (
           <Loader label="Loading students..." />

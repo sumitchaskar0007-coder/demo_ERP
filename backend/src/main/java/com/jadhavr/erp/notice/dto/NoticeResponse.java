@@ -6,6 +6,7 @@ import java.util.Set;
 
 public record NoticeResponse(
         Long id, String title, String message, Long createdByUserId, String createdByName,
-        Set<Long> collegeIds, Set<String> collegeNames, Long departmentId, String departmentName,
+        Set<Long> collegeIds, Set<String> collegeNames, boolean allColleges,
+        Long departmentId, String departmentName,
         Set<RoleName> audienceRoles, LocalDateTime createdAt
 ) {}
