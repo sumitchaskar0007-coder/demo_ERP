@@ -207,7 +207,11 @@ function WeeklyGrid({
                 className={`border-l p-3 ${day === table.currentDay ? "relative bg-brand-600 text-white shadow-[inset_1px_0_0_rgba(255,255,255,.18),inset_-1px_0_0_rgba(255,255,255,.18)] dark:bg-brand-700" : ""}`}
               >
                 {LABELS[day]}
-                {day === table.currentDay && <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[8px] font-black tracking-wider text-white ring-1 ring-white/30">TODAY</span>}
+                {day === table.currentDay && (
+                  <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[8px] font-black tracking-wider text-white ring-1 ring-white/30">
+                    TODAY
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -271,8 +275,20 @@ function DayView({
   const lectureMap = new Map(data.lectures.map((lecture) => [lecture.periodKey, lecture]));
   return (
     <Card className="divide-y overflow-hidden">
-      <div className={cn("px-5 py-4", data.day === currentDay ? "bg-brand-600 text-white" : "bg-slate-50 dark:bg-slate-800")}>
-        <h2 className="font-bold">{LABELS[data.day]} {data.day === currentDay && <span className="ml-2 rounded-full bg-white/20 px-2 py-1 text-[9px] font-black tracking-wider ring-1 ring-white/30">TODAY</span>}</h2>
+      <div
+        className={cn(
+          "px-5 py-4",
+          data.day === currentDay ? "bg-brand-600 text-white" : "bg-slate-50 dark:bg-slate-800",
+        )}
+      >
+        <h2 className="font-bold">
+          {LABELS[data.day]}{" "}
+          {data.day === currentDay && (
+            <span className="ml-2 rounded-full bg-white/20 px-2 py-1 text-[9px] font-black tracking-wider ring-1 ring-white/30">
+              TODAY
+            </span>
+          )}
+        </h2>
         <p className={cn("text-xs", data.day === currentDay ? "text-blue-100" : "text-slate-400")}>
           {data.lectures.length} scheduled lecture{data.lectures.length === 1 ? "" : "s"}
         </p>
@@ -324,7 +340,8 @@ function LectureCell({
     <div
       className={cn(
         "min-h-24 border-l p-2",
-        day === currentDay && "border-x border-brand-200 bg-gradient-to-b from-brand-50 via-blue-50/70 to-white dark:border-brand-800 dark:from-brand-950/60 dark:to-slate-900",
+        day === currentDay &&
+          "border-x border-brand-200 bg-gradient-to-b from-brand-50 via-blue-50/70 to-white dark:border-brand-800 dark:from-brand-950/60 dark:to-slate-900",
       )}
     >
       <LectureCard lecture={lecture} highlighted={highlighted} currentDay={currentDay} />
@@ -376,9 +393,29 @@ function LectureCard({
     >
       <div className="flex items-start justify-between gap-2">
         <b className="break-words text-xs leading-5">{lecture.subject}</b>
-        {isToday && <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black tracking-wide", current ? "bg-brand-600 text-white shadow-sm" : upcoming ? "bg-blue-100 text-brand-700" : "bg-slate-200/80 text-slate-600")}>
-          {current ? <><span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white" />NOW</> : upcoming ? "UPCOMING" : "COMPLETED"}
-        </span>}
+        {isToday && (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black tracking-wide",
+              current
+                ? "bg-brand-600 text-white shadow-sm"
+                : upcoming
+                  ? "bg-blue-100 text-brand-700"
+                  : "bg-slate-200/80 text-slate-600",
+            )}
+          >
+            {current ? (
+              <>
+                <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                NOW
+              </>
+            ) : upcoming ? (
+              "UPCOMING"
+            ) : (
+              "COMPLETED"
+            )}
+          </span>
+        )}
       </div>
       <p className="mt-1 text-[10px] opacity-75">
         {lecture.year} - {lecture.division}
@@ -392,8 +429,4 @@ function LectureCard({
   );
 }
 
-export {
-  Stat as TeacherTimetableStat,
-  WeeklyGrid as TeacherWeeklyGrid,
-  DayView as TeacherDayView,
-};
+export { Stat as TeacherTimetableStat, WeeklyGrid as TeacherWeeklyGrid, DayView as TeacherDayView };

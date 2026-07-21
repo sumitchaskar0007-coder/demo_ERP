@@ -1,6 +1,13 @@
 import type { TimetableDay } from "./types";
 
-export const DAYS: TimetableDay[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+export const DAYS: TimetableDay[] = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
 
 export const DAY_LABELS: Record<TimetableDay, string> = {
   MONDAY: "Monday",

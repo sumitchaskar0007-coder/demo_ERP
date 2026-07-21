@@ -48,7 +48,9 @@ export function WeeklyTimetablePage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const selected = timetables.find((t) => t.id === selectedId);
 
@@ -96,18 +98,29 @@ export function WeeklyTimetablePage() {
 
   const entryCount = entries.length;
 
-  if (loading) return <div className="page-container"><Loader /></div>;
+  if (loading)
+    return (
+      <div className="page-container">
+        <Loader />
+      </div>
+    );
 
   return (
     <div className="page-container space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Weekly Timetable</h1>
-          <p className="page-subtitle">Manage weekly schedules with drag-and-drop, copy, and publish.</p>
+          <p className="page-subtitle">
+            Manage weekly schedules with drag-and-drop, copy, and publish.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {selected?.status === "DRAFT" && (
-            <Button onClick={publish} loading={publishing} className="bg-teal-600 hover:bg-teal-700">
+            <Button
+              onClick={publish}
+              loading={publishing}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
               Publish
             </Button>
           )}
@@ -132,7 +145,12 @@ export function WeeklyTimetablePage() {
               onChange={(e) => setWeekInput(e.target.value)}
               className="h-9 rounded-lg border px-2 text-sm"
             />
-            <Button className={BTN_SM} onClick={createWeek} loading={creatingWeek} disabled={!weekInput}>
+            <Button
+              className={BTN_SM}
+              onClick={createWeek}
+              loading={creatingWeek}
+              disabled={!weekInput}
+            >
               <Calendar className="h-3.5 w-3.5" /> New Week
             </Button>
           </div>
@@ -140,13 +158,17 @@ export function WeeklyTimetablePage() {
 
         {selected && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${selected.status === "PUBLISHED" ? "bg-teal-50 text-teal-700" : selected.status === "ARCHIVED" ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-700"}`}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${selected.status === "PUBLISHED" ? "bg-teal-50 text-teal-700" : selected.status === "ARCHIVED" ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-700"}`}
+            >
               {selected.status}
             </span>
             <span>·</span>
             <span>{entryCount} entries</span>
             <span>·</span>
-            <span>{selected.className} — {selected.section}</span>
+            <span>
+              {selected.className} — {selected.section}
+            </span>
           </div>
         )}
       </Card>
@@ -163,19 +185,43 @@ export function WeeklyTimetablePage() {
                 onClear={() => setSearchHighlights("")}
               />
               <div className="ml-auto flex items-center gap-1">
-                <Button className={BTN_SM} variant="ghost" onClick={undo} disabled={!canUndo} title="Undo">
+                <Button
+                  className={BTN_SM}
+                  variant="ghost"
+                  onClick={undo}
+                  disabled={!canUndo}
+                  title="Undo"
+                >
                   <Undo className="h-3.5 w-3.5" />
                 </Button>
-                <Button className={BTN_SM} variant="ghost" onClick={redo} disabled={!canRedo} title="Redo">
+                <Button
+                  className={BTN_SM}
+                  variant="ghost"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  title="Redo"
+                >
                   <Redo className="h-3.5 w-3.5" />
                 </Button>
-                <Button className={BTN_SM} variant="ghost" onClick={() => setShowCopy(!showCopy)} title="Copy">
+                <Button
+                  className={BTN_SM}
+                  variant="ghost"
+                  onClick={() => setShowCopy(!showCopy)}
+                  title="Copy"
+                >
                   Copy
                 </Button>
                 <Button
                   className={BTN_SM}
                   variant="ghost"
-                  onClick={() => exportToPDF(entries, `${selected.className} Timetable`, DEFAULT_PERIODS, user?.collegeName ?? undefined)}
+                  onClick={() =>
+                    exportToPDF(
+                      entries,
+                      `${selected.className} Timetable`,
+                      DEFAULT_PERIODS,
+                      user?.collegeName ?? undefined,
+                    )
+                  }
                   disabled={entryCount === 0}
                   title="Export PDF"
                 >
@@ -184,7 +230,14 @@ export function WeeklyTimetablePage() {
                 <Button
                   className={BTN_SM}
                   variant="ghost"
-                  onClick={() => exportToExcel(entries, `${selected.className} Timetable`, DEFAULT_PERIODS, user?.collegeName ?? undefined)}
+                  onClick={() =>
+                    exportToExcel(
+                      entries,
+                      `${selected.className} Timetable`,
+                      DEFAULT_PERIODS,
+                      user?.collegeName ?? undefined,
+                    )
+                  }
                   disabled={entryCount === 0}
                   title="Export Excel"
                 >
@@ -203,11 +256,7 @@ export function WeeklyTimetablePage() {
             </div>
             {showCopy && (
               <div className="mt-3">
-                <CopyToolbar
-                  timetableId={selectedId!}
-                  currentDay={dayTab}
-                  onCopied={refresh}
-                />
+                <CopyToolbar timetableId={selectedId!} currentDay={dayTab} onCopied={refresh} />
               </div>
             )}
           </Card>
@@ -239,9 +288,14 @@ export function WeeklyTimetablePage() {
 
           <div className="md:hidden space-y-3">
             {DEFAULT_PERIODS.filter((p) => !p.isBreak).map((period) => {
-              const entry = entries.find((e) => e.dayOfWeek === dayTab && e.periodNumber === period.number);
+              const entry = entries.find(
+                (e) => e.dayOfWeek === dayTab && e.periodNumber === period.number,
+              );
               return (
-                <div key={period.number} className="flex items-start gap-3 rounded-lg border border-slate-200 p-3">
+                <div
+                  key={period.number}
+                  className="flex items-start gap-3 rounded-lg border border-slate-200 p-3"
+                >
                   <div className="shrink-0 text-xs text-slate-500">
                     <p className="font-medium">P{period.number}</p>
                     <p>{period.start}</p>

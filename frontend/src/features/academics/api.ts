@@ -188,9 +188,7 @@ export const weeklyTimetableApi = {
       await apiClient.put(`/api/weekly-timetables/${id}/periods`, { periods }),
     ),
   submitReview: async (id: number) =>
-    unwrap<WeeklyTimetable>(
-      await apiClient.post(`/api/weekly-timetables/${id}/submit-review`),
-    ),
+    unwrap<WeeklyTimetable>(await apiClient.post(`/api/weekly-timetables/${id}/submit-review`)),
   review: async (id: number, action: string, comment?: string) =>
     unwrap<WeeklyTimetable>(
       await apiClient.post(`/api/weekly-timetables/${id}/review`, { action, comment }),

@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LectureCard } from "./LectureCard";
@@ -22,14 +29,14 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
   } | null>(null);
   const [activeEntry, setActiveEntry] = useState<TimetableEntry | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const getEntry = (day: string, period: number) =>
     entries.find((e) => e.dayOfWeek === day && e.periodNumber === period);
 
-  const handleDragStart = (event: { active: { data: { current?: { entry?: TimetableEntry } } } }) => {
+  const handleDragStart = (event: {
+    active: { data: { current?: { entry?: TimetableEntry } } };
+  }) => {
     const entry = event.active.data.current?.entry;
     if (entry) setActiveEntry(entry);
   };
@@ -98,9 +105,9 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
                   const isHighlighted =
                     highlightLower &&
                     entry &&
-                    ((entry.subject?.toLowerCase().includes(highlightLower)) ||
-                      (entry.teacher?.toLowerCase().includes(highlightLower)) ||
-                      (entry.room?.toLowerCase().includes(highlightLower)));
+                    (entry.subject?.toLowerCase().includes(highlightLower) ||
+                      entry.teacher?.toLowerCase().includes(highlightLower) ||
+                      entry.room?.toLowerCase().includes(highlightLower));
 
                   return (
                     <td
@@ -153,7 +160,12 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
       <DragOverlay>
         {activeEntry && (
           <div className="w-48 opacity-90">
-            <LectureCard entry={activeEntry} isDroppable={false} onEdit={() => {}} onDelete={() => {}} />
+            <LectureCard
+              entry={activeEntry}
+              isDroppable={false}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
           </div>
         )}
       </DragOverlay>

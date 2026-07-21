@@ -17,7 +17,15 @@ interface Props {
   onSaved: () => void;
 }
 
-export function PeriodPopup({ open, onClose, timetableId, dayOfWeek, periodNumber, entry, onSaved }: Props) {
+export function PeriodPopup({
+  open,
+  onClose,
+  timetableId,
+  dayOfWeek,
+  periodNumber,
+  entry,
+  onSaved,
+}: Props) {
   const [subjects, setSubjects] = useState<SubjectInfo[]>([]);
   const [teachers, setTeachers] = useState<TeacherInfo[]>([]);
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
@@ -31,13 +39,25 @@ export function PeriodPopup({ open, onClose, timetableId, dayOfWeek, periodNumbe
 
   useEffect(() => {
     if (!open) return;
-    classTeacherApi.subjects().then(setSubjects).catch(() => {});
-    timetableApi.rooms().then(setRooms).catch(() => {});
+    classTeacherApi
+      .subjects()
+      .then(setSubjects)
+      .catch(() => {});
+    timetableApi
+      .rooms()
+      .then(setRooms)
+      .catch(() => {});
   }, [open]);
 
   useEffect(() => {
-    if (!subjectId || !open) { setTeachers([]); return; }
-    classTeacherApi.teachers(Number(subjectId)).then(setTeachers).catch(() => setTeachers([]));
+    if (!subjectId || !open) {
+      setTeachers([]);
+      return;
+    }
+    classTeacherApi
+      .teachers(Number(subjectId))
+      .then(setTeachers)
+      .catch(() => setTeachers([]));
   }, [subjectId, open]);
 
   useEffect(() => {

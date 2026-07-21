@@ -47,10 +47,12 @@ export function SubjectTeacherAssignmentPage() {
         status: "ACTIVE" as never,
       });
       setDepartments([
-        ...new Map(result.content.map((department) => [
-          `${department.collegeId}:${department.code.trim().toUpperCase()}`,
-          department,
-        ])).values(),
+        ...new Map(
+          result.content.map((department) => [
+            `${department.collegeId}:${department.code.trim().toUpperCase()}`,
+            department,
+          ]),
+        ).values(),
       ]);
     } catch {
       setDepartments([]);
@@ -66,11 +68,7 @@ export function SubjectTeacherAssignmentPage() {
     try {
       const classes = await searchAcademicClasses({ departmentId: Number(deptId) });
       setYearOptions([
-        ...new Set(
-          classes
-            .filter((item) => item.status === "ACTIVE")
-            .map((item) => item.yearName),
-        ),
+        ...new Set(classes.filter((item) => item.status === "ACTIVE").map((item) => item.yearName)),
       ]);
     } catch (error) {
       setYearOptions([]);

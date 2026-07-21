@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -74,7 +75,15 @@ public class StudentAdmissionController {
     @GetMapping("/me/photo")
     public ResponseEntity<Resource> getPhoto() {
         var photo = photoService.loadMine();
-        return ResponseEntity.ok().contentType(photo.mediaType()).body(photo.resource());
+        return ResponseEntity.ok().contentType(photo.mediaType())
+                .header("Content-Disposition", "inline; filename=\"student-photo\"")
+                .body(photo.resource());
+    }
+
+    @DeleteMapping("/me/photo")
+    public ApiResponse<Void> deletePhoto() {
+        photoService.deleteMine();
+        return ApiResponse.success("Student photo removed successfully", null);
     }
 
     @PostMapping(path = "/me/documents/{type}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

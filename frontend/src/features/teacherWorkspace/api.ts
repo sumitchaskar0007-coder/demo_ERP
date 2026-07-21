@@ -1,22 +1,144 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse } from "@/types/api";
-export type Kpis={todayLectures:number;pendingAttendance:number;completedAttendance:number;subjects:number;divisions:number;classStrength?:number|null;averageAttendance:number};
-export type ClassSummary={divisionId:number;className:string;department:string;courseYear:string;division:string;academicYear:string;totalStudents:number;maleStudents:number;femaleStudents:number;averageAttendance:number};
-export type Student={id:number;rollNumber?:string|null;name:string;prn:string;division:string;gender:string;attendancePercentage:number;email:string;status:string;attentionIssue?:string|null};
-export type StudentPage={content:Student[];totalElements:number;page:number;totalPages:number};
-export type AttendanceHistory={date:string;time:string;subject:string;division:string;status:string;remarks?:string|null};
-export type Metrics={today:number;weekly:number;monthly:number;overall:number;above90:number;between75And90:number;below75:number;below60:number};
-export type Point={label:string;percentage?:number;value?:number};
-export type Coverage={subjectId:number;subject:string;division:string;plannedLectures:number;completedLectures:number;remainingLectures:number;completionPercentage:number;status:string};
-export type Workload={totalSubjects:number;totalDivisions:number;weeklyLectures:number;todayLectures:number;pendingAttendanceSessions:number;weekly:{label:string;value:number}[];bySubject:{label:string;value:number}[]};
-export type Schedule={timetableEntryId:number;time:string;subject:string;division:string;lectureType:string;state:string;attendanceSessionId?:number|null;canTakeAttendance:boolean};
-export type Notice={id:number;title:string;createdBy:string;date:string;priority:string;unread:boolean;message:string};
-export type Notification={id:number;type:string;message:string;createdAt:string;unread:boolean};
-export type Activity={type:string;message:string;occurredAt:string};
-export type DivisionInsight={divisionId:number;division:string;totalStudents:number;averageAttendance:number;lowAttendanceStudents:number;trend:{label:string;percentage:number}[]};
-export type Workspace={teacherName:string;employeeCode:string;classTeacher:boolean;subjectTeacher:boolean;kpis:Kpis;classes:ClassSummary[];students:StudentPage;attendance:Metrics;dailyTrend:{label:string;percentage:number}[];weeklyTrend:{label:string;percentage:number}[];monthlyTrend:{label:string;percentage:number}[];attention:Student[];coverage:Coverage[];workload:Workload;todaySchedule:Schedule[];notices:Notice[];notifications:Notification[];recentActivities:Activity[];divisionInsights:DivisionInsight[]};
-const unwrap=<T>(p:Promise<{data:ApiResponse<T>}>)=>p.then(r=>r.data.data);
-export const getWorkspace=(params?:object)=>unwrap<Workspace>(apiClient.get("/api/teacher/workspace",{params}));
-export const getStudentAttendance=(id:number)=>unwrap<AttendanceHistory[]>(apiClient.get(`/api/teacher/workspace/students/${id}/attendance`));
-export const readNotification=(id:number)=>unwrap(apiClient.patch(`/api/teacher/workspace/notifications/${id}/read`));
-export const readAllNotifications=()=>unwrap(apiClient.patch("/api/teacher/workspace/notifications/read-all"));
+export type Kpis = {
+  todayLectures: number;
+  pendingAttendance: number;
+  completedAttendance: number;
+  subjects: number;
+  divisions: number;
+  classStrength?: number | null;
+  averageAttendance: number;
+};
+export type ClassSummary = {
+  divisionId: number;
+  className: string;
+  department: string;
+  courseYear: string;
+  division: string;
+  academicYear: string;
+  totalStudents: number;
+  maleStudents: number;
+  femaleStudents: number;
+  averageAttendance: number;
+};
+export type Student = {
+  id: number;
+  rollNumber?: string | null;
+  name: string;
+  prn: string;
+  division: string;
+  gender: string;
+  attendancePercentage: number;
+  email: string;
+  status: string;
+  attentionIssue?: string | null;
+};
+export type StudentPage = {
+  content: Student[];
+  totalElements: number;
+  page: number;
+  totalPages: number;
+};
+export type AttendanceHistory = {
+  date: string;
+  time: string;
+  subject: string;
+  division: string;
+  status: string;
+  remarks?: string | null;
+};
+export type Metrics = {
+  today: number;
+  weekly: number;
+  monthly: number;
+  overall: number;
+  above90: number;
+  between75And90: number;
+  below75: number;
+  below60: number;
+};
+export type Point = { label: string; percentage?: number; value?: number };
+export type Coverage = {
+  subjectId: number;
+  subject: string;
+  division: string;
+  plannedLectures: number;
+  completedLectures: number;
+  remainingLectures: number;
+  completionPercentage: number;
+  status: string;
+};
+export type Workload = {
+  totalSubjects: number;
+  totalDivisions: number;
+  weeklyLectures: number;
+  todayLectures: number;
+  pendingAttendanceSessions: number;
+  weekly: { label: string; value: number }[];
+  bySubject: { label: string; value: number }[];
+};
+export type Schedule = {
+  timetableEntryId: number;
+  time: string;
+  subject: string;
+  division: string;
+  lectureType: string;
+  state: string;
+  attendanceSessionId?: number | null;
+  canTakeAttendance: boolean;
+};
+export type Notice = {
+  id: number;
+  title: string;
+  createdBy: string;
+  date: string;
+  priority: string;
+  unread: boolean;
+  message: string;
+};
+export type Notification = {
+  id: number;
+  type: string;
+  message: string;
+  createdAt: string;
+  unread: boolean;
+};
+export type Activity = { type: string; message: string; occurredAt: string };
+export type DivisionInsight = {
+  divisionId: number;
+  division: string;
+  totalStudents: number;
+  averageAttendance: number;
+  lowAttendanceStudents: number;
+  trend: { label: string; percentage: number }[];
+};
+export type Workspace = {
+  teacherName: string;
+  employeeCode: string;
+  classTeacher: boolean;
+  subjectTeacher: boolean;
+  kpis: Kpis;
+  classes: ClassSummary[];
+  students: StudentPage;
+  attendance: Metrics;
+  dailyTrend: { label: string; percentage: number }[];
+  weeklyTrend: { label: string; percentage: number }[];
+  monthlyTrend: { label: string; percentage: number }[];
+  attention: Student[];
+  coverage: Coverage[];
+  workload: Workload;
+  todaySchedule: Schedule[];
+  notices: Notice[];
+  notifications: Notification[];
+  recentActivities: Activity[];
+  divisionInsights: DivisionInsight[];
+};
+const unwrap = <T>(p: Promise<{ data: ApiResponse<T> }>) => p.then((r) => r.data.data);
+export const getWorkspace = (params?: object) =>
+  unwrap<Workspace>(apiClient.get("/api/teacher/workspace", { params }));
+export const getStudentAttendance = (id: number) =>
+  unwrap<AttendanceHistory[]>(apiClient.get(`/api/teacher/workspace/students/${id}/attendance`));
+export const readNotification = (id: number) =>
+  unwrap(apiClient.patch(`/api/teacher/workspace/notifications/${id}/read`));
+export const readAllNotifications = () =>
+  unwrap(apiClient.patch("/api/teacher/workspace/notifications/read-all"));

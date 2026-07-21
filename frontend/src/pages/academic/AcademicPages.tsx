@@ -13,12 +13,7 @@ import * as api from "@/features/academic/api";
 import { useAuth } from "@/features/auth/authStore";
 import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
-import type {
-  AcademicClass,
-  Section,
-  Subject,
-  TimetableEntry,
-} from "@/features/academic/types";
+import type { AcademicClass, Section, Subject, TimetableEntry } from "@/features/academic/types";
 
 const preferredDepartments = (rows: Department[], classes: AcademicClass[]) => {
   const classCounts = new Map<number, number>();
@@ -38,11 +33,11 @@ const preferredDepartments = (rows: Department[], classes: AcademicClass[]) => {
   return [...preferred.values()];
 };
 
-const uniqueAcademicClasses = (rows: AcademicClass[]) =>
-  [...new Map(rows.map((row) => [
-    `${row.department.id}:${row.academicYear}:${row.yearName}`,
-    row,
-  ])).values()];
+const uniqueAcademicClasses = (rows: AcademicClass[]) => [
+  ...new Map(
+    rows.map((row) => [`${row.department.id}:${row.academicYear}:${row.yearName}`, row]),
+  ).values(),
+];
 
 function Shell({
   title,
@@ -220,7 +215,12 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                       className="h-9 flex-1 px-3 text-xs sm:flex-none"
                       variant="danger"
                       onClick={async () => {
-                        if (!confirm("Remove this subject? Existing timetable and attendance history will be preserved.")) return;
+                        if (
+                          !confirm(
+                            "Remove this subject? Existing timetable and attendance history will be preserved.",
+                          )
+                        )
+                          return;
                         try {
                           await api.deleteSubject(r.id);
                           toast.success("Subject removed");

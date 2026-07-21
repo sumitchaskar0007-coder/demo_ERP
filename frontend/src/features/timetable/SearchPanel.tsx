@@ -15,7 +15,10 @@ export function SearchPanel({ onResults, onClear }: Props) {
   const [searching, setSearching] = useState(false);
 
   const search = async () => {
-    if (!query.trim()) { onClear(); return; }
+    if (!query.trim()) {
+      onClear();
+      return;
+    }
     setSearching(true);
     try {
       const results = await timetableApi.search({ query: query.trim() });

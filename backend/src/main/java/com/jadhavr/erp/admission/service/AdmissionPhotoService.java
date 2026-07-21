@@ -5,38 +5,38 @@ import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Value;
+import com.jadhavr.erp.storage.ImageUploadValidator;
+import com.jadhavr.erp.storage.ObjectStorageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class AdmissionPhotoService {
+    private static final Logger log = LoggerFactory.getLogger(AdmissionPhotoService.class);
     private static final long MAX_BYTES = 2L * 1024 * 1024;
-    private static final Map<String, String> EXTENSIONS = Map.of(
-            MediaType.IMAGE_JPEG_VALUE, ".jpg",
-            MediaType.IMAGE_PNG_VALUE, ".png",
-            "image/webp", ".webp");
 
     private final AdmissionFormRepository admissions;
-    private final Path root;
+    private final ObjectStorageService storage;
+    private final ImageUploadValidator images;
 
     public AdmissionPhotoService(
             AdmissionFormRepository admissions,
-            @Value("${app.storage.admission-photo-dir:uploads/admission-photos}") String directory) {
+            ObjectStorageService storage,
+            ImageUploadValidator images) {
         this.admissions = admissions;
-        this.root = Path.of(directory).toAbsolutePath().normalize();
+        this.storage = storage;
+        this.images = images;
     }
 
     @Transactional
@@ -55,35 +55,26 @@ public class AdmissionPhotoService {
     }
 
     private AdmissionForm save(AdmissionForm admission, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("Passport-size photo is required");
-        }
-        if (file.getSize() > MAX_BYTES) {
-            throw new BadRequestException("Photo must not exceed 2 MB");
-        }
         if (admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.SUBMITTED
                 && admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING
                 && admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.STUDENT_SECTION_REJECTED
                 && admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.PRINCIPAL_REJECTED) {
             throw new BadRequestException("Student photo cannot be changed after Student Section approval");
         }
-        String extension = EXTENSIONS.get(file.getContentType());
-        if (extension == null) {
-            throw new BadRequestException("Only JPEG, PNG, or WebP photos are allowed");
-        }
-        verifyImageSignature(file, file.getContentType());
+        ImageUploadValidator.ValidatedImage image = images.validate(file, MAX_BYTES);
+        String oldKey = admission.getPhotoStorageName();
+        String key = "colleges/" + admission.getCollege().getId()
+                + "/admissions/" + admission.getId()
+                + "/photo/" + UUID.randomUUID() + image.extension();
+        storage.put(key, image.content(), image.contentType());
         try {
-            Files.createDirectories(root);
-            String oldName = admission.getPhotoStorageName();
-            String storageName = admission.getId() + "-" + UUID.randomUUID() + extension;
-            Path target = safePath(storageName);
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-            admission.setPhotoStorageName(storageName);
-            AdmissionForm saved = admissions.save(admission);
-            if (oldName != null) Files.deleteIfExists(safePath(oldName));
+            admission.setPhotoStorageName(key);
+            AdmissionForm saved = admissions.saveAndFlush(admission);
+            registerObjectCleanup(key, oldKey);
             return saved;
-        } catch (IOException exception) {
-            throw new BadRequestException("Unable to store the student photo");
+        } catch (RuntimeException exception) {
+            safeDelete(key);
+            throw exception;
         }
     }
 
@@ -98,23 +89,44 @@ public class AdmissionPhotoService {
         return load(findMine());
     }
 
+    @Transactional
+    public void delete(Long admissionId) {
+        delete(findScoped(admissionId));
+    }
+
+    @Transactional
+    public void deleteMine() {
+        AdmissionForm admission = findMine();
+        if (!studentCanEdit(admission)) {
+            throw new BadRequestException("The admission form is read-only while it is pending or approved");
+        }
+        delete(admission);
+    }
+
+    private void delete(AdmissionForm admission) {
+        String key = admission.getPhotoStorageName();
+        if (key == null) return;
+        admission.setPhotoStorageName(null);
+        admissions.saveAndFlush(admission);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    safeDelete(key);
+                }
+            });
+        } else {
+            safeDelete(key);
+        }
+    }
+
     private PhotoResource load(AdmissionForm admission) {
         if (admission.getPhotoStorageName() == null) {
             throw new ResourceNotFoundException("Student photo not uploaded");
         }
-        try {
-            Path file = safePath(admission.getPhotoStorageName());
-            Resource resource = new UrlResource(file.toUri());
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new ResourceNotFoundException("Student photo not found");
-            }
-            String contentType = Files.probeContentType(file);
-            MediaType mediaType = contentType == null
-                    ? MediaType.APPLICATION_OCTET_STREAM : MediaType.parseMediaType(contentType);
-            return new PhotoResource(resource, mediaType);
-        } catch (IOException exception) {
-            throw new ResourceNotFoundException("Student photo not found");
-        }
+        ObjectStorageService.StoredObject object = storage.get(admission.getPhotoStorageName());
+        return new PhotoResource(new ByteArrayResource(object.content()),
+                MediaType.parseMediaType(object.contentType()));
     }
 
     private AdmissionForm findScoped(Long id) {
@@ -143,34 +155,29 @@ public class AdmissionPhotoService {
                 || admission.getStatus() == com.jadhavr.erp.admission.enums.AdmissionStatus.PRINCIPAL_REJECTED;
     }
 
-    private Path safePath(String storageName) {
-        Path path = root.resolve(storageName).normalize();
-        if (!path.startsWith(root)) throw new BadRequestException("Invalid photo path");
-        return path;
+    private void registerObjectCleanup(String newKey, String oldKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            if (oldKey != null) safeDelete(oldKey);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                if (oldKey != null) safeDelete(oldKey);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) safeDelete(newKey);
+            }
+        });
     }
 
-    private void verifyImageSignature(MultipartFile file, String contentType) {
+    private void safeDelete(String key) {
         try {
-            byte[] header = file.getInputStream().readNBytes(12);
-            boolean valid = switch (contentType) {
-                case MediaType.IMAGE_JPEG_VALUE -> header.length >= 3
-                        && (header[0] & 0xff) == 0xff && (header[1] & 0xff) == 0xd8
-                        && (header[2] & 0xff) == 0xff;
-                case MediaType.IMAGE_PNG_VALUE -> header.length >= 8
-                        && (header[0] & 0xff) == 0x89 && header[1] == 0x50
-                        && header[2] == 0x4e && header[3] == 0x47
-                        && header[4] == 0x0d && header[5] == 0x0a
-                        && header[6] == 0x1a && header[7] == 0x0a;
-                case "image/webp" -> header.length >= 12
-                        && header[0] == 'R' && header[1] == 'I'
-                        && header[2] == 'F' && header[3] == 'F'
-                        && header[8] == 'W' && header[9] == 'E'
-                        && header[10] == 'B' && header[11] == 'P';
-                default -> false;
-            };
-            if (!valid) throw new BadRequestException("Uploaded file content is not a valid image");
-        } catch (IOException exception) {
-            throw new BadRequestException("Unable to read the uploaded photo");
+            storage.delete(key);
+        } catch (RuntimeException exception) {
+            log.warn("Unable to complete object-storage cleanup", exception);
         }
     }
 

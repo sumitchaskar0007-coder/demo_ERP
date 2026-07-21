@@ -58,7 +58,7 @@ public class V1AuthController {
         return null;
     }
     private String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        return forwarded == null ? request.getRemoteAddr() : forwarded.split(",")[0].trim();
+        // Forwarded headers are resolved by the container only for configured trusted proxies.
+        return request.getRemoteAddr();
     }
 }

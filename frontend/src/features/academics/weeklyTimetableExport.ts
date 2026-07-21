@@ -171,12 +171,48 @@ export async function exportWeeklyTimetableExcel(table: WeeklyTimetable) {
     const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
     if (cell) cell.s = value;
   };
-  style(0, 0, { font: { name: "Calibri", sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "173B6C" } }, alignment: { horizontal: "center", vertical: "center" } });
-  style(1, 0, { font: { name: "Calibri", sz: 14, bold: true, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "2563EB" } }, alignment: { horizontal: "center", vertical: "center" } });
-  style(2, 0, { font: { name: "Calibri", sz: 12, bold: true, color: { rgb: "173B6C" } }, fill: { patternType: "solid", fgColor: { rgb: "DBEAFE" } }, alignment: { horizontal: "center", vertical: "center" } });
-  style(3, 0, { font: { name: "Calibri", sz: 10, bold: true, color: { rgb: "475569" } }, fill: { patternType: "solid", fgColor: { rgb: "F8FAFC" } }, alignment: { horizontal: "center", vertical: "center" } });
-  headers.forEach((_, column) => style(5, column, { font: { name: "Calibri", sz: 10, bold: true, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "2563EB" } }, border, alignment: { horizontal: "center", vertical: "center", wrapText: true } }));
-  rows.forEach((_, rowIndex) => headers.forEach((__, column) => style(6 + rowIndex, column, { font: { name: "Calibri", sz: 9, bold: column < 2, color: { rgb: "1E293B" } }, fill: { patternType: "solid", fgColor: { rgb: rowIndex % 2 === 0 ? "FFFFFF" : "F8FAFC" } }, border, alignment: { horizontal: column < 2 ? "center" : "left", vertical: "center", wrapText: true } })));
+  style(0, 0, {
+    font: { name: "Calibri", sz: 18, bold: true, color: { rgb: "FFFFFF" } },
+    fill: { patternType: "solid", fgColor: { rgb: "173B6C" } },
+    alignment: { horizontal: "center", vertical: "center" },
+  });
+  style(1, 0, {
+    font: { name: "Calibri", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+    fill: { patternType: "solid", fgColor: { rgb: "2563EB" } },
+    alignment: { horizontal: "center", vertical: "center" },
+  });
+  style(2, 0, {
+    font: { name: "Calibri", sz: 12, bold: true, color: { rgb: "173B6C" } },
+    fill: { patternType: "solid", fgColor: { rgb: "DBEAFE" } },
+    alignment: { horizontal: "center", vertical: "center" },
+  });
+  style(3, 0, {
+    font: { name: "Calibri", sz: 10, bold: true, color: { rgb: "475569" } },
+    fill: { patternType: "solid", fgColor: { rgb: "F8FAFC" } },
+    alignment: { horizontal: "center", vertical: "center" },
+  });
+  headers.forEach((_, column) =>
+    style(5, column, {
+      font: { name: "Calibri", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { patternType: "solid", fgColor: { rgb: "2563EB" } },
+      border,
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    }),
+  );
+  rows.forEach((_, rowIndex) =>
+    headers.forEach((__, column) =>
+      style(6 + rowIndex, column, {
+        font: { name: "Calibri", sz: 9, bold: column < 2, color: { rgb: "1E293B" } },
+        fill: { patternType: "solid", fgColor: { rgb: rowIndex % 2 === 0 ? "FFFFFF" : "F8FAFC" } },
+        border,
+        alignment: {
+          horizontal: column < 2 ? "center" : "left",
+          vertical: "center",
+          wrapText: true,
+        },
+      }),
+    ),
+  );
 
   const workbook = XLSX.utils.book_new();
   workbook.Props = {

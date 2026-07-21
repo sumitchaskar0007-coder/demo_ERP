@@ -1,4 +1,11 @@
-export type NoticeRole = "PRINCIPAL" | "HOD" | "STUDENT_SECTION" | "FEE_SECTION" | "CLASS_TEACHER" | "SUBJECT_TEACHER" | "STUDENT";
+export type NoticeRole =
+  | "PRINCIPAL"
+  | "HOD"
+  | "STUDENT_SECTION"
+  | "FEE_SECTION"
+  | "CLASS_TEACHER"
+  | "SUBJECT_TEACHER"
+  | "STUDENT";
 export type NoticePriority = "NORMAL" | "HIGH" | "URGENT";
 
 export interface Notice {

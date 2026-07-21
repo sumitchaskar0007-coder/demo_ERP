@@ -80,14 +80,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").denyAll()
                         .requestMatchers(
-                                "/actuator/health",
+                                "/actuator/health/**",
                                 "/api/health",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/csrf",
                                 "/api/public/admissions/**"
                         ).permitAll()
-                        .requestMatchers("/uploads/**").authenticated()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/password/forgot",
+                                "/api/auth/password/reset",
+                                "/api/auth/email-verification/confirm"
+                        ).permitAll()
                         .requestMatchers("/api/dashboard/**")
                                 .hasAnyRole("SUPER_ADMIN", "PRINCIPAL", "HOD", "STUDENT_SECTION",
                                         "FEE_SECTION", "CLASS_TEACHER", "SUBJECT_TEACHER", "STUDENT")

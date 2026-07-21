@@ -22,7 +22,6 @@ public class LargeReviewDataSeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(LargeReviewDataSeeder.class);
     private static final String CONFIRMATION = "RESET_LARGE_JADHAVR_ERP";
     private static final String ACADEMIC_YEAR = "2026-27";
-    private static final String DEMO_PASSWORD = "Demo@12345";
     private static final int STAFF_USERS_PER_COLLEGE = 9;
 
     private final JdbcTemplate jdbc;
@@ -30,18 +29,21 @@ public class LargeReviewDataSeeder implements CommandLineRunner {
     private final String confirmation;
     private final int collegeCount;
     private final int totalUsers;
+    private final String demoPassword;
 
     public LargeReviewDataSeeder(
             JdbcTemplate jdbc,
             PasswordEncoder passwords,
             @Value("${app.large-demo.confirm:}") String confirmation,
             @Value("${app.large-demo.colleges:40}") int collegeCount,
-            @Value("${app.large-demo.total-users:200000}") int totalUsers) {
+            @Value("${app.large-demo.total-users:200000}") int totalUsers,
+            @Value("${app.large-demo.password:}") String demoPassword) {
         this.jdbc = jdbc;
         this.passwords = passwords;
         this.confirmation = confirmation;
         this.collegeCount = collegeCount;
         this.totalUsers = totalUsers;
+        this.demoPassword = demoPassword;
     }
 
     @Override
@@ -54,8 +56,8 @@ public class LargeReviewDataSeeder implements CommandLineRunner {
 
         truncatePublicTables();
         seedRoles();
-        String adminHash = passwords.encode("Admin@12345");
-        String demoHash = passwords.encode(DEMO_PASSWORD);
+        String adminHash = passwords.encode(demoPassword);
+        String demoHash = passwords.encode(demoPassword);
         seedAdmin(adminHash);
         seedInstitutions();
         seedStaff(demoHash);
@@ -66,12 +68,15 @@ public class LargeReviewDataSeeder implements CommandLineRunner {
         seedTimetablesAndAttendance();
         seedNoticesAndAudit();
         verifyCounts(studentCount);
-        log.warn("Large review dataset ready. Demo password={}", DEMO_PASSWORD);
+        log.warn("Large review dataset ready");
     }
 
     private void validateConfiguration() {
         if (!CONFIRMATION.equals(confirmation)) {
             throw new IllegalStateException("Large demo reset confirmation is missing");
+        }
+        if (demoPassword == null || demoPassword.length() < 12) {
+            throw new IllegalStateException("LARGE_DEMO_PASSWORD must contain at least 12 characters");
         }
         if (collegeCount < 1 || collegeCount > 100) {
             throw new IllegalArgumentException("Large demo college count must be between 1 and 100");

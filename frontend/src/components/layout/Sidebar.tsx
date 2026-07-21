@@ -96,7 +96,11 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       : isStudentSection
         ? [
             { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
-            { label: "Admission Records", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+            {
+              label: "Admission Records",
+              to: ROUTES.studentSectionAdmissions,
+              icon: GraduationCap,
+            },
             { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
             { label: "Notices", to: ROUTES.notices, icon: Bell },
             { label: "Account", to: ROUTES.account, icon: UserRound },
@@ -127,31 +131,97 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               ]
             : isOtherStaff
               ? [
-                  { label: "Dashboard", to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard, icon: LayoutDashboard },
+                  {
+                    label: "Dashboard",
+                    to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard,
+                    icon: LayoutDashboard,
+                  },
                   ...(isHod
                     ? [
                         { label: "HOD Overview", to: ROUTES.hodWorkspace, icon: LayoutDashboard },
-                        { label: "Student Allocation", to: `${ROUTES.hodWorkspace}?tab=students`, icon: Users },
-                        { label: "Roll Numbers", to: `${ROUTES.hodWorkspace}?tab=rolls`, icon: GraduationCap },
-                        { label: "Subject Allocation", to: `${ROUTES.hodWorkspace}?tab=subjects`, icon: BookOpen },
-                        { label: "Teaching Assignments", to: ROUTES.subjectTeacherAssignments, icon: Users },
-                        { label: "Class Teachers", to: `${ROUTES.hodWorkspace}?tab=class-teachers`, icon: UserRound },
-                        { label: "Workload", to: `${ROUTES.hodWorkspace}?tab=workload`, icon: BarChart3 },
+                        {
+                          label: "Student Allocation",
+                          to: `${ROUTES.hodWorkspace}?tab=students`,
+                          icon: Users,
+                        },
+                        {
+                          label: "Roll Numbers",
+                          to: `${ROUTES.hodWorkspace}?tab=rolls`,
+                          icon: GraduationCap,
+                        },
+                        {
+                          label: "Subject Allocation",
+                          to: `${ROUTES.hodWorkspace}?tab=subjects`,
+                          icon: BookOpen,
+                        },
+                        {
+                          label: "Teaching Assignments",
+                          to: ROUTES.subjectTeacherAssignments,
+                          icon: Users,
+                        },
+                        {
+                          label: "Class Teachers",
+                          to: `${ROUTES.hodWorkspace}?tab=class-teachers`,
+                          icon: UserRound,
+                        },
+                        {
+                          label: "Workload",
+                          to: `${ROUTES.hodWorkspace}?tab=workload`,
+                          icon: BarChart3,
+                        },
                       ]
                     : []),
                   ...(isClassTeacher
-                    ? [{ label: "My Class", to: `${ROUTES.teacherWorkspace}?tab=class`, icon: GraduationCap }]
+                    ? [
+                        {
+                          label: "My Class",
+                          to: `${ROUTES.teacherWorkspace}?tab=class`,
+                          icon: GraduationCap,
+                        },
+                      ]
                     : []),
                   ...(isTeacher
                     ? [
-                        { label: "Student Directory", to: `${ROUTES.teacherWorkspace}?tab=students`, icon: Users },
-                        { label: "Attendance Analytics", to: `${ROUTES.teacherWorkspace}?tab=attendance`, icon: BarChart3 },
-                        { label: "Needs Attention", to: `${ROUTES.teacherWorkspace}?tab=attention`, icon: Bell },
-                        { label: "Subject Coverage", to: `${ROUTES.teacherWorkspace}?tab=coverage`, icon: BookOpen },
-                        { label: "Workload", to: `${ROUTES.teacherWorkspace}?tab=workload`, icon: BarChart3 },
-                        { label: "Today's Schedule", to: `${ROUTES.teacherWorkspace}?tab=schedule`, icon: CalendarDays },
-                        { label: "Notices", to: `${ROUTES.teacherWorkspace}?tab=notices`, icon: Bell },
-                        { label: "Notifications", to: `${ROUTES.teacherWorkspace}?tab=notifications`, icon: Bell },
+                        {
+                          label: "Student Directory",
+                          to: `${ROUTES.teacherWorkspace}?tab=students`,
+                          icon: Users,
+                        },
+                        {
+                          label: "Attendance Analytics",
+                          to: `${ROUTES.teacherWorkspace}?tab=attendance`,
+                          icon: BarChart3,
+                        },
+                        {
+                          label: "Needs Attention",
+                          to: `${ROUTES.teacherWorkspace}?tab=attention`,
+                          icon: Bell,
+                        },
+                        {
+                          label: "Subject Coverage",
+                          to: `${ROUTES.teacherWorkspace}?tab=coverage`,
+                          icon: BookOpen,
+                        },
+                        {
+                          label: "Workload",
+                          to: `${ROUTES.teacherWorkspace}?tab=workload`,
+                          icon: BarChart3,
+                        },
+                        {
+                          label: "Today's Schedule",
+                          to: `${ROUTES.teacherWorkspace}?tab=schedule`,
+                          icon: CalendarDays,
+                        },
+                        {
+                          label: "Notices",
+                          to: `${ROUTES.teacherWorkspace}?tab=notices`,
+                          icon: Bell,
+                        },
+                        {
+                          label: "Notifications",
+                          to: `${ROUTES.teacherWorkspace}?tab=notifications`,
+                          icon: Bell,
+                        },
                         { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
                         {
                           label: "Take Attendance",
@@ -210,9 +280,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     if (targetQuery) {
       if (location.pathname !== targetPath) return false;
       const targetParams = new URLSearchParams(targetQuery);
-      return [...targetParams.entries()].every(
-        ([key, value]) => currentParams.get(key) === value,
-      );
+      return [...targetParams.entries()].every(([key, value]) => currentParams.get(key) === value);
     }
     if (location.pathname === targetPath && currentParams.has("tab")) {
       return currentParams.get("tab") === "overview";

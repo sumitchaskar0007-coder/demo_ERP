@@ -154,7 +154,8 @@ public class AdmissionServiceImpl implements AdmissionService {
                 college.getId(),
                 college.getName(),
                 college.getCode(),
-                college.getLogoUrl(),
+                college.getLogoUrl() == null ? null
+                        : "/api/public/admissions/college/" + college.getCode() + "/logo",
                 college.getContactEmail(),
                 college.getContactPhone(),
                 college.getAddress(),

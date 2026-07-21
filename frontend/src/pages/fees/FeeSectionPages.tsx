@@ -91,10 +91,7 @@ export function FeeAccountsPage() {
             <Button variant="secondary">View</Button>
           </Link>
           {Number(r.remainingAmount) > 0 && (
-            <Button
-              disabled={sendingReminder === r.id}
-              onClick={() => void remind(r)}
-            >
+            <Button disabled={sendingReminder === r.id} onClick={() => void remind(r)}>
               {sendingReminder === r.id ? "Sending…" : "Email reminder"}
             </Button>
           )}

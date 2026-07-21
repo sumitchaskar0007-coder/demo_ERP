@@ -201,7 +201,8 @@ export function NoticesPage() {
                 Notice priority
               </label>
               <p className="mt-1 text-xs text-slate-500">
-                High and urgent notices require every recipient to wait 8 seconds and acknowledge them before opening the dashboard.
+                High and urgent notices require every recipient to wait 8 seconds and acknowledge
+                them before opening the dashboard.
               </p>
               <select
                 id="notice-priority"
@@ -351,7 +352,9 @@ export function NoticesPage() {
                       <div>
                         <h3 className="text-base font-bold text-slate-900">{notice.title}</h3>
                         {notice.priority !== "NORMAL" && (
-                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${notice.priority === "URGENT" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>
+                          <span
+                            className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${notice.priority === "URGENT" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}
+                          >
                             {notice.priority}
                           </span>
                         )}

@@ -62,7 +62,9 @@ public class PrincipalAdmissionController {
     @GetMapping("/{admissionId}/photo")
     public ResponseEntity<Resource> getPhoto(@PathVariable Long admissionId) {
         var photo = photoService.load(admissionId);
-        return ResponseEntity.ok().contentType(photo.mediaType()).body(photo.resource());
+        return ResponseEntity.ok().contentType(photo.mediaType())
+                .header("Content-Disposition", "inline; filename=\"student-photo\"")
+                .body(photo.resource());
     }
 
 }
