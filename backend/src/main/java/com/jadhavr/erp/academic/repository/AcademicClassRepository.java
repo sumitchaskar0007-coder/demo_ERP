@@ -10,6 +10,7 @@ import java.util.List;
 
 public interface AcademicClassRepository extends JpaRepository<AcademicClass, Long>, JpaSpecificationExecutor<AcademicClass> {
     long countByCollegeId(Long collegeId);
+    long countByDepartmentId(Long departmentId);
     List<AcademicClass> findByCollegeIdAndDepartmentIdAndStatus(
             Long collegeId, Long departmentId, AcademicStatus status);
     boolean existsByCollegeIdAndDepartmentIdAndAcademicYearAndCodeIgnoreCase(Long collegeId, Long departmentId, String academicYear, String code);

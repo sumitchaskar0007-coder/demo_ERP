@@ -104,6 +104,9 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (admission.getStatus() != AdmissionStatus.SUBMITTED) {
             throw new BadRequestException("Review can be started only for submitted admissions");
         }
+        if (admission.getDetailsCompletedAt() == null) {
+            throw new BadRequestException("The student must complete and submit the detailed admission form first");
+        }
         AdmissionStatus oldStatus = admission.getStatus();
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
         AdmissionForm saved = admissions.save(admission);
@@ -198,7 +201,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     @Override
     public StudentSectionAdmissionResponse approveAdmission(Long admissionId, VerifyAdmissionRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
-        ensureVerifiable(admission, "approve");
+        ensurePendingReview(admission, "approved");
         AdmissionStatus oldStatus = admission.getStatus();
         User currentUser = currentUserEntity();
         if (admission.getDetailsCompletedAt() == null) {
@@ -228,7 +231,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     @Transactional
     public StudentSectionAdmissionResponse rejectAdmission(Long admissionId, RejectAdmissionRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
-        ensureVerifiable(admission, "reject");
+        ensurePendingReview(admission, "rejected");
         AdmissionStatus oldStatus = admission.getStatus();
         User currentUser = currentUserEntity();
         String reason = request.rejectionReason().trim();
@@ -324,6 +327,12 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private void ensureVerifiable(AdmissionForm admission, String action) {
         if (!VERIFIABLE.contains(admission.getStatus())) {
             throw new BadRequestException("Admission cannot be " + action + "d in current status");
+        }
+    }
+
+    private void ensurePendingReview(AdmissionForm admission, String action) {
+        if (admission.getStatus() != AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING) {
+            throw new BadRequestException("Admission can be " + action + " only while pending review");
         }
     }
 

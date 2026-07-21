@@ -18,7 +18,10 @@ import {
   rejectAdmissionSchema,
 } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
-import { DetailedAdmissionForm, DetailedAdmissionView } from "@/components/admissions/DetailedAdmissionForm";
+import {
+  DetailedAdmissionForm,
+  DetailedAdmissionView,
+} from "@/components/admissions/DetailedAdmissionForm";
 import {
   AdmissionStatusBadge,
   DetailSection,
@@ -70,7 +73,7 @@ export function StudentSectionAdmissionDetailPage() {
   };
   if (loading) return <Loader label="Loading admission detail..." />;
   if (!admission) return null;
-  const canVerify = canManage && ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(admission.status);
+  const canVerify = canManage && admission.status === "STUDENT_SECTION_REVIEW_PENDING";
   const canApprove = canVerify && Boolean(admission.detailsCompletedAt) && admission.photoAvailable;
   return (
     <div className="page-container space-y-5">
@@ -85,7 +88,7 @@ export function StudentSectionAdmissionDetailPage() {
           <AdmissionStatusBadge status={admission.status} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          {canManage && admission.status === "SUBMITTED" && (
+          {canManage && admission.status === "SUBMITTED" && admission.detailsCompletedAt && (
             <Button variant="secondary" onClick={quick}>
               Start Review
             </Button>
@@ -206,7 +209,8 @@ function ActionModal({
     try {
       if (modal === "approve")
         await api.approveAdmission(id, {
-          studentCategory: values.studentCategory as StudentSectionAdmissionResponse["studentCategory"],
+          studentCategory:
+            values.studentCategory as StudentSectionAdmissionResponse["studentCategory"],
           remarks: values.remarks,
         });
       if (modal === "reject")

@@ -23,8 +23,12 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
             from StudentProfile s
             left join AttendanceRecord r on r.student = s
             where (:collegeId is null or s.college.id = :collegeId)
+              and (:departmentId is null or s.department.id = :departmentId)
             group by s.id, s.fullName, s.rollNumber
             order by s.fullName
             """)
-    List<AttendanceReportRow> attendanceReport(@Param("collegeId") Long collegeId, Pageable pageable);
+    List<AttendanceReportRow> attendanceReport(
+            @Param("collegeId") Long collegeId,
+            @Param("departmentId") Long departmentId,
+            Pageable pageable);
 }

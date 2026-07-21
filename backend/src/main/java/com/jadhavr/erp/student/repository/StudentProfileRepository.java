@@ -21,6 +21,7 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     List<StudentProfile> findByCollegeId(Long collegeId);
     List<StudentProfile> findByDepartmentId(Long departmentId);
     long countByCollegeId(Long collegeId);
+    long countByDepartmentId(Long departmentId);
 
     @Query("""
             select new com.jadhavr.erp.fee.dto.CollegeCountPoint(s.college.name, count(s.id))

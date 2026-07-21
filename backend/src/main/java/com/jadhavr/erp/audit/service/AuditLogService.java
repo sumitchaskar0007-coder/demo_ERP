@@ -59,6 +59,7 @@ public class AuditLogService {
     @Transactional(readOnly=true)
     public PageResponse<AuditLog> search(String keyword, Long collegeId, AuditModule module, AuditAction action,
             Long actor, LocalDate from, LocalDate to, int page, int size) {
+        requireRequestedCollege(collegeId);
         return PageResponse.from(repo.findAll(baseSpec(keyword,collegeId,module,action,actor,null,null,from,to),
                 PageRequest.of(Math.max(page,0),Math.min(Math.max(size,1),100),Sort.by(Sort.Direction.DESC,"createdAt"))));
     }
@@ -122,6 +123,14 @@ public class AuditLogService {
         if(to!=null)s=s.and((r,q,c)->c.lessThan(r.get("createdAt"),to.plusDays(1).atStartOfDay()));
         if(keyword!=null&&!keyword.isBlank()){String p="%"+keyword.toLowerCase()+"%";s=s.and((r,q,c)->c.or(c.like(c.lower(r.get("description")),p),c.like(c.lower(r.get("actorName")),p),c.like(c.lower(r.get("actorEmail")),p),c.like(c.lower(r.get("entityType")),p)));}
         return s;
+    }
+
+    private void requireRequestedCollege(Long requestedCollegeId) {
+        if (SecurityUtils.isSuperAdmin() || requestedCollegeId == null) return;
+        Long ownCollegeId = SecurityUtils.requireCurrentUser().getCollegeId();
+        if (!Objects.equals(ownCollegeId, requestedCollegeId)) {
+            throw new org.springframework.security.access.AccessDeniedException("Audit logs are outside your college");
+        }
     }
 
     private Specification<AuditLog> applyRoleScope(Specification<AuditLog> spec,List<StaffProfile> staffRows) {

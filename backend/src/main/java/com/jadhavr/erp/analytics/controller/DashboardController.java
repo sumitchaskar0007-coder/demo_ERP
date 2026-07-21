@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -64,6 +65,7 @@ public class DashboardController {
     }
 
     @GetMapping("/super-admin")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<?> superAdmin() {
         FeeBalanceTotals totals = fees.balanceTotals();
         return ApiResponse.success("Super Admin dashboard", Map.ofEntries(
@@ -78,11 +80,13 @@ public class DashboardController {
     }
 
     @GetMapping("/principal")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ApiResponse<?> principal(@RequestParam(required = false) Long collegeId) {
         return ApiResponse.success("Principal dashboard", college(scopeCollege(collegeId)));
     }
 
     @GetMapping("/student-section")
+    @PreAuthorize("hasRole('STUDENT_SECTION')")
     public ApiResponse<?> studentSection() {
         Long collegeId = scopeCollege(null);
         return ApiResponse.success("Student Section dashboard", Map.of(
@@ -93,6 +97,7 @@ public class DashboardController {
     }
 
     @GetMapping("/fee-section")
+    @PreAuthorize("hasRole('FEE_SECTION')")
     public ApiResponse<?> feeSection() {
         Long collegeId = scopeCollege(null);
         FeeBalanceTotals totals = fees.balanceTotalsByCollegeId(collegeId);
@@ -104,17 +109,24 @@ public class DashboardController {
     }
 
     @GetMapping("/hod")
+    @PreAuthorize("hasRole('HOD')")
     public ApiResponse<?> hod() {
-        Long collegeId = scopeCollege(null);
+        var profile = staff.findByUserId(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("HOD profile is required"));
+        if (profile.getDepartment() == null) {
+            throw new org.springframework.security.access.AccessDeniedException("HOD department is required");
+        }
+        Long departmentId = profile.getDepartment().getId();
         return ApiResponse.success("HOD dashboard", Map.of(
-                "totalClasses", classes.countByCollegeId(collegeId),
-                "totalSections", sections.countByCollegeId(collegeId),
-                "totalSubjects", subjects.countByCollegeId(collegeId),
-                "totalStudents", students.countByCollegeId(collegeId),
+                "totalClasses", classes.countByDepartmentId(departmentId),
+                "totalSections", sections.countByDepartmentId(departmentId),
+                "totalSubjects", subjects.countByDepartmentId(departmentId),
+                "totalStudents", students.countByDepartmentId(departmentId),
                 "todayAttendanceSessions", 0));
     }
 
     @GetMapping("/teacher")
+    @PreAuthorize("hasAnyRole('CLASS_TEACHER','SUBJECT_TEACHER')")
     public ApiResponse<?> teacher() {
         var staffProfile = staff.findByUserId(SecurityUtils.getCurrentUserId()).orElse(null);
         long subjectCount = staffProfile == null || staffProfile.getDepartment() == null
@@ -128,6 +140,7 @@ public class DashboardController {
     }
 
     @GetMapping("/student")
+    @PreAuthorize("hasRole('STUDENT')")
     public ApiResponse<?> student() {
         var student = students.findByUserId(SecurityUtils.getCurrentUserId()).orElseThrow();
         var fee = fees.findTopByStudentIdOrderByCreatedAtDesc(student.getId()).orElse(null);
@@ -167,7 +180,12 @@ public class DashboardController {
             if (requested == null) throw new IllegalArgumentException("collegeId is required for Super Admin");
             return requested;
         }
-        return SecurityUtils.requireCurrentUser().getCollegeId();
+        Long ownCollegeId = SecurityUtils.requireCurrentUser().getCollegeId();
+        if (requested != null && !requested.equals(ownCollegeId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Dashboard is outside your college");
+        }
+        return ownCollegeId;
     }
 
 }

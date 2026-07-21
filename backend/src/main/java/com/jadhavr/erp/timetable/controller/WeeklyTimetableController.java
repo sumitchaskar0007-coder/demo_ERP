@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/weekly-timetables")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','PRINCIPAL','HOD','CLASS_TEACHER')")
+@PreAuthorize("hasAnyRole('PRINCIPAL','HOD','CLASS_TEACHER')")
 public class WeeklyTimetableController {
     private final WeeklyTimetableService service;
     public WeeklyTimetableController(WeeklyTimetableService service){this.service=service;}

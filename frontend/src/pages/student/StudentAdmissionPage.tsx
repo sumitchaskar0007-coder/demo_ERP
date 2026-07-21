@@ -1,82 +1,106 @@
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useEffect, useState } from "react";
+import { AdmissionStatusBadge } from "@/components/admissions/components";
+import {
+  DetailedAdmissionForm,
+  DetailedAdmissionView,
+} from "@/components/admissions/DetailedAdmissionForm";
+import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
-import { handleApiError } from "@/lib/handleApiError";
-import { formatDate } from "@/lib/utils";
 import * as admissionsApi from "@/features/admissions/api";
-import { AdmissionStatusBadge, DetailSection } from "@/components/admissions/components";
-import type { AdmissionResponse } from "@/features/admissions/types";
+import type { StudentSectionAdmissionResponse } from "@/features/admissions/types";
+import { handleApiError } from "@/lib/handleApiError";
+import { STUDENT_ADMISSION_CHANGED_EVENT } from "@/routes/StudentAdmissionGate";
+
+const rejectedStatuses = new Set(["STUDENT_SECTION_REJECTED", "PRINCIPAL_REJECTED"]);
 
 export function StudentAdmissionPage() {
-  const [admission, setAdmission] = useState<AdmissionResponse | null>(null);
+  const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    admissionsApi
-      .getMyAdmission()
-      .then(setAdmission)
-      .catch((err) => toast.error(handleApiError(err).message))
-      .finally(() => setLoading(false));
+  const [error, setError] = useState("");
+
+  const loadAdmission = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setAdmission(await admissionsApi.getMyAdmission());
+    } catch (requestError) {
+      setError(handleApiError(requestError).message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
-  if (loading) return <Loader label="Loading admission..." />;
+
+  useEffect(() => {
+    void loadAdmission();
+  }, [loadAdmission]);
+
+  const afterSubmission = async () => {
+    await loadAdmission();
+    window.dispatchEvent(new Event(STUDENT_ADMISSION_CHANGED_EVENT));
+  };
+
+  if (loading && !admission) return <Loader label="Loading admission form..." />;
+  if (error && !admission) {
+    return (
+      <div className="page-container py-8">
+        <Card className="p-6 text-center">
+          <h1 className="text-lg font-bold">Unable to load your admission</h1>
+          <p className="mt-2 text-sm text-red-700">{error}</p>
+          <Button className="mt-4" onClick={() => void loadAdmission()}>
+            Try again
+          </Button>
+        </Card>
+      </div>
+    );
+  }
   if (!admission) return null;
+
+  const rejected = rejectedStatuses.has(admission.status);
+  const editable = !admission.detailsCompletedAt || rejected;
+  const pending = admission.status === "STUDENT_SECTION_REVIEW_PENDING";
+
   return (
     <div className="page-container space-y-5">
       <Card className="p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="page-title">{admission.fullName}</h1>
+            <h1 className="page-title">Student admission</h1>
             <p className="page-subtitle">
-              {admission.admissionReferenceNumber} - {admission.admissionNumber}
+              {admission.admissionReferenceNumber} · {admission.collegeName}
             </p>
           </div>
           <AdmissionStatusBadge status={admission.status} />
         </div>
-        {admission.rejectionReason && (
-          <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-            {admission.rejectionReason}
+
+        {!admission.detailsCompletedAt && (
+          <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+            Complete every required section and submit this form. Other student features remain
+            locked until the Student Section approves your application.
           </p>
         )}
+        {pending && (
+          <p className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
+            Your application is pending Student Section review. It is read-only while under review.
+          </p>
+        )}
+        {rejected && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <p className="font-semibold">Your application was rejected.</p>
+            <p className="mt-1">
+              Reason: {admission.rejectionReason || "No rejection reason was provided."}
+            </p>
+            <p className="mt-2">Correct the saved information below and select Resubmit.</p>
+          </div>
+        )}
+        {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
       </Card>
-      <DetailSection
-        title="Admission"
-        rows={[
-          ["Academic Year", admission.academicYear],
-          ["College", admission.collegeName],
-          ["Department", admission.departmentName],
-          ["Submitted", formatDate(admission.submittedAt)],
-        ]}
-      />
-      <DetailSection
-        title="Personal Details"
-        rows={[
-          ["Email", admission.email],
-          ["Phone", admission.phone],
-          ["Date of Birth", formatDate(admission.dateOfBirth)],
-          ["Gender", admission.gender],
-        ]}
-      />
-      <DetailSection
-        title="Address"
-        rows={[
-          ["Address Line 1", admission.addressLine1],
-          ["Address Line 2", admission.addressLine2],
-          ["City", admission.city],
-          ["State", admission.state],
-          ["Pincode", admission.pincode],
-        ]}
-      />
-      <DetailSection
-        title="Parent and Previous Academic"
-        rows={[
-          ["Parent", admission.parentName],
-          ["Parent Phone", admission.parentPhone],
-          ["Parent Email", admission.parentEmail],
-          ["Previous School", admission.previousSchoolName],
-          ["Previous Class", admission.previousClassName],
-          ["Previous Percentage", admission.previousPercentage],
-        ]}
-      />
+
+      {editable ? (
+        <DetailedAdmissionForm admission={admission} onSaved={afterSubmission} studentOwned />
+      ) : (
+        <DetailedAdmissionView admission={admission} studentOwned />
+      )}
     </div>
   );
 }

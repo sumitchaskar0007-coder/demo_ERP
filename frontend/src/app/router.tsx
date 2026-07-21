@@ -68,6 +68,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ServerErrorPage } from "@/pages/ServerErrorPage";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { RoleRoute } from "@/routes/RoleRoute";
+import { StudentAdmissionGate } from "@/routes/StudentAdmissionGate";
 import { AccountPage } from "@/pages/account/AccountPage";
 import { RoleDashboardPage } from "@/pages/dashboard/RoleDashboardPage";
 import { ReportPage } from "@/pages/reports/ReportPage";
@@ -126,191 +127,204 @@ export function AppRouter() {
 
       <Route element={<ProtectedRoute />}>
         <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
-        <Route element={<DashboardLayout />}>
-          <Route path={ROUTES.profile} element={<ProfilePage />} />
-          <Route path={ROUTES.account} element={<AccountPage />} />
-          <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
-          <Route path={ROUTES.dashboard} element={<SmartDashboard />} />
-          <Route path={ROUTES.notices} element={<NoticesPage />} />
-          <Route path={ROUTES.attendance} element={<AttendancePage />} />
+        <Route element={<StudentAdmissionGate />}>
+          <Route element={<DashboardLayout />}>
+            <Route path={ROUTES.profile} element={<ProfilePage />} />
+            <Route path={ROUTES.account} element={<AccountPage />} />
+            <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
+            <Route path={ROUTES.dashboard} element={<SmartDashboard />} />
+            <Route path={ROUTES.notices} element={<NoticesPage />} />
+            <Route path={ROUTES.attendance} element={<AttendancePage />} />
 
-          <Route
-            element={
-              <RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRINCIPAL, ROLES.HOD]} />
-            }
-          >
-            <Route path={ROUTES.academicSetup} element={<AcademicSetupPage />} />
-          </Route>
-
-          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
-            <Route path={ROUTES.staff} element={<StaffListPage />} />
-          </Route>
-
-          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
-            <Route path={ROUTES.colleges} element={<CollegeListPage />} />
-            <Route path="/colleges/create" element={<CollegeListPage />} />
-            <Route path="/colleges/:id" element={<CollegeDetailsPage />} />
-            <Route path={ROUTES.principals} element={<UserListPage />} />
-            <Route path="/users/:id" element={<UserDetailsPage />} />
-            <Route path={ROUTES.createPrincipal} element={<CreatePrincipalPage />} />
-            <Route path={ROUTES.editPrincipal} element={<EditPrincipalPage />} />
-            <Route path="/principals/create" element={<CreatePrincipalPage />} />
-            <Route path={ROUTES.students} element={<AdminStudentListPage />} />
-            <Route path={ROUTES.adminFeeSetup} element={<AdminFeeSetupPage />} />
-            <Route path={ROUTES.adminFeeCollection} element={<AdminMoneyPage />} />
-            <Route path={ROUTES.adminPendingFees} element={<AdminMoneyPage pending />} />
-            <Route path={ROUTES.adminAnalytics} element={<AdminAnalyticsPage />} />
-            <Route path={ROUTES.adminLectureLoad} element={<AdminLectureLoadPage />} />
-          </Route>
-
-          <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
-            <Route path={ROUTES.departments} element={<DepartmentListPage />} />
-            <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
-            <Route path={ROUTES.createStaff} element={<CreateStaffPage />} />
-            <Route path={ROUTES.courseYears} element={<CourseYearListPage />} />
-            <Route path={ROUTES.createCourseYear} element={<CourseYearFormPage />} />
-            <Route path="/principal/course-years/:id/edit" element={<CourseYearFormPage />} />
-            <Route path={ROUTES.divisions} element={<DivisionListPage />} />
-            <Route path={ROUTES.createDivision} element={<DivisionFormPage />} />
-            <Route path="/principal/divisions/:id" element={<DivisionDetailsPage />} />
-            <Route path="/principal/divisions/:id/edit" element={<DivisionFormPage />} />
             <Route
-              path={ROUTES.createStudentSectionStaff}
-              element={<CreateStudentSectionStaffPage />}
-            />
-            <Route path={ROUTES.createFeeSectionStaff} element={<CreateFeeSectionStaffPage />} />
-            <Route path={ROUTES.feeStructures} element={<FeeStructureListPage />} />
-            <Route path={ROUTES.principalFeeCollection} element={<AdminMoneyPage principal />} />
-            <Route path={ROUTES.principalPendingFees} element={<AdminMoneyPage pending principal />} />
-            <Route path={ROUTES.principalAnalytics} element={<AdminAnalyticsPage principal />} />
-            <Route path="/fee-structures/create" element={<FeeStructureFormPage />} />
-            <Route path="/fee-structures/:id/edit" element={<FeeStructureFormPage />} />
-            <Route path="/fee-structures/:id" element={<FeeStructureDetailsPage />} />
-            <Route path={ROUTES.principalReviewReady} element={<PrincipalReviewQueuePage />} />
-            <Route
-              path="/principal/admissions/:admissionId"
-              element={<PrincipalAdmissionDetailPage />}
-            />
-            <Route
-              path={ROUTES.finalAdmissions}
-              element={<Navigate to={ROUTES.principalReviewReady} replace />}
-            />
-            <Route path={ROUTES.auditLogs} element={<AuditLogPage />} />
-          </Route>
+              element={
+                <RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRINCIPAL, ROLES.HOD]} />
+              }
+            >
+              <Route path={ROUTES.academicSetup} element={<AcademicSetupPage />} />
+            </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
-            <Route path={ROUTES.staff} element={<StaffListPage />} />
-          </Route>
+            <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
+              <Route path={ROUTES.staff} element={<StaffListPage />} />
+            </Route>
 
-          <Route
-            element={
-              <RoleRoute
-                roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.FEE_SECTION, ROLES.STUDENT_SECTION]}
+            <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
+              <Route path={ROUTES.colleges} element={<CollegeListPage />} />
+              <Route path="/colleges/create" element={<CollegeListPage />} />
+              <Route path="/colleges/:id" element={<CollegeDetailsPage />} />
+              <Route path={ROUTES.principals} element={<UserListPage />} />
+              <Route path="/users/:id" element={<UserDetailsPage />} />
+              <Route path={ROUTES.createPrincipal} element={<CreatePrincipalPage />} />
+              <Route path={ROUTES.editPrincipal} element={<EditPrincipalPage />} />
+              <Route path="/principals/create" element={<CreatePrincipalPage />} />
+              <Route path={ROUTES.students} element={<AdminStudentListPage />} />
+              <Route path={ROUTES.adminFeeSetup} element={<AdminFeeSetupPage />} />
+              <Route path={ROUTES.adminFeeCollection} element={<AdminMoneyPage />} />
+              <Route path={ROUTES.adminPendingFees} element={<AdminMoneyPage pending />} />
+              <Route path={ROUTES.adminAnalytics} element={<AdminAnalyticsPage />} />
+              <Route path={ROUTES.adminLectureLoad} element={<AdminLectureLoadPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
+              <Route path={ROUTES.departments} element={<DepartmentListPage />} />
+              <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
+              <Route path={ROUTES.createStaff} element={<CreateStaffPage />} />
+              <Route path={ROUTES.courseYears} element={<CourseYearListPage />} />
+              <Route path={ROUTES.createCourseYear} element={<CourseYearFormPage />} />
+              <Route path="/principal/course-years/:id/edit" element={<CourseYearFormPage />} />
+              <Route path={ROUTES.divisions} element={<DivisionListPage />} />
+              <Route path={ROUTES.createDivision} element={<DivisionFormPage />} />
+              <Route path="/principal/divisions/:id" element={<DivisionDetailsPage />} />
+              <Route path="/principal/divisions/:id/edit" element={<DivisionFormPage />} />
+              <Route
+                path={ROUTES.createStudentSectionStaff}
+                element={<CreateStudentSectionStaffPage />}
               />
-            }
-          >
-            <Route path={ROUTES.admissionReport} element={<ReportPage type="admissions" />} />
-            <Route path={ROUTES.feeReport} element={<ReportPage type="fees" />} />
-            <Route path={ROUTES.studentReport} element={<ReportPage type="students" />} />
-          </Route>
-
-          <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}>
-            <Route path={ROUTES.attendanceReport} element={<AttendanceReportPage />} />
-          </Route>
-
-          <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />}>
-            <Route
-              path={ROUTES.academicClasses}
-              element={<Navigate to={ROUTES.courseYears} replace />}
-            />
-            <Route
-              path="/academic/classes/create"
-              element={<Navigate to={ROUTES.createCourseYear} replace />}
-            />
-            <Route path={ROUTES.academicSections} element={<AcademicListPage kind="sections" />} />
-            <Route
-              path="/academic/sections/create"
-              element={<AcademicCreatePage kind="sections" />}
-            />
-            <Route path={ROUTES.academicSubjects} element={<AcademicListPage kind="subjects" />} />
-            <Route
-              path="/academic/subjects/create"
-              element={<AcademicCreatePage kind="subjects" />}
-            />
-            <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
-          </Route>
-
-          <Route element={<RoleRoute roles={[ROLES.HOD]} />}>
-            <Route path={ROUTES.hodWorkspace} element={<HodWorkspacePage />} />
-            <Route path={ROUTES.studentAllocation} element={<StudentAllocationPage />} />
-            <Route
-              path={ROUTES.subjectTeacherAssignments}
-              element={<SubjectTeacherAssignmentPage />}
-            />
-          </Route>
-
-          <Route
-            element={
-              <RoleRoute
-                roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]}
+              <Route path={ROUTES.createFeeSectionStaff} element={<CreateFeeSectionStaffPage />} />
+              <Route path={ROUTES.feeStructures} element={<FeeStructureListPage />} />
+              <Route path={ROUTES.principalFeeCollection} element={<AdminMoneyPage principal />} />
+              <Route
+                path={ROUTES.principalPendingFees}
+                element={<AdminMoneyPage pending principal />}
               />
-            }
-          >
-            <Route path={ROUTES.timetable} element={<TimetablePage />} />
-          </Route>
+              <Route path={ROUTES.principalAnalytics} element={<AdminAnalyticsPage principal />} />
+              <Route path="/fee-structures/create" element={<FeeStructureFormPage />} />
+              <Route path="/fee-structures/:id/edit" element={<FeeStructureFormPage />} />
+              <Route path="/fee-structures/:id" element={<FeeStructureDetailsPage />} />
+              <Route path={ROUTES.principalReviewReady} element={<PrincipalReviewQueuePage />} />
+              <Route
+                path="/principal/admissions/:admissionId"
+                element={<PrincipalAdmissionDetailPage />}
+              />
+              <Route
+                path={ROUTES.finalAdmissions}
+                element={<Navigate to={ROUTES.principalReviewReady} replace />}
+              />
+              <Route path={ROUTES.auditLogs} element={<AuditLogPage />} />
+            </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.STUDENT_SECTION]} />}>
-            <Route
-              path={ROUTES.studentSectionDashboard}
-              element={<StudentSectionDashboardPage />}
-            />
-            <Route
-              path={ROUTES.studentSectionAdmissions}
-              element={<StudentSectionAdmissionListPage />}
-            />
-            <Route
-              path="/student-section/admissions/:admissionId"
-              element={<StudentSectionAdmissionDetailPage />}
-            />
-          </Route>
+            <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
+              <Route path={ROUTES.staff} element={<StaffListPage />} />
+            </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.STUDENT_SECTION]} />}>
             <Route
-              path="/student-section/admissions/:admissionId/print"
-              element={<AdmissionPrintPage />}
-            />
-          </Route>
+              element={
+                <RoleRoute
+                  roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.FEE_SECTION, ROLES.STUDENT_SECTION]}
+                />
+              }
+            >
+              <Route path={ROUTES.admissionReport} element={<ReportPage type="admissions" />} />
+              <Route path={ROUTES.feeReport} element={<ReportPage type="fees" />} />
+              <Route path={ROUTES.studentReport} element={<ReportPage type="students" />} />
+            </Route>
 
-          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}>
-            <Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} />
-            <Route path={ROUTES.classTeacherTimetable} element={<ClassTeacherTimetablePage />} />
-          </Route>
-          <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]} />}>
-            <Route path={ROUTES.teacherWorkspace} element={<TeacherWorkspacePage />} />
-            <Route path={ROUTES.teacherTimetable} element={<TeacherTimetablePage />} />
-            <Route path={ROUTES.teacherAttendance} element={<TeacherAttendancePage />} />
-          </Route>
-          <Route element={<RoleRoute roles={[ROLES.STUDENT]} />}>
-            <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
-            <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
-            <Route path={ROUTES.studentAdmission} element={<StudentAdmissionPage />} />
-            <Route path={ROUTES.studentFees} element={<StudentFeesPage />} />
-            <Route path={ROUTES.studentPayments} element={<MyPaymentsPage />} />
-            <Route path="/student/fees/payments/new" element={<SubmitPaymentPage />} />
-            <Route path="/student/fees/transactions" element={<MyFeeTransactionsPage />} />
-            <Route path={ROUTES.studentTimetable} element={<StudentAcademicPage />} />
-            <Route path={ROUTES.studentAttendance} element={<StudentAttendancePage />} />
-            <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
-          </Route>
-          <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
-            <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
-            <Route path={ROUTES.feeAccounts} element={<FeeAccountsPage />} />
             <Route
-              path="/fee-section/fee-accounts/:feeAccountId"
-              element={<FeeAccountDetailsPage />}
-            />
-            <Route path={ROUTES.feePayments} element={<PaymentsPage />} />
-            <Route path="/fee-section/payments/:paymentId" element={<PaymentDetailsPage />} />
+              element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]} />}
+            >
+              <Route path={ROUTES.attendanceReport} element={<AttendanceReportPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />}>
+              <Route
+                path={ROUTES.academicClasses}
+                element={<Navigate to={ROUTES.courseYears} replace />}
+              />
+              <Route
+                path="/academic/classes/create"
+                element={<Navigate to={ROUTES.createCourseYear} replace />}
+              />
+              <Route
+                path={ROUTES.academicSections}
+                element={<AcademicListPage kind="sections" />}
+              />
+              <Route
+                path="/academic/sections/create"
+                element={<AcademicCreatePage kind="sections" />}
+              />
+              <Route
+                path={ROUTES.academicSubjects}
+                element={<AcademicListPage kind="subjects" />}
+              />
+              <Route
+                path="/academic/subjects/create"
+                element={<AcademicCreatePage kind="subjects" />}
+              />
+              <Route path="/academic/subjects/:id/edit" element={<SubjectEditPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={[ROLES.HOD]} />}>
+              <Route path={ROUTES.hodWorkspace} element={<HodWorkspacePage />} />
+              <Route path={ROUTES.studentAllocation} element={<StudentAllocationPage />} />
+              <Route
+                path={ROUTES.subjectTeacherAssignments}
+                element={<SubjectTeacherAssignmentPage />}
+              />
+            </Route>
+
+            <Route
+              element={
+                <RoleRoute
+                  roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]}
+                />
+              }
+            >
+              <Route path={ROUTES.timetable} element={<TimetablePage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.STUDENT_SECTION]} />}>
+              <Route
+                path={ROUTES.studentSectionDashboard}
+                element={<StudentSectionDashboardPage />}
+              />
+              <Route
+                path={ROUTES.studentSectionAdmissions}
+                element={<StudentSectionAdmissionListPage />}
+              />
+              <Route
+                path="/student-section/admissions/:admissionId"
+                element={<StudentSectionAdmissionDetailPage />}
+              />
+            </Route>
+
+            <Route element={<RoleRoute roles={[ROLES.STUDENT_SECTION]} />}>
+              <Route
+                path="/student-section/admissions/:admissionId/print"
+                element={<AdmissionPrintPage />}
+              />
+            </Route>
+
+            <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}>
+              <Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} />
+              <Route path={ROUTES.classTeacherTimetable} element={<ClassTeacherTimetablePage />} />
+            </Route>
+            <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]} />}>
+              <Route path={ROUTES.teacherWorkspace} element={<TeacherWorkspacePage />} />
+              <Route path={ROUTES.teacherTimetable} element={<TeacherTimetablePage />} />
+              <Route path={ROUTES.teacherAttendance} element={<TeacherAttendancePage />} />
+            </Route>
+            <Route element={<RoleRoute roles={[ROLES.STUDENT]} />}>
+              <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
+              <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
+              <Route path={ROUTES.studentAdmission} element={<StudentAdmissionPage />} />
+              <Route path={ROUTES.studentFees} element={<StudentFeesPage />} />
+              <Route path={ROUTES.studentPayments} element={<MyPaymentsPage />} />
+              <Route path="/student/fees/payments/new" element={<SubmitPaymentPage />} />
+              <Route path="/student/fees/transactions" element={<MyFeeTransactionsPage />} />
+              <Route path={ROUTES.studentTimetable} element={<StudentAcademicPage />} />
+              <Route path={ROUTES.studentAttendance} element={<StudentAttendancePage />} />
+              <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
+            </Route>
+            <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
+              <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
+              <Route path={ROUTES.feeAccounts} element={<FeeAccountsPage />} />
+              <Route
+                path="/fee-section/fee-accounts/:feeAccountId"
+                element={<FeeAccountDetailsPage />}
+              />
+              <Route path={ROUTES.feePayments} element={<PaymentsPage />} />
+              <Route path="/fee-section/payments/:paymentId" element={<PaymentDetailsPage />} />
+            </Route>
           </Route>
         </Route>
       </Route>

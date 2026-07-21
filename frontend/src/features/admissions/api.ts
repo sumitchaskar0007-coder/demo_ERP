@@ -7,6 +7,7 @@ import type {
   AdmissionStatusHistoryResponse,
   PublicAdmissionInfoResponse,
   StudentSectionAdmissionResponse,
+  StudentAdmissionAccessResponse,
   SubmitAdmissionRequest,
   SubmitAdmissionResponse,
 } from "./types";
@@ -29,10 +30,39 @@ export async function submitAdmission(collegeCode: string, values: SubmitAdmissi
   return data.data;
 }
 export async function getMyAdmission() {
-  const { data } = await apiClient.get<ApiResponse<AdmissionResponse>>(
+  const { data } = await apiClient.get<ApiResponse<StudentSectionAdmissionResponse>>(
     "/api/student/admissions/me",
   );
   return data.data;
+}
+export async function getStudentAdmissionAccess() {
+  const { data } = await apiClient.get<ApiResponse<StudentAdmissionAccessResponse>>(
+    "/api/student/admissions/access-state",
+  );
+  return data.data;
+}
+export async function submitMyAdmissionDetails(values: import("./types").DetailedAdmissionRequest) {
+  const { data } = await apiClient.put<ApiResponse<StudentSectionAdmissionResponse>>(
+    "/api/student/admissions/me/details",
+    values,
+  );
+  return data.data;
+}
+export async function uploadMyAdmissionPhoto(file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
+    "/api/student/admissions/me/photo",
+    body,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data.data;
+}
+export async function getMyAdmissionPhoto() {
+  const response = await apiClient.get<Blob>("/api/student/admissions/me/photo", {
+    responseType: "blob",
+  });
+  return URL.createObjectURL(response.data);
 }
 export async function getStudentProfile() {
   const { data } =

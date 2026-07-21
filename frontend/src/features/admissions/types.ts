@@ -188,6 +188,15 @@ export interface StudentSectionAdmissionResponse extends AdmissionResponse {
   detailsCompletedAt?: string | null;
   principalApprovedAt?: string | null;
 }
+export interface StudentAdmissionAccessResponse {
+  admissionId: number;
+  status: AdmissionStatus;
+  formCompleted: boolean;
+  editable: boolean;
+  pending: boolean;
+  accessGranted: boolean;
+  rejectionReason?: string | null;
+}
 export interface AdmissionStatusHistoryResponse {
   id: number;
   admissionId: number;
