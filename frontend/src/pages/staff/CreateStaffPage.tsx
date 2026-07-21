@@ -71,14 +71,21 @@ export function CreateStaffPage() {
   const showDepartments = staffTypes.some((type) => TEACHING_ROLES.includes(type));
 
   useEffect(() => {
-    if (!user?.collegeId) { setDepartments([]); return; }
+    if (!user?.collegeId) {
+      setDepartments([]);
+      return;
+    }
     searchDepartments({ collegeId: user.collegeId, status: "ACTIVE", page: 0, size: 100 })
-      .then((page) => setDepartments([
-        ...new Map(page.content.map((department) => [
-          `${department.collegeId}:${department.code.trim().toUpperCase()}`,
-          department,
-        ])).values(),
-      ]))
+      .then((page) =>
+        setDepartments([
+          ...new Map(
+            page.content.map((department) => [
+              `${department.collegeId}:${department.code.trim().toUpperCase()}`,
+              department,
+            ]),
+          ).values(),
+        ]),
+      )
       .catch((error) => toast.error(handleApiError(error).message));
   }, [user?.collegeId]);
 

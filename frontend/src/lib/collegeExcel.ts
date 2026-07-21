@@ -70,7 +70,10 @@ export async function exportCollegeExcel(options: CollegeExcelOptions) {
   sheet["!cols"] = options.headers.map((header, column) => ({
     wch:
       options.widths?.[column] ??
-      Math.max(textWidth(header), ...options.rows.slice(0, 100).map((row) => textWidth(row[column]))),
+      Math.max(
+        textWidth(header),
+        ...options.rows.slice(0, 100).map((row) => textWidth(row[column])),
+      ),
   }));
   sheet["!rows"] = [
     ...Array.from({ length: titleRows }, (_, row) => ({
@@ -85,7 +88,10 @@ export async function exportCollegeExcel(options: CollegeExcelOptions) {
     { hpt: 24 },
   ];
   sheet["!autofilter"] = {
-    ref: XLSX.utils.encode_range({ r: headerRow, c: 0 }, { r: headerRow + options.rows.length, c: columnCount - 1 }),
+    ref: XLSX.utils.encode_range(
+      { r: headerRow, c: 0 },
+      { r: headerRow + options.rows.length, c: columnCount - 1 },
+    ),
   };
   sheet["!freeze"] = { xSplit: 0, ySplit: headerRow + 1, topLeftCell: `A${headerRow + 2}` };
   sheet["!margins"] = { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
@@ -111,13 +117,19 @@ export async function exportCollegeExcel(options: CollegeExcelOptions) {
     fill: { patternType: "solid", fgColor: { rgb: "173B6C" } },
     alignment: { horizontal: "center", vertical: "center" },
   });
-  if (collegeRow !== null) styleCell(collegeRow, 0, {
-    font: { name: "Calibri", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
-    fill: { patternType: "solid", fgColor: { rgb: "2563EB" } },
-    alignment: { horizontal: "center", vertical: "center" },
-  });
+  if (collegeRow !== null)
+    styleCell(collegeRow, 0, {
+      font: { name: "Calibri", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { patternType: "solid", fgColor: { rgb: "2563EB" } },
+      alignment: { horizontal: "center", vertical: "center" },
+    });
   styleCell(reportTitleRow, 0, {
-    font: { name: "Calibri", sz: 14, bold: true, color: { rgb: collegeRow === null ? "FFFFFF" : "173B6C" } },
+    font: {
+      name: "Calibri",
+      sz: 14,
+      bold: true,
+      color: { rgb: collegeRow === null ? "FFFFFF" : "173B6C" },
+    },
     fill: { patternType: "solid", fgColor: { rgb: collegeRow === null ? "2563EB" : "DBEAFE" } },
     alignment: { horizontal: "center", vertical: "center" },
   });

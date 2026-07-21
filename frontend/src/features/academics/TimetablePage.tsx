@@ -694,7 +694,10 @@ export function TimetablePage() {
 
           <div className="flex flex-wrap justify-end gap-2 print:hidden">
             {isClassTeacher && table.editable && (
-              <Button disabled={saving || !table.entries.length} onClick={() => void submitForReview()}>
+              <Button
+                disabled={saving || !table.entries.length}
+                onClick={() => void submitForReview()}
+              >
                 <Check className="h-4 w-4" />
                 Submit to Principal
               </Button>
@@ -1002,7 +1005,9 @@ function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridPro
     <div className="timetable-print-sheet hidden overflow-x-auto rounded-2xl border bg-white shadow-sm print:block print:overflow-visible print:rounded-none print:shadow-none xl:block">
       <div className="min-w-[1120px] print:min-w-0">
         <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-b border-sky-200 bg-gradient-to-r from-brand-50 via-sky-50 to-cyan-50 text-center text-xs font-bold uppercase tracking-wide text-brand-700 print:static print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] print:text-[8px]">
-          <div className="sticky left-0 z-30 bg-gradient-to-r from-brand-50 to-sky-50 p-3 text-left">Period</div>
+          <div className="sticky left-0 z-30 bg-gradient-to-r from-brand-50 to-sky-50 p-3 text-left">
+            Period
+          </div>
           {DAYS.map((day) => (
             <div className="border-l p-3" key={day}>
               {DAY_LABELS[day]}

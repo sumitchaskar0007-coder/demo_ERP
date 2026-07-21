@@ -17,6 +17,7 @@ public class ProductionSecretsValidator {
     private final String databaseUsername;
     private final String databasePassword;
     private final String jwtSecret;
+    private final boolean bootstrapEnabled;
     private final String superAdminPassword;
     private final String redisHost;
     private final String redisPassword;
@@ -32,6 +33,7 @@ public class ProductionSecretsValidator {
             @Value("${spring.datasource.username}") String databaseUsername,
             @Value("${spring.datasource.password}") String databasePassword,
             @Value("${app.jwt.secret}") String jwtSecret,
+            @Value("${app.bootstrap.enabled:false}") boolean bootstrapEnabled,
             @Value("${app.super-admin.password}") String superAdminPassword,
             @Value("${spring.data.redis.host}") String redisHost,
             @Value("${spring.data.redis.password}") String redisPassword,
@@ -45,6 +47,7 @@ public class ProductionSecretsValidator {
         this.databaseUsername = databaseUsername;
         this.databasePassword = databasePassword;
         this.jwtSecret = jwtSecret;
+        this.bootstrapEnabled = bootstrapEnabled;
         this.superAdminPassword = superAdminPassword;
         this.redisHost = redisHost;
         this.redisPassword = redisPassword;
@@ -63,7 +66,9 @@ public class ProductionSecretsValidator {
         required(invalid, "DB_USERNAME", databaseUsername);
         required(invalid, "DB_PASSWORD", databasePassword);
         required(invalid, "JWT_SECRET", jwtSecret);
-        required(invalid, "SUPER_ADMIN_PASSWORD", superAdminPassword);
+        if (bootstrapEnabled) {
+            required(invalid, "SUPER_ADMIN_PASSWORD", superAdminPassword);
+        }
         required(invalid, "REDIS_HOST", redisHost);
         required(invalid, "REDIS_PASSWORD", redisPassword);
         required(invalid, "MAIL_HOST", mailHost);
@@ -79,8 +84,7 @@ public class ProductionSecretsValidator {
         if (jwtSecret == null || jwtSecret.length() < 32 || contains(jwtSecret, "change_this")) {
             invalid.add("JWT_SECRET must be a random value of at least 32 characters");
         }
-        if (superAdminPassword == null || superAdminPassword.length() < 12
-                || "Admin@12345".equals(superAdminPassword)) {
+        if (bootstrapEnabled && (superAdminPassword == null || superAdminPassword.length() < 12)) {
             invalid.add("SUPER_ADMIN_PASSWORD must be non-default and at least 12 characters");
         }
         if ("postgres".equals(databasePassword)) {

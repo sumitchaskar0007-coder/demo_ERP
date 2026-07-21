@@ -20,31 +20,16 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   (
-    {
-      label,
-      error,
-      options,
-      className,
-      id,
-      value,
-      defaultValue,
-      disabled,
-      onChange,
-      ...props
-    },
+    { label, error, options, className, id, value, defaultValue, disabled, onChange, ...props },
     forwardedRef,
   ) => {
     const selectId = id || props.name;
     const nativeSelectRef = useRef<HTMLSelectElement | null>(null);
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
-    const [uncontrolledValue, setUncontrolledValue] = useState(() =>
-      String(defaultValue ?? ""),
-    );
+    const [uncontrolledValue, setUncontrolledValue] = useState(() => String(defaultValue ?? ""));
     const selectedValue = String(value ?? uncontrolledValue);
-    const selectedOption = options.find(
-      (option) => String(option.value) === selectedValue,
-    );
+    const selectedOption = options.find((option) => String(option.value) === selectedValue);
     const filteredOptions = useMemo(() => {
       const search = query.trim().toLowerCase();
       if (!search) return options;
@@ -195,7 +180,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                   </div>
                 )}
 
-                <div role="listbox" className="overflow-y-auto overscroll-contain px-3 pb-[max(20px,env(safe-area-inset-bottom))]">
+                <div
+                  role="listbox"
+                  className="overflow-y-auto overscroll-contain px-3 pb-[max(20px,env(safe-area-inset-bottom))]"
+                >
                   {filteredOptions.map((option) => {
                     const active = String(option.value) === selectedValue;
                     return (

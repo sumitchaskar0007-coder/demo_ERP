@@ -1,9 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowRight,
-  BarChart3,
-  BookOpen,
-  Building2,
   Check,
   Clock3,
   Eye,
@@ -12,9 +9,7 @@ import {
   LockKeyhole,
   Mail,
   ShieldCheck,
-  UserRound,
   UsersRound,
-  WalletCards,
 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -30,29 +25,6 @@ import { handleApiError } from "@/lib/handleApiError";
 import { loginSchema } from "@/lib/validators";
 
 type LoginForm = z.infer<typeof loginSchema>;
-
-const ROLE_PRESETS = [
-  { label: "Admin", value: "admin", email: "admin@erp.com", icon: ShieldCheck },
-  {
-    label: "Principal",
-    value: "principal",
-    email: "principal.clg01@demo.erp",
-    icon: Building2,
-  },
-  {
-    label: "Class Teacher",
-    value: "class-teacher",
-    email: "ct.clg01.d011@demo.erp",
-    icon: BookOpen,
-  },
-  { label: "Student", value: "student", email: "student00001@demo.erp", icon: UserRound },
-  {
-    label: "Accountant",
-    value: "accountant",
-    email: "feesection.clg01@demo.erp",
-    icon: WalletCards,
-  },
-];
 
 const PLATFORM_FEATURES = [
   {
@@ -74,12 +46,9 @@ const PLATFORM_FEATURES = [
 
 export function LoginPage() {
   const [rememberedEmail] = useState(
-    () => window.localStorage.getItem("erp.rememberedEmail") || "admin@erp.com",
+    () => window.localStorage.getItem("erp.rememberedEmail") || "",
   );
   const [showPassword, setShowPassword] = useState(false);
-  const [loginCategory, setLoginCategory] = useState(
-    () => ROLE_PRESETS.find((preset) => preset.email === rememberedEmail)?.value || "admin",
-  );
   const [rememberMe, setRememberMe] = useState(true);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -87,20 +56,13 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: rememberedEmail, password: "Admin@12345" },
+    defaultValues: { email: rememberedEmail, password: "" },
   });
 
   if (isAuthenticated) return <Navigate to={defaultRouteForRoles(user?.roles)} replace />;
-
-  const selectRole = (value: string, email: string) => {
-    setLoginCategory(value);
-    setValue("email", email, { shouldValidate: true });
-    setValue("password", "Admin@12345", { shouldValidate: true });
-  };
 
   const onSubmit = async (values: LoginForm) => {
     try {
@@ -207,28 +169,6 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <div className="-mx-1 hidden gap-2 overflow-x-auto px-1 pb-1 sm:flex lg:mt-8 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0">
-                {ROLE_PRESETS.map(({ label, value, email, icon: Icon }) => {
-                  const active = loginCategory === value;
-                  return (
-                    <button
-                      type="button"
-                      key={value}
-                      onClick={() => selectRole(value, email)}
-                      className={`flex min-h-11 min-w-[98px] items-center justify-center gap-2 rounded-xl border px-3 text-xs font-bold transition lg:min-w-0 lg:px-2 ${
-                        active
-                          ? "border-transparent bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20"
-                          : "border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
-                      }`}
-                      aria-pressed={active}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span>{label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
               <form
                 onSubmit={handleSubmit(onSubmit)}
                 className="space-y-4 sm:mt-6 sm:space-y-5 lg:mt-8"
@@ -300,30 +240,6 @@ export function LoginPage() {
                   Sign in securely <ArrowRight className="h-5 w-5" />
                 </Button>
               </form>
-
-              <div className="my-5 hidden items-center gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 sm:flex lg:my-6">
-                <span className="h-px flex-1 bg-slate-200" /> Or{" "}
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => selectRole("admin", "admin@erp.com")}
-                className="hidden w-full items-center gap-3 rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50/60 p-4 text-left transition hover:border-violet-200 hover:shadow-sm sm:flex"
-              >
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-violet-600 shadow-sm ring-1 ring-violet-100">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black uppercase tracking-wide text-violet-700">
-                    Demo Super Admin
-                  </p>
-                  <p className="mt-1 break-all text-sm text-slate-600 sm:break-normal">
-                    admin@erp.com <span className="text-slate-300">•</span> Admin@12345
-                  </p>
-                </div>
-                <BarChart3 className="hidden h-5 w-5 text-violet-300 sm:block" />
-              </button>
 
               <p className="mt-6 hidden items-center justify-center gap-2 text-center text-xs text-slate-400 sm:flex">
                 <ShieldCheck className="h-4 w-4" /> © 2026 Jadhavr ERP. All rights reserved.

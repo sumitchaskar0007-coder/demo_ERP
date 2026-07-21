@@ -202,17 +202,21 @@ export function StudentSectionAdmissionListPage() {
           />
         )}
       </Card>
-      {canManage && <ConfirmDialog
-        open={Boolean(action)}
-        onClose={() => setAction(null)}
-        onConfirm={runAction}
-        loading={actionLoading}
-        title={`${action?.type === "start" ? "Start review" : "Approve admission"}?`}
-        description={action?.type === "approve"
-          ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
-          : "This will record a status history entry."}
-        confirmLabel={action?.type === "start" ? "Start Review" : "Approve"}
-      />}
+      {canManage && (
+        <ConfirmDialog
+          open={Boolean(action)}
+          onClose={() => setAction(null)}
+          onConfirm={runAction}
+          loading={actionLoading}
+          title={`${action?.type === "start" ? "Start review" : "Approve admission"}?`}
+          description={
+            action?.type === "approve"
+              ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
+              : "This will record a status history entry."
+          }
+          confirmLabel={action?.type === "start" ? "Start Review" : "Approve"}
+        />
+      )}
     </div>
   );
 }

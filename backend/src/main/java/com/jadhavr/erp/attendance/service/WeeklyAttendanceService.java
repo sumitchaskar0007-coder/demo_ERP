@@ -162,7 +162,7 @@ public class WeeklyAttendanceService {
         validateRange(start, end);
         Long college = SecurityUtils.requireCurrentUser().getCollegeId();
         List<WeeklyAttendanceSession> list = SecurityUtils.isSuperAdmin()
-                ? sessions.findAll().stream().filter(s -> !s.getAttendanceDate().isBefore(start) && !s.getAttendanceDate().isAfter(end)).toList()
+                ? sessions.findByAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(start, end)
                 : sessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(college, start, end);
         List<WeeklyAttendanceSession> scoped = list.stream().filter(s -> scope.test(s.getSection()))
                 .filter(s -> subjectId == null || subjectId.equals(s.getSubject().getId()))
@@ -204,8 +204,7 @@ public class WeeklyAttendanceService {
                 .filter(e -> divisionId == null || divisionId.equals(e.getTimetable().getSection().getId()))
                 .filter(e -> departmentId == null || departmentId.equals(e.getTimetable().getSection().getDepartment().getId()))
                 .filter(e -> teacherId == null || teacherId.equals(e.getTeacher().getId())).toList();
-        List<WeeklyAttendanceSession> todaySessions = (SecurityUtils.isSuperAdmin() ? sessions.findAll().stream()
-                .filter(s -> s.getAttendanceDate().equals(today)).toList()
+        List<WeeklyAttendanceSession> todaySessions = (SecurityUtils.isSuperAdmin() ? sessions.findByAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(today, today)
                 : sessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(college, today, today))
                 .stream().filter(s -> scope.test(s.getSection()))
                 .filter(s -> subjectId == null || subjectId.equals(s.getSubject().getId()))

@@ -7,6 +7,7 @@ import { Input } from "@/components/common/Input";
 import { Textarea } from "@/components/common/Textarea";
 import { StatusBadge } from "@/components/common/Badge";
 import { handleApiError } from "@/lib/handleApiError";
+import { localDateString } from "@/lib/date";
 import * as api from "@/features/fees/api";
 import type {
   FeeTransactionResponse,
@@ -104,7 +105,7 @@ export function SubmitPaymentPage() {
     amount: 0,
     paymentMode: "UPI" as PaymentMode,
     transactionReference: "",
-    paymentDate: new Date().toISOString().slice(0, 10),
+    paymentDate: localDateString(),
     proofUrl: "",
     remarks: "",
   });

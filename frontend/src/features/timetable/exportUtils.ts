@@ -40,8 +40,16 @@ export async function exportToPDF(
     didDrawPage: (hook) => {
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text(`${collegeName || "Jadhavar Group of Institutes"} · ${title}`, 14, doc.internal.pageSize.height - 7);
-      doc.text(`Page ${hook.pageNumber}`, doc.internal.pageSize.width - 24, doc.internal.pageSize.height - 7);
+      doc.text(
+        `${collegeName || "Jadhavar Group of Institutes"} · ${title}`,
+        14,
+        doc.internal.pageSize.height - 7,
+      );
+      doc.text(
+        `Page ${hook.pageNumber}`,
+        doc.internal.pageSize.width - 24,
+        doc.internal.pageSize.height - 7,
+      );
     },
   });
 

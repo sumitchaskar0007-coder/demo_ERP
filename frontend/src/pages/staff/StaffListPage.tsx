@@ -137,7 +137,6 @@ export function StaffListPage() {
             }}
             aria-label="Status"
           />
-
         </div>
         {loading ? (
           <Loader label="Loading staff..." />
@@ -145,11 +144,28 @@ export function StaffListPage() {
           <>
             <div className="erp-table-scroll hidden lg:block">
               <table className="erp-table table-fixed">
-                <thead><tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="w-[26%] px-5 py-4">Staff Member</th><th className="w-[21%] px-5 py-4">Contact</th><th className="w-[24%] px-5 py-4">Assignment</th><th className="w-[11%] px-5 py-4">Status</th><th className="w-[11%] px-5 py-4">Joined</th><th className="w-[7%] px-5 py-4 text-right">Action</th></tr></thead>
-                <tbody className="divide-y divide-slate-100">{result.content.map((row) => <StaffTableRow key={row.id} row={row} admin={admin} onToggle={setConfirming} />)}</tbody>
+                <thead>
+                  <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="w-[26%] px-5 py-4">Staff Member</th>
+                    <th className="w-[21%] px-5 py-4">Contact</th>
+                    <th className="w-[24%] px-5 py-4">Assignment</th>
+                    <th className="w-[11%] px-5 py-4">Status</th>
+                    <th className="w-[11%] px-5 py-4">Joined</th>
+                    <th className="w-[7%] px-5 py-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {result.content.map((row) => (
+                    <StaffTableRow key={row.id} row={row} admin={admin} onToggle={setConfirming} />
+                  ))}
+                </tbody>
               </table>
             </div>
-            <div className="grid gap-4 p-4 sm:grid-cols-2 lg:hidden">{result.content.map((row) => <StaffCard key={row.id} row={row} admin={admin} onToggle={setConfirming} />)}</div>
+            <div className="grid gap-4 p-4 sm:grid-cols-2 lg:hidden">
+              {result.content.map((row) => (
+                <StaffCard key={row.id} row={row} admin={admin} onToggle={setConfirming} />
+              ))}
+            </div>
             <div className="border-t p-4">
               <Pagination
                 page={result.page}
@@ -182,11 +198,19 @@ export function StaffListPage() {
 
 function joiningDate(value?: string | null) {
   if (!value) return "Not provided";
-  return new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function StaffAvatar({ name }: { name: string }) {
-  return <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">{initials(name)}</div>;
+  return (
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
+      {initials(name)}
+    </div>
+  );
 }
 
 function departmentLabels(row: StaffResponse) {
@@ -195,10 +219,136 @@ function departmentLabels(row: StaffResponse) {
     : row.departmentName || "All departments";
 }
 
-function StaffTableRow({ row, admin, onToggle }: { row: StaffResponse; admin: boolean; onToggle: (row: StaffResponse) => void }) {
-  return <tr className="align-top transition hover:bg-slate-50/70"><td className="px-5 py-4"><div className="flex min-w-0 items-center gap-3"><StaffAvatar name={row.fullName} /><div className="min-w-0"><p className="truncate font-semibold text-slate-900">{row.fullName}</p><p className="mt-0.5 truncate text-xs text-slate-400">{row.employeeCode}</p></div></div></td><td className="px-5 py-4"><a className="block truncate text-sm text-slate-700 hover:text-brand-600" href={`mailto:${row.email}`}>{row.email}</a><p className="mt-1 text-xs text-slate-400">{row.phone || "No phone number"}</p></td><td className="px-5 py-4"><div className="flex flex-wrap gap-1.5"><Badge>{row.staffType.replaceAll("_", " ")}</Badge>{row.roles.filter((role) => role !== row.staffType).slice(0, 1).map((role) => <Badge key={role} tone="info">{role.replaceAll("_", " ")}</Badge>)}</div><p className="mt-2 truncate text-xs text-slate-500" title={departmentLabels(row)}>{departmentLabels(row)}</p></td><td className="px-5 py-4"><StatusBadge status={row.status} /></td><td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td><td className="px-5 py-4 text-right">{admin ? <span className="whitespace-nowrap text-xs text-slate-400">View only</span> : <Button className="whitespace-nowrap" variant={row.status === "ACTIVE" ? "danger" : "secondary"} onClick={() => onToggle(row)}>{row.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>}</td></tr>;
+function StaffTableRow({
+  row,
+  admin,
+  onToggle,
+}: {
+  row: StaffResponse;
+  admin: boolean;
+  onToggle: (row: StaffResponse) => void;
+}) {
+  return (
+    <tr className="align-top transition hover:bg-slate-50/70">
+      <td className="px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <StaffAvatar name={row.fullName} />
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-slate-900">{row.fullName}</p>
+            <p className="mt-0.5 truncate text-xs text-slate-400">{row.employeeCode}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-5 py-4">
+        <a
+          className="block truncate text-sm text-slate-700 hover:text-brand-600"
+          href={`mailto:${row.email}`}
+        >
+          {row.email}
+        </a>
+        <p className="mt-1 text-xs text-slate-400">{row.phone || "No phone number"}</p>
+      </td>
+      <td className="px-5 py-4">
+        <div className="flex flex-wrap gap-1.5">
+          <Badge>{row.staffType.replaceAll("_", " ")}</Badge>
+          {row.roles
+            .filter((role) => role !== row.staffType)
+            .slice(0, 1)
+            .map((role) => (
+              <Badge key={role} tone="info">
+                {role.replaceAll("_", " ")}
+              </Badge>
+            ))}
+        </div>
+        <p className="mt-2 truncate text-xs text-slate-500" title={departmentLabels(row)}>
+          {departmentLabels(row)}
+        </p>
+      </td>
+      <td className="px-5 py-4">
+        <StatusBadge status={row.status} />
+      </td>
+      <td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td>
+      <td className="px-5 py-4 text-right">
+        {admin ? (
+          <span className="whitespace-nowrap text-xs text-slate-400">View only</span>
+        ) : (
+          <Button
+            className="whitespace-nowrap"
+            variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+            onClick={() => onToggle(row)}
+          >
+            {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+          </Button>
+        )}
+      </td>
+    </tr>
+  );
 }
 
-function StaffCard({ row, admin, onToggle }: { row: StaffResponse; admin: boolean; onToggle: (row: StaffResponse) => void }) {
-  return <article className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><div className="flex items-start gap-3"><StaffAvatar name={row.fullName} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate font-bold text-slate-900">{row.fullName}</h2><p className="truncate text-xs text-slate-400">{row.employeeCode}</p></div><StatusBadge status={row.status} /></div></div></div><div className="mt-4 flex flex-wrap gap-2"><Badge>{row.staffType.replaceAll("_", " ")}</Badge>{row.roles.filter((role) => role !== row.staffType).slice(0, 2).map((role) => <Badge key={role} tone="info">{role.replaceAll("_", " ")}</Badge>)}</div><div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600"><a href={`mailto:${row.email}`} className="flex min-w-0 items-center gap-2 hover:text-brand-600"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{row.email}</span></a><p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 shrink-0" />{row.phone || "No phone number"}</p><p className="flex items-start gap-2"><Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{departmentLabels(row)}</span></p><p className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 shrink-0" />Joined {joiningDate(row.joiningDate)}</p></div>{!admin && <Button className="mt-4 w-full" variant={row.status === "ACTIVE" ? "danger" : "secondary"} onClick={() => onToggle(row)}>{row.status === "ACTIVE" ? "Deactivate Staff" : "Activate Staff"}</Button>}</article>;
+function StaffCard({
+  row,
+  admin,
+  onToggle,
+}: {
+  row: StaffResponse;
+  admin: boolean;
+  onToggle: (row: StaffResponse) => void;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <StaffAvatar name={row.fullName} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="truncate font-bold text-slate-900">{row.fullName}</h2>
+              <p className="truncate text-xs text-slate-400">{row.employeeCode}</p>
+            </div>
+            <StatusBadge status={row.status} />
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Badge>{row.staffType.replaceAll("_", " ")}</Badge>
+        {row.roles
+          .filter((role) => role !== row.staffType)
+          .slice(0, 2)
+          .map((role) => (
+            <Badge key={role} tone="info">
+              {role.replaceAll("_", " ")}
+            </Badge>
+          ))}
+      </div>
+      <div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+        <a
+          href={`mailto:${row.email}`}
+          className="flex min-w-0 items-center gap-2 hover:text-brand-600"
+        >
+          <Mail className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{row.email}</span>
+        </a>
+        <p className="flex items-center gap-2">
+          <Phone className="h-3.5 w-3.5 shrink-0" />
+          {row.phone || "No phone number"}
+        </p>
+        <p className="flex items-start gap-2">
+          <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{departmentLabels(row)}</span>
+        </p>
+        <p className="flex items-center gap-2">
+          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+          Joined {joiningDate(row.joiningDate)}
+        </p>
+      </div>
+      {!admin && (
+        <Button
+          className="mt-4 w-full"
+          variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+          onClick={() => onToggle(row)}
+        >
+          {row.status === "ACTIVE" ? "Deactivate Staff" : "Activate Staff"}
+        </Button>
+      )}
+    </article>
+  );
 }

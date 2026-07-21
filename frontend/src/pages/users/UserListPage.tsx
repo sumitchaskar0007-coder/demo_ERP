@@ -141,7 +141,7 @@ export function UserListPage() {
     { label: "All colleges", value: "" },
     ...colleges.map((item) => ({ label: item.name, value: item.id })),
   ];
- const roleOptions = [{ label: "Principal", value: "PRINCIPAL" }];
+  const roleOptions = [{ label: "Principal", value: "PRINCIPAL" }];
   return (
     <div className="page-container">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -174,7 +174,8 @@ export function UserListPage() {
             }}
             aria-label="College"
           />
-          <Select disabled
+          <Select
+            disabled
             options={roleOptions}
             value={role}
             onChange={(event) => {

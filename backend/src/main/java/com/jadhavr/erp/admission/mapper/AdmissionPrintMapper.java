@@ -25,7 +25,9 @@ public class AdmissionPrintMapper {
                 new AdmissionPrintCollegeSection(
                         admission.getCollege().getName(),
                         admission.getCollege().getCode(),
-                        admission.getCollege().getLogoUrl(),
+                        admission.getCollege().getLogoUrl() == null ? null
+                                : "/api/public/admissions/college/"
+                                + admission.getCollege().getCode() + "/logo",
                         admission.getCollege().getAddress(),
                         admission.getCollege().getCity(),
                         admission.getCollege().getState(),

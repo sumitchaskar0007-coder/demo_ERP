@@ -9,7 +9,11 @@ import { handleApiError } from "@/lib/handleApiError";
 import { exportReport, getReport, type ReportRow } from "@/features/reports/api";
 import { AdmissionAnalyticsDashboard } from "./AdmissionAnalyticsDashboard";
 export function ReportPage({ type }: { type: "admissions" | "fees" | "attendance" | "students" }) {
-  return type === "admissions" ? <AdmissionAnalyticsDashboard /> : <GenericReportPage type={type} />;
+  return type === "admissions" ? (
+    <AdmissionAnalyticsDashboard />
+  ) : (
+    <GenericReportPage type={type} />
+  );
 }
 function GenericReportPage({ type }: { type: "fees" | "attendance" | "students" }) {
   const [rows, setRows] = useState<ReportRow[]>([]),

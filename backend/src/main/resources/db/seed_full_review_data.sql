@@ -604,4 +604,4 @@ SELECT setval(pg_get_serial_sequence('users', 'id'), (SELECT max(id) FROM users)
 COMMIT;
 
 \echo 'Full review dataset created successfully.'
-\echo 'All demo users use password: Admin@12345'
+\echo 'Demo user passwords are supplied separately; no password is stored in this script.'

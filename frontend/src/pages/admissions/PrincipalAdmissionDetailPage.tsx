@@ -87,20 +87,30 @@ export function PrincipalAdmissionDetailPage() {
           <div className="mt-5 space-y-3">
             <div className="flex gap-2">
               <Button onClick={() => setDecision("approve")}>Approve admission</Button>
-              <Button variant="danger" onClick={() => setDecision("reject")}>Reject admission</Button>
+              <Button variant="danger" onClick={() => setDecision("reject")}>
+                Reject admission
+              </Button>
             </div>
             {decision && (
               <div className="max-w-xl rounded-xl border bg-slate-50 p-4">
                 <Textarea
-                  label={decision === "approve" ? "Approval remarks (optional)" : "Rejection reason"}
+                  label={
+                    decision === "approve" ? "Approval remarks (optional)" : "Rejection reason"
+                  }
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
                 />
                 <div className="mt-3 flex gap-2">
-                  <Button variant={decision === "reject" ? "danger" : "primary"} loading={saving} onClick={decide}>
+                  <Button
+                    variant={decision === "reject" ? "danger" : "primary"}
+                    loading={saving}
+                    onClick={decide}
+                  >
                     Confirm {decision}
                   </Button>
-                  <Button variant="secondary" onClick={() => setDecision(null)}>Cancel</Button>
+                  <Button variant="secondary" onClick={() => setDecision(null)}>
+                    Cancel
+                  </Button>
                 </div>
               </div>
             )}

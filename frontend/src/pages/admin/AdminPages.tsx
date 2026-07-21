@@ -15,13 +15,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
@@ -61,9 +55,10 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
   useEffect(() => {
     const controller = new AbortController();
     setD(null);
-    api
-      [principal ? "getPrincipalAnalytics" : "getAdminAnalytics"](
-        principal ? {} : { collegeId: collegeId || undefined }, controller.signal)
+    api[principal ? "getPrincipalAnalytics" : "getAdminAnalytics"](
+      principal ? {} : { collegeId: collegeId || undefined },
+      controller.signal,
+    )
       .then(setD)
       .catch((error) => {
         if (!controller.signal.aborted) toast.error(handleApiError(error).message);
@@ -77,55 +72,86 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
       .catch(() => setColleges([]));
   }, [principal]);
 
-  if (!d) return <Loader label={`Preparing ${principal ? "Principal" : "Super Admin"} dashboard...`} />;
+  if (!d)
+    return <Loader label={`Preparing ${principal ? "Principal" : "Super Admin"} dashboard...`} />;
 
-  const organizationMetrics = principal ? [
-    { key: "totalStaff", label: "College Staff", value: d.summary.totalStaff, icon: Users, color: "bg-blue-50 text-blue-600", accent: "bg-blue-500" },
-    { key: "totalStudents", label: "College Students", value: d.summary.totalStudents, icon: GraduationCap, color: "bg-cyan-50 text-cyan-600", accent: "bg-cyan-500" },
-    { key: "totalFeeCollection", label: "Fees Collected", value: `₹${d.summary.totalFeeCollection.toLocaleString("en-IN")}`, icon: WalletCards, color: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-500" },
-    { key: "pendingFee", label: "Pending Fees", value: `₹${d.summary.pendingFee.toLocaleString("en-IN")}`, icon: Activity, color: "bg-orange-50 text-orange-600", accent: "bg-orange-500" },
-  ] : [
-    {
-      key: "totalStaff",
-      label: "Total Staff",
-      value: d.summary.totalStaff,
-      icon: Users,
-      color: "bg-blue-50 text-blue-600",
-      accent: "bg-blue-500",
-    },
-    {
-      key: "totalPrincipals",
-      label: "Total Principals",
-      value: d.summary.totalPrincipals,
-      icon: UserRound,
-      color: "bg-violet-50 text-violet-600",
-      accent: "bg-violet-500",
-    },
-    {
-      key: "totalColleges",
-      label: "Total Colleges",
-      value: d.summary.totalColleges,
-      icon: Building2,
-      color: "bg-amber-50 text-amber-600",
-      accent: "bg-amber-500",
-    },
-    {
-      key: "activeColleges",
-      label: "Active Colleges",
-      value: d.summary.activeColleges,
-      icon: CheckCircle2,
-      color: "bg-emerald-50 text-emerald-600",
-      accent: "bg-emerald-500",
-    },
-    {
-      key: "totalStudents",
-      label: "Total Students",
-      value: d.summary.totalStudents,
-      icon: GraduationCap,
-      color: "bg-cyan-50 text-cyan-600",
-      accent: "bg-cyan-500",
-    },
-  ];
+  const organizationMetrics = principal
+    ? [
+        {
+          key: "totalStaff",
+          label: "College Staff",
+          value: d.summary.totalStaff,
+          icon: Users,
+          color: "bg-blue-50 text-blue-600",
+          accent: "bg-blue-500",
+        },
+        {
+          key: "totalStudents",
+          label: "College Students",
+          value: d.summary.totalStudents,
+          icon: GraduationCap,
+          color: "bg-cyan-50 text-cyan-600",
+          accent: "bg-cyan-500",
+        },
+        {
+          key: "totalFeeCollection",
+          label: "Fees Collected",
+          value: `₹${d.summary.totalFeeCollection.toLocaleString("en-IN")}`,
+          icon: WalletCards,
+          color: "bg-emerald-50 text-emerald-600",
+          accent: "bg-emerald-500",
+        },
+        {
+          key: "pendingFee",
+          label: "Pending Fees",
+          value: `₹${d.summary.pendingFee.toLocaleString("en-IN")}`,
+          icon: Activity,
+          color: "bg-orange-50 text-orange-600",
+          accent: "bg-orange-500",
+        },
+      ]
+    : [
+        {
+          key: "totalStaff",
+          label: "Total Staff",
+          value: d.summary.totalStaff,
+          icon: Users,
+          color: "bg-blue-50 text-blue-600",
+          accent: "bg-blue-500",
+        },
+        {
+          key: "totalPrincipals",
+          label: "Total Principals",
+          value: d.summary.totalPrincipals,
+          icon: UserRound,
+          color: "bg-violet-50 text-violet-600",
+          accent: "bg-violet-500",
+        },
+        {
+          key: "totalColleges",
+          label: "Total Colleges",
+          value: d.summary.totalColleges,
+          icon: Building2,
+          color: "bg-amber-50 text-amber-600",
+          accent: "bg-amber-500",
+        },
+        {
+          key: "activeColleges",
+          label: "Active Colleges",
+          value: d.summary.activeColleges,
+          icon: CheckCircle2,
+          color: "bg-emerald-50 text-emerald-600",
+          accent: "bg-emerald-500",
+        },
+        {
+          key: "totalStudents",
+          label: "Total Students",
+          value: d.summary.totalStudents,
+          icon: GraduationCap,
+          color: "bg-cyan-50 text-cyan-600",
+          accent: "bg-cyan-500",
+        },
+      ];
   const feeTotal = d.summary.totalFeeCollection + d.summary.pendingFee;
   const collectionRate =
     feeTotal > 0 ? Math.round((d.summary.totalFeeCollection / feeTotal) * 100) : 0;
@@ -137,20 +163,28 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
           <p className="text-xs font-semibold text-slate-400">
             Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;{principal ? "Principal" : "Super Admin"}
           </p>
-          <h1 className="mt-2 text-2xl font-bold">{principal ? "Principal" : "Super Admin"} Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">{principal ? "College academics, students, and finance overview." : "Global college, student, and fee overview."}</p>
+          <h1 className="mt-2 text-2xl font-bold">
+            {principal ? "Principal" : "Super Admin"} Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {principal
+              ? "College academics, students, and finance overview."
+              : "Global college, student, and fee overview."}
+          </p>
         </div>
-        {!principal && <div className="w-full sm:w-72">
-          <Select
-            aria-label="Dashboard college"
-            options={[
-              { label: "All colleges", value: "" },
-              ...colleges.map((c) => ({ label: c.name, value: c.id })),
-            ]}
-            value={collegeId}
-            onChange={(event) => setCollegeId(event.target.value)}
-          />
-        </div>}
+        {!principal && (
+          <div className="w-full sm:w-72">
+            <Select
+              aria-label="Dashboard college"
+              options={[
+                { label: "All colleges", value: "" },
+                ...colleges.map((c) => ({ label: c.name, value: c.id })),
+              ]}
+              value={collegeId}
+              onChange={(event) => setCollegeId(event.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <section className="erp-welcome-banner px-7 py-7 sm:px-9">
@@ -158,7 +192,9 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
         <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-blue-100">{principal ? user?.collegeName : "Jadhavr ERP Administration"}</p>
+            <p className="text-sm text-blue-100">
+              {principal ? user?.collegeName : "Jadhavr ERP Administration"}
+            </p>
             <h2 className="mt-2 text-3xl font-bold">
               Welcome back, {user?.fullName?.split(" ")[0] || "Admin"}
             </h2>
@@ -180,7 +216,9 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
             Live people and institution counts from the database
           </p>
         </div>
-        <div className={`grid gap-4 sm:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
+        <div
+          className={`grid gap-4 sm:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}
+        >
           {organizationMetrics.map(({ key, label, value, icon: Icon, color, accent }) => (
             <Card className="relative overflow-hidden p-5" key={key}>
               <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
@@ -249,30 +287,48 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
             <p className="mt-1 text-xs text-slate-500">Frequently used administration tools</p>
           </div>
           <div className="space-y-2 p-4">
-            {(principal ? [
-              { label: "Departments", detail: "Manage college departments", to: ROUTES.departments, icon: Building2 },
-              { label: "Fee Structures", detail: "Configure college fee structures", to: ROUTES.feeStructures, icon: WalletCards },
-              { label: "Pending Fees", detail: "Review outstanding student balances", to: ROUTES.principalPendingFees, icon: Activity },
-            ] : [
-              {
-                label: "Create College",
-                detail: "Add a new college workspace",
-                to: "/colleges/create",
-                icon: Building2,
-              },
-              {
-                label: "Create Principal",
-                detail: "Add a principal account",
-                to: "/principals/create",
-                icon: Users,
-              },
-              {
-                label: "Set up Fees",
-                detail: "Configure college fee structures",
-                to: ROUTES.adminFeeSetup,
-                icon: WalletCards,
-              },
-            ]).map(({ label, detail, to, icon: Icon }) => (
+            {(principal
+              ? [
+                  {
+                    label: "Departments",
+                    detail: "Manage college departments",
+                    to: ROUTES.departments,
+                    icon: Building2,
+                  },
+                  {
+                    label: "Fee Structures",
+                    detail: "Configure college fee structures",
+                    to: ROUTES.feeStructures,
+                    icon: WalletCards,
+                  },
+                  {
+                    label: "Pending Fees",
+                    detail: "Review outstanding student balances",
+                    to: ROUTES.principalPendingFees,
+                    icon: Activity,
+                  },
+                ]
+              : [
+                  {
+                    label: "Create College",
+                    detail: "Add a new college workspace",
+                    to: "/colleges/create",
+                    icon: Building2,
+                  },
+                  {
+                    label: "Create Principal",
+                    detail: "Add a principal account",
+                    to: "/principals/create",
+                    icon: Users,
+                  },
+                  {
+                    label: "Set up Fees",
+                    detail: "Configure college fee structures",
+                    to: ROUTES.adminFeeSetup,
+                    icon: WalletCards,
+                  },
+                ]
+            ).map(({ label, detail, to, icon: Icon }) => (
               <Link
                 key={label}
                 to={to}
@@ -405,11 +461,7 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
           contentClassName="h-[380px]"
         >
           {academics.length ? (
-            <CollegeBarList
-              items={academics}
-              barClassName="bg-teal-500"
-              valueLabel="Students"
-            />
+            <CollegeBarList items={academics} barClassName="bg-teal-500" valueLabel="Students" />
           ) : (
             <ChartEmpty message="No students allocated yet" />
           )}
@@ -870,7 +922,13 @@ export function AdminFeeSetupPage() {
     </div>
   );
 }
-export function AdminMoneyPage({ pending = false, principal = false }: { pending?: boolean; principal?: boolean }) {
+export function AdminMoneyPage({
+  pending = false,
+  principal = false,
+}: {
+  pending?: boolean;
+  principal?: boolean;
+}) {
   const { user } = useAuth();
   const [result, setResult] = useState<PageResponse<
     api.FeeCollectionRow | api.PendingFeeRow
@@ -887,7 +945,10 @@ export function AdminMoneyPage({ pending = false, principal = false }: { pending
   });
 
   useEffect(() => {
-    Promise.all([principal ? Promise.resolve([]) : getActiveColleges(), weeklyTimetableApi.divisions()])
+    Promise.all([
+      principal ? Promise.resolve([]) : getActiveColleges(),
+      weeklyTimetableApi.divisions(),
+    ])
       .then(([c, d]) => {
         setColleges(c);
         setDivisions(d);
@@ -946,7 +1007,11 @@ export function AdminMoneyPage({ pending = false, principal = false }: { pending
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <h1 className="page-title">{pending ? "Pending Fees" : "Fee Collection"}</h1>
-          <p className="page-subtitle">{principal ? "College and department fee overview." : "Global college and department fee overview."}</p>
+          <p className="page-subtitle">
+            {principal
+              ? "College and department fee overview."
+              : "Global college and department fee overview."}
+          </p>
         </div>
         {result && (
           <div
@@ -960,7 +1025,9 @@ export function AdminMoneyPage({ pending = false, principal = false }: { pending
         )}
       </div>
       <Card className="mt-6 p-4">
-        <div className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
+        <div
+          className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}
+        >
           <Input
             placeholder="Search student name…"
             icon={<Search className="h-4 w-4" />}
@@ -970,23 +1037,25 @@ export function AdminMoneyPage({ pending = false, principal = false }: { pending
               setPage(0);
             }}
           />
-          {!principal && <Select
-            options={[
-              { label: "All colleges", value: "" },
-              ...colleges.map((c) => ({ label: c.name, value: c.id })),
-            ]}
-            value={filters.collegeId}
-            onChange={(e) => {
-              setFilters({
-                ...filters,
-                collegeId: e.target.value,
-                departmentId: "",
-                courseYearId: "",
-                divisionId: "",
-              });
-              setPage(0);
-            }}
-          />}
+          {!principal && (
+            <Select
+              options={[
+                { label: "All colleges", value: "" },
+                ...colleges.map((c) => ({ label: c.name, value: c.id })),
+              ]}
+              value={filters.collegeId}
+              onChange={(e) => {
+                setFilters({
+                  ...filters,
+                  collegeId: e.target.value,
+                  departmentId: "",
+                  courseYearId: "",
+                  divisionId: "",
+                });
+                setPage(0);
+              }}
+            />
+          )}
           <Select
             options={[
               { label: "All departments", value: "" },
@@ -1117,9 +1186,7 @@ function uniqueOptions(
 ) {
   const options = Array.from(
     new Map(items.map((item) => [item[idKey], item[labelKey]])).entries(),
-  ).map(
-    ([value, label]) => ({ label, value }),
-  );
+  ).map(([value, label]) => ({ label, value }));
 
   if (idKey === "courseYearId") {
     options.sort(
@@ -1305,7 +1372,10 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
     divisionId: "",
   });
   useEffect(() => {
-    Promise.all([principal ? Promise.resolve([]) : getActiveColleges(), weeklyTimetableApi.divisions()]).then(([c, d]) => {
+    Promise.all([
+      principal ? Promise.resolve([]) : getActiveColleges(),
+      weeklyTimetableApi.divisions(),
+    ]).then(([c, d]) => {
       setColleges(c);
       setDivisions(d);
     });
@@ -1313,13 +1383,15 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
   useEffect(() => {
     const controller = new AbortController();
     setData(null);
-    api
-      [principal ? "getPrincipalAnalytics" : "getAdminAnalytics"]({
+    api[principal ? "getPrincipalAnalytics" : "getAdminAnalytics"](
+      {
         collegeId: principal ? undefined : filters.collegeId || undefined,
         departmentId: filters.departmentId || undefined,
         courseYearId: filters.courseYearId || undefined,
         divisionId: filters.divisionId || undefined,
-      }, controller.signal)
+      },
+      controller.signal,
+    )
       .then(setData)
       .catch((e) => {
         if (!controller.signal.aborted) toast.error(handleApiError(e).message);
@@ -1333,22 +1405,26 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
         <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
       </div>
       <Card className="mt-6 p-4">
-        <div className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
-          {!principal && <Select
-            options={[
-              { label: "All colleges", value: "" },
-              ...colleges.map((c) => ({ label: c.name, value: c.id })),
-            ]}
-            value={filters.collegeId}
-            onChange={(e) =>
-              setFilters({
-                collegeId: e.target.value,
-                departmentId: "",
-                courseYearId: "",
-                divisionId: "",
-              })
-            }
-          />}
+        <div
+          className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}
+        >
+          {!principal && (
+            <Select
+              options={[
+                { label: "All colleges", value: "" },
+                ...colleges.map((c) => ({ label: c.name, value: c.id })),
+              ]}
+              value={filters.collegeId}
+              onChange={(e) =>
+                setFilters({
+                  collegeId: e.target.value,
+                  departmentId: "",
+                  courseYearId: "",
+                  divisionId: "",
+                })
+              }
+            />
+          )}
           <Select
             options={[
               { label: "All departments", value: "" },
@@ -1462,12 +1538,15 @@ export function AdminLectureLoadPage() {
   useEffect(() => {
     const controller = new AbortController();
     api
-      .getLectureLoad({
-        collegeId: filters.collegeId || undefined,
-        departmentId: filters.departmentId || undefined,
-        courseYearId: filters.courseYearId || undefined,
-        divisionId: filters.divisionId || undefined,
-      }, controller.signal)
+      .getLectureLoad(
+        {
+          collegeId: filters.collegeId || undefined,
+          departmentId: filters.departmentId || undefined,
+          courseYearId: filters.courseYearId || undefined,
+          divisionId: filters.divisionId || undefined,
+        },
+        controller.signal,
+      )
       .then(setRows)
       .catch((e) => {
         if (!controller.signal.aborted) toast.error(handleApiError(e).message);
