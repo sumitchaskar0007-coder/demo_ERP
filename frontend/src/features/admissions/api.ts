@@ -41,6 +41,18 @@ export async function getStudentAdmissionAccess() {
   );
   return data.data;
 }
+export async function getMyAdmissionCourseYears() {
+  const { data } = await apiClient.get<ApiResponse<import("./types").AdmissionCourseYearOption[]>>(
+    "/api/student/admissions/me/course-years",
+  );
+  return data.data;
+}
+export async function getAdmissionCourseYears(id: number) {
+  const { data } = await apiClient.get<ApiResponse<import("./types").AdmissionCourseYearOption[]>>(
+    `/api/student-section/admissions/${id}/course-years`,
+  );
+  return data.data;
+}
 export async function submitMyAdmissionDetails(values: import("./types").DetailedAdmissionRequest) {
   const { data } = await apiClient.put<ApiResponse<StudentSectionAdmissionResponse>>(
     "/api/student/admissions/me/details",
@@ -60,6 +72,22 @@ export async function uploadMyAdmissionPhoto(file: File) {
 }
 export async function getMyAdmissionPhoto() {
   const response = await apiClient.get<Blob>("/api/student/admissions/me/photo", {
+    responseType: "blob",
+  });
+  return URL.createObjectURL(response.data);
+}
+export async function uploadMyAdmissionDocument(type: import("./types").AdmissionDocumentType, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
+    `/api/student/admissions/me/documents/${type}`,
+    body,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data.data;
+}
+export async function getMyAdmissionDocument(type: import("./types").AdmissionDocumentType) {
+  const response = await apiClient.get<Blob>(`/api/student/admissions/me/documents/${type}`, {
     responseType: "blob",
   });
   return URL.createObjectURL(response.data);
@@ -180,6 +208,32 @@ export async function uploadAdmissionPhoto(id: number, file: File) {
     { headers: { "Content-Type": "multipart/form-data" } },
   );
   return data.data;
+}
+
+export async function uploadAdmissionDocument(
+  id: number,
+  type: import("./types").AdmissionDocumentType,
+  file: File,
+) {
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
+    `/api/student-section/admissions/${id}/documents/${type}`,
+    body,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data.data;
+}
+
+export async function getAdmissionDocument(
+  id: number,
+  type: import("./types").AdmissionDocumentType,
+) {
+  const response = await apiClient.get<Blob>(
+    `/api/student-section/admissions/${id}/documents/${type}`,
+    { responseType: "blob" },
+  );
+  return URL.createObjectURL(response.data);
 }
 
 export async function getAdmissionPhoto(id: number, principal = false) {

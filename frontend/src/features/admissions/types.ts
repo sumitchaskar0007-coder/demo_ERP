@@ -22,10 +22,39 @@ export interface AcademicRecord {
   instituteName?: string | null;
   boardUniversity?: string | null;
   yearOfPassing?: string | null;
+  totalMarks?: number | null;
+  obtainedMarks?: number | null;
   marksPercentage?: number | null;
 }
 
+export type AdmissionDocumentType =
+  | "TENTH_MARKSHEET"
+  | "TWELFTH_MARKSHEET"
+  | "PROVISIONAL_CERTIFICATE"
+  | "TRANSFER_CERTIFICATE"
+  | "NATIONALITY_CERTIFICATE"
+  | "DOMICILE_CERTIFICATE"
+  | "AADHAAR_CARD"
+  | "GRADUATION_MARKSHEET"
+  | "MIGRATION_CERTIFICATE"
+  | "GAP_CERTIFICATE"
+  | "ENTRANCE_SCORE_CARD"
+  | "CASTE_CERTIFICATE"
+  | "CASTE_VALIDITY"
+  | "NON_CREAMY_LAYER_CERTIFICATE"
+  | "NAME_CHANGE_CERTIFICATE"
+  | "INCOME_CERTIFICATE"
+  | "FORM_O_MINORITY";
+
+export interface AdmissionCourseYearOption {
+  id: number;
+  yearName: "FIRST_YEAR" | "SECOND_YEAR" | "THIRD_YEAR";
+  displayName: string;
+  academicYear: string;
+}
+
 export interface DetailedAdmissionRequest {
+  courseYearId: number;
   fullName: string;
   email: string;
   phone: string;
@@ -155,6 +184,9 @@ export interface AdmissionResponse {
   rejectionReason?: string | null;
 }
 export interface StudentSectionAdmissionResponse extends AdmissionResponse {
+  courseYearId?: number | null;
+  courseYearName?: "FIRST_YEAR" | "SECOND_YEAR" | "THIRD_YEAR" | null;
+  courseYearDisplayName?: string | null;
   studentSectionVerifiedAt?: string | null;
   studentSectionVerifiedByName?: string | null;
   studentSectionRemarks?: string | null;
@@ -185,6 +217,7 @@ export interface StudentSectionAdmissionResponse extends AdmissionResponse {
   qualifyingEntranceTotalScore?: number | null;
   lastGraduationCollegeName?: string | null;
   lastGraduationCollegeAddress?: string | null;
+  uploadedDocuments: AdmissionDocumentType[];
   detailsCompletedAt?: string | null;
   principalApprovedAt?: string | null;
 }

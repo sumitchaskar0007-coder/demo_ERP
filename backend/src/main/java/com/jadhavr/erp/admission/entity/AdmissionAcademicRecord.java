@@ -16,15 +16,22 @@ public class AdmissionAcademicRecord {
     private String yearOfPassing;
     @Column(name = "marks_percentage", precision = 5, scale = 2)
     private BigDecimal marksPercentage;
+    @Column(name = "total_marks", precision = 10, scale = 2)
+    private BigDecimal totalMarks;
+    @Column(name = "obtained_marks", precision = 10, scale = 2)
+    private BigDecimal obtainedMarks;
 
     public AdmissionAcademicRecord() {}
 
     public AdmissionAcademicRecord(String qualification, String instituteName,
-            String boardUniversity, String yearOfPassing, BigDecimal marksPercentage) {
+            String boardUniversity, String yearOfPassing, BigDecimal totalMarks,
+            BigDecimal obtainedMarks, BigDecimal marksPercentage) {
         this.qualification = qualification;
         this.instituteName = instituteName;
         this.boardUniversity = boardUniversity;
         this.yearOfPassing = yearOfPassing;
+        this.totalMarks = totalMarks;
+        this.obtainedMarks = obtainedMarks;
         this.marksPercentage = marksPercentage;
     }
 
@@ -38,4 +45,8 @@ public class AdmissionAcademicRecord {
     public void setYearOfPassing(String yearOfPassing) { this.yearOfPassing = yearOfPassing; }
     public BigDecimal getMarksPercentage() { return marksPercentage; }
     public void setMarksPercentage(BigDecimal marksPercentage) { this.marksPercentage = marksPercentage; }
+    public BigDecimal getTotalMarks() { return totalMarks; }
+    public void setTotalMarks(BigDecimal totalMarks) { this.totalMarks = totalMarks; }
+    public BigDecimal getObtainedMarks() { return obtainedMarks; }
+    public void setObtainedMarks(BigDecimal obtainedMarks) { this.obtainedMarks = obtainedMarks; }
 }

@@ -73,3 +73,4 @@ class TeacherTimetableServiceTest {
         verify(entries).findByTeacherId(12L);
     }
 }
+    

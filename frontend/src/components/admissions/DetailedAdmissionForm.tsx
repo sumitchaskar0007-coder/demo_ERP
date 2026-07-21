@@ -8,12 +8,36 @@ import { Textarea } from "@/components/common/Textarea";
 import * as api from "@/features/admissions/api";
 import type {
   AcademicRecord,
+  AdmissionCourseYearOption,
+  AdmissionDocumentType,
   DetailedAdmissionRequest,
   StudentSectionAdmissionResponse,
 } from "@/features/admissions/types";
 import { handleApiError } from "@/lib/handleApiError";
 
 const qualifications: AcademicRecord["qualification"][] = ["10TH", "12TH", "DIPLOMA", "GRADUATION"];
+
+const documentDefinitions: { type: AdmissionDocumentType; label: string; required: boolean }[] = [
+  { type: "TENTH_MARKSHEET", label: "10th marksheet", required: true },
+  { type: "TWELFTH_MARKSHEET", label: "12th marksheet", required: true },
+  { type: "PROVISIONAL_CERTIFICATE", label: "Provisional certificate", required: true },
+  { type: "TRANSFER_CERTIFICATE", label: "Transfer certificate", required: true },
+  { type: "NATIONALITY_CERTIFICATE", label: "Nationality certificate", required: true },
+  { type: "DOMICILE_CERTIFICATE", label: "Domicile certificate", required: true },
+  { type: "AADHAAR_CARD", label: "Aadhaar card", required: true },
+  { type: "GRADUATION_MARKSHEET", label: "Graduation marksheet", required: false },
+  { type: "MIGRATION_CERTIFICATE", label: "Migration certificate", required: false },
+  { type: "GAP_CERTIFICATE", label: "Gap certificate", required: false },
+  { type: "ENTRANCE_SCORE_CARD", label: "MH-CET / CMAT / ATMA score card", required: false },
+  { type: "CASTE_CERTIFICATE", label: "Caste certificate", required: false },
+  { type: "CASTE_VALIDITY", label: "Caste validity", required: false },
+  { type: "NON_CREAMY_LAYER_CERTIFICATE", label: "Non-Creamy Layer certificate", required: false },
+  { type: "NAME_CHANGE_CERTIFICATE", label: "Name change proof (if any)", required: false },
+  { type: "INCOME_CERTIFICATE", label: "Income certificate", required: false },
+  { type: "FORM_O_MINORITY", label: "Proforma-O (Only for Minority)", required: false },
+];
+
+const yearLabels = { FIRST_YEAR: "FY", SECOND_YEAR: "SY", THIRD_YEAR: "TY" } as const;
 
 function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionRequest {
   const records = qualifications.map(
@@ -23,10 +47,13 @@ function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionReq
         instituteName: "",
         boardUniversity: "",
         yearOfPassing: "",
+        totalMarks: undefined,
+        obtainedMarks: undefined,
         marksPercentage: undefined,
       },
   );
   return {
+    courseYearId: a.courseYearId ?? 0,
     fullName: a.fullName,
     email: a.email,
     phone: a.phone,
@@ -76,10 +103,33 @@ export function DetailedAdmissionForm({
 }) {
   const [values, setValues] = useState(() => initialValues(admission));
   const [photo, setPhoto] = useState<File | null>(null);
+  const [documents, setDocuments] = useState<Partial<Record<AdmissionDocumentType, File>>>({});
+  const [courseYears, setCourseYears] = useState<AdmissionCourseYearOption[]>([]);
+  const [courseYearsLoading, setCourseYearsLoading] = useState(true);
+  const [sameAddress, setSameAddress] = useState(false);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => setValues(initialValues(admission)), [admission]);
+  useEffect(() => {
+    let active = true;
+    setCourseYearsLoading(true);
+    const request = studentOwned
+      ? api.getMyAdmissionCourseYears()
+      : api.getAdmissionCourseYears(admission.id);
+    request
+      .then((options) => {
+        if (!active) return;
+        setCourseYears(options);
+        setValues((current) => ({
+          ...current,
+          courseYearId: current.courseYearId || options[0]?.id || 0,
+        }));
+      })
+      .catch((error) => toast.error(handleApiError(error).message))
+      .finally(() => active && setCourseYearsLoading(false));
+    return () => { active = false; };
+  }, [admission.id, studentOwned]);
   useEffect(() => {
     if (photo) {
       const url = URL.createObjectURL(photo);
@@ -113,18 +163,54 @@ export function DetailedAdmissionForm({
     index: number,
     name: keyof AcademicRecord,
     value: string | number | undefined,
-  ) =>
+  ) => setValues((current) => ({
+    ...current,
+    academicRecords: current.academicRecords.map((record, recordIndex) => {
+      if (recordIndex !== index) return record;
+      const updated = { ...record, [name]: value };
+      if (name === "totalMarks" || name === "obtainedMarks") {
+        const total = Number(updated.totalMarks);
+        const obtained = Number(updated.obtainedMarks);
+        updated.marksPercentage = total > 0 && obtained >= 0 && obtained <= total
+          ? Math.round((obtained / total) * 10000) / 100
+          : undefined;
+      }
+      return updated;
+    }),
+  }));
+
+  const copyPermanentAddress = (checked: boolean) => {
+    setSameAddress(checked);
+    if (!checked) return;
     setValues((current) => ({
       ...current,
-      academicRecords: current.academicRecords.map((record, recordIndex) =>
-        recordIndex === index ? { ...record, [name]: value } : record,
-      ),
+      correspondenceAddress: [current.addressLine1, current.addressLine2].filter(Boolean).join("\n"),
+      correspondenceCity: current.city,
+      correspondencePincode: current.pincode,
+      correspondenceState: current.state,
+      correspondencePhone: current.permanentPhone || current.phone,
+      correspondenceMobile: current.phone,
+      correspondenceEmail: current.permanentEmail || current.email,
     }));
+  };
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!admission.photoAvailable && !photo) {
       toast.error("Passport-size photo is required");
+      return;
+    }
+    if (!values.courseYearId) {
+      toast.error("Select FY, SY, or TY for the chosen department");
+      return;
+    }
+    const missing = documentDefinitions.filter(
+      (item) => item.required
+        && !admission.uploadedDocuments?.includes(item.type)
+        && !documents[item.type],
+    );
+    if (missing.length) {
+      toast.error(`Upload required documents: ${missing.map((item) => item.label).join(", ")}`);
       return;
     }
     setSaving(true);
@@ -133,12 +219,18 @@ export function DetailedAdmissionForm({
         if (studentOwned) await api.uploadMyAdmissionPhoto(photo);
         else await api.uploadAdmissionPhoto(admission.id, photo);
       }
+      await Promise.all(Object.entries(documents).map(([type, file]) =>
+        studentOwned
+          ? api.uploadMyAdmissionDocument(type as AdmissionDocumentType, file)
+          : api.uploadAdmissionDocument(admission.id, type as AdmissionDocumentType, file),
+      ));
       if (studentOwned) await api.submitMyAdmissionDetails(values);
       else await api.updateAdmissionDetails(admission.id, values);
       toast.success(
         studentOwned ? "Admission form submitted for review" : "Detailed admission form saved",
       );
       setPhoto(null);
+      setDocuments({});
       await onSaved();
     } catch (error) {
       toast.error(handleApiError(error).message);
@@ -168,6 +260,31 @@ export function DetailedAdmissionForm({
             <p className="mt-2 text-xs text-slate-500">JPEG, PNG or WebP, maximum 2 MB.</p>
           </div>
         </div>
+      </Section>
+
+      <Section title="Department and course year">
+        <Grid>
+          <Input label="Selected department" value={admission.departmentName} readOnly className="bg-slate-100" />
+          <Select
+            label="Course year"
+            required
+            disabled={courseYearsLoading || courseYears.length === 0}
+            value={values.courseYearId || ""}
+            onChange={(event) => set("courseYearId", Number(event.target.value))}
+            options={[
+              { label: courseYearsLoading ? "Loading years..." : "Select FY / SY / TY", value: "" },
+              ...courseYears.map((year) => ({
+                label: `${yearLabels[year.yearName]} — ${year.displayName} (${year.academicYear})`,
+                value: year.id,
+              })),
+            ]}
+          />
+        </Grid>
+        {!courseYearsLoading && courseYears.length === 0 && (
+          <p className="mt-3 text-sm text-amber-700">
+            No active FY, SY, or TY has been created for this department. Ask the Principal or HOD to create one.
+          </p>
+        )}
       </Section>
 
       <Section title="Applicant details">
@@ -340,6 +457,15 @@ export function DetailedAdmissionForm({
       </Section>
 
       <Section title="Correspondence address">
+        <label className="mb-4 flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700">
+          <input
+            type="checkbox"
+            checked={sameAddress}
+            onChange={(event) => copyPermanentAddress(event.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-brand-600"
+          />
+          Correspondence address is the same as permanent address
+        </label>
         <Grid>
           <Textarea
             label="Address"
@@ -394,7 +520,9 @@ export function DetailedAdmissionForm({
                 <th>School / College / Institute</th>
                 <th>Board / University</th>
                 <th>Year of passing</th>
-                <th>Marks %</th>
+                <th>Total marks</th>
+                <th>Obtained marks</th>
+                <th>Percentage</th>
               </tr>
             </thead>
             <tbody>
@@ -428,18 +556,39 @@ export function DetailedAdmissionForm({
                   <td className="p-2">
                     <input
                       type="number"
-                      min="0"
-                      max="100"
+                      min="0.01"
                       step="0.01"
                       className="h-10 w-28 rounded-lg border px-2"
-                      value={record.marksPercentage ?? ""}
+                      value={record.totalMarks ?? ""}
                       onChange={(e) =>
                         updateRecord(
                           index,
-                          "marksPercentage",
+                          "totalMarks",
                           e.target.value === "" ? undefined : Number(e.target.value),
                         )
                       }
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max={record.totalMarks ?? undefined}
+                      step="0.01"
+                      className="h-10 w-28 rounded-lg border px-2"
+                      value={record.obtainedMarks ?? ""}
+                      onChange={(e) => updateRecord(
+                        index,
+                        "obtainedMarks",
+                        e.target.value === "" ? undefined : Number(e.target.value),
+                      )}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      readOnly
+                      className="h-10 w-28 rounded-lg border bg-slate-50 px-2 font-semibold"
+                      value={record.marksPercentage == null ? "" : `${record.marksPercentage}%`}
                     />
                   </td>
                 </tr>
@@ -482,6 +631,24 @@ export function DetailedAdmissionForm({
         </Grid>
       </Section>
 
+      <Section title="Admission documents">
+        <p className="mb-4 text-sm text-slate-500">
+          Upload PDF, JPEG, PNG, or WebP files up to 5 MB each. Required documents must be uploaded before submission.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          {documentDefinitions.map((item) => (
+            <DocumentUpload
+              key={item.type}
+              label={item.label}
+              required={item.required}
+              available={admission.uploadedDocuments?.includes(item.type) ?? false}
+              file={documents[item.type] ?? null}
+              onChange={(file) => setDocuments((current) => ({ ...current, [item.type]: file }))}
+            />
+          ))}
+        </div>
+      </Section>
+
       <Button type="submit" loading={saving}>
         {studentOwned
           ? admission.status === "STUDENT_SECTION_REJECTED" ||
@@ -504,6 +671,7 @@ export function DetailedAdmissionView({
   studentOwned?: boolean;
 }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [openingDocument, setOpeningDocument] = useState<AdmissionDocumentType | null>(null);
   useEffect(() => {
     if (!admission.photoAvailable) return;
     let url = "";
@@ -529,6 +697,7 @@ export function DetailedAdmissionView({
       ["Nationality", admission.nationality],
       ["Religion", admission.religion],
       ["Caste", admission.caste],
+      ["Course year", admission.courseYearDisplayName],
       [
         "Correspondence address",
         [
@@ -547,6 +716,24 @@ export function DetailedAdmissionView({
     ],
     [admission],
   );
+  const openDocument = async (type: AdmissionDocumentType) => {
+    setOpeningDocument(type);
+    try {
+      const url = studentOwned
+        ? await api.getMyAdmissionDocument(type)
+        : await api.getAdmissionDocument(admission.id, type);
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setOpeningDocument(null);
+    }
+  };
   return (
     <div className="space-y-5">
       <Section title="Complete admission details">
@@ -577,7 +764,9 @@ export function DetailedAdmissionView({
                 <th>Institute</th>
                 <th>Board / University</th>
                 <th>Year</th>
-                <th>Marks %</th>
+                <th>Total marks</th>
+                <th>Obtained marks</th>
+                <th>Percentage</th>
               </tr>
             </thead>
             <tbody>
@@ -587,11 +776,28 @@ export function DetailedAdmissionView({
                   <td>{record.instituteName || "-"}</td>
                   <td>{record.boardUniversity || "-"}</td>
                   <td>{record.yearOfPassing || "-"}</td>
-                  <td>{record.marksPercentage ?? "-"}</td>
+                  <td>{record.totalMarks ?? "-"}</td>
+                  <td>{record.obtainedMarks ?? "-"}</td>
+                  <td>{record.marksPercentage == null ? "-" : `${record.marksPercentage}%`}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      </Section>
+      <Section title="Uploaded documents">
+        <div className="flex flex-wrap gap-2">
+          {admission.uploadedDocuments?.length ? admission.uploadedDocuments.map((type) => (
+            <button
+              key={type}
+              type="button"
+              disabled={openingDocument === type}
+              onClick={() => void openDocument(type)}
+              className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              {openingDocument === type ? "Opening..." : documentDefinitions.find((item) => item.type === type)?.label ?? type}
+            </button>
+          )) : <p className="text-sm text-slate-500">No documents uploaded.</p>}
         </div>
       </Section>
     </div>
@@ -608,4 +814,39 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-4 md:grid-cols-2">{children}</div>;
+}
+
+function DocumentUpload({
+  label,
+  required,
+  available,
+  file,
+  onChange,
+}: {
+  label: string;
+  required: boolean;
+  available: boolean;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  return (
+    <label className="rounded-xl border border-dashed border-slate-300 p-4">
+      <span className="block font-semibold text-slate-800">
+        {label}{" "}
+        <span className={required ? "text-rose-600" : "text-slate-400"}>
+          {required ? "* Required" : "(Optional)"}
+        </span>
+      </span>
+      <span className={`mt-1 block text-xs ${available ? "text-emerald-600" : "text-slate-500"}`}>
+        {file?.name ?? (available ? "Already uploaded — select another file to replace" : "No file selected")}
+      </span>
+      <input
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/webp"
+        required={required && !available && !file}
+        className="mt-3 block w-full text-sm"
+        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+      />
+    </label>
+  );
 }

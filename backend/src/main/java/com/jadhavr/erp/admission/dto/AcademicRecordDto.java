@@ -12,5 +12,7 @@ public record AcademicRecordDto(
         @Size(max = 200) String instituteName,
         @Size(max = 150) String boardUniversity,
         @Pattern(regexp = "^$|^[0-9]{4}$", message = "Year must contain four digits") String yearOfPassing,
+        @DecimalMin("0.01") BigDecimal totalMarks,
+        @DecimalMin("0.00") BigDecimal obtainedMarks,
         @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal marksPercentage
 ) {}

@@ -1,4 +1,5 @@
 export const APP_NAME = "Jadhavr ERP";
+export const DASHBOARD_NAVIGATION_VISIBILITY_EVENT = "dashboard-navigation:visibility";
 
 export const ROUTES = {
   login: "/login",

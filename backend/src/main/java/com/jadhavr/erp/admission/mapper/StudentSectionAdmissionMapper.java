@@ -2,12 +2,23 @@ package com.jadhavr.erp.admission.mapper;
 
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
+import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
 
 @Component
 public class StudentSectionAdmissionMapper {
+    private final AdmissionDocumentRepository documents;
+
+    public StudentSectionAdmissionMapper(AdmissionDocumentRepository documents) {
+        this.documents = documents;
+    }
+
+    public StudentSectionAdmissionMapper() {
+        this.documents = null;
+    }
+
     public StudentSectionAdmissionResponse toResponse(AdmissionForm admission) {
         return new StudentSectionAdmissionResponse(
                 admission.getId(),
@@ -20,6 +31,9 @@ public class StudentSectionAdmissionMapper {
                 admission.getDepartment().getName(),
                 admission.getDepartment().getCode(),
                 admission.getAcademicYear(),
+                admission.getCourseYear() == null ? null : admission.getCourseYear().getId(),
+                admission.getCourseYear() == null ? null : admission.getCourseYear().getYearName(),
+                admission.getCourseYear() == null ? null : admission.getCourseYear().getName(),
                 admission.getStudentCategory(),
                 admission.getFullName(),
                 admission.getEmail(),
@@ -59,12 +73,14 @@ public class StudentSectionAdmissionMapper {
                         .map(record -> new com.jadhavr.erp.admission.dto.AcademicRecordDto(
                                 record.getQualification(), record.getInstituteName(),
                                 record.getBoardUniversity(), record.getYearOfPassing(),
+                                record.getTotalMarks(), record.getObtainedMarks(),
                                 record.getMarksPercentage()))
                         .toList(),
                 admission.getQualifyingEntranceSeatNumber(),
                 admission.getQualifyingEntranceTotalScore(),
                 admission.getLastGraduationCollegeName(),
                 admission.getLastGraduationCollegeAddress(),
+                documents == null ? java.util.Set.of() : documents.findTypesByAdmissionId(admission.getId()),
                 admission.getDetailsCompletedAt(),
                 admission.getPrincipalApprovedAt(),
                 admission.getStatus(),

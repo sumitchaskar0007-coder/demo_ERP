@@ -6,7 +6,11 @@ import { getStudentAdmissionAccess } from "@/features/admissions/api";
 import type { StudentAdmissionAccessResponse } from "@/features/admissions/types";
 import { useAuth } from "@/features/auth/authStore";
 import { handleApiError } from "@/lib/handleApiError";
-import { ROLES, ROUTES } from "@/lib/constants";
+import {
+  DASHBOARD_NAVIGATION_VISIBILITY_EVENT,
+  ROLES,
+  ROUTES,
+} from "@/lib/constants";
 
 export const STUDENT_ADMISSION_CHANGED_EVENT = "student-admission:changed";
 
@@ -34,6 +38,12 @@ export function StudentAdmissionGate() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(DASHBOARD_NAVIGATION_VISIBILITY_EVENT, {
+      detail: !isStudent || Boolean(access?.accessGranted),
+    }));
+  }, [access?.accessGranted, isStudent]);
 
   useEffect(() => {
     const onVisible = () => {

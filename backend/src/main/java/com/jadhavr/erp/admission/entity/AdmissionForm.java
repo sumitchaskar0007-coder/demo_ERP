@@ -2,6 +2,7 @@ package com.jadhavr.erp.admission.entity;
 
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
@@ -47,6 +48,10 @@ public class AdmissionForm extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_year_id")
+    private AcademicClass courseYear;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "student_id", nullable = false)
@@ -230,6 +235,8 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setCollege(College college) { this.college = college; }
     public Department getDepartment() { return department; }
     public void setDepartment(Department department) { this.department = department; }
+    public AcademicClass getCourseYear() { return courseYear; }
+    public void setCourseYear(AcademicClass courseYear) { this.courseYear = courseYear; }
     public StudentProfile getStudent() { return student; }
     public void setStudent(StudentProfile student) { this.student = student; }
     public User getStudentUser() { return studentUser; }

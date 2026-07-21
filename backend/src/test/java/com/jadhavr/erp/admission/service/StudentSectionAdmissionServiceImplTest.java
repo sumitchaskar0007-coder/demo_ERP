@@ -166,7 +166,8 @@ class StudentSectionAdmissionServiceImplTest {
         admission.setCorrespondenceAddress("Narhe Road");
         admission.setQualifyingEntranceSeatNumber("CET-101");
         admission.setAcademicRecords(List.of(new AdmissionAcademicRecord(
-                "12TH", "ABC College", "State Board", "2025", new BigDecimal("82.50"))));
+                "12TH", "ABC College", "State Board", "2025",
+                new BigDecimal("100"), new BigDecimal("82.50"), new BigDecimal("82.50"))));
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
 
         var result = service.getPrintData(100L);
