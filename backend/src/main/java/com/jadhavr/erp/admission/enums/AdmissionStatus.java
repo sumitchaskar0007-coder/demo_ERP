@@ -1,6 +1,7 @@
 package com.jadhavr.erp.admission.enums;
 
 public enum AdmissionStatus {
+    STUDENT_DETAILS_PENDING,
     SUBMITTED,
     STUDENT_SECTION_REVIEW_PENDING,
     STUDENT_SECTION_APPROVED,

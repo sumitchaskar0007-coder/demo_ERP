@@ -38,6 +38,7 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
     boolean existsByFeeStructureId(Long id);
 
     long countByCollegeId(Long id);
+    List<StudentFeeAccount> findByCollegeId(Long id);
 
     @Query("select coalesce(sum(a.paidAmount), 0) from StudentFeeAccount a")
     BigDecimal sumPaidAmount();

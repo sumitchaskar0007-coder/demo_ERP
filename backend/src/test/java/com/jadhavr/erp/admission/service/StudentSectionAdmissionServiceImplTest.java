@@ -109,11 +109,15 @@ class StudentSectionAdmissionServiceImplTest {
         AdmissionForm admission = admission(100L, 1L, AdmissionStatus.SUBMITTED);
         admission.setDetailsCompletedAt(LocalDateTime.now());
         admission.setPhotoStorageName("student-photo.jpg");
+        admission.setTenthMarksheetStorageName("10th.pdf");
+        admission.setTwelfthMarksheetStorageName("12th.pdf");
+        admission.setLeavingCertificateStorageName("leaving.pdf");
+        admission.setAadhaarCardStorageName("aadhaar.pdf");
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
         when(admissions.save(admission)).thenReturn(admission);
         when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
 
-        var result = service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.SC, "Verified"));
+        var result = service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.SC, true, true, true, true, true, false, false, false, false, false, false, "Verified"));
 
         assertEquals(AdmissionStatus.STUDENT_SECTION_APPROVED, result.status());
         assertEquals(StudentStatus.UNDER_REVIEW, admission.getStudent().getStatus());
@@ -144,7 +148,7 @@ class StudentSectionAdmissionServiceImplTest {
                 .thenReturn(Optional.of(admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REJECTED)));
 
         assertThrows(BadRequestException.class,
-                () -> service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.OPEN, null)));
+                () -> service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.OPEN, true, true, true, true, true, false, false, false, false, false, false, null)));
     }
 
     @Test
@@ -165,7 +169,8 @@ class StudentSectionAdmissionServiceImplTest {
         admission.setCorrespondenceAddress("Narhe Road");
         admission.setQualifyingEntranceSeatNumber("CET-101");
         admission.setAcademicRecords(List.of(new AdmissionAcademicRecord(
-                "12TH", "ABC College", "State Board", "2025", new BigDecimal("82.50"))));
+                "12TH", "ABC College", "State Board", "2025", new BigDecimal("500"),
+                new BigDecimal("412.50"), new BigDecimal("82.50"))));
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
 
         var result = service.getPrintData(100L);

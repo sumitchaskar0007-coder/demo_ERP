@@ -34,6 +34,42 @@ export async function getMyAdmission() {
   );
   return data.data;
 }
+export async function getMyDetailedAdmission() {
+  const { data } = await apiClient.get<ApiResponse<StudentSectionAdmissionResponse>>(
+    "/api/student/admissions/me/details",
+  );
+  return data.data;
+}
+export async function submitMyDetailedAdmission(values: import("./types").DetailedAdmissionRequest) {
+  const { data } = await apiClient.put<ApiResponse<StudentSectionAdmissionResponse>>(
+    "/api/student/admissions/me/details",
+    values,
+  );
+  return data.data;
+}
+export async function uploadMyAdmissionPhoto(file: File) {
+  const body = new FormData(); body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
+    "/api/student/admissions/me/photo", body, { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data.data;
+}
+export async function getMyAdmissionPhoto() {
+  const response = await apiClient.get<Blob>("/api/student/admissions/me/photo", { responseType: "blob" });
+  return URL.createObjectURL(response.data);
+}
+export type AdmissionDocumentType = "TENTH_MARKSHEET" | "TWELFTH_MARKSHEET" | "GRADUATION_PG_CERTIFICATE" | "LEAVING_CERTIFICATE" | "MIGRATION_CERTIFICATE" | "GAP_AFFIDAVIT" | "CASTE_CERTIFICATE" | "INCOME_PROOF" | "NAME_CHANGE_CERTIFICATE" | "AADHAAR_CARD";
+export async function uploadMyAdmissionDocument(type: AdmissionDocumentType, file: File) {
+  const body = new FormData(); body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
+    `/api/student/admissions/me/documents/${type}`, body, { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data.data;
+}
+export async function getAdmissionDocument(id: number, type: AdmissionDocumentType) {
+  const response = await apiClient.get<Blob>(`/api/student-section/admissions/${id}/documents/${type}`, { responseType: "blob" });
+  return URL.createObjectURL(response.data);
+}
 export async function getStudentProfile() {
   const { data } =
     await apiClient.get<ApiResponse<import("@/features/student/types").StudentProfileResponse>>(
@@ -70,7 +106,7 @@ export async function startAdmissionReview(id: number) {
 }
 export async function approveAdmission(
   id: number,
-  values: { studentCategory: import("./types").StudentCategory; remarks?: string },
+  values: { studentCategory: import("./types").StudentCategory; photoVerified: boolean; tenthMarksheetVerified: boolean; twelfthMarksheetVerified: boolean; leavingCertificateVerified: boolean; aadhaarCardVerified: boolean; graduationPgCertificateVerified: boolean; migrationCertificateVerified: boolean; gapAffidavitVerified: boolean; casteCertificateVerified: boolean; incomeProofVerified: boolean; nameChangeCertificateVerified: boolean; remarks?: string },
 ) {
   const { data } = await apiClient.patch<ApiResponse<StudentSectionAdmissionResponse>>(
     `/api/student-section/admissions/${id}/approve`,

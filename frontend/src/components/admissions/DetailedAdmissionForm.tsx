@@ -28,6 +28,8 @@ function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionReq
         instituteName: "",
         boardUniversity: "",
         yearOfPassing: "",
+        totalMarks: undefined,
+        obtainedMarks: undefined,
         marksPercentage: undefined,
       },
   );
@@ -79,6 +81,7 @@ export function DetailedAdmissionForm({
 }) {
   const [values, setValues] = useState(() => initialValues(admission));
   const [photo, setPhoto] = useState<File | null>(null);
+  const [documents, setDocuments] = useState<Partial<Record<api.AdmissionDocumentType, File>>>({});
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -95,7 +98,7 @@ export function DetailedAdmissionForm({
     }
     let active = true;
     let url = "";
-    api.getAdmissionPhoto(admission.id).then((value) => {
+    api.getMyAdmissionPhoto().then((value) => {
       url = value;
       if (active) setPreview(value);
     }).catch(() => setPreview(null));
@@ -114,9 +117,16 @@ export function DetailedAdmissionForm({
   ) =>
     setValues((current) => ({
       ...current,
-      academicRecords: current.academicRecords.map((record, recordIndex) =>
-        recordIndex === index ? { ...record, [name]: value } : record,
-      ),
+      academicRecords: current.academicRecords.map((record, recordIndex) => {
+        if (recordIndex !== index) return record;
+        const next = { ...record, [name]: value };
+        if (name === "totalMarks" || name === "obtainedMarks") {
+          const total = Number(next.totalMarks || 0), obtained = Number(next.obtainedMarks || 0);
+          next.marksPercentage = total > 0 && obtained >= 0 && obtained <= total
+            ? Number(((obtained / total) * 100).toFixed(2)) : undefined;
+        }
+        return next;
+      }),
     }));
 
   const save = async (event: React.FormEvent) => {
@@ -125,12 +135,21 @@ export function DetailedAdmissionForm({
       toast.error("Passport-size photo is required");
       return;
     }
+    const missingDocument = documentDefinitions.find((item) => item.required && !admission[item.available] && !documents[item.type]);
+    if (missingDocument) { toast.error(`${missingDocument.label} is required`); return; }
+    const requiredRecords = values.academicRecords.filter((record) => ["10TH", "12TH"].includes(record.qualification));
+    if (requiredRecords.some((record) => !record.totalMarks || record.obtainedMarks === undefined || Number(record.obtainedMarks) > Number(record.totalMarks))) {
+      toast.error("Enter valid total and obtained marks for both 10th and 12th");
+      return;
+    }
     setSaving(true);
     try {
-      if (photo) await api.uploadAdmissionPhoto(admission.id, photo);
-      await api.updateAdmissionDetails(admission.id, values);
-      toast.success("Detailed admission form saved");
+      if (photo) await api.uploadMyAdmissionPhoto(photo);
+      for (const [type, file] of Object.entries(documents)) await api.uploadMyAdmissionDocument(type as api.AdmissionDocumentType, file);
+      await api.submitMyDetailedAdmission(values);
+      toast.success(admission.status === "STUDENT_SECTION_REJECTED" ? "Corrected admission form resubmitted to Student Section" : "Detailed admission form submitted to Student Section");
       setPhoto(null);
+      setDocuments({});
       await onSaved();
     } catch (error) {
       toast.error(handleApiError(error).message);
@@ -160,6 +179,11 @@ export function DetailedAdmissionForm({
             <p className="mt-2 text-xs text-slate-500">JPEG, PNG or WebP, maximum 2 MB.</p>
           </div>
         </div>
+      </Section>
+
+      <Section title="Admission documents">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{documentDefinitions.map((item) => <DocumentUpload key={item.type} label={item.label} required={item.required} available={admission[item.available]} file={documents[item.type] || null} setFile={(file) => setDocuments((current) => ({ ...current, [item.type]: file || undefined }))}/>)}</div>
+        <p className="mt-3 text-xs text-slate-500">Upload PDF, JPEG, PNG, or WebP files up to 5 MB each.</p>
       </Section>
 
       <Section title="Applicant details">
@@ -228,7 +252,7 @@ export function DetailedAdmissionForm({
           <table>
             <thead><tr className="border-b text-left text-slate-500">
               <th className="p-2">Qualification</th><th>School / College / Institute</th>
-              <th>Board / University</th><th>Year of passing</th><th>Marks %</th>
+              <th>Board / University</th><th>Year of passing</th><th>Total marks</th><th>Obtained marks</th><th>Percentage</th>
             </tr></thead>
             <tbody>{values.academicRecords.map((record, index) => (
               <tr className="border-b" key={record.qualification}>
@@ -236,7 +260,9 @@ export function DetailedAdmissionForm({
                 <td className="p-2"><input className="h-10 w-full rounded-lg border px-2" value={record.instituteName ?? ""} onChange={(e) => updateRecord(index, "instituteName", e.target.value)} /></td>
                 <td className="p-2"><input className="h-10 w-full rounded-lg border px-2" value={record.boardUniversity ?? ""} onChange={(e) => updateRecord(index, "boardUniversity", e.target.value)} /></td>
                 <td className="p-2"><input className="h-10 w-full rounded-lg border px-2" maxLength={4} value={record.yearOfPassing ?? ""} onChange={(e) => updateRecord(index, "yearOfPassing", e.target.value.replace(/\D/g, ""))} /></td>
-                <td className="p-2"><input type="number" min="0" max="100" step="0.01" className="h-10 w-28 rounded-lg border px-2" value={record.marksPercentage ?? ""} onChange={(e) => updateRecord(index, "marksPercentage", e.target.value === "" ? undefined : Number(e.target.value))} /></td>
+                <td className="p-2"><input type="number" min="0.01" step="0.01" className="h-10 w-28 rounded-lg border px-2" value={record.totalMarks ?? ""} onChange={(e) => updateRecord(index, "totalMarks", e.target.value === "" ? undefined : Number(e.target.value))} /></td>
+                <td className="p-2"><input type="number" min="0" step="0.01" className="h-10 w-28 rounded-lg border px-2" value={record.obtainedMarks ?? ""} onChange={(e) => updateRecord(index, "obtainedMarks", e.target.value === "" ? undefined : Number(e.target.value))} /></td>
+                <td className="p-2"><input readOnly className="h-10 w-28 rounded-lg border bg-slate-50 px-2 font-semibold" value={record.marksPercentage === undefined || record.marksPercentage === null ? "" : `${record.marksPercentage}%`} /></td>
               </tr>
             ))}</tbody>
           </table>
@@ -252,7 +278,7 @@ export function DetailedAdmissionForm({
         </Grid>
       </Section>
 
-      <Button type="submit" loading={saving}>Save detailed admission form</Button>
+      <Button type="submit" loading={saving}>{admission.status === "STUDENT_SECTION_REJECTED" ? "Resubmit corrected form" : "Submit form to Student Section"}</Button>
     </form>
   );
 }
@@ -301,7 +327,7 @@ export function DetailedAdmissionView({
         </div>
       </Section>
       <Section title="Academic record">
-        <div className="responsive-table"><table><thead><tr className="border-b text-left text-slate-500"><th className="p-2">Qualification</th><th>Institute</th><th>Board / University</th><th>Year</th><th>Marks %</th></tr></thead><tbody>{admission.academicRecords?.map((record) => <tr className="border-b" key={record.qualification}><td className="p-2 font-semibold">{record.qualification}</td><td>{record.instituteName || "-"}</td><td>{record.boardUniversity || "-"}</td><td>{record.yearOfPassing || "-"}</td><td>{record.marksPercentage ?? "-"}</td></tr>)}</tbody></table></div>
+        <div className="responsive-table"><table><thead><tr className="border-b text-left text-slate-500"><th className="p-2">Qualification</th><th>Institute</th><th>Board / University</th><th>Year</th><th>Total</th><th>Obtained</th><th>Percentage</th></tr></thead><tbody>{admission.academicRecords?.map((record) => <tr className="border-b" key={record.qualification}><td className="p-2 font-semibold">{record.qualification}</td><td>{record.instituteName || "-"}</td><td>{record.boardUniversity || "-"}</td><td>{record.yearOfPassing || "-"}</td><td>{record.totalMarks ?? "-"}</td><td>{record.obtainedMarks ?? "-"}</td><td>{record.marksPercentage === null || record.marksPercentage === undefined ? "-" : `${record.marksPercentage}%`}</td></tr>)}</tbody></table></div>
       </Section>
     </div>
   );
@@ -313,3 +339,26 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-4 md:grid-cols-2">{children}</div>;
 }
+
+function DocumentUpload({ label, required, available, file, setFile }: { label: string; required: boolean; available: boolean; file: File | null; setFile: (file: File | null) => void }) {
+  return <label className="rounded-xl border border-dashed border-slate-300 p-4">
+    <span className="block font-semibold">{label} <span className={required ? "text-rose-600" : "text-slate-400"}>{required ? "* Required" : "(Optional)"}</span></span>
+    <span className={`mt-1 block text-xs ${available ? "text-emerald-600" : "text-amber-600"}`}>
+      {file ? file.name : available ? "Already uploaded — choose a file to replace" : "Required before submission"}
+    </span>
+    <input className="mt-3 block w-full text-sm" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+  </label>;
+}
+
+const documentDefinitions: { type: api.AdmissionDocumentType; label: string; required: boolean; available: keyof Pick<StudentSectionAdmissionResponse, "tenthMarksheetAvailable" | "twelfthMarksheetAvailable" | "graduationPgCertificateAvailable" | "leavingCertificateAvailable" | "migrationCertificateAvailable" | "gapAffidavitAvailable" | "casteCertificateAvailable" | "incomeProofAvailable" | "nameChangeCertificateAvailable" | "aadhaarCardAvailable"> }[] = [
+  { type: "TENTH_MARKSHEET", label: "10th marksheet", required: true, available: "tenthMarksheetAvailable" },
+  { type: "TWELFTH_MARKSHEET", label: "12th marksheet", required: true, available: "twelfthMarksheetAvailable" },
+  { type: "LEAVING_CERTIFICATE", label: "Leaving certificate", required: true, available: "leavingCertificateAvailable" },
+  { type: "AADHAAR_CARD", label: "Aadhaar card", required: true, available: "aadhaarCardAvailable" },
+  { type: "GRADUATION_PG_CERTIFICATE", label: "Graduation / PG certificate", required: false, available: "graduationPgCertificateAvailable" },
+  { type: "MIGRATION_CERTIFICATE", label: "Migration certificate", required: false, available: "migrationCertificateAvailable" },
+  { type: "GAP_AFFIDAVIT", label: "GAP affidavit", required: false, available: "gapAffidavitAvailable" },
+  { type: "CASTE_CERTIFICATE", label: "Caste certificate", required: false, available: "casteCertificateAvailable" },
+  { type: "INCOME_PROOF", label: "Income proof", required: false, available: "incomeProofAvailable" },
+  { type: "NAME_CHANGE_CERTIFICATE", label: "Marriage certificate / name-change proof", required: false, available: "nameChangeCertificateAvailable" },
+];

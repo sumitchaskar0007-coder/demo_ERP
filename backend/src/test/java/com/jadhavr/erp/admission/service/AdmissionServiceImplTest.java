@@ -146,7 +146,7 @@ class AdmissionServiceImplTest {
 
         var result = service.submitAdmission("abc001", request());
 
-        assertEquals(AdmissionStatus.SUBMITTED, result.status());
+        assertEquals(AdmissionStatus.STUDENT_DETAILS_PENDING, result.status());
         assertEquals(20L, result.studentUserId());
         assertEquals(30L, result.studentProfileId());
         assertTrue(result.admissionReferenceNumber().startsWith("ADM-ABC001-"));
@@ -169,7 +169,7 @@ class AdmissionServiceImplTest {
 
         ArgumentCaptor<AdmissionForm> admissionCaptor = ArgumentCaptor.forClass(AdmissionForm.class);
         verify(admissionFormRepository).save(admissionCaptor.capture());
-        assertEquals(AdmissionStatus.SUBMITTED, admissionCaptor.getValue().getStatus());
+        assertEquals(AdmissionStatus.STUDENT_DETAILS_PENDING, admissionCaptor.getValue().getStatus());
         assertEquals(StudentCategory.SC, admissionCaptor.getValue().getStudentCategory());
     }
 

@@ -31,6 +31,7 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long>,
     boolean existsByCollegeIdAndTransactionReferenceIgnoreCase(Long id, String ref);
 
     long countByCollegeIdAndStatus(Long id, PaymentStatus status);
+    List<FeePayment> findByCollegeId(Long id);
 
     long countByStatus(PaymentStatus status);
 

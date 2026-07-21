@@ -1,6 +1,7 @@
 package com.jadhavr.erp.bootstrap;
 
 import com.jadhavr.erp.staff.enums.StaffType;
+import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.user.entity.RoleName;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,7 +30,7 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
         jdbc.execute("""
                 ALTER TABLE admission_status_history
                 ADD CONSTRAINT admission_status_history_action_check CHECK (action IN (
-                    'SUBMITTED', 'STUDENT_SECTION_REVIEW_STARTED', 'STUDENT_SECTION_APPROVED',
+                    'STUDENT_DETAILS_SUBMITTED', 'SUBMITTED', 'STUDENT_SECTION_REVIEW_STARTED', 'STUDENT_SECTION_APPROVED',
                     'STUDENT_SECTION_REJECTED', 'ADMISSION_FORM_PRINTED', 'STATUS_UPDATED',
                     'FEE_ACCOUNT_CREATED', 'PAYMENT_SUBMITTED', 'PAYMENT_VERIFIED',
                     'PAYMENT_REJECTED', 'PRINCIPAL_REVIEW_PENDING',
@@ -72,6 +73,12 @@ public class DatabaseConstraintMigration implements CommandLineRunner {
                 enumCondition("name", RoleName.values()));
         replaceCheckConstraint("staff_profiles", "staff_profiles_staff_type_check",
                 enumCondition("staff_type", StaffType.values()));
+        replaceCheckConstraint("admission_forms", "admission_forms_status_check",
+                enumCondition("status", AdmissionStatus.values()));
+        replaceCheckConstraint("admission_status_history", "admission_status_history_old_status_check",
+                enumCondition("old_status", AdmissionStatus.values()));
+        replaceCheckConstraint("admission_status_history", "admission_status_history_new_status_check",
+                enumCondition("new_status", AdmissionStatus.values()));
     }
 
     private String enumCondition(String column, Enum<?>[] values) {

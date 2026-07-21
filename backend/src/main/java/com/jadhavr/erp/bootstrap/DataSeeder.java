@@ -19,8 +19,8 @@ import java.util.Locale;
 import java.util.Set;
 
 @Component
-public class DataSeeder implements CommandLineRunner {
 @Order(1)
+public class DataSeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
     private final RoleRepository roles;
     private final UserRepository users;

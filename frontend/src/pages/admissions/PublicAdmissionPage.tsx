@@ -57,7 +57,7 @@ export function PublicAdmissionPage() {
     try {
       const submitted = await api.submitAdmission(collegeCode, values);
       setResult(submitted);
-      toast.success("Admission submitted successfully");
+      toast.success("Registration completed successfully");
     } catch (err) {
       toast.error(handleApiError(err).message);
     }
@@ -85,9 +85,9 @@ export function PublicAdmissionPage() {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10">
         <Card className="mx-auto max-w-2xl p-7">
-          <h1 className="text-2xl font-bold text-slate-900">Admission submitted</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Student account created</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Please save these credentials. Temporary password is shown only once.
+            Save these credentials and log in. On first login you must complete the detailed admission form and upload your marksheets.
           </p>
           <div className="mt-6 grid gap-3 rounded-2xl bg-blue-50 p-5 text-sm">
             <p>
@@ -204,21 +204,6 @@ export function PublicAdmissionPage() {
               {...register("gender")}
             />
           </FormSection>
-          <FormSection title="Address Details">
-            <Input
-              label="Address line 1"
-              error={errors.addressLine1?.message}
-              {...register("addressLine1")}
-            />
-            <Input
-              label="Address line 2"
-              error={errors.addressLine2?.message}
-              {...register("addressLine2")}
-            />
-            <Input label="City" error={errors.city?.message} {...register("city")} />
-            <Input label="State" error={errors.state?.message} {...register("state")} />
-            <Input label="Pincode" error={errors.pincode?.message} {...register("pincode")} />
-          </FormSection>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Link
               to="/login"
@@ -227,7 +212,7 @@ export function PublicAdmissionPage() {
               Already have credentials?
             </Link>
             <Button type="submit" loading={isSubmitting}>
-              Submit Admission Form
+              Create Student Login
             </Button>
           </div>
         </form>

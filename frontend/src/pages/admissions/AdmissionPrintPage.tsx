@@ -416,21 +416,25 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
     record.instituteName || "",
     record.boardUniversity || "",
     record.yearOfPassing || "",
+    record.totalMarks ?? "",
+    record.obtainedMarks ?? "",
     record.marksPercentage ?? "",
   ]);
   const rows = savedRows?.length
     ? savedRows
     : [
-        ["10th", "", "", "", ""],
+        ["10th", "", "", "", "", "", ""],
         [
           data.academic.previousClassName || "12th / Graduation",
           data.academic.previousSchoolName || "",
           "",
           "",
+          "",
+          "",
           data.academic.previousPercentage ?? "",
         ],
       ];
-  while (rows.length < 4) rows.push(["", "", "", "", ""]);
+  while (rows.length < 4) rows.push(["", "", "", "", "", "", ""]);
   return (
     <table className="mt-1 w-full table-fixed border-collapse text-center text-[9px] leading-3">
       <thead>
@@ -440,7 +444,9 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
             "School/College/Institute",
             "Board/University",
             "Year of Passing",
-            "Marks Obtained (%)",
+            "Total Marks",
+            "Obtained Marks",
+            "Percentage",
           ].map((head) => (
             <th key={head} className="border border-black px-1 py-1.5 font-semibold">
               {head}

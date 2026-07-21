@@ -52,6 +52,7 @@ export const ROUTES = {
   studentFees: "/student/fees",
   studentPayments: "/student/fees/payments",
   feeSectionDashboard: "/fee-section/dashboard",
+  feeOfficerWorkspace: "/fee-section/workspace",
   feeAccounts: "/fee-section/fee-accounts",
   feePayments: "/fee-section/payments",
   principalReviewReady: "/principal/admissions/review-ready",
@@ -102,7 +103,7 @@ export function defaultRouteForRoles(roles: string[] = []) {
   )
     return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
-  if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
+  if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeOfficerWorkspace;
   if (roles.includes(ROLES.HOD)) return ROUTES.hodWorkspace;
   if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER))
     return ROUTES.teacherWorkspace;

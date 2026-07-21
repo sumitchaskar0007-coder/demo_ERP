@@ -180,6 +180,17 @@ export const divisionSchema = z.object({
 
 export const approveAdmissionSchema = z.object({
   studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
+  photoVerified: z.boolean().refine(Boolean, "Verify the passport photo"),
+  tenthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 10th marksheet"),
+  twelfthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 12th marksheet"),
+  leavingCertificateVerified: z.boolean().refine(Boolean, "Verify the leaving certificate"),
+  aadhaarCardVerified: z.boolean().refine(Boolean, "Verify the Aadhaar card"),
+  graduationPgCertificateVerified: z.boolean(),
+  migrationCertificateVerified: z.boolean(),
+  gapAffidavitVerified: z.boolean(),
+  casteCertificateVerified: z.boolean(),
+  incomeProofVerified: z.boolean(),
+  nameChangeCertificateVerified: z.boolean(),
   remarks: z.string().max(500).optional().default(""),
 });
 

@@ -1,4 +1,5 @@
 export type AdmissionStatus =
+  | "STUDENT_DETAILS_PENDING"
   | "SUBMITTED"
   | "STUDENT_SECTION_REVIEW_PENDING"
   | "STUDENT_SECTION_APPROVED"
@@ -9,6 +10,7 @@ export type AdmissionStatus =
   | "CANCELLED";
 
 export type AdmissionAction =
+  | "STUDENT_DETAILS_SUBMITTED"
   | "SUBMITTED"
   | "STUDENT_SECTION_REVIEW_STARTED"
   | "STUDENT_SECTION_APPROVED"
@@ -22,6 +24,8 @@ export interface AcademicRecord {
   instituteName?: string | null;
   boardUniversity?: string | null;
   yearOfPassing?: string | null;
+  totalMarks?: number | null;
+  obtainedMarks?: number | null;
   marksPercentage?: number | null;
 }
 
@@ -164,6 +168,27 @@ export interface StudentSectionAdmissionResponse extends AdmissionResponse {
   lastPrintedByName?: string | null;
   printCount: number;
   photoAvailable: boolean;
+  tenthMarksheetAvailable: boolean;
+  twelfthMarksheetAvailable: boolean;
+  graduationPgCertificateAvailable: boolean;
+  leavingCertificateAvailable: boolean;
+  migrationCertificateAvailable: boolean;
+  gapAffidavitAvailable: boolean;
+  casteCertificateAvailable: boolean;
+  incomeProofAvailable: boolean;
+  nameChangeCertificateAvailable: boolean;
+  aadhaarCardAvailable: boolean;
+  photoVerified: boolean;
+  tenthMarksheetVerified: boolean;
+  twelfthMarksheetVerified: boolean;
+  leavingCertificateVerified: boolean;
+  aadhaarCardVerified: boolean;
+  graduationPgCertificateVerified: boolean;
+  migrationCertificateVerified: boolean;
+  gapAffidavitVerified: boolean;
+  casteCertificateVerified: boolean;
+  incomeProofVerified: boolean;
+  nameChangeCertificateVerified: boolean;
   placeOfBirth?: string | null;
   maritalStatus?: string | null;
   aadhaarNumber?: string | null;

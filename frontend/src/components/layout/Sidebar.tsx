@@ -17,8 +17,9 @@ import {
   Bell,
   CheckCircle2,
   BookOpen,
+  Clock3,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
 import { useAuth } from "@/features/auth/authStore";
 import { ROLES, ROUTES } from "@/lib/constants";
@@ -39,6 +40,7 @@ const futureItems = [
 ];
 
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
+  const location = useLocation();
   const { isRole } = useAuth();
   const isAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
@@ -104,10 +106,14 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           ]
         : isFeeSection
           ? [
-              { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: LayoutDashboard },
-              { label: "Fee Accounts", to: ROUTES.feeAccounts, icon: WalletCards },
-              { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
-              { label: "Fee Report", to: ROUTES.feeReport, icon: BarChart3 },
+              { label: "Dashboard", to: ROUTES.feeOfficerWorkspace, icon: LayoutDashboard },
+              { label: "Fee Accounts", to: `${ROUTES.feeOfficerWorkspace}?tab=accounts`, icon: WalletCards },
+              { label: "Pending Verifications", to: `${ROUTES.feeOfficerWorkspace}?tab=pending`, icon: Clock3 },
+              { label: "Verified Payments", to: `${ROUTES.feeOfficerWorkspace}?tab=verified`, icon: CheckCircle2 },
+              { label: "Rejected Payments", to: `${ROUTES.feeOfficerWorkspace}?tab=rejected`, icon: FileText },
+              { label: "Payment History", to: `${ROUTES.feeOfficerWorkspace}?tab=history`, icon: CreditCard },
+              { label: "Pending Dues", to: `${ROUTES.feeOfficerWorkspace}?tab=dues`, icon: WalletCards },
+              { label: "Fee Reports", to: `${ROUTES.feeOfficerWorkspace}?tab=reports`, icon: BarChart3 },
               { label: "Notices", to: ROUTES.notices, icon: Bell },
               { label: "Account", to: ROUTES.account, icon: UserRound },
               { label: "Profile", to: ROUTES.profile, icon: UserRound },
@@ -172,6 +178,10 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
                 ]
               : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
+  const onboardingOnly = isStudent && location.pathname === ROUTES.studentAdmission;
+  const visibleNav = onboardingOnly
+    ? [{ label: "My Admission", to: ROUTES.studentAdmission, icon: FileText }]
+    : nav;
   const sectionLabel = isAdmin
     ? "Admin"
     : isPrincipal
@@ -225,7 +235,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           {sectionLabel}
         </p>
         <nav className="space-y-1">
-          {nav.map(({ label, to, icon: Icon }) => (
+          {visibleNav.map(({ label, to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -246,7 +256,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
             </NavLink>
           ))}
         </nav>
-        <div className="my-5 border-t" />
+        {!onboardingOnly && <><div className="my-5 border-t" />
         <p
           className={cn(
             "mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400",
@@ -278,7 +288,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                 )}
               </div>
             ))}
-        </div>
+        </div></>}
       </div>
       {!mobile && (
         <button

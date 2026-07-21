@@ -6,9 +6,10 @@ import com.jadhavr.erp.admission.dto.MarkAdmissionPrintedRequest;
 import com.jadhavr.erp.admission.dto.RejectAdmissionRequest;
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.dto.VerifyAdmissionRequest;
-import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.service.AdmissionPhotoService;
+import com.jadhavr.erp.admission.service.AdmissionDocumentService;
+import com.jadhavr.erp.admission.service.AdmissionDocumentService.DocumentType;
 import com.jadhavr.erp.admission.service.StudentSectionAdmissionService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
@@ -21,12 +22,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -35,12 +33,15 @@ import java.util.List;
 public class StudentSectionAdmissionController {
     private final StudentSectionAdmissionService admissionService;
     private final AdmissionPhotoService photoService;
+    private final AdmissionDocumentService documentService;
 
     public StudentSectionAdmissionController(
             StudentSectionAdmissionService admissionService,
-            AdmissionPhotoService photoService) {
+            AdmissionPhotoService photoService,
+            AdmissionDocumentService documentService) {
         this.admissionService = admissionService;
         this.photoService = photoService;
+        this.documentService = documentService;
     }
 
     @GetMapping
@@ -74,16 +75,6 @@ public class StudentSectionAdmissionController {
                 admissionService.startReview(admissionId)
         );
     }
-    @PutMapping("/{admissionId}/details")
-    public ApiResponse<StudentSectionAdmissionResponse> updateDetails(
-            @PathVariable Long admissionId,
-            @Valid @RequestBody DetailedAdmissionRequest request) {
-        return ApiResponse.success(
-                "Detailed admission form saved successfully",
-                admissionService.updateDetails(admissionId, request)
-        );
-    }
-
     @PatchMapping("/{admissionId}/approve")
     public ApiResponse<StudentSectionAdmissionResponse> approveAdmission(
             @PathVariable Long admissionId,
@@ -131,19 +122,17 @@ public class StudentSectionAdmissionController {
                 admissionService.markAdmissionPrinted(admissionId, request)
         );
     }
-    @PostMapping(path = "/{admissionId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<StudentSectionAdmissionResponse> uploadPhoto(
-            @PathVariable Long admissionId, @RequestParam("file") MultipartFile file) {
-        photoService.save(admissionId, file);
-        return ApiResponse.success(
-                "Student photo uploaded successfully",
-                admissionService.getAdmissionForStudentSection(admissionId));
-    }
-
     @GetMapping("/{admissionId}/photo")
     public ResponseEntity<Resource> getPhoto(@PathVariable Long admissionId) {
         var photo = photoService.load(admissionId);
         return ResponseEntity.ok().contentType(photo.mediaType()).body(photo.resource());
+    }
+
+    @GetMapping("/{admissionId}/documents/{type}")
+    public ResponseEntity<Resource> getDocument(
+            @PathVariable Long admissionId, @PathVariable DocumentType type) {
+        var document = documentService.load(admissionId, type);
+        return ResponseEntity.ok().contentType(document.mediaType()).body(document.resource());
     }
 
 }

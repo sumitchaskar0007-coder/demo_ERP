@@ -97,6 +97,8 @@ import { StudentAttendancePage } from "@/features/attendance/StudentAttendancePa
 import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage";
 import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
 import { TeacherWorkspacePage } from "@/pages/teacher/TeacherWorkspacePage";
+import { FeeOfficerWorkspacePage } from "@/pages/fees/FeeOfficerWorkspacePage";
+import { StudentAdmissionGuard } from "@/routes/StudentAdmissionGuard";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -291,18 +293,21 @@ export function AppRouter() {
             <Route path={ROUTES.teacherAttendance} element={<TeacherAttendancePage />} />
           </Route>
           <Route element={<RoleRoute roles={[ROLES.STUDENT]} />}>
-            <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
-            <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
             <Route path={ROUTES.studentAdmission} element={<StudentAdmissionPage />} />
-            <Route path={ROUTES.studentFees} element={<StudentFeesPage />} />
-            <Route path={ROUTES.studentPayments} element={<MyPaymentsPage />} />
-            <Route path="/student/fees/payments/new" element={<SubmitPaymentPage />} />
-            <Route path="/student/fees/transactions" element={<MyFeeTransactionsPage />} />
-            <Route path={ROUTES.studentTimetable} element={<StudentAcademicPage />} />
-            <Route path={ROUTES.studentAttendance} element={<StudentAttendancePage />} />
-            <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
+            <Route element={<StudentAdmissionGuard />}>
+              <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
+              <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
+              <Route path={ROUTES.studentFees} element={<StudentFeesPage />} />
+              <Route path={ROUTES.studentPayments} element={<MyPaymentsPage />} />
+              <Route path="/student/fees/payments/new" element={<SubmitPaymentPage />} />
+              <Route path="/student/fees/transactions" element={<MyFeeTransactionsPage />} />
+              <Route path={ROUTES.studentTimetable} element={<StudentAcademicPage />} />
+              <Route path={ROUTES.studentAttendance} element={<StudentAttendancePage />} />
+              <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
+            </Route>
           </Route>
           <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
+            <Route path={ROUTES.feeOfficerWorkspace} element={<FeeOfficerWorkspacePage />} />
             <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
             <Route path={ROUTES.feeAccounts} element={<FeeAccountsPage />} />
             <Route

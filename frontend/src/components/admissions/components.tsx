@@ -60,6 +60,7 @@ export function HistoryTimeline({ history }: { history: AdmissionStatusHistoryRe
 
 export function statusExplanation(status?: AdmissionStatus) {
   const copy: Record<AdmissionStatus, string> = {
+    STUDENT_DETAILS_PENDING: "Waiting for the student to complete the detailed form",
     SUBMITTED: "Form submitted",
     STUDENT_SECTION_REVIEW_PENDING: "Under student section review",
     STUDENT_SECTION_APPROVED: "Data verified by student section",

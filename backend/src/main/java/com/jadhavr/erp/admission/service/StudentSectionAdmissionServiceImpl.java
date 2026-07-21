@@ -165,7 +165,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
                         .map(record -> new AdmissionAcademicRecord(
                                 record.qualification(), trimToNull(record.instituteName()),
                                 trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()),
-                                record.marksPercentage()))
+                                record.totalMarks(), record.obtainedMarks(), calculatePercentage(record.totalMarks(), record.obtainedMarks())))
                         .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new)));
         admission.setDetailsCompletedAt(LocalDateTime.now());
 
@@ -207,6 +207,25 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (admission.getPhotoStorageName() == null) {
             throw new BadRequestException("Upload the passport-size photo before approval");
         }
+        if (admission.getTenthMarksheetStorageName() == null || admission.getTwelfthMarksheetStorageName() == null
+                || admission.getLeavingCertificateStorageName() == null || admission.getAadhaarCardStorageName() == null) {
+            throw new BadRequestException("10th marksheet, 12th marksheet, leaving certificate, and Aadhaar card must be uploaded before approval");
+        }
+        if (!Boolean.TRUE.equals(request.photoVerified())
+                || !Boolean.TRUE.equals(request.tenthMarksheetVerified())
+                || !Boolean.TRUE.equals(request.twelfthMarksheetVerified())
+                || !Boolean.TRUE.equals(request.leavingCertificateVerified())
+                || !Boolean.TRUE.equals(request.aadhaarCardVerified())) {
+            throw new BadRequestException("Verify every required admission document before approval");
+        }
+        if ((admission.getGraduationPgCertificateStorageName() != null && !Boolean.TRUE.equals(request.graduationPgCertificateVerified()))
+                || (admission.getMigrationCertificateStorageName() != null && !Boolean.TRUE.equals(request.migrationCertificateVerified()))
+                || (admission.getGapAffidavitStorageName() != null && !Boolean.TRUE.equals(request.gapAffidavitVerified()))
+                || (admission.getCasteCertificateStorageName() != null && !Boolean.TRUE.equals(request.casteCertificateVerified()))
+                || (admission.getIncomeProofStorageName() != null && !Boolean.TRUE.equals(request.incomeProofVerified()))
+                || (admission.getNameChangeCertificateStorageName() != null && !Boolean.TRUE.equals(request.nameChangeCertificateVerified()))) {
+            throw new BadRequestException("Verify every submitted optional document before approval");
+        }
         if (request.studentCategory() == null) {
             throw new BadRequestException("Student category must be verified before approval");
         }
@@ -216,6 +235,17 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         admission.setStudentSectionVerifiedAt(LocalDateTime.now());
         admission.setStudentSectionVerifiedBy(currentUser);
         admission.setStudentSectionRemarks(trimToNull(request.remarks()));
+        admission.setPhotoVerified(true);
+        admission.setTenthMarksheetVerified(true);
+        admission.setTwelfthMarksheetVerified(true);
+        admission.setLeavingCertificateVerified(true);
+        admission.setAadhaarCardVerified(true);
+        admission.setGraduationPgCertificateVerified(admission.getGraduationPgCertificateStorageName() != null);
+        admission.setMigrationCertificateVerified(admission.getMigrationCertificateStorageName() != null);
+        admission.setGapAffidavitVerified(admission.getGapAffidavitStorageName() != null);
+        admission.setCasteCertificateVerified(admission.getCasteCertificateStorageName() != null);
+        admission.setIncomeProofVerified(admission.getIncomeProofStorageName() != null);
+        admission.setNameChangeCertificateVerified(admission.getNameChangeCertificateStorageName() != null);
         admission.getStudent().setStatus(StudentStatus.UNDER_REVIEW);
         AdmissionForm saved = admissions.save(admission);
         if (feeService != null) feeService.createAccountForAdmission(saved);
@@ -284,6 +314,8 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         }
         if (status != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        } else {
+            spec = spec.and((root, query, cb) -> cb.notEqual(root.get("status"), AdmissionStatus.STUDENT_DETAILS_PENDING));
         }
         if (keyword != null && !keyword.isBlank()) {
             String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
@@ -366,5 +398,14 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private java.math.BigDecimal calculatePercentage(java.math.BigDecimal total, java.math.BigDecimal obtained) {
+        if (total == null || obtained == null) return null;
+        if (total.signum() <= 0 || obtained.signum() < 0 || obtained.compareTo(total) > 0) {
+            throw new BadRequestException("Academic marks must be valid and obtained marks cannot exceed total marks");
+        }
+        return obtained.multiply(java.math.BigDecimal.valueOf(100))
+                .divide(total, 2, java.math.RoundingMode.HALF_UP);
     }
 }

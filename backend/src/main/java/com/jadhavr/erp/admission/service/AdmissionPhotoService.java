@@ -48,8 +48,10 @@ public class AdmissionPhotoService {
         if (file.getSize() > MAX_BYTES) {
             throw new BadRequestException("Photo must not exceed 2 MB");
         }
-        if (admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.SUBMITTED
-                && admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING) {
+        if (admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.STUDENT_DETAILS_PENDING
+                && admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.SUBMITTED
+                && admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING
+                && admission.getStatus() != com.jadhavr.erp.admission.enums.AdmissionStatus.STUDENT_SECTION_REJECTED) {
             throw new BadRequestException("Student photo cannot be changed after Student Section approval");
         }
         String extension = EXTENSIONS.get(file.getContentType());
@@ -63,6 +65,7 @@ public class AdmissionPhotoService {
             Path target = safePath(storageName);
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
             admission.setPhotoStorageName(storageName);
+            admission.setPhotoVerified(false);
             AdmissionForm saved = admissions.save(admission);
             if (oldName != null) Files.deleteIfExists(safePath(oldName));
             return saved;

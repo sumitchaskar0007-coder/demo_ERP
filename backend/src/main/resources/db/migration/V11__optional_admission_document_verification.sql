@@ -1,0 +1,7 @@
+ALTER TABLE admission_forms
+    ADD COLUMN IF NOT EXISTS graduation_pg_certificate_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS migration_certificate_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS gap_affidavit_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS caste_certificate_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS income_proof_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS name_change_certificate_verified BOOLEAN NOT NULL DEFAULT FALSE;
