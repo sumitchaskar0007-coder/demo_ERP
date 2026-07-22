@@ -114,7 +114,7 @@ class StudentSectionAdmissionServiceImplTest {
         when(admissions.save(admission)).thenReturn(admission);
         when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
 
-        var result = service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.SC, "Verified"));
+        var result = service.approveAdmission(100L, verificationRequest(StudentCategory.SC, "Verified"));
 
         assertEquals(AdmissionStatus.STUDENT_SECTION_APPROVED, result.status());
         assertEquals(StudentStatus.UNDER_REVIEW, admission.getStudent().getStatus());
@@ -145,7 +145,7 @@ class StudentSectionAdmissionServiceImplTest {
                 .thenReturn(Optional.of(admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REJECTED)));
 
         assertThrows(BadRequestException.class,
-                () -> service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.OPEN, null)));
+                () -> service.approveAdmission(100L, verificationRequest(StudentCategory.OPEN, null)));
     }
 
     @Test
@@ -155,6 +155,24 @@ class StudentSectionAdmissionServiceImplTest {
 
         assertThrows(BadRequestException.class,
                 () -> service.rejectAdmission(100L, new RejectAdmissionRequest("Wrong data")));
+    }
+
+    private VerifyAdmissionRequest verificationRequest(StudentCategory category, String remarks) {
+        return new VerifyAdmissionRequest(
+                category,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                remarks
+        );
     }
 
     @Test
