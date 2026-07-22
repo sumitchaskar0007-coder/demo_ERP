@@ -7,10 +7,14 @@ assumed deployment role and Secrets Manager.
 
 Before the first task starts, populate the Terraform-created application
 secret with the required JSON keys (`DB_APP_USERNAME`, `DB_APP_PASSWORD`,
-`JWT_SECRET`, mail settings, and the one-time bootstrap keys). Store values via
+`JWT_SECRET`, `RATE_LIMIT_KEY_SECRET`, mail settings, and the one-time bootstrap keys). Store values via
 the Secrets Manager console or an approved secret-management pipeline; do not
 put the JSON in shell history. The migration task uses the RDS-managed master
 secret only for schema migration and receives the bootstrap password once.
+
+Set both `domain_name` (frontend/CloudFront) and `api_domain_name` (ALB/API).
+The regional ACM certificate covers `api_domain_name`; CloudFront uses that
+hostname for its HTTPS backend origin.
 
 ## Release order
 

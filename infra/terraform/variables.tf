@@ -22,6 +22,11 @@ variable "domain_name" {
   type = string
 }
 
+variable "api_domain_name" {
+  type        = string
+  description = "DNS name used by CloudFront to reach the ALB; its ACM certificate must cover this name"
+}
+
 variable "route53_zone_id" {
   type = string
 }

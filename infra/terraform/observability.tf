@@ -136,10 +136,15 @@ resource "aws_iam_policy" "deployment" {
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload",
-          "ecr:GetAuthorizationToken", "ecr:InitiateLayerUpload",
+          "ecr:InitiateLayerUpload",
           "ecr:PutImage", "ecr:UploadLayerPart"
         ]
         Resource = aws_ecr_repository.backend.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
       },
       {
         Effect   = "Allow"

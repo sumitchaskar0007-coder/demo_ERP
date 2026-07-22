@@ -138,9 +138,7 @@ locals {
     { name = "AWS_SECRETS_NAME", value = aws_secretsmanager_secret.application.name },
     { name = "FRONTEND_URL", value = "https://${var.domain_name}" },
     { name = "CORS_ALLOWED_ORIGINS", value = "https://${var.domain_name}" },
-    { name = "DB_SSL_ROOT_CERT", value = "/etc/ssl/certs/rds-ca-bundle.pem" },
-    { name = "FLYWAY_ENABLED", value = "false" },
-    { name = "BOOTSTRAP_ENABLED", value = "false" }
+    { name = "DB_SSL_ROOT_CERT", value = "/etc/ssl/certs/rds-ca-bundle.pem" }
   ]
 
   runtime_secrets = [
@@ -151,6 +149,7 @@ locals {
     { name = "MAIL_USERNAME", valueFrom = "${aws_secretsmanager_secret.application.arn}:MAIL_USERNAME::" },
     { name = "MAIL_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:MAIL_PASSWORD::" },
     { name = "MAIL_FROM_ADDRESS", valueFrom = "${aws_secretsmanager_secret.application.arn}:MAIL_FROM_ADDRESS::" },
+    { name = "RATE_LIMIT_KEY_SECRET", valueFrom = "${aws_secretsmanager_secret.application.arn}:RATE_LIMIT_KEY_SECRET::" },
     { name = "REDIS_PASSWORD", valueFrom = "${aws_secretsmanager_secret.redis.arn}:auth_token::" }
   ]
 }
@@ -174,10 +173,20 @@ resource "aws_ecs_task_definition" "backend" {
     image                  = var.backend_image
     essential              = true
     portMappings           = [{ containerPort = 8081, hostPort = 8081, protocol = "tcp" }]
-    environment            = local.common_environment
+    environment            = concat(local.common_environment, [
+      { name = "FLYWAY_ENABLED", value = "false" },
+      { name = "BOOTSTRAP_ENABLED", value = "false" }
+    ])
     secrets                = local.runtime_secrets
     readonlyRootFilesystem = true
-    linuxParameters        = { initProcessEnabled = true }
+    linuxParameters        = {
+      initProcessEnabled = true
+      tmpfs = [{
+        containerPath = "/tmp"
+        size          = 64
+        mountOptions  = ["rw", "nosuid", "nodev", "noexec"]
+      }]
+    }
     healthCheck = {
       command     = ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8081/actuator/health/liveness || exit 1"]
       interval    = 30
@@ -222,6 +231,14 @@ resource "aws_ecs_task_definition" "migration" {
       { name = "SUPER_ADMIN_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_PASSWORD::" }
     ], [for secret in local.runtime_secrets : secret if !contains(["DB_USERNAME", "DB_PASSWORD"], secret.name)])
     readonlyRootFilesystem = true
+    linuxParameters = {
+      initProcessEnabled = true
+      tmpfs = [{
+        containerPath = "/tmp"
+        size          = 64
+        mountOptions  = ["rw", "nosuid", "nodev", "noexec"]
+      }]
+    }
     logConfiguration = {
       logDriver = "awslogs"
       options = {

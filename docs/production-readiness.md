@@ -23,13 +23,17 @@ Before creating an ECS service task, put one JSON object into the Terraform-crea
 secret. It must contain these keys, populated through an approved secret-management channel:
 
 ```text
-DB_APP_USERNAME, DB_APP_PASSWORD, JWT_SECRET,
+DB_APP_USERNAME, DB_APP_PASSWORD, JWT_SECRET, RATE_LIMIT_KEY_SECRET,
 MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS,
 SUPER_ADMIN_NAME, SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD
 ```
 
 Never put secret values in Terraform variable files, shell history, task overrides, logs, or source
 control. The initial administrator password is mandatory only for the explicit bootstrap task.
+
+Set `api_domain_name` to a DNS name whose ACM certificate is attached to the ALB. CloudFront uses
+that hostname as its HTTPS backend origin; do not use the raw `*.elb.amazonaws.com` hostname with a
+certificate issued only for the application domain.
 
 Create the runtime database login once using the RDS master/migration identity and grant only the
 required schema usage and table/sequence DML privileges. Revoke schema creation and ownership from

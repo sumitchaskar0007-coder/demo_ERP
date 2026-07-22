@@ -71,7 +71,7 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 }
 
 resource "aws_acm_certificate" "regional" {
-  domain_name       = var.domain_name
+  domain_name       = var.api_domain_name
   validation_method = "DNS"
 }
 
@@ -120,7 +120,7 @@ resource "aws_cloudfront_function" "spa" {
   code    = <<-EOT
     function handler(event) {
       var request = event.request;
-      if (!request.uri.includes('.') && !request.uri.startsWith('/api/')) {
+      if (!request.uri.includes('.') && !request.uri.startsWith('/api/') && !request.uri.startsWith('/actuator/')) {
         request.uri = '/index.html';
       }
       return request;
@@ -192,7 +192,7 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   origin {
-    domain_name = aws_lb.backend.dns_name
+    domain_name = var.api_domain_name
     origin_id   = "backend"
     custom_origin_config {
       http_port              = 80
@@ -220,6 +220,17 @@ resource "aws_cloudfront_distribution" "main" {
     target_origin_id           = "backend"
     viewer_protocol_policy     = "https-only"
     allowed_methods            = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods             = ["GET", "HEAD", "OPTIONS"]
+    cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
+    origin_request_policy_id   = aws_cloudfront_origin_request_policy.api.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+  }
+
+  ordered_cache_behavior {
+    path_pattern               = "/actuator/*"
+    target_origin_id           = "backend"
+    viewer_protocol_policy     = "https-only"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cached_methods             = ["GET", "HEAD", "OPTIONS"]
     cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
     origin_request_policy_id   = aws_cloudfront_origin_request_policy.api.id
@@ -276,5 +287,16 @@ resource "aws_route53_record" "application" {
     name                   = aws_cloudfront_distribution.main.domain_name
     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
     evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "api" {
+  zone_id = var.route53_zone_id
+  name    = var.api_domain_name
+  type    = "A"
+  alias {
+    name                   = aws_lb.backend.dns_name
+    zone_id                = aws_lb.backend.zone_id
+    evaluate_target_health = true
   }
 }
