@@ -203,7 +203,9 @@ public class AdmissionServiceImpl implements AdmissionService {
         user.setEmail(email);
         user.setPhone(trimToNull(request.phone()));
         user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
-        user.setMustChangePassword(true);
+        // Students must first complete the admission workflow. The mandatory
+        // password change is activated only when Student Section approves it.
+        user.setMustChangePassword(false);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(studentRole));
         User savedUser = userRepository.save(user);

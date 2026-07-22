@@ -15,35 +15,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  AlertTriangle,
-  BadgeIndianRupee,
-  CheckCircle2,
-  Clock3,
-  Download,
-  Eye,
-  FileText,
-  History,
-  LayoutDashboard,
-  Maximize2,
-  RefreshCw,
-  Search,
-  Users,
-  XCircle,
-} from "lucide-react";
+import { BadgeIndianRupee, Download, Eye, Mail, Maximize2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/feeOfficer/api";
-const tabs = [
-  ["dashboard", "Dashboard", LayoutDashboard],
-  ["accounts", "Fee Accounts", Users],
-  ["pending", "Pending Verifications", Clock3],
-  ["verified", "Verified Payments", CheckCircle2],
-  ["rejected", "Rejected Payments", XCircle],
-  ["history", "Payment History", History],
-  ["dues", "Pending Dues", AlertTriangle],
-  ["reports", "Fee Reports", FileText],
-] as const;
 const input =
   "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
 const primary =
@@ -51,6 +26,7 @@ const primary =
 const secondary =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const money = (v: number) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
+const feeStructureLabel = (value: string) => value.replace(/\s+fee$/i, "").trim();
 export function FeeOfficerWorkspacePage() {
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") || "dashboard";
@@ -111,47 +87,28 @@ export function FeeOfficerWorkspacePage() {
     );
   return (
     <div className="mx-auto max-w-[1550px] space-y-6 pb-10">
-      <header className="overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-emerald-950 to-teal-900 p-7 text-white shadow-xl">
+      <header className="overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 p-7 text-white shadow-xl shadow-blue-200/60">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
               Fee Section Officer
             </span>
             <h1 className="mt-4 text-3xl font-bold">Fee Collection & Verification</h1>
-            <p className="mt-2 text-sm text-emerald-100">
+            <p className="mt-2 text-sm text-blue-100">
               Accounts, student payments, dues, receipts and collection analytics
             </p>
           </div>
           <button
-            className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20"
-            onClick={() => void load()}
+            className="rounded-xl border border-white/30 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
+            onClick={() => window.location.reload()}
           >
             <RefreshCw className="mr-2 inline h-4 w-4" />
             Refresh
           </button>
         </div>
       </header>
-      <div className="overflow-x-auto rounded-2xl border bg-white p-2 shadow-sm">
-        <div className="flex min-w-max gap-1">
-          {tabs.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              onClick={() => setParams({ tab: key })}
-              className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold ${tab === key ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-              {key === "pending" && data.summary.pendingVerifications > 0 && (
-                <span className="rounded-full bg-rose-500 px-1.5 text-[10px] text-white">
-                  {data.summary.pendingVerifications}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
       {tab === "dashboard" && <Dashboard data={data} go={(x) => setParams({ tab: x })} />}{" "}
-      {tab !== "dashboard" && tab !== "dues" && (
+      {tab !== "dashboard" && tab !== "dues" && tab !== "reports" && (
         <Filters
           data={data}
           search={search}
@@ -178,13 +135,20 @@ export function FeeOfficerWorkspacePage() {
       {tab === "verified" && (
         <Payments title="Verified payments" rows={data.verified} open={setPayment} receipt />
       )}{" "}
-      {tab === "rejected" && <Rejected rows={data.rejected} open={setPayment} reload={load} />}{" "}
+      {tab === "rejected" && <Rejected rows={data.rejected} open={setPayment} />} {" "}
       {tab === "history" && <HistoryView rows={data.history} open={setPayment} />}{" "}
       {tab === "dues" && <Dues rows={data.dues} open={setAccountId} />}{" "}
       {tab === "reports" && <Reports data={data} />}{" "}
       {payment && <PaymentReview payment={payment} close={() => setPayment(null)} reload={load} />}{" "}
       {accountId && (
-        <AccountModal id={accountId} close={() => setAccountId(null)} payment={setPayment} />
+        <AccountModal
+          id={accountId}
+          close={() => setAccountId(null)}
+          payment={(selectedPayment) => {
+            setAccountId(null);
+            setPayment(selectedPayment);
+          }}
+        />
       )}
     </div>
   );
@@ -243,37 +207,6 @@ function Dashboard({ data, go }: { data: api.Workspace; go: (x: string) => void 
             </ResponsiveContainer>
           </div>
         </Panel>
-      </div>
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-5">
-        <Widget
-          title="Today's Pending Payments"
-          rows={data.pending.slice(0, 6)}
-          go={() => go("pending")}
-        />
-        <Widget title="Recent Approvals" rows={data.recentApprovals} go={() => go("verified")} />
-        <Widget title="Recent Rejections" rows={data.recentRejections} go={() => go("rejected")} />
-        <Widget title="Large Payments" rows={data.largePayments} go={() => go("history")} />
-        <Panel title="Pending Dues" subtitle="Highest priority accounts">
-          <div className="space-y-3">
-            {data.studentsWithPendingDues.slice(0, 6).map((d) => (
-              <div key={d.accountId}>
-                <p className="text-sm font-semibold">{d.student}</p>
-                <p className="text-xs text-rose-600">
-                  {money(d.pending)} · {d.urgency.replaceAll("_", " ")}
-                </p>
-              </div>
-            ))}
-          </div>
-          <button className={`${secondary} mt-4 w-full`} onClick={() => go("dues")}>
-            View all
-          </button>
-        </Panel>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Fully Paid Students" value={s.fullyPaid} />
-        <Metric label="Partially Paid" value={s.partiallyPaid} />
-        <Metric label="Average Verification" value={`${s.averageVerificationMinutes} min`} />
-        <Metric label="Pending Requests Today" value={s.todayPendingRequests} />
       </div>
     </>
   );
@@ -413,29 +346,62 @@ function Accounts({
         </thead>
         <tbody>
           {data.accounts.content.map((a) => (
-            <tr key={a.id}>
-              <td>
-                <b>{a.student}</b>
-                <small>{a.prn}</small>
+            <tr className="group bg-white" key={a.id}>
+              <td className="min-w-64">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-100 text-sm font-bold text-blue-700">
+                    {a.student
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((part) => part[0])
+                      .join("")
+                      .toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">{a.student}</p>
+                    <p className="mt-1 font-mono text-[11px] text-slate-500">{a.prn}</p>
+                  </div>
+                </div>
               </td>
-              <td>{a.department}</td>
               <td>
-                {a.course}
-                <small>
+                <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                  {a.department}
+                </span>
+              </td>
+              <td className="min-w-36">
+                <p className="font-semibold text-slate-800">{a.course}</p>
+                <p className="mt-1 text-xs text-slate-500">
                   {a.division || "Not allocated"} · {a.academicYear}
-                </small>
+                </p>
               </td>
-              <td>{a.feeStructure}</td>
-              <td>{money(a.totalFee)}</td>
-              <td className="text-emerald-600">{money(a.paid)}</td>
-              <td className="text-rose-600">{money(a.pending)}</td>
+              <td className="max-w-48 text-sm font-medium text-slate-600">
+                {feeStructureLabel(a.feeStructure)}
+              </td>
+              <td className="whitespace-nowrap font-semibold text-slate-900">
+                {money(a.totalFee)}
+              </td>
+              <td className="whitespace-nowrap">
+                <p className="font-bold text-emerald-700">{money(a.paid)}</p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
+                  Collected
+                </p>
+              </td>
+              <td className="whitespace-nowrap">
+                <p className="font-bold text-rose-700">{money(a.pending)}</p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-rose-500">
+                  Balance
+                </p>
+              </td>
               <td>
                 <Badge value={a.status} />
               </td>
-              <td>
-                <button className={secondary} onClick={() => open(a.id)}>
+              <td className="whitespace-nowrap text-right">
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                  onClick={() => open(a.id)}
+                >
                   <Eye className="h-4 w-4" />
-                  View Account
+                  View details
                 </button>
               </td>
             </tr>
@@ -475,43 +441,46 @@ function Payments({
         </thead>
         <tbody>
           {rows.map((p) => (
-            <tr key={p.id}>
+            <tr className="bg-white" key={p.id}>
               <td>
-                <b>{p.student}</b>
-                <small>{p.prn}</small>
+                <StudentIdentity name={p.student} prn={p.prn} />
               </td>
               <td>
-                {p.department}
-                <small>
+                <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                  {p.department}
+                </span>
+                <p className="mt-1.5 text-xs text-slate-500">
                   {p.course} {p.division}
-                </small>
+                </p>
               </td>
-              <td className="font-bold">
-                {money(p.amount)}
-                {p.duplicateDetected && <small className="text-rose-600">Duplicate detected</small>}
+              <td className="whitespace-nowrap">
+                <p className="font-bold text-slate-900">{money(p.amount)}</p>
+                {p.duplicateDetected && (
+                  <p className="mt-1 text-xs font-semibold text-rose-600">Duplicate detected</p>
+                )}
               </td>
               <td>
-                {p.paymentMode}
-                <small>{p.transactionId}</small>
+                <p className="font-semibold text-slate-800">{p.paymentMode.replaceAll("_", " ")}</p>
+                <p className="mt-1 font-mono text-[11px] text-slate-500">{p.transactionId}</p>
               </td>
-              <td>{p.paymentDate}</td>
-              <td>{new Date(p.submittedAt).toLocaleString()}</td>
+              <td className="whitespace-nowrap text-sm font-medium">{p.paymentDate}</td>
+              <td className="min-w-36 text-xs leading-5 text-slate-500">
+                {new Date(p.submittedAt).toLocaleString()}
+              </td>
               <td>
-                <a
-                  className="font-semibold text-emerald-600"
-                  href={p.proofUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  className="font-semibold text-blue-600 hover:text-blue-700"
+                  onClick={() => open(p)}
                 >
-                  View Screenshot
-                </a>
+                  View proof
+                </button>
               </td>
               <td>
                 <Badge value={p.status} />
               </td>
-              <td>
+              <td className="text-right">
                 <button
-                  className={primary}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
                   onClick={() => (receipt ? void downloadReceipt(p) : open(p))}
                 >
                   {receipt ? <Download className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -531,25 +500,14 @@ function Payments({
 function Rejected({
   rows,
   open,
-  reload,
 }: {
   rows: api.Payment[];
   open: (v: api.Payment) => void;
-  reload: () => Promise<void>;
 }) {
-  const reopen = async (p: api.Payment) => {
-    try {
-      await api.reopen(p.id);
-      toast.success("Payment reopened");
-      await reload();
-    } catch (e) {
-      toast.error(handleApiError(e).message);
-    }
-  };
   return (
     <Panel
       title="Rejected Payments"
-      subtitle="Review reasons, approve later, or request a new screenshot"
+      subtitle="Review rejection reasons and submitted payment proof"
     >
       <Table>
         <thead>
@@ -560,34 +518,37 @@ function Rejected({
             <th>Rejected By</th>
             <th>Date</th>
             <th>Screenshot</th>
-            <th>Actions</th>
+            <th />
           </tr>
         </thead>
         <tbody>
           {rows.map((p) => (
-            <tr key={p.id}>
+            <tr className="bg-white" key={p.id}>
               <td>
-                <b>{p.student}</b>
-                <small>{p.prn}</small>
+                <StudentIdentity name={p.student} prn={p.prn} />
               </td>
-              <td>{money(p.amount)}</td>
-              <td className="text-rose-600">{p.rejectionReason}</td>
-              <td>{p.rejectedBy}</td>
-              <td>{p.rejectedAt && new Date(p.rejectedAt).toLocaleString()}</td>
-              <td>
-                <a href={p.proofUrl} target="_blank" rel="noreferrer" className="text-emerald-600">
-                  View
-                </a>
+              <td className="whitespace-nowrap font-bold text-slate-900">{money(p.amount)}</td>
+              <td className="min-w-56">
+                <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+                  {p.rejectionReason || "No reason provided"}
+                </p>
+              </td>
+              <td className="font-medium text-slate-700">{p.rejectedBy || "—"}</td>
+              <td className="min-w-36 text-xs leading-5 text-slate-500">
+                {p.rejectedAt && new Date(p.rejectedAt).toLocaleString()}
               </td>
               <td>
-                <div className="flex gap-2">
-                  <button className={secondary} onClick={() => open(p)}>
-                    Details
-                  </button>
-                  <button className={primary} onClick={() => void reopen(p)}>
-                    Approve Later
-                  </button>
-                </div>
+                <button
+                  className="font-semibold text-blue-600 hover:text-blue-700"
+                  onClick={() => open(p)}
+                >
+                  View proof
+                </button>
+              </td>
+              <td className="text-right">
+                <button className={secondary} onClick={() => open(p)}>
+                  Details
+                </button>
               </td>
             </tr>
           ))}
@@ -605,7 +566,6 @@ function HistoryView({ rows, open }: { rows: api.Payment[]; open: (v: api.Paymen
             <th>Receipt</th>
             <th>Student</th>
             <th>Amount</th>
-            <th>Installment</th>
             <th>Status</th>
             <th>Officer</th>
             <th>Timeline</th>
@@ -614,31 +574,40 @@ function HistoryView({ rows, open }: { rows: api.Payment[]; open: (v: api.Paymen
         </thead>
         <tbody>
           {rows.map((p) => (
-            <tr key={p.id}>
-              <td>{p.receiptNumber || "Pending"}</td>
+            <tr className="bg-white" key={p.id}>
               <td>
-                <b>{p.student}</b>
-                <small>{p.prn}</small>
+                <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-slate-700">
+                  {p.receiptNumber || "Pending"}
+                </span>
               </td>
-              <td>{money(p.amount)}</td>
-              <td>Installment {p.currentInstallment}</td>
+              <td>
+                <StudentIdentity name={p.student} prn={p.prn} />
+              </td>
+              <td className="whitespace-nowrap font-bold text-slate-900">{money(p.amount)}</td>
               <td>
                 <Badge value={p.status} />
               </td>
-              <td>{p.verifiedBy || p.rejectedBy || "Awaiting officer"}</td>
-              <td>
-                <small>Uploaded · {new Date(p.submittedAt).toLocaleDateString()}</small>
-                <small>
+              <td className="font-medium text-slate-700">
+                {p.verifiedBy || p.rejectedBy || "Awaiting officer"}
+              </td>
+              <td className="min-w-44">
+                <p className="text-xs text-slate-500">
+                  Uploaded · {new Date(p.submittedAt).toLocaleDateString()}
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-700">
                   {p.verifiedAt
                     ? `Verified · ${new Date(p.verifiedAt).toLocaleDateString()}`
                     : p.rejectedAt
                       ? `Reviewed · ${new Date(p.rejectedAt).toLocaleDateString()}`
                       : "Verification pending"}
-                </small>
+                </p>
               </td>
-              <td>
-                <button className={secondary} onClick={() => open(p)}>
-                  View
+              <td className="text-right">
+                <button
+                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                  onClick={() => open(p)}
+                >
+                  <Eye className="h-4 w-4" /> View details
                 </button>
               </td>
             </tr>
@@ -649,8 +618,51 @@ function HistoryView({ rows, open }: { rows: api.Payment[]; open: (v: api.Paymen
   );
 }
 function Dues({ rows, open }: { rows: api.Due[]; open: (v: number) => void }) {
+  const [sending, setSending] = useState(false);
+  const sendAllReminders = async () => {
+    if (!rows.length) {
+      toast.info("There are no students with pending fees");
+      return;
+    }
+    if (
+      !window.confirm(
+        "Send a pending fee reminder to every student in this college who has an outstanding balance?",
+      )
+    )
+      return;
+    setSending(true);
+    try {
+      const students = await api.sendPendingFeeReminders();
+      toast.success(`Fee reminders processed for ${students} student${students === 1 ? "" : "s"}`);
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSending(false);
+    }
+  };
   return (
     <Panel title="Pending Dues" subtitle="Overdue and upcoming student balances">
+      <div className="mb-5 flex flex-col justify-between gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-center">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
+            <Mail className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="font-bold text-slate-900">Remind all students with pending fees</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Each student receives a personalized email with their outstanding balance.
+            </p>
+          </div>
+        </div>
+        <button
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={sending || !rows.length}
+          onClick={() => void sendAllReminders()}
+        >
+          <Mail className="h-4 w-4" />
+          {sending ? "Sending reminders…" : "Send reminder to all"}
+        </button>
+      </div>
       <Table>
         <thead>
           <tr>
@@ -667,23 +679,36 @@ function Dues({ rows, open }: { rows: api.Due[]; open: (v: number) => void }) {
         </thead>
         <tbody>
           {rows.map((d) => (
-            <tr className={d.urgency === "OVERDUE" ? "bg-rose-50/50" : ""} key={d.accountId}>
+            <tr
+              className={d.urgency === "OVERDUE" ? "bg-rose-50/50" : "bg-white"}
+              key={d.accountId}
+            >
               <td>
-                <b>{d.student}</b>
-                <small>{d.prn}</small>
+                <StudentIdentity name={d.student} prn={d.prn} />
               </td>
-              <td>{d.department}</td>
-              <td>{money(d.totalFee)}</td>
-              <td>{money(d.paid)}</td>
-              <td className="font-bold text-rose-600">{money(d.pending)}</td>
-              <td>{d.dueDate}</td>
-              <td>{d.lastPayment || "No payment"}</td>
+              <td>
+                <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                  {d.department}
+                </span>
+              </td>
+              <td className="whitespace-nowrap font-semibold text-slate-900">
+                {money(d.totalFee)}
+              </td>
+              <td className="whitespace-nowrap font-bold text-emerald-700">{money(d.paid)}</td>
+              <td className="whitespace-nowrap font-bold text-rose-700">{money(d.pending)}</td>
+              <td className="whitespace-nowrap font-medium text-slate-700">{d.dueDate}</td>
+              <td className="whitespace-nowrap text-sm text-slate-500">
+                {d.lastPayment || "No payment yet"}
+              </td>
               <td>
                 <Badge value={d.urgency} />
               </td>
-              <td>
-                <button className={secondary} onClick={() => open(d.accountId)}>
-                  View History
+              <td className="text-right">
+                <button
+                  className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                  onClick={() => open(d.accountId)}
+                >
+                  <Eye className="h-4 w-4" /> View details
                 </button>
               </td>
             </tr>
@@ -693,76 +718,505 @@ function Dues({ rows, open }: { rows: api.Due[]; open: (v: number) => void }) {
     </Panel>
   );
 }
+type ReportKind = "collection" | "dues" | "fully-paid" | "partial" | "rejected";
+type ReportRow = {
+  id: string;
+  student: string;
+  prn: string;
+  department: string;
+  course: string;
+  division: string;
+  reference: string;
+  amount: number;
+  paid: number;
+  pending: number;
+  status: string;
+  date: string;
+};
 function Reports({ data }: { data: api.Workspace }) {
-  const exportExcel = async (kind: string) => {
-    const { default: XLSX } = await import("xlsx-js-style");
-    const source =
-      kind === "Pending Fees"
-        ? data.dues
-        : kind === "Rejected Payments"
-          ? data.rejected
-          : kind === "Fully Paid"
-            ? data.accounts.content.filter((a) => a.status === "FULLY_PAID")
-            : kind === "Partial Payments"
-              ? data.accounts.content.filter((a) => a.status === "PARTIALLY_PAID")
-              : data.history;
-    const sheet = XLSX.utils.json_to_sheet(source);
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, kind.slice(0, 31));
-    XLSX.writeFile(book, `${kind.toLowerCase().replaceAll(" ", "-")}.xlsx`);
+  const [kind, setKind] = useState<ReportKind>("collection");
+  const [department, setDepartment] = useState("");
+  const [course, setCourse] = useState("");
+  const [division, setDivision] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [draftDepartment, setDraftDepartment] = useState("");
+  const [draftCourse, setDraftCourse] = useState("");
+  const [draftDivision, setDraftDivision] = useState("");
+  const [draftFrom, setDraftFrom] = useState("");
+  const [draftTo, setDraftTo] = useState("");
+  const [chartRange, setChartRange] = useState<"daily" | "monthly">("daily");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [reportPage, setReportPage] = useState(0);
+  useEffect(() => setReportPage(0), [kind, department, course, division, from, to]);
+  const paymentRow = (p: api.Payment): ReportRow => ({
+    id: `payment-${p.id}`,
+    student: p.student,
+    prn: p.prn,
+    department: p.department,
+    course: p.course,
+    division: p.division || "",
+    reference: p.receiptNumber || p.transactionId,
+    amount: Number(p.amount),
+    paid: p.status === "VERIFIED" ? Number(p.amount) : 0,
+    pending: 0,
+    status: p.status,
+    date: p.paymentDate,
+  });
+  const accountRow = (a: api.Account): ReportRow => ({
+    id: `account-${a.id}`,
+    student: a.student,
+    prn: a.prn,
+    department: a.department,
+    course: a.course,
+    division: a.division || "",
+    reference: feeStructureLabel(a.feeStructure),
+    amount: Number(a.totalFee),
+    paid: Number(a.paid),
+    pending: Number(a.pending),
+    status: a.status,
+    date: a.lastPayment || "",
+  });
+  const dueRow = (d: api.Due): ReportRow => ({
+    id: `due-${d.accountId}`,
+    student: d.student,
+    prn: d.prn,
+    department: d.department,
+    course: "",
+    division: "",
+    reference: "Pending fee",
+    amount: Number(d.totalFee),
+    paid: Number(d.paid),
+    pending: Number(d.pending),
+    status: d.urgency,
+    date: d.dueDate,
+  });
+  const source: ReportRow[] =
+    kind === "collection"
+      ? data.history.filter((p) => p.status === "VERIFIED").map(paymentRow)
+      : kind === "dues"
+        ? data.dues.map(dueRow)
+        : kind === "fully-paid"
+          ? data.accounts.content.filter((a) => a.status === "FULLY_PAID").map(accountRow)
+          : kind === "partial"
+            ? data.accounts.content.filter((a) => a.status === "PARTIALLY_PAID").map(accountRow)
+            : data.rejected.map(paymentRow);
+  const rows = source.filter(
+    (row) =>
+      (!department || row.department === department) &&
+      (!course || row.course === course) &&
+      (!division || row.division === division) &&
+      (!from || !row.date || row.date >= from) &&
+      (!to || !row.date || row.date <= to),
+  );
+  const matchesAppliedScope = (row: {
+    department: string;
+    course: string;
+    division?: string | null;
+  }) =>
+    (!department || row.department === department) &&
+    (!course || row.course === course) &&
+    (!division || (row.division || "") === division);
+  const scopedVerifiedPayments = data.history.filter(
+    (payment) => payment.status === "VERIFIED" && matchesAppliedScope(payment),
+  );
+  const scopedAccounts = data.accounts.content.filter(matchesAppliedScope);
+  const localDateKey = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const dailyTrend = Array.from({ length: 14 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (13 - index));
+    const key = localDateKey(date);
+    return {
+      label: date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
+      value: scopedVerifiedPayments
+        .filter((payment) => payment.paymentDate === key)
+        .reduce((sum, payment) => sum + Number(payment.amount), 0),
+    };
+  });
+  const monthlyTrend = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date();
+    date.setDate(1);
+    date.setHours(0, 0, 0, 0);
+    date.setMonth(date.getMonth() - (11 - index));
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    return {
+      label: date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+      value: scopedVerifiedPayments
+        .filter((payment) => payment.paymentDate.startsWith(key))
+        .reduce((sum, payment) => sum + Number(payment.amount), 0),
+    };
+  });
+  const scopedPaidVsPending = [
+    {
+      label: "Collected",
+      value: scopedAccounts.reduce((sum, account) => sum + Number(account.paid), 0),
+    },
+    {
+      label: "Pending",
+      value: scopedAccounts.reduce((sum, account) => sum + Number(account.pending), 0),
+    },
+  ];
+  const pageSize = 8;
+  const reportPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const visibleRows = rows.slice(reportPage * pageSize, reportPage * pageSize + pageSize);
+  const departments = [...new Set(source.map((row) => row.department).filter(Boolean))].sort();
+  const courses = [...new Set(source.map((row) => row.course).filter(Boolean))].sort();
+  const divisions = [...new Set(source.map((row) => row.division).filter(Boolean))].sort();
+  const collected = data.history
+    .filter((p) => p.status === "VERIFIED")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const pending = data.dues.reduce((sum, d) => sum + Number(d.pending), 0);
+  const collectionRate = collected + pending ? (collected / (collected + pending)) * 100 : 0;
+  const tabs: { key: ReportKind; label: string }[] = [
+    { key: "collection", label: "Collection" },
+    { key: "dues", label: "Pending dues" },
+    { key: "fully-paid", label: "Fully paid" },
+    { key: "partial", label: "Partial payments" },
+    { key: "rejected", label: "Rejected" },
+  ];
+  const applyFilters = () => {
+    if (draftFrom && draftTo && draftFrom > draftTo) {
+      toast.error("From date must be before the to date");
+      return;
+    }
+    setDepartment(draftDepartment);
+    setCourse(draftCourse);
+    setDivision(draftDivision);
+    setFrom(draftFrom);
+    setTo(draftTo);
+    setReportPage(0);
   };
-  const csv = (kind: string) => {
-    const rows = kind === "Pending Fees" ? data.dues : data.history;
-    const keys = Object.keys(rows[0] || {});
-    const value = [
+  const resetFilters = () => {
+    setDepartment("");
+    setCourse("");
+    setDivision("");
+    setFrom("");
+    setTo("");
+    setDraftDepartment("");
+    setDraftCourse("");
+    setDraftDivision("");
+    setDraftFrom("");
+    setDraftTo("");
+    setReportPage(0);
+  };
+  const exportRows = rows.map(({ id: _id, ...row }) => row);
+  const downloadCsv = () => {
+    const keys = Object.keys(exportRows[0] || {});
+    const content = [
       keys.join(","),
-      ...rows.map((r) =>
+      ...exportRows.map((row) =>
         keys
           .map(
-            (k) =>
-              `"${String((r as unknown as Record<string, unknown>)[k] ?? "").replaceAll('"', '""')}"`,
+            (key) =>
+              `"${String((row as unknown as Record<string, unknown>)[key] ?? "").replaceAll('"', '""')}"`,
           )
           .join(","),
       ),
     ].join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([value], { type: "text/csv" }));
-    a.download = `${kind}.csv`;
-    a.click();
+    const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${kind}-fee-report.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setExportOpen(false);
   };
-  const reports = [
-    "Department Collection",
-    "Course Collection",
-    "Division Collection",
-    "Daily Collection",
-    "Monthly Collection",
-    "Pending Fees",
-    "Partial Payments",
-    "Fully Paid",
-    "Rejected Payments",
-  ];
+  const downloadExcel = async () => {
+    const { default: XLSX } = await import("xlsx-js-style");
+    const sheet = XLSX.utils.json_to_sheet(exportRows);
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, "Fee Report");
+    XLSX.writeFile(book, `${kind}-fee-report.xlsx`);
+    setExportOpen(false);
+  };
   return (
-    <Panel title="Fee Reports" subtitle="Collection, payment status and pending fee reports">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {reports.map((r) => (
-          <div className="rounded-2xl border p-5" key={r}>
-            <FileText className="h-6 w-6 text-emerald-600" />
-            <p className="mt-3 font-bold">{r} Report</p>
-            <div className="mt-4 flex gap-2">
-              <button className={primary} onClick={() => void exportExcel(r)}>
-                Excel
+    <div className="space-y-5">
+      <section className="flex flex-col justify-between gap-4 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 sm:flex-row sm:items-center">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+            Fee analytics
+          </p>
+          <h2 className="mt-1 text-2xl font-bold text-slate-900">Reports & collection insights</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Explore live fee data, compare performance, and export the current view.
+          </p>
+        </div>
+        <div className="relative">
+          <button
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            onClick={() => setExportOpen((open) => !open)}
+          >
+            <Download className="h-4 w-4" /> Download report
+          </button>
+          {exportOpen && (
+            <div className="absolute right-0 top-12 z-20 w-44 rounded-xl border bg-white p-2 shadow-xl">
+              <button
+                className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50"
+                onClick={() => void downloadExcel()}
+              >
+                Excel workbook
               </button>
-              <button className={secondary} onClick={() => csv(r)}>
-                CSV
+              <button
+                className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50"
+                onClick={downloadCsv}
+              >
+                CSV file
               </button>
-              <button className={secondary} onClick={() => window.print()}>
-                PDF
+              <button
+                className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50"
+                onClick={() => window.print()}
+              >
+                Print / PDF
               </button>
             </div>
+          )}
+        </div>
+      </section>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          ["Total collected", money(collected), "text-emerald-700", "bg-emerald-50"],
+          ["Pending amount", money(pending), "text-amber-700", "bg-amber-50"],
+          ["Collection rate", `${collectionRate.toFixed(1)}%`, "text-blue-700", "bg-blue-50"],
+          ["Verified payments", data.summary.verifiedPayments, "text-indigo-700", "bg-indigo-50"],
+          ["Rejected payments", data.summary.rejectedPayments, "text-rose-700", "bg-rose-50"],
+        ].map(([label, value, color, background]) => (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" key={label}>
+            <span className={`grid h-9 w-9 place-items-center rounded-xl ${background}`}>
+              <BadgeIndianRupee className={`h-4 w-4 ${color}`} />
+            </span>
+            <p className="mt-3 text-xl font-bold text-slate-900">{value}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
           </div>
         ))}
       </div>
-    </Panel>
+
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-blue-600 text-xs font-bold text-white">
+              1
+            </span>
+            <div>
+              <h3 className="font-bold text-slate-900">Select academic scope</h3>
+              <p className="text-xs text-slate-500">Choose department, course year and division.</p>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Department</span>
+              <select
+                className={`${input} w-full`}
+                value={draftDepartment}
+                onChange={(event) => setDraftDepartment(event.target.value)}
+              >
+                <option value="">All departments</option>
+                {departments.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Course year</span>
+              <select
+                className={`${input} w-full`}
+                value={draftCourse}
+                onChange={(event) => setDraftCourse(event.target.value)}
+              >
+                <option value="">All course years</option>
+                {courses.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Division</span>
+              <select
+                className={`${input} w-full`}
+                value={draftDivision}
+                onChange={(event) => setDraftDivision(event.target.value)}
+              >
+                <option value="">All divisions</option>
+                {divisions.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-blue-600 text-xs font-bold text-white">
+              2
+            </span>
+            <div>
+              <h3 className="font-bold text-slate-900">Select date range</h3>
+              <p className="text-xs text-slate-500">
+                Limit the report to a specific reporting period.
+              </p>
+            </div>
+          </div>
+          <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">From date</span>
+              <input
+                className={`${input} w-full`}
+                type="date"
+                value={draftFrom}
+                onChange={(event) => setDraftFrom(event.target.value)}
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">To date</span>
+              <input
+                className={`${input} w-full`}
+                type="date"
+                value={draftTo}
+                onChange={(event) => setDraftTo(event.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+          <button className={`${secondary} sm:min-w-32`} onClick={resetFilters}>
+            Reset filters
+          </button>
+          <button
+            className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 sm:min-w-36"
+            onClick={applyFilters}
+          >
+            Apply filters
+          </button>
+        </div>
+      </section>
+
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {tabs.map((tab) => (
+          <button
+            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${kind === tab.key ? "bg-blue-600 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:bg-blue-50"}`}
+            key={tab.key}
+            onClick={() => {
+              setKind(tab.key);
+              setReportPage(0);
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.45fr_.85fr]">
+        <Panel
+          title="Collection trend"
+          subtitle="Applied academic scope across the full daily or monthly timeline"
+        >
+          <div className="mb-3 flex justify-end gap-1">
+            {(["daily", "monthly"] as const).map((range) => (
+              <button
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${chartRange === range ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}
+                key={range}
+                onClick={() => setChartRange(range)}
+              >
+                {range[0].toUpperCase() + range.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="h-72">
+            <ResponsiveContainer>
+              <AreaChart data={chartRange === "daily" ? dailyTrend : monthlyTrend}>
+                <defs>
+                  <linearGradient id="reportCollection" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" />
+                <YAxis />
+                <Tooltip formatter={(value) => money(Number(value))} />
+                <Area
+                  dataKey="value"
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  fill="url(#reportCollection)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+        <Panel title="Paid vs pending" subtitle="Current balances for the applied academic scope">
+          <div className="h-[322px]">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={scopedPaidVsPending}
+                  dataKey="value"
+                  nameKey="label"
+                  innerRadius={70}
+                  outerRadius={105}
+                  paddingAngle={3}
+                >
+                  <Cell fill="#2563eb" />
+                  <Cell fill="#f59e0b" />
+                </Pie>
+                <Tooltip formatter={(value) => money(Number(value))} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel
+        title={`${tabs.find((tab) => tab.key === kind)?.label} report`}
+        subtitle={`${rows.length} records in the current view`}
+      >
+        <Table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Department</th>
+              <th>Reference</th>
+              <th>Total</th>
+              <th>Paid</th>
+              <th>Pending</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRows.map((row) => (
+              <tr className="bg-white" key={row.id}>
+                <td>
+                  <StudentIdentity name={row.student} prn={row.prn} />
+                </td>
+                <td>
+                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold">
+                    {row.department}
+                  </span>
+                </td>
+                <td className="font-mono text-xs text-slate-600">{row.reference}</td>
+                <td className="whitespace-nowrap font-semibold">{money(row.amount)}</td>
+                <td className="whitespace-nowrap font-bold text-emerald-700">{money(row.paid)}</td>
+                <td className="whitespace-nowrap font-bold text-amber-700">{money(row.pending)}</td>
+                <td>
+                  <Badge value={row.status} />
+                </td>
+                <td className="whitespace-nowrap text-sm text-slate-500">{row.date || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+        {!visibleRows.length && (
+          <Empty title="No report data" text="Adjust the filters or select another report." />
+        )}
+        <Pager page={reportPage} pages={reportPages} setPage={setReportPage} />
+      </Panel>
+    </div>
   );
 }
 function PaymentReview({
@@ -775,7 +1229,35 @@ function PaymentReview({
   reload: () => Promise<void>;
 }) {
   const [zoom, setZoom] = useState(false),
-    [remarks, setRemarks] = useState("");
+    [remarks, setRemarks] = useState(""),
+    [proof, setProof] = useState<{ url: string; type: string } | null>(null),
+    [proofError, setProofError] = useState(""),
+    [proofLoading, setProofLoading] = useState(true),
+    [proofRetry, setProofRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    setProof(null);
+    setProofError("");
+    setProofLoading(true);
+    void api
+      .paymentProof(p.id)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setProof({ url: objectUrl, type: blob.type });
+      })
+      .catch((error) => {
+        if (active) setProofError(handleApiError(error).message);
+      })
+      .finally(() => {
+        if (active) setProofLoading(false);
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [p.id, proofRetry]);
   const act = async (type: string) => {
     try {
       if (type === "verify") await api.verify(p.id, remarks);
@@ -828,19 +1310,49 @@ function PaymentReview({
             )}
           </Panel>
           <Panel title="Payment Screenshot" subtitle="Click to zoom and inspect the uploaded proof">
-            <button
-              className="relative block w-full overflow-hidden rounded-2xl bg-slate-100"
-              onClick={() => setZoom(!zoom)}
-            >
-              <img
-                src={p.proofUrl}
-                alt="Payment proof"
-                className={`mx-auto object-contain ${zoom ? "max-h-none" : "max-h-[560px]"}`}
+            {proofLoading && (
+              <div className="grid min-h-80 place-items-center rounded-2xl bg-slate-50 text-sm font-medium text-slate-500">
+                Loading payment proof...
+              </div>
+            )}
+            {!proofLoading && proofError && (
+              <div className="grid min-h-80 place-items-center rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center">
+                <div>
+                  <p className="font-semibold text-rose-700">
+                    Payment proof could not be displayed
+                  </p>
+                  <p className="mt-1 text-sm text-rose-600">{proofError}</p>
+                  <button
+                    className={`${secondary} mt-4`}
+                    onClick={() => setProofRetry((value) => value + 1)}
+                  >
+                    <RefreshCw className="h-4 w-4" /> Retry
+                  </button>
+                </div>
+              </div>
+            )}
+            {proof && proof.type === "application/pdf" && (
+              <iframe
+                src={proof.url}
+                title="Payment proof"
+                className="h-[560px] w-full rounded-2xl border border-slate-200"
               />
-              <span className="absolute right-3 top-3 rounded-lg bg-slate-950/70 p-2 text-white">
-                <Maximize2 className="h-4 w-4" />
-              </span>
-            </button>
+            )}
+            {proof && proof.type !== "application/pdf" && (
+              <button
+                className="relative block min-h-80 w-full overflow-auto rounded-2xl bg-slate-100"
+                onClick={() => setZoom(!zoom)}
+              >
+                <img
+                  src={proof.url}
+                  alt="Payment proof"
+                  className={`mx-auto object-contain ${zoom ? "max-h-none" : "max-h-[560px]"}`}
+                />
+                <span className="absolute right-3 top-3 rounded-lg bg-slate-950/70 p-2 text-white">
+                  <Maximize2 className="h-4 w-4" />
+                </span>
+              </button>
+            )}
           </Panel>
           <Panel title="Payment Details" subtitle="Verify against the uploaded screenshot">
             <Info label="Amount Paid" value={money(p.amount)} />
@@ -926,25 +1438,11 @@ function AccountModal({
           <Metric label="Paid" value={money(a.paid)} />
           <Metric label="Pending" value={money(a.pending)} />
         </div>
-        <h3 className="mt-7 font-bold">Installments</h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          {d.installments.map((i) => (
-            <div className="rounded-xl border p-4" key={i.number}>
-              <p className="font-bold">
-                {i.number}
-                {i.number === 1 ? "st" : i.number === 2 ? "nd" : "rd"} Installment
-              </p>
-              <p>{money(i.amount)}</p>
-              <p className="text-xs text-slate-500">Due {i.dueDate}</p>
-              <Badge value={i.status} />
-            </div>
-          ))}
-        </div>
         <h3 className="mt-7 font-bold">Payment Timeline & Receipts</h3>
         <div className="mt-3 space-y-3">
           {d.payments.map((p) => (
             <div
-              className="flex flex-col justify-between gap-3 rounded-xl bg-slate-50 p-4 sm:flex-row sm:items-center"
+              className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-[minmax(0,1fr)_140px_180px] sm:items-center"
               key={p.id}
             >
               <div>
@@ -955,8 +1453,10 @@ function AccountModal({
                   {p.transactionId} · {p.paymentDate}
                 </p>
               </div>
-              <Badge value={p.status} />
-              <div className="flex gap-2">
+              <div className="sm:flex sm:justify-center">
+                <Badge value={p.status} />
+              </div>
+              <div className="flex gap-2 sm:justify-end">
                 <button className={secondary} onClick={() => payment(p)}>
                   View
                 </button>
@@ -1020,7 +1520,15 @@ function Chart({
           ) : (
             <AreaChart data={rows}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" />
+              <XAxis
+                dataKey="label"
+                interval={0}
+                minTickGap={0}
+                height={48}
+                angle={-28}
+                textAnchor="end"
+                tick={{ fontSize: 11 }}
+              />
               <YAxis />
               <Tooltip formatter={(v) => money(Number(v))} />
               <Area dataKey="value" stroke="#059669" fill="#d1fae5" />
@@ -1031,29 +1539,29 @@ function Chart({
     </Panel>
   );
 }
-function Widget({ title, rows, go }: { title: string; rows: api.Payment[]; go: () => void }) {
+function StudentIdentity({ name, prn }: { name: string; prn: string }) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
   return (
-    <Panel title={title} subtitle="Latest records">
-      <div className="space-y-3">
-        {rows.slice(0, 6).map((p) => (
-          <div key={p.id}>
-            <p className="truncate text-sm font-semibold">{p.student}</p>
-            <p className="text-xs text-slate-500">
-              {money(p.amount)} · {p.status.replaceAll("_", " ")}
-            </p>
-          </div>
-        ))}
-        {!rows.length && <p className="text-sm text-slate-400">No records</p>}
+    <div className="flex min-w-56 items-center gap-3">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-100 text-sm font-bold text-blue-700">
+        {initials}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate font-semibold text-slate-900">{name}</p>
+        <p className="mt-1 font-mono text-[11px] text-slate-500">{prn}</p>
       </div>
-      <button className={`${secondary} mt-4 w-full`} onClick={go}>
-        View all
-      </button>
-    </Panel>
+    </div>
   );
 }
 function Table({ children }: { children: React.ReactNode }) {
   return (
-    <div className="responsive-table">
+    <div className="responsive-table rounded-2xl border border-slate-200">
       <table className="w-full">{children}</table>
     </div>
   );

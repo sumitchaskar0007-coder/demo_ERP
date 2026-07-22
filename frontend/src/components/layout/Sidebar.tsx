@@ -139,7 +139,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                 icon: BarChart3,
               },
               { label: "Notices", to: ROUTES.notices, icon: Bell },
-              { label: "Account", to: ROUTES.account, icon: UserRound },
               { label: "Profile", to: ROUTES.profile, icon: UserRound },
             ]
           : isStudent

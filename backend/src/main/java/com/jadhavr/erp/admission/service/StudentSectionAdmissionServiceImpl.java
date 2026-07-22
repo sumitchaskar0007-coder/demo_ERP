@@ -38,6 +38,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,6 +68,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private final FeeService feeService;
     private final AcademicClassRepository courseYears;
     private final AdmissionDocumentRepository documents;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public StudentSectionAdmissionServiceImpl(
@@ -77,7 +79,8 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
             AdmissionStatusHistoryMapper historyMapper,
             AdmissionPrintMapper printMapper, FeeService feeService,
             AcademicClassRepository courseYears,
-            AdmissionDocumentRepository documents) {
+            AdmissionDocumentRepository documents,
+            PasswordEncoder passwordEncoder) {
         this.admissions = admissions;
         this.histories = histories;
         this.users = users;
@@ -87,12 +90,14 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         this.feeService = feeService;
         this.courseYears = courseYears;
         this.documents = documents;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public StudentSectionAdmissionServiceImpl(AdmissionFormRepository admissions, AdmissionStatusHistoryRepository histories,
             UserRepository users, StudentSectionAdmissionMapper admissionMapper,
             AdmissionStatusHistoryMapper historyMapper, AdmissionPrintMapper printMapper) {
-        this(admissions, histories, users, admissionMapper, historyMapper, printMapper, null, null, null);
+        this(admissions, histories, users, admissionMapper, historyMapper, printMapper,
+                null, null, null, new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder());
     }
 
     @Override
@@ -284,6 +289,10 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         admission.setStudentSectionVerifiedBy(currentUser);
         admission.setStudentSectionRemarks(trimToNull(request.remarks()));
         admission.getStudent().setStatus(StudentStatus.UNDER_REVIEW);
+        User studentUser = admission.getStudentUser();
+        boolean stillUsingTemporaryPassword = admission.getPhone() != null
+                && passwordEncoder.matches(admission.getPhone().trim(), studentUser.getPasswordHash());
+        studentUser.setMustChangePassword(stillUsingTemporaryPassword);
         AdmissionForm saved = admissions.save(admission);
         if (feeService != null) feeService.createAccountForAdmission(saved);
         saveHistory(saved, oldStatus, saved.getStatus(),

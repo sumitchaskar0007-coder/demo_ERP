@@ -19,6 +19,7 @@ public class CustomUserDetails implements UserDetails {
     private final UserStatus status;
     private final LocalDateTime lockedUntil;
     private final long sessionVersion;
+    private final boolean mustChangePassword;
     private final List<GrantedAuthority> authorities;
 
     public CustomUserDetails(User user) {
@@ -30,6 +31,7 @@ public class CustomUserDetails implements UserDetails {
         status = user.getStatus();
         lockedUntil = user.getLockedUntil();
         sessionVersion = user.getSessionVersion();
+        mustChangePassword = user.isMustChangePassword();
         authorities = user.getRoles().stream().flatMap(role -> Stream.concat(
                         Stream.of(new SimpleGrantedAuthority("ROLE_" + role.getName().name())),
                         permissions(role.getName()).stream().map(SimpleGrantedAuthority::new)))
@@ -39,6 +41,7 @@ public class CustomUserDetails implements UserDetails {
     public Long getCollegeId() { return collegeId; }
     public String getFullName() { return fullName; }
     public long getSessionVersion() { return sessionVersion; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
     @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
     @Override public String getPassword() { return password; }
     @Override public String getUsername() { return email; }

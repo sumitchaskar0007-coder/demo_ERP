@@ -2,6 +2,7 @@ package com.jadhavr.erp.analytics.repository;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -110,8 +111,9 @@ public class AdminAnalyticsReadRepository {
                       and (:courseYearId is null or e.academic_class_id=:courseYearId)
                       and (:divisionId is null or e.section_id=:divisionId)))
                 group by a.status order by a.status
-                """, parameters, rs -> {
+                """, parameters, (ResultSetExtractor<Void>) rs -> {
             while (rs.next()) admissionDistribution.put(rs.getString("status"), rs.getLong("value"));
+            return null;
         });
 
         List<Map<String, Object>> pendingFees = jdbc.query("""

@@ -157,7 +157,7 @@ class AdmissionServiceImplTest {
 
         var result = service.submitAdmission("abc001", request());
 
-        assertEquals(AdmissionStatus.STUDENT_DETAILS_PENDING, result.status());
+        assertEquals(AdmissionStatus.SUBMITTED, result.status());
         assertEquals(20L, result.studentUserId());
         assertEquals(30L, result.studentProfileId());
         assertTrue(result.admissionReferenceNumber().startsWith("ADM-ABC001-"));
@@ -171,7 +171,7 @@ class AdmissionServiceImplTest {
         assertEquals(RoleName.STUDENT, savedUser.getRoles().iterator().next().getName());
         assertNotEquals(result.temporaryPassword(), savedUser.getPasswordHash());
         assertTrue(passwordEncoder.matches(result.temporaryPassword(), savedUser.getPasswordHash()));
-        assertTrue(savedUser.isMustChangePassword());
+        assertFalse(savedUser.isMustChangePassword());
 
         ArgumentCaptor<StudentProfile> profileCaptor = ArgumentCaptor.forClass(StudentProfile.class);
         verify(studentProfileRepository).save(profileCaptor.capture());
@@ -180,7 +180,7 @@ class AdmissionServiceImplTest {
 
         ArgumentCaptor<AdmissionForm> admissionCaptor = ArgumentCaptor.forClass(AdmissionForm.class);
         verify(admissionFormRepository).save(admissionCaptor.capture());
-        assertEquals(AdmissionStatus.STUDENT_DETAILS_PENDING, admissionCaptor.getValue().getStatus());
+        assertEquals(AdmissionStatus.SUBMITTED, admissionCaptor.getValue().getStatus());
         assertEquals(StudentCategory.SC, admissionCaptor.getValue().getStudentCategory());
     }
 

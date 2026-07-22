@@ -56,6 +56,13 @@ public class FeeSectionController {
         return ApiResponse.success("Pending fee reminder queued to the student email", null);
     }
 
+    @PostMapping("/fee-accounts/send-reminders")
+    @PreAuthorize("hasRole('FEE_SECTION')")
+    public ApiResponse<Integer> reminders() {
+        int students = service.sendPendingFeeReminders();
+        return ApiResponse.success("Pending fee reminders processed", students);
+    }
+
     @GetMapping("/fee-accounts/{id}/transactions")
     public ApiResponse<List<FeeTransactionResponse>> transactions(@PathVariable Long id) {
         return ApiResponse.success("Transactions retrieved", service.accountTransactions(id));

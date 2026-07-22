@@ -42,6 +42,7 @@ import {
   PaymentDetailsPage,
   PaymentsPage,
 } from "@/pages/fees/FeeSectionPages";
+import { FeeOfficerWorkspacePage } from "@/pages/fees/FeeOfficerWorkspacePage";
 import { StaffListPage } from "@/pages/staff/StaffListPage";
 import { CreateStaffPage } from "@/pages/staff/CreateStaffPage";
 import {
@@ -330,6 +331,7 @@ export function AppRouter() {
                 <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
               </Route>
               <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
+                <Route path={ROUTES.feeOfficerWorkspace} element={<FeeOfficerWorkspacePage />} />
                 <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
                 <Route path={ROUTES.feeAccounts} element={<FeeAccountsPage />} />
                 <Route

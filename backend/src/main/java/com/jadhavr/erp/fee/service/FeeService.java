@@ -31,6 +31,7 @@ public interface FeeService {
     StudentFeeAccountResponse getAccount(Long id);
     AdmissionFeeSummaryResponse getAdmissionFeeSummary(Long admissionId);
     void sendPendingFeeReminder(Long id);
+    int sendPendingFeeReminders();
     PageResponse<PaymentResponse> searchPayments(String keyword, Long collegeId, Long departmentId,
             PaymentStatus status, int page, int size);
     PaymentResponse getPayment(Long id);

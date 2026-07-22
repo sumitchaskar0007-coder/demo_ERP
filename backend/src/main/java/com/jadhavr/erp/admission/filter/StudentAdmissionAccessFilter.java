@@ -65,6 +65,14 @@ public class StudentAdmissionAccessFilter extends OncePerRequestFilter {
         AdmissionForm admission = admissions.findTopByStudentUserIdOrderByCreatedAtDesc(user.getId())
                 .orElse(null);
         if (admission != null && UNLOCKED.contains(admission.getStatus())) {
+            if (user.isMustChangePassword()) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                objectMapper.writeValue(response.getOutputStream(), new ErrorResponse(
+                        "Change your temporary password before accessing student features",
+                        request.getRequestURI()));
+                return;
+            }
             chain.doFilter(request, response);
             return;
         }

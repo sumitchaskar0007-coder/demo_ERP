@@ -47,6 +47,7 @@ export function TeacherWorkspacePage() {
   const tab = params.get("tab") || "overview";
   const [data, setData] = useState<api.Workspace | null>(null),
     [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState(""),
     [below, setBelow] = useState(""),
     [gender, setGender] = useState(""),
@@ -76,6 +77,27 @@ export function TeacherWorkspacePage() {
     const timer = setTimeout(() => void load(), search ? 250 : 0);
     return () => clearTimeout(timer);
   }, [load, search]);
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      setData(
+        await api.getWorkspace({
+          search: search || undefined,
+          attendanceBelow: below || undefined,
+          gender: gender || undefined,
+          divisionId: division || undefined,
+          page,
+          size: 20,
+          refresh: Date.now(),
+        }),
+      );
+      toast.success("Dashboard refreshed");
+    } catch (e) {
+      toast.error(handleApiError(e).message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const setTab = (next: string) => setParams({ tab: next });
   if (loading && !data) return <Skeleton />;
   if (!data)
@@ -105,11 +127,13 @@ export function TeacherWorkspacePage() {
             </p>
           </div>
           <button
-            onClick={() => void load()}
-            className="rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur-sm transition hover:bg-white/25"
+            type="button"
+            onClick={() => void refresh()}
+            disabled={refreshing}
+            className="rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur-sm transition hover:bg-white/25 disabled:cursor-wait disabled:opacity-70"
           >
-            <RefreshCw className="mr-2 inline h-4 w-4" />
-            Refresh
+            <RefreshCw className={`mr-2 inline h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
       </header>

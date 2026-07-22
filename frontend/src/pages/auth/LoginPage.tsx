@@ -20,7 +20,13 @@ import { BrandLogo } from "@/components/common/BrandLogo";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { useAuth } from "@/features/auth/authStore";
-import { APP_NAME, ROUTES, defaultRouteForRoles, isRouteAllowedForRoles } from "@/lib/constants";
+import {
+  APP_NAME,
+  ROLES,
+  ROUTES,
+  defaultRouteForRoles,
+  isRouteAllowedForRoles,
+} from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
 import { loginSchema } from "@/lib/validators";
 
@@ -62,7 +68,17 @@ export function LoginPage() {
     defaultValues: { email: rememberedEmail, password: "" },
   });
 
-  if (isAuthenticated) return <Navigate to={defaultRouteForRoles(user?.roles)} replace />;
+  if (isAuthenticated)
+    return (
+      <Navigate
+        to={
+          user?.mustChangePassword && !user.roles.includes(ROLES.STUDENT)
+            ? ROUTES.changePassword
+            : defaultRouteForRoles(user?.roles)
+        }
+        replace
+      />
+    );
 
   const onSubmit = async (values: LoginForm) => {
     try {
@@ -71,7 +87,10 @@ export function LoginPage() {
 
       const authenticatedUser = await login(values);
       toast.success(`Welcome to ${APP_NAME}`);
-      if (authenticatedUser.mustChangePassword) {
+      if (
+        authenticatedUser.mustChangePassword &&
+        !authenticatedUser.roles.includes(ROLES.STUDENT)
+      ) {
         navigate(ROUTES.changePassword, { replace: true });
         return;
       }
