@@ -39,7 +39,9 @@ export function DonutChartCard({
                 <Cell key={item.name} fill={item.color} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => Array.isArray(value) ? value.join(", ") : Number(value ?? 0)} />
+            <Tooltip
+              formatter={(value) => (Array.isArray(value) ? value.join(", ") : Number(value ?? 0))}
+            />
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 grid place-items-center">

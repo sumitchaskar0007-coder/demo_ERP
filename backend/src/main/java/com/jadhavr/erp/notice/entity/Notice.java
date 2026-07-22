@@ -18,6 +18,9 @@ public class Notice extends BaseAuditEntity {
     private String title;
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'NORMAL'")
+    private NoticePriority priority = NoticePriority.NORMAL;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private User createdBy;
@@ -43,6 +46,8 @@ public class Notice extends BaseAuditEntity {
     public void setTitle(String title) { this.title = title; }
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
+    public NoticePriority getPriority() { return priority; }
+    public void setPriority(NoticePriority value) { priority = value == null ? NoticePriority.NORMAL : value; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
     public Set<com.jadhavr.erp.college.entity.College> getColleges() { return colleges; }

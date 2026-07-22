@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record DetailedAdmissionRequest(
+        @NotNull Long courseYearId,
         @NotBlank @Size(min = 2, max = 150) String fullName,
         @NotBlank @Email @Size(max = 150) String email,
         @NotBlank @Size(max = 20) String phone,

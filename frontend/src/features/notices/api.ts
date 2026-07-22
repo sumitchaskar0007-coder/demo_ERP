@@ -17,3 +17,6 @@ export async function sendNotice(request: CreateNoticeRequest) {
 export async function deleteNotice(id: number) {
   await apiClient.delete(`/api/notices/${id}`);
 }
+export async function acknowledgeNotice(id: number) {
+  await apiClient.post(`/api/notices/${id}/acknowledge`);
+}

@@ -1,22 +1,30 @@
 package com.jadhavr.erp.admission.service;
 
 import com.jadhavr.erp.admission.dto.AdmissionDepartmentOptionResponse;
+import com.jadhavr.erp.admission.dto.AdmissionCourseYearOptionResponse;
 import com.jadhavr.erp.admission.dto.AdmissionResponse;
+import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.dto.PublicAdmissionInfoResponse;
+import com.jadhavr.erp.admission.dto.StudentAdmissionAccessResponse;
+import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.dto.SubmitAdmissionRequest;
 import com.jadhavr.erp.admission.dto.SubmitAdmissionResponse;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.entity.AdmissionAcademicRecord;
 import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
-import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
-import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.enums.AdmissionAction;
-import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
-import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.mapper.AdmissionMapper;
+import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
+import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
+import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
+import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
+import com.jadhavr.erp.academic.entity.AcademicClass;
+import com.jadhavr.erp.academic.enums.AcademicStatus;
+import com.jadhavr.erp.academic.enums.CourseYearName;
+import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
@@ -45,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
@@ -71,19 +80,42 @@ public class AdmissionServiceImpl implements AdmissionService {
     private final AdmissionFormRepository admissionFormRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdmissionMapper admissionMapper;
+    private final StudentSectionAdmissionMapper detailedAdmissionMapper;
+    private final AdmissionStatusHistoryRepository statusHistories;
+    private final AcademicClassRepository courseYears;
+    private final AdmissionDocumentRepository documents;
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
-    private StudentSectionAdmissionMapper detailedAdmissionMapper;
-    private AdmissionStatusHistoryRepository admissionHistories;
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
 
-    @Autowired(required = false)
-    public void setStudentOnboardingDependencies(StudentSectionAdmissionMapper mapper,
-            AdmissionStatusHistoryRepository histories) {
-        this.detailedAdmissionMapper = mapper;
-        this.admissionHistories = histories;
+    @Autowired
+    public AdmissionServiceImpl(
+            CollegeRepository collegeRepository,
+            DepartmentRepository departmentRepository,
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            StudentProfileRepository studentProfileRepository,
+            AdmissionFormRepository admissionFormRepository,
+            PasswordEncoder passwordEncoder,
+            AdmissionMapper admissionMapper,
+            StudentSectionAdmissionMapper detailedAdmissionMapper,
+            AdmissionStatusHistoryRepository statusHistories,
+            AcademicClassRepository courseYears,
+            AdmissionDocumentRepository documents) {
+        this.collegeRepository = collegeRepository;
+        this.departmentRepository = departmentRepository;
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.studentProfileRepository = studentProfileRepository;
+        this.admissionFormRepository = admissionFormRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.admissionMapper = admissionMapper;
+        this.detailedAdmissionMapper = detailedAdmissionMapper;
+        this.statusHistories = statusHistories;
+        this.courseYears = courseYears;
+        this.documents = documents;
     }
 
     public AdmissionServiceImpl(
@@ -94,15 +126,12 @@ public class AdmissionServiceImpl implements AdmissionService {
             StudentProfileRepository studentProfileRepository,
             AdmissionFormRepository admissionFormRepository,
             PasswordEncoder passwordEncoder,
-            AdmissionMapper admissionMapper) {
-        this.collegeRepository = collegeRepository;
-        this.departmentRepository = departmentRepository;
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.studentProfileRepository = studentProfileRepository;
-        this.admissionFormRepository = admissionFormRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.admissionMapper = admissionMapper;
+            AdmissionMapper admissionMapper,
+            StudentSectionAdmissionMapper detailedAdmissionMapper,
+            AdmissionStatusHistoryRepository statusHistories) {
+        this(collegeRepository, departmentRepository, userRepository, roleRepository,
+                studentProfileRepository, admissionFormRepository, passwordEncoder, admissionMapper,
+                detailedAdmissionMapper, statusHistories, null, null);
     }
 
     @Override
@@ -125,7 +154,8 @@ public class AdmissionServiceImpl implements AdmissionService {
                 college.getId(),
                 college.getName(),
                 college.getCode(),
-                college.getLogoUrl(),
+                college.getLogoUrl() == null ? null
+                        : "/api/public/admissions/college/" + college.getCode() + "/logo",
                 college.getContactEmail(),
                 college.getContactPhone(),
                 college.getAddress(),
@@ -199,7 +229,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         admissionForm.setAcademicYear(academicYear());
         admissionForm.setStudentCategory(request.studentCategory());
         copyAdmissionFields(admissionForm, request, fullName, email);
-        admissionForm.setStatus(AdmissionStatus.STUDENT_DETAILS_PENDING);
+        admissionForm.setStatus(AdmissionStatus.SUBMITTED);
         admissionForm.setSource(AdmissionSource.PUBLIC_LINK);
         admissionForm.setSubmittedAt(LocalDateTime.now());
         AdmissionForm savedAdmission = admissionFormRepository.save(admissionForm);
@@ -218,55 +248,125 @@ public class AdmissionServiceImpl implements AdmissionService {
                 email,
                 temporaryPassword,
                 "/login",
-                "Registration completed. Log in with these credentials and complete the detailed admission form."
+                "Admission submitted successfully. Please save your login credentials."
         );
     }
 
     @Override
     @Transactional(readOnly = true)
     public AdmissionResponse getMyLatestAdmission() {
-        Long userId = currentUserId();
-        StudentProfile profile = studentProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student profile not found"));
-        AdmissionForm admissionForm = admissionFormRepository
-                .findTopByStudentIdOrderByCreatedAtDesc(profile.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
-        return admissionMapper.toResponse(admissionForm);
+        return admissionMapper.toResponse(findMyAdmission());
     }
 
     @Override
     @Transactional(readOnly = true)
     public StudentSectionAdmissionResponse getMyDetailedAdmission() {
-        return detailedAdmissionMapper.toResponse(myAdmission());
+        return detailedAdmissionMapper.toResponse(findMyAdmission());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StudentAdmissionAccessResponse getMyAdmissionAccess() {
+        AdmissionForm admission = findMyAdmission();
+        AdmissionStatus status = admission.getStatus();
+        boolean completed = admission.getDetailsCompletedAt() != null;
+        boolean editable = studentCanEdit(admission);
+        boolean accessGranted = studentAccessGranted(status);
+        boolean pending = completed && !editable && !accessGranted;
+        return new StudentAdmissionAccessResponse(
+                admission.getId(), status, completed, editable, pending, accessGranted,
+                admission.getRejectionReason());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdmissionCourseYearOptionResponse> getMyCourseYearOptions() {
+        AdmissionForm admission = findMyAdmission();
+        return courseYears.findByCollegeIdAndDepartmentIdAndStatus(
+                        admission.getCollege().getId(), admission.getDepartment().getId(), AcademicStatus.ACTIVE)
+                .stream()
+                .filter(year -> year.getYearName() == CourseYearName.FIRST_YEAR
+                        || year.getYearName() == CourseYearName.SECOND_YEAR
+                        || year.getYearName() == CourseYearName.THIRD_YEAR)
+                .sorted(java.util.Comparator.comparing(AcademicClass::getYearName))
+                .map(year -> new AdmissionCourseYearOptionResponse(
+                        year.getId(), year.getYearName(), year.getName(), year.getAcademicYear()))
+                .toList();
     }
 
     @Override
     @Transactional
-    public StudentSectionAdmissionResponse submitMyDetailedAdmission(DetailedAdmissionRequest request) {
-        AdmissionForm admission = myAdmission();
-        boolean correctionResubmission = admission.getStatus() == AdmissionStatus.STUDENT_SECTION_REJECTED;
-        if (admission.getStatus() != AdmissionStatus.STUDENT_DETAILS_PENDING && !correctionResubmission) {
-            throw new BadRequestException("The detailed admission form cannot be edited in its current status");
+    public StudentSectionAdmissionResponse submitMyAdmissionDetails(DetailedAdmissionRequest request) {
+        AdmissionForm admission = findMyAdmission();
+        if (!studentCanEdit(admission)) {
+            throw new BadRequestException("The admission form is read-only while it is pending or approved");
         }
-        if (admission.getPhotoStorageName() == null
-                || admission.getTenthMarksheetStorageName() == null
-                || admission.getTwelfthMarksheetStorageName() == null
-                || admission.getLeavingCertificateStorageName() == null
-                || admission.getAadhaarCardStorageName() == null) {
-            throw new BadRequestException("Upload your passport photo, 10th marksheet, 12th marksheet, leaving certificate, and Aadhaar card before submitting");
+        if (admission.getPhotoStorageName() == null) {
+            throw new BadRequestException("Upload the passport-size photo before submitting the admission form");
         }
-        boolean tenthPresent = request.academicRecords() != null && request.academicRecords().stream()
-                .anyMatch(record -> "10TH".equalsIgnoreCase(record.qualification()) && validMarks(record));
-        boolean twelfthPresent = request.academicRecords() != null && request.academicRecords().stream()
-                .anyMatch(record -> "12TH".equalsIgnoreCase(record.qualification()) && validMarks(record));
-        if (!tenthPresent || !twelfthPresent) {
-            throw new BadRequestException("Enter both 10th and 12th academic marks before submitting");
+        if (documents != null) {
+            Set<AdmissionDocumentType> missingDocuments = AdmissionDocumentType.requiredTypes();
+            missingDocuments.removeAll(documents.findTypesByAdmissionId(admission.getId()));
+            if (!missingDocuments.isEmpty()) {
+                throw new BadRequestException("Upload all required admission documents before submitting");
+            }
         }
-        String email = normalizeEmail(request.email());
-        userRepository.findByEmail(email)
-                .filter(existing -> !existing.getId().equals(admission.getStudentUser().getId()))
-                .ifPresent(existing -> { throw new DuplicateResourceException("Email address is already used by another account"); });
 
+        String email = normalizeEmail(request.email());
+        if (!email.equalsIgnoreCase(admission.getStudentUser().getEmail())) {
+            throw new BadRequestException("The login email cannot be changed from the admission form");
+        }
+
+        AdmissionStatus oldStatus = admission.getStatus();
+        copyDetailedFields(admission, request, email);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        admission.setSubmittedAt(LocalDateTime.now());
+        admission.setStatus(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
+        admission.setRejectionReason(null);
+        admission.setStudentSectionRejectedAt(null);
+        admission.setStudentSectionRejectedBy(null);
+        admission.setStudentSectionVerifiedAt(null);
+        admission.setStudentSectionVerifiedBy(null);
+        admission.setStudentSectionRemarks(null);
+        admission.setPrincipalApprovedAt(null);
+        admission.getStudent().setStatus(StudentStatus.ADMISSION_SUBMITTED);
+
+        AdmissionForm saved = admissionFormRepository.save(admission);
+        saveStudentSubmissionHistory(saved, oldStatus,
+                oldStatus == AdmissionStatus.SUBMITTED
+                        ? "Detailed admission form submitted by student"
+                        : "Rejected admission form corrected and resubmitted by student");
+        return detailedAdmissionMapper.toResponse(saved);
+    }
+
+    private AdmissionForm findMyAdmission() {
+        Long userId = currentUserId();
+        AdmissionForm admission = admissionFormRepository
+                .findTopByStudentUserIdOrderByCreatedAtDesc(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
+        if (!admission.getStudentUser().getId().equals(userId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Admission does not belong to the current student");
+        }
+        return admission;
+    }
+
+    private boolean studentCanEdit(AdmissionForm admission) {
+        return (admission.getStatus() == AdmissionStatus.SUBMITTED
+                && admission.getDetailsCompletedAt() == null)
+                || admission.getStatus() == AdmissionStatus.STUDENT_SECTION_REJECTED
+                || admission.getStatus() == AdmissionStatus.PRINCIPAL_REJECTED;
+    }
+
+    private boolean studentAccessGranted(AdmissionStatus status) {
+        return status == AdmissionStatus.STUDENT_SECTION_APPROVED
+                || status == AdmissionStatus.PRINCIPAL_REVIEW_PENDING
+                || status == AdmissionStatus.PRINCIPAL_APPROVED;
+    }
+
+    private void copyDetailedFields(
+            AdmissionForm admission, DetailedAdmissionRequest request, String email) {
+        if (courseYears != null) admission.setCourseYear(requireCourseYear(admission, request.courseYearId()));
         admission.setFullName(request.fullName().trim());
         admission.setEmail(email);
         admission.setPhone(request.phone().trim());
@@ -282,48 +382,29 @@ public class AdmissionServiceImpl implements AdmissionService {
         admission.setStudentCategory(request.studentCategory());
         admission.setParentName(request.parentName().trim());
         admission.setParentPhone(request.parentPhone().trim());
-        admission.setParentEmail(trimToNull(request.parentEmail()));
+        admission.setParentEmail(normalizeOptionalEmail(request.parentEmail()));
         admission.setAddressLine1(request.addressLine1().trim());
         admission.setAddressLine2(trimToNull(request.addressLine2()));
         admission.setCity(request.city().trim());
         admission.setPincode(request.pincode().trim());
         admission.setState(request.state().trim());
         admission.setPermanentPhone(trimToNull(request.permanentPhone()));
-        admission.setPermanentEmail(trimToNull(request.permanentEmail()));
+        admission.setPermanentEmail(normalizeOptionalEmail(request.permanentEmail()));
         admission.setCorrespondenceAddress(request.correspondenceAddress().trim());
         admission.setCorrespondenceCity(request.correspondenceCity().trim());
         admission.setCorrespondencePincode(request.correspondencePincode().trim());
         admission.setCorrespondenceState(request.correspondenceState().trim());
         admission.setCorrespondencePhone(trimToNull(request.correspondencePhone()));
         admission.setCorrespondenceMobile(trimToNull(request.correspondenceMobile()));
-        admission.setCorrespondenceEmail(trimToNull(request.correspondenceEmail()));
+        admission.setCorrespondenceEmail(normalizeOptionalEmail(request.correspondenceEmail()));
         admission.setQualifyingEntranceSeatNumber(trimToNull(request.qualifyingEntranceSeatNumber()));
         admission.setQualifyingEntranceTotalScore(request.qualifyingEntranceTotalScore());
         admission.setLastGraduationCollegeName(trimToNull(request.lastGraduationCollegeName()));
         admission.setLastGraduationCollegeAddress(trimToNull(request.lastGraduationCollegeAddress()));
-        admission.setAcademicRecords(request.academicRecords().stream().map(this::academicRecord)
-                .collect(Collectors.toCollection(java.util.ArrayList::new)));
-        admission.setDetailsCompletedAt(LocalDateTime.now());
-        AdmissionStatus oldStatus = admission.getStatus();
-        admission.setStatus(AdmissionStatus.SUBMITTED);
-        admission.setSubmittedAt(LocalDateTime.now());
-        admission.setRejectionReason(null);
-        admission.setStudentSectionRejectedAt(null);
-        admission.setStudentSectionRejectedBy(null);
-        admission.setStudentSectionVerifiedAt(null);
-        admission.setStudentSectionVerifiedBy(null);
-        admission.setStudentSectionRemarks(null);
-        admission.setPhotoVerified(false);
-        admission.setTenthMarksheetVerified(false);
-        admission.setTwelfthMarksheetVerified(false);
-        admission.setLeavingCertificateVerified(false);
-        admission.setAadhaarCardVerified(false);
-        admission.setGraduationPgCertificateVerified(false);
-        admission.setMigrationCertificateVerified(false);
-        admission.setGapAffidavitVerified(false);
-        admission.setCasteCertificateVerified(false);
-        admission.setIncomeProofVerified(false);
-        admission.setNameChangeCertificateVerified(false);
+        admission.setAcademicRecords(request.academicRecords() == null ? new java.util.ArrayList<>()
+                : request.academicRecords().stream()
+                        .map(this::academicRecord)
+                        .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new)));
 
         StudentProfile student = admission.getStudent();
         student.setFullName(admission.getFullName());
@@ -340,50 +421,53 @@ public class AdmissionServiceImpl implements AdmissionService {
         student.setParentPhone(admission.getParentPhone());
         student.setParentEmail(admission.getParentEmail());
         student.setStudentCategory(admission.getStudentCategory());
-        student.setStatus(StudentStatus.ADMISSION_SUBMITTED);
-        User studentUser = admission.getStudentUser();
-        studentUser.setFullName(admission.getFullName());
-        studentUser.setEmail(email);
-        studentUser.setPhone(admission.getPhone());
-        AdmissionForm saved = admissionFormRepository.save(admission);
-        if (admissionHistories != null) {
-            AdmissionStatusHistory history = new AdmissionStatusHistory();
-            history.setAdmissionForm(saved);
-            history.setChangedBy(studentUser);
-            history.setOldStatus(oldStatus);
-            history.setNewStatus(saved.getStatus());
-            history.setAction(AdmissionAction.STUDENT_DETAILS_SUBMITTED);
-            history.setRemarks(correctionResubmission
-                    ? "Corrected admission form and documents resubmitted by student"
-                    : "Detailed form and required documents submitted by student");
-            admissionHistories.save(history);
+
+        User user = admission.getStudentUser();
+        user.setFullName(admission.getFullName());
+        user.setEmail(email);
+        user.setPhone(admission.getPhone());
+    }
+
+    private AcademicClass requireCourseYear(AdmissionForm admission, Long courseYearId) {
+        AcademicClass courseYear = courseYears.findById(courseYearId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course year not found"));
+        if (courseYear.getStatus() != AcademicStatus.ACTIVE
+                || !courseYear.getCollege().getId().equals(admission.getCollege().getId())
+                || !courseYear.getDepartment().getId().equals(admission.getDepartment().getId())
+                || (courseYear.getYearName() != CourseYearName.FIRST_YEAR
+                    && courseYear.getYearName() != CourseYearName.SECOND_YEAR
+                    && courseYear.getYearName() != CourseYearName.THIRD_YEAR)) {
+            throw new BadRequestException("Select an active FY, SY, or TY from your department");
         }
-        return detailedAdmissionMapper.toResponse(saved);
-    }
-
-    private AdmissionForm myAdmission() {
-        StudentProfile profile = studentProfileRepository.findByUserId(currentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Student profile not found"));
-        return admissionFormRepository.findTopByStudentIdOrderByCreatedAtDesc(profile.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
-    }
-
-    private boolean validMarks(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
-        return record.totalMarks() != null && record.totalMarks().signum() > 0
-                && record.obtainedMarks() != null && record.obtainedMarks().signum() >= 0
-                && record.obtainedMarks().compareTo(record.totalMarks()) <= 0;
+        return courseYear;
     }
 
     private AdmissionAcademicRecord academicRecord(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
-        BigDecimal percentage = null;
-        if (record.totalMarks() != null && record.totalMarks().signum() > 0 && record.obtainedMarks() != null) {
-            if (record.obtainedMarks().compareTo(record.totalMarks()) > 0) throw new BadRequestException("Obtained marks cannot exceed total marks");
-            percentage = record.obtainedMarks().multiply(BigDecimal.valueOf(100))
-                    .divide(record.totalMarks(), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal total = record.totalMarks();
+        BigDecimal obtained = record.obtainedMarks();
+        if ((total == null) != (obtained == null)) {
+            throw new BadRequestException("Enter both total and obtained marks for " + record.qualification());
         }
+        if (total != null && (total.signum() <= 0 || obtained.signum() < 0 || obtained.compareTo(total) > 0)) {
+            throw new BadRequestException("Obtained marks must be between zero and total marks for " + record.qualification());
+        }
+        BigDecimal percentage = total == null ? null
+                : obtained.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
         return new AdmissionAcademicRecord(record.qualification(), trimToNull(record.instituteName()),
                 trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()),
-                record.totalMarks(), record.obtainedMarks(), percentage);
+                total, obtained, percentage);
+    }
+
+    private void saveStudentSubmissionHistory(
+            AdmissionForm admission, AdmissionStatus oldStatus, String remarks) {
+        AdmissionStatusHistory history = new AdmissionStatusHistory();
+        history.setAdmissionForm(admission);
+        history.setChangedBy(admission.getStudentUser());
+        history.setOldStatus(oldStatus);
+        history.setNewStatus(admission.getStatus());
+        history.setAction(AdmissionAction.SUBMITTED);
+        history.setRemarks(remarks);
+        statusHistories.save(history);
     }
 
     private College findCollegeByCode(String collegeCode) {
@@ -439,6 +523,11 @@ public class AdmissionServiceImpl implements AdmissionService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeOptionalEmail(String email) {
+        String value = trimToNull(email);
+        return value == null ? null : normalizeEmail(value);
     }
 
     private String trimToNull(String value) {

@@ -73,7 +73,7 @@ class WeeklyTimetableServiceTest {
     void setUpSecurityContext() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(userDetails(), null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_PRINCIPAL"))));
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_HOD"))));
     }
 
     @AfterEach
@@ -96,6 +96,13 @@ class WeeklyTimetableServiceTest {
         section.setDepartment(department);
         section.setAcademicClass(academicClass);
         section.setAcademicYear("2025-26");
+        StaffProfile editor = new StaffProfile();
+        editor.setId(70L);
+        editor.setCollege(college);
+        editor.setDepartment(department);
+        editor.setStaffType(StaffType.HOD);
+        editor.setStatus(StaffStatus.ACTIVE);
+        section.setClassTeacher(editor);
 
         WeeklyTimetable timetable = new WeeklyTimetable();
         timetable.setCollege(college);
@@ -124,6 +131,7 @@ class WeeklyTimetableServiceTest {
         when(periods.findById(2L)).thenReturn(Optional.of(period));
         when(subjects.findById(50L)).thenReturn(Optional.of(subject));
         when(staff.findById(60L)).thenReturn(Optional.of(teacher));
+        when(staff.findByUserId(99L)).thenReturn(Optional.of(editor));
         when(subjectTeacherAssignments.existsBySubjectIdAndTeacherIdAndStatus(50L, 60L, AcademicStatus.ACTIVE)).thenReturn(false);
 
         SaveEntryRequest request = new SaveEntryRequest(50L, 60L, "A101", "THEORY", "");
@@ -152,7 +160,7 @@ class WeeklyTimetableServiceTest {
         College college = new College();
         college.setId(10L);
         user.setCollege(college);
-        role.setName(RoleName.PRINCIPAL);
+        role.setName(RoleName.HOD);
         user.setRoles(Set.of(role));
         return new CustomUserDetails(user);
     }

@@ -18,6 +18,10 @@
     { "key": "staffPassword", "value": "Staff@123" },
     { "key": "studentEmail", "value": "aarav.patil@example.com" },
     { "key": "studentPassword", "value": "" }
+    ,{ "key": "superAdminEmail", "value": "" }
+    ,{ "key": "superAdminPassword", "value": "" }
+    ,{ "key": "principalEmail", "value": "" }
+    ,{ "key": "principalPassword", "value": "" }
   ],
   "item": [
     {
@@ -26,7 +30,7 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@erp.com\",\n  \"password\": \"Admin@12345\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\"\n}" },
         "url": "{{baseUrl}}/api/auth/login"
       }
     },
@@ -36,7 +40,7 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n  \"email\": \"principal@example.com\",\n  \"password\": \"Principal@123\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{principalEmail}}\",\n  \"password\": \"{{principalPassword}}\"\n}" },
         "url": "{{baseUrl}}/api/auth/login"
       }
     },

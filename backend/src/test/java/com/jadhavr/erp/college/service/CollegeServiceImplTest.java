@@ -31,12 +31,14 @@ class CollegeServiceImplTest {
 
     @Mock
     private CollegeRepository repository;
+    @Mock
+    private CollegeImageStorageService imageStorage;
 
     private CollegeServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new CollegeServiceImpl(repository);
+        service = new CollegeServiceImpl(repository, imageStorage);
     }
 
     @Test
@@ -46,7 +48,11 @@ class CollegeServiceImplTest {
                 "411001", "admin@abc.com", null, null, null
         );
         when(repository.existsByCode("ABC001")).thenReturn(false);
-        when(repository.save(any(College.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.saveAndFlush(any(College.class))).thenAnswer(invocation -> {
+            College college = invocation.getArgument(0);
+            if (college.getId() == null) college.setId(1L);
+            return college;
+        });
 
         CollegeResponse response = service.createCollege(request);
 

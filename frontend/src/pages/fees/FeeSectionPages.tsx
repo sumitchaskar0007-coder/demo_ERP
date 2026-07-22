@@ -50,11 +50,23 @@ export function FeeSectionDashboardPage() {
 export function FeeAccountsPage() {
   const [d, setD] = useState<StudentFeeAccountResponse[]>([]);
   const [q, setQ] = useState("");
+  const [sendingReminder, setSendingReminder] = useState<number | null>(null);
   const load = () =>
     api.searchFeeAccounts({ keyword: q || undefined, size: 50 }).then((x) => setD(x.content));
   useEffect(() => {
     load();
   }, []);
+  const remind = async (account: StudentFeeAccountResponse) => {
+    setSendingReminder(account.id);
+    try {
+      await api.sendPendingFeeReminder(account.id);
+      toast.success("Pending fee reminder queued to the student email");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSendingReminder(null);
+    }
+  };
   const cols: Column<StudentFeeAccountResponse>[] = [
     {
       key: "student",
@@ -74,9 +86,16 @@ export function FeeAccountsPage() {
       key: "action",
       header: "Action",
       render: (r) => (
-        <Link to={`/fee-section/fee-accounts/${r.id}`}>
-          <Button variant="secondary">View</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/fee-section/fee-accounts/${r.id}`}>
+            <Button variant="secondary">View</Button>
+          </Link>
+          {Number(r.remainingAmount) > 0 && (
+            <Button disabled={sendingReminder === r.id} onClick={() => void remind(r)}>
+              {sendingReminder === r.id ? "Sending…" : "Email reminder"}
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -95,6 +114,7 @@ export function FeeAccountDetailsPage() {
   const { feeAccountId } = useParams();
   const [a, setA] = useState<StudentFeeAccountResponse | null>(null);
   const [t, setT] = useState<FeeTransactionResponse[]>([]);
+  const [sendingReminder, setSendingReminder] = useState(false);
   useEffect(() => {
     if (feeAccountId)
       Promise.all([
@@ -106,12 +126,30 @@ export function FeeAccountDetailsPage() {
       });
   }, [feeAccountId]);
   if (!a) return <div className="page-container">Loading…</div>;
+  const remind = async () => {
+    setSendingReminder(true);
+    try {
+      await api.sendPendingFeeReminder(a.id);
+      toast.success("Pending fee reminder queued to the student email");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSendingReminder(false);
+    }
+  };
   return (
     <div className="page-container space-y-5">
       <Card className="p-7">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="page-title">{a.admissionNumber}</h1>
-          <StatusBadge status={a.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={a.status} />
+            {Number(a.remainingAmount) > 0 && (
+              <Button disabled={sendingReminder} onClick={() => void remind()}>
+                {sendingReminder ? "Sending…" : "Email fee reminder"}
+              </Button>
+            )}
+          </div>
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-4">
           {[
@@ -194,6 +232,7 @@ export function PaymentsPage() {
 export function PaymentDetailsPage() {
   const { paymentId } = useParams();
   const [p, setP] = useState<PaymentResponse | null>(null);
+  const [openingProof, setOpeningProof] = useState(false);
   const load = () => {
     if (paymentId) api.getPaymentById(+paymentId).then(setP);
   };
@@ -217,6 +256,24 @@ export function PaymentDetailsPage() {
         load();
       });
   };
+  const openProof = async () => {
+    setOpeningProof(true);
+    try {
+      // Keep older URL-based records usable while all new proofs use protected file storage.
+      if (/^https?:\/\//i.test(p.proofUrl)) {
+        window.open(p.proofUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const proof = await api.getPaymentProof(p.id);
+      const proofUrl = URL.createObjectURL(proof);
+      window.open(proofUrl, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(proofUrl), 60_000);
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setOpeningProof(false);
+    }
+  };
   return (
     <div className="page-container">
       <Card className="mx-auto max-w-3xl p-7">
@@ -239,14 +296,11 @@ export function PaymentDetailsPage() {
             </div>
           ))}
         </div>
-        <a
-          href={p.proofUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 inline-block font-semibold text-blue-600"
-        >
-          Open Payment Proof
-        </a>
+        <div className="mt-5">
+          <Button variant="secondary" disabled={openingProof} onClick={() => void openProof()}>
+            {openingProof ? "Opening proof…" : "Open Payment Proof"}
+          </Button>
+        </div>
         {p.status === "PENDING" && (
           <div className="mt-6 flex gap-3">
             <Button onClick={verify}>Verify Payment</Button>

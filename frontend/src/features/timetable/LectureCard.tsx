@@ -23,8 +23,8 @@ export function LectureCard({ entry, isDroppable, onEdit, onDelete }: Props) {
   const colorClass = isBreak
     ? "bg-slate-100 border-slate-300 text-slate-600"
     : isLecture
-    ? getSubjectColor(entry.subjectId!)
-    : "bg-white border-slate-200 text-slate-700";
+      ? getSubjectColor(entry.subjectId!)
+      : "bg-white border-slate-200 text-slate-700";
 
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 }
@@ -56,12 +56,8 @@ export function LectureCard({ entry, isDroppable, onEdit, onDelete }: Props) {
         ) : (
           <>
             <p className="truncate font-semibold leading-tight">{entry.subject}</p>
-            {entry.teacher && (
-              <p className="truncate text-[10px] opacity-75">{entry.teacher}</p>
-            )}
-            {entry.room && (
-              <p className="truncate text-[10px] opacity-60">{entry.room}</p>
-            )}
+            {entry.teacher && <p className="truncate text-[10px] opacity-75">{entry.teacher}</p>}
+            {entry.room && <p className="truncate text-[10px] opacity-60">{entry.room}</p>}
           </>
         )}
       </div>

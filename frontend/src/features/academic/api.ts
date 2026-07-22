@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
+import type { WeeklyTimetable } from "@/features/academics/api";
 import type {
   AcademicClass,
   CourseYear,
@@ -80,7 +81,8 @@ export const markAttendance = (id: number, data: object) =>
   patch(`/api/academic/attendance/sessions/${id}/mark`, data);
 export const submitAttendance = (id: number) =>
   patch(`/api/academic/attendance/sessions/${id}/submit`);
-export const getMyStudentTimetable = () => get<TimetableEntry[]>("/api/student/academic/timetable");
+export const getMyStudentTimetable = () =>
+  get<WeeklyTimetable>("/api/student/academic/timetable");
 export const getMyStudentAttendanceSummary = () =>
   get<Record<string, number>>("/api/student/academic/attendance/summary");
 export type StudentRosterItem = {

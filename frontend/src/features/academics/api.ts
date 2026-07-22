@@ -123,6 +123,7 @@ export interface WeeklyTimetable {
   classTeacher: string;
   academicYear: string;
   status: string;
+  reviewComment?: string | null;
   editable: boolean;
   periods: WeeklyPeriod[];
   entries: WeeklyEntry[];
@@ -186,6 +187,12 @@ export const weeklyTimetableApi = {
     unwrap<WeeklyTimetable>(
       await apiClient.put(`/api/weekly-timetables/${id}/periods`, { periods }),
     ),
+  submitReview: async (id: number) =>
+    unwrap<WeeklyTimetable>(await apiClient.post(`/api/weekly-timetables/${id}/submit-review`)),
+  review: async (id: number, action: string, comment?: string) =>
+    unwrap<WeeklyTimetable>(
+      await apiClient.post(`/api/weekly-timetables/${id}/review`, { action, comment }),
+    ),
 };
 export const attendanceApi = {
   sessions: async (from: string, to: string) =>
@@ -199,4 +206,19 @@ export const attendanceApi = {
   report: async (studentId: number, from: string, to: string) =>
     (await apiClient.get(`/api/attendance/reports/students/${studentId}`, { params: { from, to } }))
       .data,
+};
+
+export interface StudentAcademicAccess {
+  divisionAllocated: boolean;
+  courseYearId?: number | null;
+  courseYear?: string | null;
+  divisionId?: number | null;
+  division?: string | null;
+  academicYear?: string | null;
+  rollNumber?: string | null;
+}
+
+export const studentAcademicApi = {
+  accessState: async () =>
+    unwrap<StudentAcademicAccess>(await apiClient.get("/api/student/academic/access-state")),
 };

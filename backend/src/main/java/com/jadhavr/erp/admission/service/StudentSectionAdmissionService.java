@@ -1,6 +1,7 @@
 package com.jadhavr.erp.admission.service;
 
 import com.jadhavr.erp.admission.dto.AdmissionPrintResponse;
+import com.jadhavr.erp.admission.dto.AdmissionCourseYearOptionResponse;
 import com.jadhavr.erp.admission.dto.AdmissionStatusHistoryResponse;
 import com.jadhavr.erp.admission.dto.MarkAdmissionPrintedRequest;
 import com.jadhavr.erp.admission.dto.RejectAdmissionRequest;
@@ -17,6 +18,7 @@ public interface StudentSectionAdmissionService {
             String keyword, Long departmentId, AdmissionStatus status,
             int page, int size, String sortBy, String sortDir);
     StudentSectionAdmissionResponse getAdmissionForStudentSection(Long admissionId);
+    List<AdmissionCourseYearOptionResponse> getCourseYearOptions(Long admissionId);
     StudentSectionAdmissionResponse startReview(Long admissionId);
     StudentSectionAdmissionResponse updateDetails(Long admissionId, DetailedAdmissionRequest request);
     StudentSectionAdmissionResponse approveAdmission(Long admissionId, VerifyAdmissionRequest request);

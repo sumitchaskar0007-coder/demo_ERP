@@ -42,8 +42,16 @@ export const setFeeStructureStatus = (id: number, s: FeeStructureStatus) =>
     .then(unwrap);
 export const getMyFeeAccount = () =>
   apiClient.get<ApiResponse<StudentFeeAccountResponse>>("/api/student/fees/me").then(unwrap);
-export const submitPayment = (v: SubmitPaymentRequest) =>
-  apiClient.post<ApiResponse<PaymentResponse>>("/api/student/fees/payments", v).then(unwrap);
+export const submitPayment = (v: SubmitPaymentRequest, proof: File) => {
+  const body = new FormData();
+  body.append("request", new Blob([JSON.stringify(v)], { type: "application/json" }));
+  body.append("proof", proof);
+  return apiClient
+    .post<ApiResponse<PaymentResponse>>("/api/student/fees/payments", body, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then(unwrap);
+};
 export const getMyPayments = () =>
   apiClient.get<ApiResponse<PaymentResponse[]>>("/api/student/fees/payments").then(unwrap);
 export const getMyFeeTransactions = () =>
@@ -67,6 +75,8 @@ export const getFeeAccountById = (id: number) =>
   apiClient
     .get<ApiResponse<StudentFeeAccountResponse>>(`/api/fee-section/fee-accounts/${id}`)
     .then(unwrap);
+export const sendPendingFeeReminder = (id: number) =>
+  apiClient.post(`/api/fee-section/fee-accounts/${id}/send-reminder`);
 export const searchPayments = (params: {
   keyword?: string;
   status?: PaymentStatus;
@@ -78,6 +88,12 @@ export const searchPayments = (params: {
     .then(unwrap);
 export const getPaymentById = (id: number) =>
   apiClient.get<ApiResponse<PaymentResponse>>(`/api/fee-section/payments/${id}`).then(unwrap);
+export const getPaymentProof = async (id: number) => {
+  const response = await apiClient.get<Blob>(`/api/fee-section/payments/${id}/proof`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
 export const verifyPayment = (id: number, remarks = "") =>
   apiClient
     .patch<ApiResponse<PaymentResponse>>(`/api/fee-section/payments/${id}/verify`, { remarks })

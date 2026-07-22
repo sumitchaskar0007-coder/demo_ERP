@@ -86,9 +86,9 @@ export function PrincipalReviewQueuePage() {
       key: "actions",
       header: "",
       render: (row) => (
-          <Button variant="secondary" onClick={() => navigate(`/principal/admissions/${row.id}`)}>
-            <Eye className="h-4 w-4" />
-            Review
+        <Button variant="secondary" onClick={() => navigate(`/principal/admissions/${row.id}`)}>
+          <Eye className="h-4 w-4" />
+          Review
         </Button>
       ),
     },

@@ -1,0 +1,59 @@
+package com.jadhavr.erp.admission.entity;
+
+import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
+import com.jadhavr.erp.common.entity.BaseAuditEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
+@Entity
+@Table(name = "admission_documents", uniqueConstraints =
+        @UniqueConstraint(name = "uk_admission_document_type", columnNames = {"admission_form_id", "document_type"}))
+public class AdmissionDocument extends BaseAuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "admission_form_id", nullable = false)
+    private AdmissionForm admissionForm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", nullable = false, length = 60)
+    private AdmissionDocumentType documentType;
+
+    @Column(name = "storage_name", nullable = false, length = 220)
+    private String storageName;
+
+    @Column(name = "original_filename", nullable = false, length = 255)
+    private String originalFilename;
+
+    @Column(name = "content_type", nullable = false, length = 100)
+    private String contentType;
+
+    @Column(name = "file_size", nullable = false)
+    private Long fileSize;
+
+    public Long getId() { return id; }
+    public AdmissionForm getAdmissionForm() { return admissionForm; }
+    public void setAdmissionForm(AdmissionForm admissionForm) { this.admissionForm = admissionForm; }
+    public AdmissionDocumentType getDocumentType() { return documentType; }
+    public void setDocumentType(AdmissionDocumentType documentType) { this.documentType = documentType; }
+    public String getStorageName() { return storageName; }
+    public void setStorageName(String storageName) { this.storageName = storageName; }
+    public String getOriginalFilename() { return originalFilename; }
+    public void setOriginalFilename(String originalFilename) { this.originalFilename = originalFilename; }
+    public String getContentType() { return contentType; }
+    public void setContentType(String contentType) { this.contentType = contentType; }
+    public Long getFileSize() { return fileSize; }
+    public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
+}

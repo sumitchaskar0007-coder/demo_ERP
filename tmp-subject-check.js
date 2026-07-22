@@ -1,10 +1,13 @@
 const fetch = globalThis.fetch;
 (async () => {
   try {
+    const email = process.env.ERP_ADMIN_EMAIL;
+    const password = process.env.ERP_ADMIN_PASSWORD;
+    if (!email || !password) throw new Error('ERP_ADMIN_EMAIL and ERP_ADMIN_PASSWORD are required');
     const loginRes = await fetch('http://localhost:8081/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@erp.com', password: 'Admin@12345' }),
+      body: JSON.stringify({ email, password }),
     });
     const loginJson = await loginRes.json();
     console.log('LOGIN_STATUS', loginRes.status);

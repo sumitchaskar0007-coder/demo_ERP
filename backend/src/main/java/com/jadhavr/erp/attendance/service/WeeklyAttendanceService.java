@@ -69,6 +69,17 @@ public class WeeklyAttendanceService {
                 .findFirst().map(e -> lecture(e, date)).orElse(null);
     }
 
+    public List<LectureResponse> todayLectures() {
+        StaffProfile teacher = currentStaff();
+        LocalDate today = LocalDate.now();
+        return entries.findByTeacherId(teacher.getId()).stream()
+                .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
+                .filter(e -> e.getDayOfWeek() == today.getDayOfWeek())
+                .sorted(Comparator.comparing(e -> e.getPeriod().getStartTime()))
+                .map(e -> lecture(e, today))
+                .toList();
+    }
+
     public RosterResponse roster(Long lectureId) {
         WeeklyTimetableEntry entry = ownedActiveEntry(lectureId, true);
         LocalDate date = LocalDate.now();
@@ -101,7 +112,7 @@ public class WeeklyAttendanceService {
     public RosterResponse update(Long sessionId, UpdateRequest request) {
         WeeklyAttendanceSession session = session(sessionId);
         requireOwner(session);
-        assertMarkingWindow(session.getTimetableEntry());
+        assertMarkingDay(session.getTimetableEntry());
         write(session, request.records(), request.submit());
         return roster(session.getTimetableEntry().getId());
     }
@@ -162,7 +173,7 @@ public class WeeklyAttendanceService {
         validateRange(start, end);
         Long college = SecurityUtils.requireCurrentUser().getCollegeId();
         List<WeeklyAttendanceSession> list = SecurityUtils.isSuperAdmin()
-                ? sessions.findAll().stream().filter(s -> !s.getAttendanceDate().isBefore(start) && !s.getAttendanceDate().isAfter(end)).toList()
+                ? sessions.findByAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(start, end)
                 : sessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(college, start, end);
         List<WeeklyAttendanceSession> scoped = list.stream().filter(s -> scope.test(s.getSection()))
                 .filter(s -> subjectId == null || subjectId.equals(s.getSubject().getId()))
@@ -204,8 +215,7 @@ public class WeeklyAttendanceService {
                 .filter(e -> divisionId == null || divisionId.equals(e.getTimetable().getSection().getId()))
                 .filter(e -> departmentId == null || departmentId.equals(e.getTimetable().getSection().getDepartment().getId()))
                 .filter(e -> teacherId == null || teacherId.equals(e.getTeacher().getId())).toList();
-        List<WeeklyAttendanceSession> todaySessions = (SecurityUtils.isSuperAdmin() ? sessions.findAll().stream()
-                .filter(s -> s.getAttendanceDate().equals(today)).toList()
+        List<WeeklyAttendanceSession> todaySessions = (SecurityUtils.isSuperAdmin() ? sessions.findByAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(today, today)
                 : sessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(college, today, today))
                 .stream().filter(s -> scope.test(s.getSection()))
                 .filter(s -> subjectId == null || subjectId.equals(s.getSubject().getId()))
@@ -291,6 +301,8 @@ public class WeeklyAttendanceService {
     }
 
     private void write(WeeklyAttendanceSession session, List<MarkItem> items, boolean submit) {
+        if (!LocalDate.now().equals(session.getAttendanceDate()))
+            throw new BadRequestException("Attendance can be entered only for today's date");
         if (session.getStatus() == WeeklyAttendanceSession.Status.SUBMITTED)
             throw new BadRequestException("Submitted attendance is locked and cannot be changed");
         Map<Long, StudentSectionEnrollment> roster = activeEnrollments(session.getSection()).stream()
@@ -321,14 +333,14 @@ public class WeeklyAttendanceService {
         StaffProfile teacher = currentStaff();
         if (!entry.getTeacher().getId().equals(teacher.getId())) throw new AccessDeniedException("You can mark only your own lecture");
         if (entry.getTimetable().getStatus() != WeeklyTimetable.Status.ACTIVE) throw new BadRequestException("The timetable is not active");
-        if (enforceWindow) assertMarkingWindow(entry);
+        if (enforceWindow) assertMarkingDay(entry);
         return entry;
     }
 
-    private void assertMarkingWindow(WeeklyTimetableEntry entry) {
+    private void assertMarkingDay(WeeklyTimetableEntry entry) {
         LocalDate today = LocalDate.now();
-        if (entry.getDayOfWeek() != today.getDayOfWeek() || !isInWindow(entry, LocalTime.now()))
-            throw new AccessDeniedException("Attendance can be marked only during the scheduled lecture window");
+        if (entry.getDayOfWeek() != today.getDayOfWeek())
+            throw new AccessDeniedException("Attendance can be marked only on the scheduled lecture day");
     }
 
     private boolean isInWindow(WeeklyTimetableEntry entry, LocalTime now) {
@@ -358,11 +370,14 @@ public class WeeklyAttendanceService {
         WeeklyAttendanceSession session = sessions.findByTimetableEntryIdAndAttendanceDate(e.getId(), date).orElse(null);
         Section section = e.getTimetable().getSection();
         boolean active = e.getDayOfWeek() == date.getDayOfWeek() && isInWindow(e, LocalTime.now());
+        boolean canMark = date.equals(LocalDate.now())
+                && e.getDayOfWeek() == date.getDayOfWeek()
+                && (session == null || session.getStatus() == WeeklyAttendanceSession.Status.DRAFT);
         return new LectureResponse(e.getId(), session == null ? null : session.getId(), session == null ? null : session.getStatus().name(),
                 date, e.getPeriod().getLabel(), e.getPeriod().getPosition(), e.getPeriod().getStartTime(), e.getPeriod().getEndTime(),
                 e.getSubject().getId(), e.getSubject().getName(), e.getSubject().getCode(), section.getDepartment().getId(),
                 section.getDepartment().getName(), section.getId(), section.getAcademicClass().getName(), section.getName(),
-                e.getLectureType().name(), e.getRoom(), active, active && (session == null || session.getStatus() == WeeklyAttendanceSession.Status.DRAFT));
+                e.getLectureType().name(), e.getRoom(), active, canMark);
     }
 
     private SessionSummary summary(WeeklyAttendanceSession s) {

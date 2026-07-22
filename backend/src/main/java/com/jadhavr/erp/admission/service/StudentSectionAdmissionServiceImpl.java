@@ -1,6 +1,7 @@
 package com.jadhavr.erp.admission.service;
 
 import com.jadhavr.erp.admission.dto.AdmissionPrintResponse;
+import com.jadhavr.erp.admission.dto.AdmissionCourseYearOptionResponse;
 import com.jadhavr.erp.admission.dto.AdmissionStatusHistoryResponse;
 import com.jadhavr.erp.admission.dto.MarkAdmissionPrintedRequest;
 import com.jadhavr.erp.admission.dto.RejectAdmissionRequest;
@@ -17,6 +18,8 @@ import com.jadhavr.erp.admission.mapper.AdmissionStatusHistoryMapper;
 import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
+import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
+import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.dto.PageResponse;
@@ -26,6 +29,10 @@ import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.fee.service.FeeService;
+import com.jadhavr.erp.academic.entity.AcademicClass;
+import com.jadhavr.erp.academic.enums.AcademicStatus;
+import com.jadhavr.erp.academic.enums.CourseYearName;
+import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -35,6 +42,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -56,6 +65,8 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private final AdmissionStatusHistoryMapper historyMapper;
     private final AdmissionPrintMapper printMapper;
     private final FeeService feeService;
+    private final AcademicClassRepository courseYears;
+    private final AdmissionDocumentRepository documents;
 
     @Autowired
     public StudentSectionAdmissionServiceImpl(
@@ -64,7 +75,9 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
             UserRepository users,
             StudentSectionAdmissionMapper admissionMapper,
             AdmissionStatusHistoryMapper historyMapper,
-            AdmissionPrintMapper printMapper, FeeService feeService) {
+            AdmissionPrintMapper printMapper, FeeService feeService,
+            AcademicClassRepository courseYears,
+            AdmissionDocumentRepository documents) {
         this.admissions = admissions;
         this.histories = histories;
         this.users = users;
@@ -72,12 +85,14 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         this.historyMapper = historyMapper;
         this.printMapper = printMapper;
         this.feeService = feeService;
+        this.courseYears = courseYears;
+        this.documents = documents;
     }
 
     public StudentSectionAdmissionServiceImpl(AdmissionFormRepository admissions, AdmissionStatusHistoryRepository histories,
             UserRepository users, StudentSectionAdmissionMapper admissionMapper,
             AdmissionStatusHistoryMapper historyMapper, AdmissionPrintMapper printMapper) {
-        this(admissions, histories, users, admissionMapper, historyMapper, printMapper, null);
+        this(admissions, histories, users, admissionMapper, historyMapper, printMapper, null, null, null);
     }
 
     @Override
@@ -98,11 +113,29 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     }
 
     @Override
+    public List<AdmissionCourseYearOptionResponse> getCourseYearOptions(Long admissionId) {
+        AdmissionForm admission = findScopedAdmission(admissionId);
+        return courseYears.findByCollegeIdAndDepartmentIdAndStatus(
+                        admission.getCollege().getId(), admission.getDepartment().getId(), AcademicStatus.ACTIVE)
+                .stream()
+                .filter(year -> year.getYearName() == CourseYearName.FIRST_YEAR
+                        || year.getYearName() == CourseYearName.SECOND_YEAR
+                        || year.getYearName() == CourseYearName.THIRD_YEAR)
+                .sorted(java.util.Comparator.comparing(AcademicClass::getYearName))
+                .map(year -> new AdmissionCourseYearOptionResponse(
+                        year.getId(), year.getYearName(), year.getName(), year.getAcademicYear()))
+                .toList();
+    }
+
+    @Override
     @Transactional
     public StudentSectionAdmissionResponse startReview(Long admissionId) {
         AdmissionForm admission = findScopedAdmission(admissionId);
         if (admission.getStatus() != AdmissionStatus.SUBMITTED) {
             throw new BadRequestException("Review can be started only for submitted admissions");
+        }
+        if (admission.getDetailsCompletedAt() == null) {
+            throw new BadRequestException("The student must complete and submit the detailed admission form first");
         }
         AdmissionStatus oldStatus = admission.getStatus();
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
@@ -119,6 +152,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
             Long admissionId, DetailedAdmissionRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
         ensureVerifiable(admission, "update");
+        if (courseYears != null) admission.setCourseYear(requireCourseYear(admission, request.courseYearId()));
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         users.findByEmail(email)
                 .filter(existing -> !existing.getId().equals(admission.getStudentUser().getId()))
@@ -160,13 +194,10 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         admission.setQualifyingEntranceTotalScore(request.qualifyingEntranceTotalScore());
         admission.setLastGraduationCollegeName(trimToNull(request.lastGraduationCollegeName()));
         admission.setLastGraduationCollegeAddress(trimToNull(request.lastGraduationCollegeAddress()));
-        admission.setAcademicRecords(request.academicRecords() == null ? new java.util.ArrayList<>() :
-                request.academicRecords().stream()
-                        .map(record -> new AdmissionAcademicRecord(
-                                record.qualification(), trimToNull(record.instituteName()),
-                                trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()),
-                                record.totalMarks(), record.obtainedMarks(), calculatePercentage(record.totalMarks(), record.obtainedMarks())))
-                        .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new)));
+          admission.setAcademicRecords(request.academicRecords() == null ? new java.util.ArrayList<>() :
+                 request.academicRecords().stream()
+                         .map(this::academicRecord)
+                          .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new)));
         admission.setDetailsCompletedAt(LocalDateTime.now());
 
         var student = admission.getStudent();
@@ -193,12 +224,41 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         saveHistory(saved, saved.getStatus(), saved.getStatus(), AdmissionAction.STATUS_UPDATED,
                 "Detailed admission form completed or corrected by Student Section");
         return admissionMapper.toResponse(saved);
+      }
+
+    private AcademicClass requireCourseYear(AdmissionForm admission, Long courseYearId) {
+        AcademicClass year = courseYears.findById(courseYearId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course year not found"));
+        if (year.getStatus() != AcademicStatus.ACTIVE
+                || !year.getCollege().getId().equals(admission.getCollege().getId())
+                || !year.getDepartment().getId().equals(admission.getDepartment().getId())
+                || (year.getYearName() != CourseYearName.FIRST_YEAR
+                    && year.getYearName() != CourseYearName.SECOND_YEAR
+                    && year.getYearName() != CourseYearName.THIRD_YEAR)) {
+            throw new BadRequestException("Select an active FY, SY, or TY from the admission department");
+        }
+        return year;
+    }
+
+    private AdmissionAcademicRecord academicRecord(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
+        BigDecimal total = record.totalMarks();
+        BigDecimal obtained = record.obtainedMarks();
+        if ((total == null) != (obtained == null)) {
+            throw new BadRequestException("Enter both total and obtained marks for " + record.qualification());
+        }
+        if (total != null && (total.signum() <= 0 || obtained.signum() < 0 || obtained.compareTo(total) > 0)) {
+            throw new BadRequestException("Obtained marks must be between zero and total marks for " + record.qualification());
+        }
+        BigDecimal percentage = total == null ? null
+                : obtained.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
+        return new AdmissionAcademicRecord(record.qualification(), trimToNull(record.instituteName()),
+                trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()), total, obtained, percentage);
     }
     @Transactional
     @Override
     public StudentSectionAdmissionResponse approveAdmission(Long admissionId, VerifyAdmissionRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
-        ensureVerifiable(admission, "approve");
+        ensurePendingReview(admission, "approved");
         AdmissionStatus oldStatus = admission.getStatus();
         User currentUser = currentUserEntity();
         if (admission.getDetailsCompletedAt() == null) {
@@ -207,24 +267,12 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (admission.getPhotoStorageName() == null) {
             throw new BadRequestException("Upload the passport-size photo before approval");
         }
-        if (admission.getTenthMarksheetStorageName() == null || admission.getTwelfthMarksheetStorageName() == null
-                || admission.getLeavingCertificateStorageName() == null || admission.getAadhaarCardStorageName() == null) {
-            throw new BadRequestException("10th marksheet, 12th marksheet, leaving certificate, and Aadhaar card must be uploaded before approval");
-        }
-        if (!Boolean.TRUE.equals(request.photoVerified())
-                || !Boolean.TRUE.equals(request.tenthMarksheetVerified())
-                || !Boolean.TRUE.equals(request.twelfthMarksheetVerified())
-                || !Boolean.TRUE.equals(request.leavingCertificateVerified())
-                || !Boolean.TRUE.equals(request.aadhaarCardVerified())) {
-            throw new BadRequestException("Verify every required admission document before approval");
-        }
-        if ((admission.getGraduationPgCertificateStorageName() != null && !Boolean.TRUE.equals(request.graduationPgCertificateVerified()))
-                || (admission.getMigrationCertificateStorageName() != null && !Boolean.TRUE.equals(request.migrationCertificateVerified()))
-                || (admission.getGapAffidavitStorageName() != null && !Boolean.TRUE.equals(request.gapAffidavitVerified()))
-                || (admission.getCasteCertificateStorageName() != null && !Boolean.TRUE.equals(request.casteCertificateVerified()))
-                || (admission.getIncomeProofStorageName() != null && !Boolean.TRUE.equals(request.incomeProofVerified()))
-                || (admission.getNameChangeCertificateStorageName() != null && !Boolean.TRUE.equals(request.nameChangeCertificateVerified()))) {
-            throw new BadRequestException("Verify every submitted optional document before approval");
+        if (documents != null) {
+            Set<AdmissionDocumentType> missing = AdmissionDocumentType.requiredTypes();
+            missing.removeAll(documents.findTypesByAdmissionId(admission.getId()));
+            if (!missing.isEmpty()) {
+                throw new BadRequestException("All required admission documents must be uploaded before approval");
+            }
         }
         if (request.studentCategory() == null) {
             throw new BadRequestException("Student category must be verified before approval");
@@ -235,17 +283,6 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         admission.setStudentSectionVerifiedAt(LocalDateTime.now());
         admission.setStudentSectionVerifiedBy(currentUser);
         admission.setStudentSectionRemarks(trimToNull(request.remarks()));
-        admission.setPhotoVerified(true);
-        admission.setTenthMarksheetVerified(true);
-        admission.setTwelfthMarksheetVerified(true);
-        admission.setLeavingCertificateVerified(true);
-        admission.setAadhaarCardVerified(true);
-        admission.setGraduationPgCertificateVerified(admission.getGraduationPgCertificateStorageName() != null);
-        admission.setMigrationCertificateVerified(admission.getMigrationCertificateStorageName() != null);
-        admission.setGapAffidavitVerified(admission.getGapAffidavitStorageName() != null);
-        admission.setCasteCertificateVerified(admission.getCasteCertificateStorageName() != null);
-        admission.setIncomeProofVerified(admission.getIncomeProofStorageName() != null);
-        admission.setNameChangeCertificateVerified(admission.getNameChangeCertificateStorageName() != null);
         admission.getStudent().setStatus(StudentStatus.UNDER_REVIEW);
         AdmissionForm saved = admissions.save(admission);
         if (feeService != null) feeService.createAccountForAdmission(saved);
@@ -258,7 +295,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     @Transactional
     public StudentSectionAdmissionResponse rejectAdmission(Long admissionId, RejectAdmissionRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
-        ensureVerifiable(admission, "reject");
+        ensurePendingReview(admission, "rejected");
         AdmissionStatus oldStatus = admission.getStatus();
         User currentUser = currentUserEntity();
         String reason = request.rejectionReason().trim();
@@ -314,8 +351,6 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         }
         if (status != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
-        } else {
-            spec = spec.and((root, query, cb) -> cb.notEqual(root.get("status"), AdmissionStatus.STUDENT_DETAILS_PENDING));
         }
         if (keyword != null && !keyword.isBlank()) {
             String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
@@ -359,6 +394,12 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         }
     }
 
+    private void ensurePendingReview(AdmissionForm admission, String action) {
+        if (admission.getStatus() != AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING) {
+            throw new BadRequestException("Admission can be " + action + " only while pending review");
+        }
+    }
+
     private User currentUserEntity() {
         return users.findById(SecurityUtils.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
@@ -398,14 +439,5 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private java.math.BigDecimal calculatePercentage(java.math.BigDecimal total, java.math.BigDecimal obtained) {
-        if (total == null || obtained == null) return null;
-        if (total.signum() <= 0 || obtained.signum() < 0 || obtained.compareTo(total) > 0) {
-            throw new BadRequestException("Academic marks must be valid and obtained marks cannot exceed total marks");
-        }
-        return obtained.multiply(java.math.BigDecimal.valueOf(100))
-                .divide(total, 2, java.math.RoundingMode.HALF_UP);
     }
 }

@@ -9,4 +9,6 @@ public interface WeeklyAttendanceSessionRepository extends JpaRepository<WeeklyA
     Optional<WeeklyAttendanceSession> findByTimetableEntryIdAndAttendanceDate(Long entryId, LocalDate date);
     List<WeeklyAttendanceSession> findByTeacherIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(Long teacherId, LocalDate from, LocalDate to);
     List<WeeklyAttendanceSession> findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(Long collegeId, LocalDate from, LocalDate to);
+    /** Date-bounded variant used by super-admin reports; avoids loading the entire table. */
+    List<WeeklyAttendanceSession> findByAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(LocalDate from, LocalDate to);
 }

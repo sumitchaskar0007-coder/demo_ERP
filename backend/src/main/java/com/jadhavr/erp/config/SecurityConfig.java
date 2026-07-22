@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import com.jadhavr.erp.auth.filter.LoginRateLimitFilter;
+import com.jadhavr.erp.admission.filter.StudentAdmissionAccessFilter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -40,16 +41,19 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService userDetailsService;
     private final LoginRateLimitFilter loginRateLimitFilter;
+    private final StudentAdmissionAccessFilter studentAdmissionAccessFilter;
     private final List<String> allowedOrigins;
 
     public SecurityConfig(ObjectMapper objectMapper,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           CustomUserDetailsService userDetailsService, LoginRateLimitFilter loginRateLimitFilter,
+                          StudentAdmissionAccessFilter studentAdmissionAccessFilter,
                           @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins) {
         this.objectMapper = objectMapper;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userDetailsService = userDetailsService;
         this.loginRateLimitFilter = loginRateLimitFilter;
+        this.studentAdmissionAccessFilter = studentAdmissionAccessFilter;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
     }
 
@@ -76,15 +80,33 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").denyAll()
                         .requestMatchers(
-                                "/actuator/health",
+                                "/actuator/health/**",
                                 "/api/health",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/csrf",
                                 "/api/public/admissions/**"
                         ).permitAll()
-                        .requestMatchers("/uploads/**").authenticated()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/password/forgot",
+                                "/api/auth/password/reset",
+                                "/api/auth/email-verification/confirm"
+                        ).permitAll()
+                        .requestMatchers("/api/dashboard/**")
+                                .hasAnyRole("SUPER_ADMIN", "PRINCIPAL", "HOD", "STUDENT_SECTION",
+                                        "FEE_SECTION", "CLASS_TEACHER", "SUBJECT_TEACHER", "STUDENT")
+                        .requestMatchers("/api/reports/**")
+                                .hasAnyRole("SUPER_ADMIN", "PRINCIPAL", "HOD", "STUDENT_SECTION", "FEE_SECTION")
+                        .requestMatchers("/api/audit-logs/**").hasAnyRole("SUPER_ADMIN", "PRINCIPAL")
+                        .requestMatchers("/api/academic/**")
+                                .hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER", "SUBJECT_TEACHER")
+                        .requestMatchers("/api/timetables/**").hasRole("PRINCIPAL")
+                        .requestMatchers("/api/weekly-timetables/**")
+                                .hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER")
+                        .requestMatchers("/api/attendance/**")
+                                .hasAnyRole("PRINCIPAL", "CLASS_TEACHER", "SUBJECT_TEACHER", "STUDENT")
                         .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/college-settings/**").hasAnyRole("SUPER_ADMIN", "PRINCIPAL")
                         .requestMatchers(HttpMethod.GET, "/api/student-section/**").hasAnyRole("STUDENT_SECTION", "PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/student-section/**").hasAnyRole("STUDENT_SECTION", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/staff/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
@@ -98,6 +120,7 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(studentAdmissionAccessFilter, JwtAuthenticationFilter.class)
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) ->
                                 writeSecurityError(response, HttpServletResponse.SC_UNAUTHORIZED,

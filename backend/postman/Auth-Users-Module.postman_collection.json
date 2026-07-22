@@ -9,6 +9,10 @@
     { "key": "principalToken", "value": "" },
     { "key": "collegeId", "value": "1" },
     { "key": "principalUserId", "value": "1" }
+    ,{ "key": "superAdminEmail", "value": "" }
+    ,{ "key": "superAdminPassword", "value": "" }
+    ,{ "key": "principalEmail", "value": "" }
+    ,{ "key": "principalPassword", "value": "" }
   ],
   "item": [
     {
@@ -17,7 +21,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/auth/login",
-        "body": { "mode": "raw", "raw": "{\"email\":\"admin@erp.com\",\"password\":\"Admin@12345\"}" }
+        "body": { "mode": "raw", "raw": "{\"email\":\"{{superAdminEmail}}\",\"password\":\"{{superAdminPassword}}\"}" }
       },
       "event": [{
         "listen": "test",
@@ -31,7 +35,7 @@
         "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{superAdminToken}}", "type": "string" }] },
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/super-admin/users/principals",
-        "body": { "mode": "raw", "raw": "{\"collegeId\":{{collegeId}},\"fullName\":\"Dr. Rajesh Patil\",\"email\":\"principal@abccollege.com\",\"phone\":\"9876543210\",\"password\":\"Principal@123\"}" }
+        "body": { "mode": "raw", "raw": "{\"collegeId\":{{collegeId}},\"fullName\":\"Dr. Rajesh Patil\",\"email\":\"{{principalEmail}}\",\"phone\":\"9876543210\",\"password\":\"{{principalPassword}}\"}" }
       },
       "event": [{
         "listen": "test",
@@ -44,7 +48,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/auth/login",
-        "body": { "mode": "raw", "raw": "{\"email\":\"principal@abccollege.com\",\"password\":\"Principal@123\"}" }
+        "body": { "mode": "raw", "raw": "{\"email\":\"{{principalEmail}}\",\"password\":\"{{principalPassword}}\"}" }
       },
       "event": [{
         "listen": "test",

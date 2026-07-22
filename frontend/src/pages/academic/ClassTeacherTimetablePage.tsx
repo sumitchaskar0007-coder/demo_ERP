@@ -39,7 +39,9 @@ export function ClassTeacherTimetablePage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const selected = timetables.find((t) => t.id === selectedId);
 
@@ -68,7 +70,12 @@ export function ClassTeacherTimetablePage() {
     }
   };
 
-  if (loading) return <div className="page-container"><Loader /></div>;
+  if (loading)
+    return (
+      <div className="page-container">
+        <Loader />
+      </div>
+    );
 
   return (
     <div className="page-container space-y-4">
@@ -80,10 +87,22 @@ export function ClassTeacherTimetablePage() {
       {section && (
         <Card className="p-4">
           <div className="grid gap-2 text-sm md:grid-cols-4">
-            <div><b>Class</b><p>{section.courseYear || "—"}</p></div>
-            <div><b>Division</b><p>{section.division || "—"}</p></div>
-            <div><b>Year</b><p>{(section.yearName || "").replace("_", " ")}</p></div>
-            <div><b>Academic Year</b><p>{section.academicYear || "—"}</p></div>
+            <div>
+              <b>Class</b>
+              <p>{section.courseYear || "—"}</p>
+            </div>
+            <div>
+              <b>Division</b>
+              <p>{section.division || "—"}</p>
+            </div>
+            <div>
+              <b>Year</b>
+              <p>{(section.yearName || "").replace("_", " ")}</p>
+            </div>
+            <div>
+              <b>Academic Year</b>
+              <p>{section.academicYear || "—"}</p>
+            </div>
           </div>
         </Card>
       )}
@@ -106,14 +125,24 @@ export function ClassTeacherTimetablePage() {
               onChange={(e) => setWeekInput(e.target.value)}
               className="h-9 rounded-lg border px-2 text-sm"
             />
-            <Button className="h-8 px-3 text-xs" onClick={createWeek} loading={creating} disabled={!weekInput}>
+            <Button
+              className="h-8 px-3 text-xs"
+              onClick={createWeek}
+              loading={creating}
+              disabled={!weekInput}
+            >
               <Calendar className="h-3.5 w-3.5" /> New Week
             </Button>
           </div>
         </div>
         {selected && (
           <p className="mt-2 text-xs text-slate-500">
-            Status: <span className={`font-medium ${selected.status === "PUBLISHED" ? "text-green-600" : "text-yellow-600"}`}>{selected.status}</span>
+            Status:{" "}
+            <span
+              className={`font-medium ${selected.status === "PUBLISHED" ? "text-teal-600" : "text-orange-600"}`}
+            >
+              {selected.status}
+            </span>
             · {(selected.entries || []).length} entries
           </p>
         )}
@@ -121,15 +150,15 @@ export function ClassTeacherTimetablePage() {
 
       {selected && (
         <>
-          <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
+          <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
             {DAYS.map((day) => (
               <button
                 key={day}
                 onClick={() => setDayTab(day)}
-                className={`whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                   dayTab === day
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-gradient-to-r from-brand-600 to-sky-500 text-white shadow-sm"
+                    : "text-slate-500 hover:bg-white hover:text-sky-700"
                 }`}
               >
                 {DAY_LABELS[day]}
@@ -151,7 +180,10 @@ export function ClassTeacherTimetablePage() {
                 (e) => e.dayOfWeek === dayTab && e.periodNumber === period.number,
               );
               return (
-                <div key={period.number} className="flex items-start gap-3 rounded-lg border border-slate-200 p-3">
+                <div
+                  key={period.number}
+                  className="flex items-start gap-3 rounded-lg border border-slate-200 p-3"
+                >
                   <div className="shrink-0 text-xs text-slate-500">
                     <p className="font-medium">P{period.number}</p>
                     <p>{period.start}</p>

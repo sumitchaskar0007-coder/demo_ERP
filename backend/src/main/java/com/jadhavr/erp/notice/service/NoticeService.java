@@ -8,5 +8,6 @@ public interface NoticeService {
     NoticeResponse create(CreateNoticeRequest request);
     List<NoticeResponse> inbox();
     List<NoticeResponse> sent();
+    void acknowledge(Long id);
     void delete(Long id);
 }

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BookOpen, Filter, Plus } from "lucide-react";
+import { BookOpen, CalendarDays, Filter, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -13,12 +13,8 @@ import * as api from "@/features/academic/api";
 import { useAuth } from "@/features/auth/authStore";
 import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
-import type {
-  AcademicClass,
-  Section,
-  Subject,
-  TimetableEntry,
-} from "@/features/academic/types";
+import type { AcademicClass, Section, Subject } from "@/features/academic/types";
+import type { WeeklyTimetable } from "@/features/academics/api";
 
 const preferredDepartments = (rows: Department[], classes: AcademicClass[]) => {
   const classCounts = new Map<number, number>();
@@ -38,11 +34,11 @@ const preferredDepartments = (rows: Department[], classes: AcademicClass[]) => {
   return [...preferred.values()];
 };
 
-const uniqueAcademicClasses = (rows: AcademicClass[]) =>
-  [...new Map(rows.map((row) => [
-    `${row.department.id}:${row.academicYear}:${row.yearName}`,
-    row,
-  ])).values()];
+const uniqueAcademicClasses = (rows: AcademicClass[]) => [
+  ...new Map(
+    rows.map((row) => [`${row.department.id}:${row.academicYear}:${row.yearName}`, row]),
+  ).values(),
+];
 
 function Shell({
   title,
@@ -220,7 +216,12 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                       className="h-9 flex-1 px-3 text-xs sm:flex-none"
                       variant="danger"
                       onClick={async () => {
-                        if (!confirm("Remove this subject? Existing timetable and attendance history will be preserved.")) return;
+                        if (
+                          !confirm(
+                            "Remove this subject? Existing timetable and attendance history will be preserved.",
+                          )
+                        )
+                          return;
                         try {
                           await api.deleteSubject(r.id);
                           toast.success("Subject removed");
@@ -515,15 +516,18 @@ export function SubjectEditPage() {
 }
 
 export function StudentAcademicPage({ attendance = false }: { attendance?: boolean }) {
-  const [data, setData] = useState<TimetableEntry[] | Record<string, number> | null>(null);
+  const [data, setData] = useState<Record<string, number> | null>(null);
   useEffect(() => {
-    (attendance ? api.getMyStudentAttendanceSummary() : api.getMyStudentTimetable())
+    if (!attendance) return;
+    api
+      .getMyStudentAttendanceSummary()
       .then(setData)
       .catch((e) => toast.error(handleApiError(e).message));
   }, [attendance]);
+  if (!attendance) return <StudentWeeklyTimetable />;
   return (
     <Shell
-      title={attendance ? "My Attendance" : "My Timetable"}
+      title="My Attendance"
       subtitle="Your current academic section information."
     >
       {!data ? (
@@ -532,6 +536,104 @@ export function StudentAcademicPage({ attendance = false }: { attendance?: boole
         <pre className="overflow-auto rounded-xl bg-slate-50 p-4 text-sm">
           {JSON.stringify(data, null, 2)}
         </pre>
+      )}
+    </Shell>
+  );
+}
+
+const STUDENT_TIMETABLE_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+const STUDENT_TIMETABLE_COLORS = [
+  "border-blue-200 bg-blue-50 text-blue-950",
+  "border-emerald-200 bg-emerald-50 text-emerald-950",
+  "border-orange-200 bg-orange-50 text-orange-950",
+  "border-violet-200 bg-violet-50 text-violet-950",
+  "border-cyan-200 bg-cyan-50 text-cyan-950",
+];
+
+function StudentWeeklyTimetable() {
+  const [table, setTable] = useState<WeeklyTimetable | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api
+      .getMyStudentTimetable()
+      .then(setTable)
+      .catch((e) => setError(handleApiError(e).message))
+      .finally(() => setLoading(false));
+  }, []);
+  const entries = useMemo(
+    () =>
+      new Map(
+        (table?.entries ?? []).map((entry) => [`${entry.dayOfWeek}:${entry.periodId}`, entry]),
+      ),
+    [table],
+  );
+  return (
+    <Shell title="My Timetable" subtitle="Your weekly timetable for the allocated division.">
+      {loading ? (
+        <Loader />
+      ) : error || !table ? (
+        <EmptyState
+          title="Timetable not available"
+          description={error || "A timetable has not been created for your division yet."}
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-blue-600 text-white">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900">{table.year} - Division {table.division}</h2>
+                <p className="text-xs text-slate-500">{table.department} | {table.academicYear}</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700">
+              Class teacher: {table.classTeacher}
+            </span>
+          </div>
+          {!table.periods.length ? (
+            <EmptyState title="No timetable configured" description="Periods have not been configured yet." />
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
+              <div className="min-w-[1080px]">
+                <div className="grid grid-cols-[145px_repeat(6,minmax(150px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <div className="p-3 text-left">Period</div>
+                  {STUDENT_TIMETABLE_DAYS.map((day) => <div className="border-l p-3" key={day}>{day.slice(0, 3)}</div>)}
+                </div>
+                {table.periods.map((period) => (
+                  <div key={period.id} className={`grid grid-cols-[145px_repeat(6,minmax(150px,1fr))] border-t ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}>
+                    <div className={`p-3 ${period.kind !== "TEACHING" ? "bg-amber-50" : "bg-white"}`}>
+                      <b className="text-sm text-slate-800">{period.label}</b>
+                      <p className="mt-1 text-[10px] text-slate-400">{period.startTime.slice(0, 5)}-{period.endTime.slice(0, 5)}</p>
+                    </div>
+                    {period.kind !== "TEACHING" ? (
+                      <div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.18em] text-amber-700">{period.label.toUpperCase()}</div>
+                    ) : (
+                      STUDENT_TIMETABLE_DAYS.map((day) => {
+                        const entry = entries.get(`${day}:${period.id}`);
+                        return (
+                          <div className="min-h-24 border-l p-2" key={day}>
+                            {entry ? (
+                              <div className={`h-full rounded-xl border p-2.5 shadow-sm ${STUDENT_TIMETABLE_COLORS[entry.subjectId % STUDENT_TIMETABLE_COLORS.length]}`}>
+                                <b className="text-xs leading-5">{entry.subject}</b>
+                                <p className="mt-1 truncate text-[10px] opacity-75">{entry.teacher}</p>
+                                <p className="mt-1 text-[10px] font-semibold">{entry.lectureType}{entry.room ? ` - ${entry.room}` : ""}</p>
+                              </div>
+                            ) : (
+                              <div className="grid h-full place-items-center text-xs text-slate-300">-</div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </Shell>
   );

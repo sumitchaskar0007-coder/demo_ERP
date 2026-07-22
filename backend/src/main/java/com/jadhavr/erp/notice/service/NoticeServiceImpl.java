@@ -10,6 +10,9 @@ import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.notice.dto.CreateNoticeRequest;
 import com.jadhavr.erp.notice.dto.NoticeResponse;
 import com.jadhavr.erp.notice.entity.Notice;
+import com.jadhavr.erp.notice.entity.NoticeAcknowledgement;
+import com.jadhavr.erp.notice.entity.NoticePriority;
+import com.jadhavr.erp.notice.repository.NoticeAcknowledgementRepository;
 import com.jadhavr.erp.notice.repository.NoticeRepository;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
@@ -19,7 +22,6 @@ import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.EnumSet;
 import java.util.List;
@@ -42,11 +44,14 @@ public class NoticeServiceImpl implements NoticeService {
     private final CollegeRepository colleges;
     private final StaffProfileRepository staffProfiles;
     private final StudentProfileRepository studentProfiles;
+    private final NoticeAcknowledgementRepository acknowledgements;
 
     public NoticeServiceImpl(NoticeRepository notices, UserRepository users, CollegeRepository colleges,
-                             StaffProfileRepository staffProfiles, StudentProfileRepository studentProfiles) {
+                             StaffProfileRepository staffProfiles, StudentProfileRepository studentProfiles,
+                             NoticeAcknowledgementRepository acknowledgements) {
         this.notices = notices; this.users = users; this.colleges = colleges;
         this.staffProfiles = staffProfiles; this.studentProfiles = studentProfiles;
+        this.acknowledgements = acknowledgements;
     }
 
     @Override @Transactional
@@ -57,6 +62,7 @@ public class NoticeServiceImpl implements NoticeService {
         Notice notice = new Notice();
         notice.setTitle(request.title().trim());
         notice.setMessage(request.message().trim());
+        notice.setPriority(request.priority());
         notice.setCreatedBy(sender);
         if (SecurityUtils.isSuperAdmin()) {
             ensureAllowed(targets, SUPER_ADMIN_TARGETS);
@@ -80,11 +86,10 @@ public class NoticeServiceImpl implements NoticeService {
             throw new AccessDeniedException("Your role cannot send notices");
         }
         notice.setAudienceRoles(targets);
-        return map(notices.save(notice), activeCollegeIds());
+        return map(notices.save(notice), activeCollegeIds(), Set.of());
     }
 
     @Override
-    @Cacheable(cacheNames = "noticeInbox", key = "T(com.jadhavr.erp.auth.security.SecurityUtils).getCurrentUserId()", sync = true)
     public List<NoticeResponse> inbox() {
         CustomUserDetails current = SecurityUtils.requireCurrentUser();
         Set<RoleName> roles = resolveRoles(current);
@@ -99,6 +104,21 @@ public class NoticeServiceImpl implements NoticeService {
         Long id = SecurityUtils.getCurrentUserId();
         return mapNotices(notices.findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(id,
                 PageRequest.of(0, 100)));
+    }
+
+    @Override @Transactional
+    public void acknowledge(Long id) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        NoticeResponse visible = inbox().stream().filter(notice -> notice.id().equals(id)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Notice not found in your inbox"));
+        if (visible.priority() == NoticePriority.NORMAL)
+            throw new BadRequestException("Normal notices do not require acknowledgement");
+        if (acknowledgements.existsByNoticeIdAndUserId(id, userId)) return;
+        NoticeAcknowledgement acknowledgement = new NoticeAcknowledgement();
+        acknowledgement.setNotice(notices.getReferenceById(id));
+        acknowledgement.setUser(users.getReferenceById(userId));
+        acknowledgement.setAcknowledgedAt(LocalDateTime.now());
+        acknowledgements.save(acknowledgement);
     }
 
     @Override @Transactional
@@ -144,16 +164,18 @@ public class NoticeServiceImpl implements NoticeService {
 
     private List<NoticeResponse> mapNotices(List<Notice> source) {
         Set<Long> activeCollegeIds = activeCollegeIds();
-        return source.stream().map(notice -> map(notice, activeCollegeIds)).toList();
+        Set<Long> acknowledgedIds = acknowledgements.findNoticeIdsByUserId(SecurityUtils.getCurrentUserId());
+        return source.stream().map(notice -> map(notice, activeCollegeIds, acknowledgedIds)).toList();
     }
 
-    private NoticeResponse map(Notice n, Set<Long> activeCollegeIds) {
+    private NoticeResponse map(Notice n, Set<Long> activeCollegeIds, Set<Long> acknowledgedIds) {
         Set<Long> noticeCollegeIds = n.getColleges().stream()
                 .map(College::getId)
                 .collect(Collectors.toSet());
         boolean allColleges = noticeCollegeIds.isEmpty()
                 || (!activeCollegeIds.isEmpty() && noticeCollegeIds.containsAll(activeCollegeIds));
-        return new NoticeResponse(n.getId(), n.getTitle(), n.getMessage(), n.getCreatedBy().getId(),
+        return new NoticeResponse(n.getId(), n.getTitle(), n.getMessage(), n.getPriority(),
+                acknowledgedIds.contains(n.getId()), n.getCreatedBy().getId(),
                 n.getCreatedBy().getFullName(),
                 noticeCollegeIds,
                 n.getColleges().stream().map(College::getName).collect(Collectors.toSet()),

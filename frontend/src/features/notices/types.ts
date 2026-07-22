@@ -1,9 +1,19 @@
-export type NoticeRole = "PRINCIPAL" | "HOD" | "STUDENT_SECTION" | "FEE_SECTION" | "CLASS_TEACHER" | "SUBJECT_TEACHER" | "STUDENT";
+export type NoticeRole =
+  | "PRINCIPAL"
+  | "HOD"
+  | "STUDENT_SECTION"
+  | "FEE_SECTION"
+  | "CLASS_TEACHER"
+  | "SUBJECT_TEACHER"
+  | "STUDENT";
+export type NoticePriority = "NORMAL" | "HIGH" | "URGENT";
 
 export interface Notice {
   id: number;
   title: string;
   message: string;
+  priority: NoticePriority;
+  acknowledged: boolean;
   createdByUserId: number;
   createdByName: string;
   collegeIds: number[];
@@ -18,6 +28,7 @@ export interface Notice {
 export interface CreateNoticeRequest {
   title: string;
   message: string;
+  priority: NoticePriority;
   audienceRoles: NoticeRole[];
   collegeIds: number[];
 }

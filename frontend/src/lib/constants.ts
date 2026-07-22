@@ -1,4 +1,5 @@
 export const APP_NAME = "Jadhavr ERP";
+export const DASHBOARD_NAVIGATION_VISIBILITY_EVENT = "dashboard-navigation:visibility";
 
 export const ROUTES = {
   login: "/login",
@@ -69,7 +70,6 @@ export const ROUTES = {
   studentClass: "/student/academic/class",
   studentAllocation: "/academic/student-allocation",
   classTeacherClass: "/academic/class-teacher/my-class",
-  classTeacherTimetable: "/academic/class-teacher/timetable",
   teacherTimetable: "/teacher/timetable",
   teacherAttendance: "/teacher/attendance",
   notices: "/notices",
@@ -121,7 +121,6 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
       path.startsWith("/principals") ||
       path === ROUTES.staff ||
       path === ROUTES.students ||
-      path === ROUTES.timetable ||
       path.startsWith("/admin/")
     );
   }
@@ -152,14 +151,16 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
     )
   )
     return (
-      path.startsWith("/academic") ||
+      (roles.includes(ROLES.HOD) && path.startsWith("/academic")) ||
+      (roles.includes(ROLES.CLASS_TEACHER) && path === ROUTES.classTeacherClass) ||
       (roles.includes(ROLES.HOD) && path.startsWith("/hod")) ||
       ((roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER)) &&
-        (path.startsWith("/teacher/") || path === ROUTES.teacherTimetable || path === ROUTES.teacherAttendance)) ||
+        (path.startsWith("/teacher/") ||
+          path === ROUTES.teacherTimetable ||
+          path === ROUTES.teacherAttendance)) ||
       ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&
         path === ROUTES.attendanceReport) ||
-      ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&
-        path === ROUTES.timetable) ||
+      (roles.includes(ROLES.HOD) && path === ROUTES.timetable) ||
       path === ROUTES.dashboard ||
       path === ROUTES.notices ||
       path === ROUTES.profile

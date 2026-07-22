@@ -9,6 +9,7 @@ import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.mapper.UserMapper;
 import com.jadhavr.erp.user.repository.UserRepository;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,11 +55,44 @@ public class AuthController {
             @RequestPart("file") MultipartFile file) {
         User user = users.findByEmail(details.getUsername()).orElseThrow();
         String oldImage = user.getProfileImageUrl();
-        String newImage = profileImages.store(file);
-        user.setProfileImageUrl(newImage);
-        User saved = users.save(user);
-        profileImages.deleteManagedFile(oldImage);
-        return ApiResponse.success("Profile photo updated successfully", mapper.toAuthResponse(saved));
+        String newImage = profileImages.store(file, user.getId(),
+                user.getCollege() == null ? null : user.getCollege().getId());
+        try {
+            user.setProfileImageUrl(newImage);
+            User saved = users.saveAndFlush(user);
+            profileImages.cleanupAfterTransaction(newImage, oldImage);
+            return ApiResponse.success("Profile photo updated successfully", mapper.toAuthResponse(saved));
+        } catch (RuntimeException exception) {
+            profileImages.deleteNewObjectAfterFailure(newImage);
+            throw exception;
+        }
+    }
+
+    @GetMapping("/profile/photo")
+    @Transactional(readOnly = true)
+    public ResponseEntity<org.springframework.core.io.Resource> profilePhoto(
+            @AuthenticationPrincipal CustomUserDetails details) {
+        User user = users.findByEmail(details.getUsername()).orElseThrow();
+        if (user.getProfileImageUrl() == null) return ResponseEntity.notFound().build();
+        var image = profileImages.load(user.getProfileImageUrl());
+        return ResponseEntity.ok()
+                .contentType(image.mediaType())
+                .header("Content-Disposition", "inline; filename=\"profile-image\"")
+                .body(image.resource());
+    }
+
+    @DeleteMapping("/profile/photo")
+    @Transactional
+    public ApiResponse<Void> deleteProfilePhoto(
+            @AuthenticationPrincipal CustomUserDetails details) {
+        User user = users.findByEmail(details.getUsername()).orElseThrow();
+        String oldImage = user.getProfileImageUrl();
+        if (oldImage != null) {
+            user.setProfileImageUrl(null);
+            users.saveAndFlush(user);
+            profileImages.deleteAfterCommit(oldImage);
+        }
+        return ApiResponse.success("Profile photo removed successfully", null);
     }
 
     private String trimToNull(String value) {
