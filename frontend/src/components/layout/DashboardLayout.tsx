@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Bell, Clock3, LogOut, X } from "lucide-react";
+import { Bell, Clock3, LogOut, X } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/authStore";
@@ -101,7 +101,7 @@ export function DashboardLayout() {
           notice.id === priorityNotice.id ? { ...notice, acknowledged: true } : notice,
         ),
       );
-      toast.success("Priority notice acknowledged");
+      toast.success("Notice acknowledged");
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -155,44 +155,58 @@ export function DashboardLayout() {
         {navigationVisible && <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unread.length} />}
         <main className={navigationVisible ? "min-w-0 pt-16 lg:pt-0" : "min-w-0"}>
           {priorityNotice ? (
-            <div className="grid min-h-[calc(100vh-4rem)] place-items-center bg-slate-100 p-4 sm:p-8">
-              <section className="w-full max-w-2xl overflow-hidden rounded-3xl border border-rose-200 bg-white shadow-2xl">
-                <div className="flex items-start gap-4 bg-gradient-to-r from-rose-600 to-orange-500 p-6 text-white">
-                  <div className="rounded-2xl bg-white/15 p-3">
-                    <AlertTriangle className="h-6 w-6" />
+            <div className="relative grid min-h-[calc(100vh-4rem)] place-items-center overflow-hidden bg-slate-50 p-4 sm:p-8">
+              <div
+                className="pointer-events-none absolute inset-0 opacity-[0.025] [background-image:radial-gradient(#2563eb_1px,transparent_1px)] [background-size:24px_24px]"
+                aria-hidden="true"
+              />
+              <section className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
+                <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-500" />
+                <div className="flex items-start gap-4 border-b border-slate-100 px-6 py-6 sm:px-8">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+                    <Bell className="h-6 w-6" />
                   </div>
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em]">
-                      {priorityNotice.priority} priority notice
-                    </p>
-                    <h1 className="mt-2 text-2xl font-black">{priorityNotice.title}</h1>
-                    <p className="mt-1 text-sm text-white/80">
-                      From {priorityNotice.createdByName}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                        Important notice
+                      </p>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        Acknowledgement required
+                      </span>
+                    </div>
+                    <h1 className="mt-2 text-2xl font-bold text-slate-950">
+                      {priorityNotice.title}
+                    </h1>
+                    <p className="mt-1 text-sm text-slate-500">From {priorityNotice.createdByName}</p>
                   </div>
                 </div>
-                <div className="p-6 sm:p-8">
-                  <p className="max-h-[45vh] overflow-y-auto whitespace-pre-wrap text-sm leading-7 text-slate-700">
-                    {priorityNotice.message}
-                  </p>
-                  <div className="mt-7 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                    Read this notice completely. The dashboard unlocks after acknowledgement.
+                <div className="px-6 py-6 sm:px-8 sm:py-7">
+                  <div className="max-h-[42vh] overflow-y-auto rounded-2xl bg-slate-50 px-5 py-5 ring-1 ring-slate-100">
+                    <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                      {priorityNotice.message}
+                    </p>
+                  </div>
+                  <div className="mt-5 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm leading-6 text-slate-600">
+                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                    Please read the notice, then confirm your acknowledgement to continue to the
+                    dashboard.
                   </div>
                   <button
                     type="button"
                     disabled={acknowledgeSeconds > 0 || acknowledging}
                     onClick={() => void acceptPriorityNotice()}
-                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-rose-600 font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
                   >
                     {acknowledgeSeconds > 0 ? (
                       <>
                         <Clock3 className="h-4 w-4" />
-                        Please read — {acknowledgeSeconds}s
+                        Continue available in {acknowledgeSeconds}s
                       </>
                     ) : acknowledging ? (
                       "Saving…"
                     ) : (
-                      "I have read and accept this notice"
+                      "I have read this notice"
                     )}
                   </button>
                 </div>

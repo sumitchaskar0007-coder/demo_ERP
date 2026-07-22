@@ -20,6 +20,7 @@ import { defaultRouteForRoles } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/auth/api";
 import { useAuth } from "@/features/auth/authStore";
+import { ROLES } from "@/lib/constants";
 
 const schema = z
   .object({
@@ -43,6 +44,7 @@ type FormValues = z.infer<typeof schema>;
 
 export function ChangePasswordPage() {
   const { user, refreshProfile } = useAuth();
+  const isStudent = Boolean(user?.roles.includes(ROLES.STUDENT));
   const navigate = useNavigate();
   const [showPasswords, setShowPasswords] = useState(false);
   const {
@@ -93,11 +95,12 @@ export function ChangePasswordPage() {
                 Account protection
               </p>
               <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
-                Secure your student account
+                {isStudent ? "Secure your student account" : "Secure your staff account"}
               </h1>
               <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100">
-                Your admission is approved. Create a private password before entering your student
-                dashboard.
+                {isStudent
+                  ? "Your admission is approved. Create a private password before entering your student dashboard."
+                  : "Your staff account is ready. Replace the temporary phone-number password before entering your dashboard."}
               </p>
 
               <div className="mt-8 space-y-4 text-sm text-blue-50">
@@ -116,7 +119,9 @@ export function ChangePasswordPage() {
 
             <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-wider text-blue-200">Signed in as</p>
-              <p className="mt-1 font-bold">{user?.fullName || "Student"}</p>
+              <p className="mt-1 font-bold">
+                {user?.fullName || (isStudent ? "Student" : "Staff member")}
+              </p>
               <p className="mt-0.5 truncate text-xs text-blue-100">{user?.email}</p>
             </div>
           </div>

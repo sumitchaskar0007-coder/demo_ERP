@@ -19,8 +19,7 @@ export type CreateFeeSectionStaffRequest = CreateStudentSectionStaffRequest;
 export interface CreateStaffRequest {
   fullName: string;
   email: string;
-  phone?: string;
-  password: string;
+  phone: string;
   departmentId?: number;
   staffType?: StaffType;
   departmentIds?: number[];

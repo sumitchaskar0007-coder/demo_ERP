@@ -110,15 +110,7 @@ export const createStaffSchema = z
   .object({
     fullName: z.string().trim().min(2).max(150),
     email: z.string().email("Enter a valid email").max(150),
-    phone: z.string().max(20).optional().default(""),
-    password: z
-      .string()
-      .min(8)
-      .max(72)
-      .regex(/[a-z]/, "Add a lowercase letter")
-      .regex(/[A-Z]/, "Add an uppercase letter")
-      .regex(/\d/, "Add a number")
-      .regex(/[^A-Za-z0-9]/, "Add a special character"),
+    phone: z.string().trim().min(1, "Phone number is required").max(20),
     staffTypes: z.array(staffTypeSchema).min(1, "Select at least one role"),
     departmentIds: z.array(z.number()).default([]),
     joiningDate: z.string().optional().default(""),

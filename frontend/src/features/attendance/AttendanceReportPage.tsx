@@ -636,7 +636,7 @@ export function AttendanceReportPage() {
             <HeatMap students={students} setDrill={setDrill} />
           </Card>
           <div className="grid gap-6 xl:grid-cols-2">
-            <TeacherAnalytics rows={rows} operations={data.teacherOperations} />
+            <TeacherAnalytics operations={data.teacherOperations} />
             <SubjectAnalytics students={students} rows={rows} />
           </div>
           <LectureRegister
@@ -1278,38 +1278,27 @@ function HeatMap({
     </div>
   );
 }
-function TeacherAnalytics({
-  rows,
-  operations,
-}: {
-  rows: SessionSummary[];
-  operations: OperationalSummary[];
-}) {
-  const names = unique([...rows.map((r) => r.teacher), ...operations.map((o) => o.name)]);
-  const grouped = names.map((teacher) => {
-    const lectures = rows.filter((r) => r.teacher === teacher);
-    const op = operations.find((o) => o.name === teacher);
-    return {
-      teacher,
-      lectures: op?.lectures ?? lectures.length,
-      submitted: op?.submitted ?? lectures.length,
-      pending: op?.pending ?? 0,
-      percentage: lectures.length
-        ? round(lectures.reduce((n, x) => n + x.percentage, 0) / lectures.length)
-        : 0,
-    };
-  });
+function TeacherAnalytics({ operations }: { operations: OperationalSummary[] }) {
+  const grouped = operations.map((operation) => ({
+    teacher: operation.name,
+    lectures: operation.lectures,
+    submitted: operation.submitted,
+    pending: operation.pending,
+    percentage: operation.lectures
+      ? round((operation.submitted * 100) / operation.lectures)
+      : 0,
+  }));
   return (
     <Card className="overflow-hidden">
       <SectionTitleWrap>
         <SectionTitle
           icon={UserCheck}
           title="Teacher analytics"
-          subtitle="Today's scheduled submission and report-range attendance"
+          subtitle="Today's scheduled lecture and attendance-submission progress"
         />
       </SectionTitleWrap>
       <SimpleTable
-        heads={["Teacher", "Lectures Today", "Submitted", "Pending", "Average"]}
+        heads={["Teacher", "Lectures Today", "Submitted", "Pending", "Completion"]}
         rows={grouped.map((x) => [
           x.teacher,
           x.lectures,

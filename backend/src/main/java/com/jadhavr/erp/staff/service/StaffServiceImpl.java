@@ -109,7 +109,7 @@ public class StaffServiceImpl implements StaffService {
 
         Set<RoleName> roleNames = staffTypes.stream().map(this::roleFor).collect(java.util.stream.Collectors.toSet());
         StaffResponse created = createStaff(collegeId, request.fullName(), request.email(),
-                request.phone(), request.password(), request.joiningDate(), roleNames, staffType, false);
+                request.phone(), request.phone().trim(), request.joiningDate(), roleNames, staffType, true);
         StaffProfile profile = staffProfiles.findById(created.id()).orElseThrow();
         profile.setDepartment(department);
         profile.setDepartments(assignedDepartments);
