@@ -39,10 +39,7 @@ export function StudentSectionAdmissionListPage() {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState<{
-    type: "start" | "approve";
-    admission: StudentSectionAdmissionResponse;
-  } | null>(null);
+  const [action, setAction] = useState<StudentSectionAdmissionResponse | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,12 +66,10 @@ export function StudentSectionAdmissionListPage() {
     if (!action) return;
     setActionLoading(true);
     try {
-      if (action.type === "start") await api.startAdmissionReview(action.admission.id);
-      else
-        await api.approveAdmission(action.admission.id, {
-          studentCategory: action.admission.studentCategory,
-          remarks: "Student data verified successfully",
-        });
+      await api.approveAdmission(action.id, {
+        studentCategory: action.studentCategory,
+        remarks: "Student data verified successfully",
+      });
       toast.success("Admission updated");
       setAction(null);
       await load();
@@ -126,16 +121,8 @@ export function StudentSectionAdmissionListPage() {
             <Eye className="h-4 w-4" />
             View
           </Button>
-          {canManage && row.status === "SUBMITTED" && (
-            <Button
-              variant="secondary"
-              onClick={() => setAction({ type: "start", admission: row })}
-            >
-              Start
-            </Button>
-          )}
           {canManage && ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(row.status) && (
-            <Button onClick={() => setAction({ type: "approve", admission: row })}>Approve</Button>
+            <Button onClick={() => setAction(row)}>Approve</Button>
           )}
           {canManage && row.status === "STUDENT_SECTION_APPROVED" && (
             <Button
@@ -208,13 +195,9 @@ export function StudentSectionAdmissionListPage() {
           onClose={() => setAction(null)}
           onConfirm={runAction}
           loading={actionLoading}
-          title={`${action?.type === "start" ? "Start review" : "Approve admission"}?`}
-          description={
-            action?.type === "approve"
-              ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
-              : "This will record a status history entry."
-          }
-          confirmLabel={action?.type === "start" ? "Start Review" : "Approve"}
+          title="Approve admission?"
+          description={`This confirms student category ${action?.studentCategory ?? ""} and creates the matching fee account.`}
+          confirmLabel="Approve"
         />
       )}
     </div>

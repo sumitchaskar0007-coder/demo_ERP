@@ -12,6 +12,7 @@ import {
   Filter,
   GraduationCap,
   Printer,
+  QrCode,
   RotateCcw,
   TrendingUp,
   UserCheck,
@@ -36,6 +37,8 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { Modal } from "@/components/common/Modal";
+import { PaymentQrManager } from "@/components/colleges/PaymentQrManager";
 import { Select as ResponsiveSelect } from "@/components/common/Select";
 import {
   getAdmissionAnalytics,
@@ -46,6 +49,8 @@ import {
 import { handleApiError } from "@/lib/handleApiError";
 import { exportCollegeExcel } from "@/lib/collegeExcel";
 import { localDateString } from "@/lib/date";
+import { useAuth } from "@/features/auth/authStore";
+import { ROLES } from "@/lib/constants";
 
 const date = localDateString;
 const initial = () => {
@@ -86,6 +91,9 @@ const pendingStatuses = [
 ];
 
 export function AdmissionAnalyticsDashboard() {
+  const { isRole } = useAuth();
+  const isPrincipal = isRole([ROLES.PRINCIPAL]);
+  const [qrManagerOpen, setQrManagerOpen] = useState(false);
   const [draft, setDraft] = useState<Filters>(initial);
   const [applied, setApplied] = useState<Filters>(initial);
   const [data, setData] = useState<AdmissionAnalytics>();
@@ -330,6 +338,12 @@ export function AdmissionAnalyticsDashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isPrincipal && (
+            <Button variant="secondary" onClick={() => setQrManagerOpen(true)}>
+              <QrCode className="mr-2 h-4 w-4" />
+              Change Payment QR
+            </Button>
+          )}
           <Button variant="secondary" disabled={!data} onClick={() => exportLocal("pdf")}>
             <FileText className="mr-2 h-4 w-4" />
             PDF
@@ -348,6 +362,15 @@ export function AdmissionAnalyticsDashboard() {
           </Button>
         </div>
       </header>
+      <Modal
+        open={qrManagerOpen}
+        onClose={() => setQrManagerOpen(false)}
+        title="Change College Payment QR"
+        description="This QR code is shown to students when they submit fee payment proof."
+        size="xl"
+      >
+        <PaymentQrManager />
+      </Modal>
       <Card className="sticky top-0 z-20 border-slate-200/80 bg-white/95 p-5 shadow-sm backdrop-blur print:hidden">
         <div className="mb-4 flex items-center gap-2 text-sm font-bold">
           <Filter className="h-4 w-4 text-brand-600" />

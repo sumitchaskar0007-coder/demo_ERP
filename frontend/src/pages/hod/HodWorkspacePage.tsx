@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Activity,
-  ArrowRightLeft,
   BookOpen,
   CalendarCheck,
   Check,
@@ -13,7 +12,6 @@ import {
   LayoutDashboard,
   RefreshCw,
   Search,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { handleApiError } from "@/lib/handleApiError";
@@ -44,8 +42,8 @@ export function HodWorkspacePage() {
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false);
   const [search, setSearch] = useState(""),
-    [divisionFilter, setDivisionFilter] = useState(""),
-    [statusFilter, setStatusFilter] = useState("");
+    [allocationDepartment, setAllocationDepartment] = useState(""),
+    [courseYearFilter, setCourseYearFilter] = useState("");
   const [selected, setSelected] = useState<number[]>([]),
     [target, setTarget] = useState("");
   const load = useCallback(async () => {
@@ -54,8 +52,8 @@ export function HodWorkspacePage() {
       setData(
         await api.workspace({
           search: search || undefined,
-          divisionId: divisionFilter || undefined,
-          allocationStatus: statusFilter || undefined,
+          courseYearId: courseYearFilter || undefined,
+          allocationStatus: "UNALLOCATED",
           size: 100,
         }),
       );
@@ -64,7 +62,7 @@ export function HodWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  }, [search, divisionFilter, statusFilter]);
+  }, [search, courseYearFilter]);
   useEffect(() => {
     const timer = setTimeout(() => void load(), search ? 250 : 0);
     return () => clearTimeout(timer);
@@ -75,6 +73,7 @@ export function HodWorkspacePage() {
       await task();
       toast.success(message);
       setSelected([]);
+      setTarget("");
       await load();
     } catch (e) {
       toast.error(handleApiError(e).message);
@@ -136,10 +135,10 @@ export function HodWorkspacePage() {
           data={data}
           search={search}
           setSearch={setSearch}
-          divisionFilter={divisionFilter}
-          setDivisionFilter={setDivisionFilter}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
+          allocationDepartment={allocationDepartment}
+          setAllocationDepartment={setAllocationDepartment}
+          courseYearFilter={courseYearFilter}
+          setCourseYearFilter={setCourseYearFilter}
           selected={selected}
           setSelected={setSelected}
           target={target}
@@ -284,10 +283,10 @@ function StudentsPanel({
   data,
   search,
   setSearch,
-  divisionFilter,
-  setDivisionFilter,
-  statusFilter,
-  setStatusFilter,
+  allocationDepartment,
+  setAllocationDepartment,
+  courseYearFilter,
+  setCourseYearFilter,
   selected,
   setSelected,
   target,
@@ -298,10 +297,10 @@ function StudentsPanel({
   data: api.Workspace;
   search: string;
   setSearch: (x: string) => void;
-  divisionFilter: string;
-  setDivisionFilter: (x: string) => void;
-  statusFilter: string;
-  setStatusFilter: (x: string) => void;
+  allocationDepartment: string;
+  setAllocationDepartment: (x: string) => void;
+  courseYearFilter: string;
+  setCourseYearFilter: (x: string) => void;
   selected: number[];
   setSelected: React.Dispatch<React.SetStateAction<number[]>>;
   target: string;
@@ -309,29 +308,110 @@ function StudentsPanel({
   busy: boolean;
   run: Runner;
 }) {
+  const courseYears = Array.from(
+    new Map(data.divisions.map((division) => [division.courseYearId, division.courseYear])).entries(),
+  );
+  const readyToLoad = allocationDepartment === String(data.departmentId) && !!courseYearFilter;
+  const visibleStudents = readyToLoad
+    ? data.students.filter(
+        (student) =>
+          String(student.courseYearId) === courseYearFilter &&
+          student.allocationStatus === "UNALLOCATED",
+      )
+    : [];
   const chosen = data.students.filter((s) => selected.includes(s.id));
-  const targetDivision = data.divisions.find((d) => d.id === Number(target));
+  const selectedCourseYears = [...new Set(chosen.map((s) => s.courseYearId).filter(Boolean))];
+  const selectedAcademicYears = [
+    ...new Set(chosen.map((s) => s.academicYear?.replace(/[^0-9]/g, "")).filter(Boolean)),
+  ];
+  const hasSingleAdmittedCourse =
+    chosen.length > 0 &&
+    selectedCourseYears.length === 1 &&
+    selectedAcademicYears.length === 1 &&
+    chosen.every((s) => s.courseYearId && s.academicYear);
+  const targetDivisions = hasSingleAdmittedCourse
+    ? data.divisions.filter(
+        (division) =>
+          division.courseYearId === selectedCourseYears[0] &&
+          division.academicYear.replace(/[^0-9]/g, "") === selectedAcademicYears[0],
+      )
+    : [];
+  const targetDivision = targetDivisions.find((d) => d.id === Number(target));
   const allSelected =
-    data.students.length > 0 && data.students.every((s) => selected.includes(s.id));
+    visibleStudents.length > 0 && visibleStudents.every((s) => selected.includes(s.id));
   return (
     <Panel
       title="Student division allocation"
-      subtitle="Filter, select, and allocate or transfer students without exceeding capacity."
+      subtitle="Select the department and course year to load unallocated students, then assign an existing division."
     >
-      <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px_180px]">
+      <div className="mb-5 grid gap-3 rounded-2xl border border-violet-100 bg-violet-50/60 p-4 md:grid-cols-3">
+        <label>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">1. Department</span>
+          <select
+            className={inputClass}
+            value={allocationDepartment}
+            onChange={(e) => {
+              setAllocationDepartment(e.target.value);
+              setCourseYearFilter("");
+              setSelected([]);
+              setTarget("");
+            }}
+          >
+            <option value="">Select department</option>
+            <option value={data.departmentId}>{data.department}</option>
+          </select>
+        </label>
+        <label>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">2. Course year</span>
+          <select
+            className={inputClass}
+            value={courseYearFilter}
+            disabled={!allocationDepartment}
+            onChange={(e) => {
+              setCourseYearFilter(e.target.value);
+              setSelected([]);
+              setTarget("");
+            }}
+          >
+            <option value="">Select FY / SY / TY</option>
+            {courseYears.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name.match(/\b(FY|SY|TY)\b/i)?.[1].toUpperCase() ?? name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">3. Division</span>
+          <select
+            className={inputClass}
+            value={target}
+            disabled={!readyToLoad || !selected.length}
+            onChange={(e) => setTarget(e.target.value)}
+          >
+            <option value="">Select created division</option>
+            {targetDivisions.map((d) => (
+              <option key={d.id} value={d.id}>Division {d.name} ({d.allocated}/{d.capacity})</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="mb-5">
         <label className="relative">
           <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
           <input
             className={`${inputClass} pl-9`}
             placeholder="Search student or admission number"
             value={search}
+            disabled={!readyToLoad}
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
         <select
           className={inputClass}
-          value={divisionFilter}
-          onChange={(e) => setDivisionFilter(e.target.value)}
+          value=""
+          onChange={() => undefined}
+          hidden
         >
           <option value="">All divisions</option>
           {data.divisions.map((d) => (
@@ -342,8 +422,9 @@ function StudentsPanel({
         </select>
         <select
           className={inputClass}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          value=""
+          onChange={() => undefined}
+          hidden
         >
           <option value="">All allocations</option>
           <option value="UNALLOCATED">Unallocated</option>
@@ -352,22 +433,11 @@ function StudentsPanel({
       </div>
       <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-slate-50 p-3 lg:flex-row lg:items-center">
         <span className="text-sm font-semibold text-slate-700">{selected.length} selected</span>
-        <select
-          className={`${inputClass} lg:ml-auto lg:w-64`}
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-        >
-          <option value="">Target division / course year</option>
-          {data.divisions.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.courseYear} · {d.name} ({d.allocated}/{d.capacity})
-            </option>
-          ))}
-        </select>
         <button
-          className={actionClass}
+          className={`${actionClass} lg:ml-auto`}
           disabled={
             busy ||
+            !targetDivision ||
             !target ||
             !selected.length ||
             chosen.some((s) => s.allocationStatus !== "UNALLOCATED")
@@ -376,41 +446,7 @@ function StudentsPanel({
             void run(() => api.bulkAllocate(Number(target), selected), "Students allocated")
           }
         >
-          Allocate
-        </button>
-        <button
-          className={secondaryClass}
-          disabled={
-            busy ||
-            !target ||
-            !selected.length ||
-            chosen.some((s) => s.allocationStatus !== "ALLOCATED")
-          }
-          onClick={() =>
-            void run(() => api.transfer(Number(target), selected), "Students transferred")
-          }
-        >
-          <ArrowRightLeft className="h-4 w-4" />
-          Transfer
-        </button>
-        <button
-          className={secondaryClass}
-          disabled={
-            busy ||
-            !targetDivision ||
-            !selected.length ||
-            chosen.some((s) => s.allocationStatus !== "UNALLOCATED")
-          }
-          onClick={() =>
-            targetDivision &&
-            void run(
-              () => api.autoAllocate(targetDivision.courseYearId, selected),
-              "Students distributed evenly",
-            )
-          }
-        >
-          <Sparkles className="h-4 w-4" />
-          Auto distribute
+          Assign division
         </button>
       </div>
       <div className="responsive-table">
@@ -421,7 +457,10 @@ function StudentsPanel({
                 <input
                   type="checkbox"
                   checked={allSelected}
-                  onChange={() => setSelected(allSelected ? [] : data.students.map((s) => s.id))}
+                  onChange={() => {
+                    setSelected(allSelected ? [] : visibleStudents.map((s) => s.id));
+                    setTarget("");
+                  }}
                 />
               </th>
               <th>Student</th>
@@ -433,17 +472,18 @@ function StudentsPanel({
             </tr>
           </thead>
           <tbody>
-            {data.students.map((s) => (
+            {visibleStudents.map((s) => (
               <tr key={s.id} className="border-t">
                 <td className="p-3">
                   <input
                     type="checkbox"
                     checked={selected.includes(s.id)}
-                    onChange={() =>
+                    onChange={() => {
                       setSelected((v) =>
                         v.includes(s.id) ? v.filter((x) => x !== s.id) : [...v, s.id],
-                      )
-                    }
+                      );
+                      setTarget("");
+                    }}
                   />
                 </td>
                 <td className="font-semibold text-slate-800">
@@ -461,8 +501,15 @@ function StudentsPanel({
             ))}
           </tbody>
         </table>
-        {!data.students.length && (
-          <Empty title="No students found" text="Try changing the search or allocation filters." />
+        {!visibleStudents.length && (
+          <Empty
+            title={readyToLoad ? "No unallocated students found" : "Select department and course year"}
+            text={
+              readyToLoad
+                ? "All matching students may already be allocated, or no approved students match your search."
+                : "Choose a department, then FY, SY, or TY to load unallocated students."
+            }
+          />
         )}
       </div>
     </Panel>

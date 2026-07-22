@@ -106,7 +106,7 @@ export function TimetablePage() {
   const { isRole } = useAuth();
   const isSuperAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
-  const isClassTeacher = isRole([ROLES.CLASS_TEACHER]);
+  const isHod = isRole([ROLES.HOD]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [scope, setScope] = useState({ collegeId: "", departmentId: "", courseYearId: "" });
@@ -237,7 +237,7 @@ export function TimetablePage() {
     try {
       setTable(await weeklyTimetableApi.review(table.id, action, comment?.trim()));
       toast.success(
-        action === "APPROVE" ? "Timetable approved" : "Timetable returned to the class teacher",
+        action === "APPROVE" ? "Timetable approved" : "Timetable returned to the HOD",
       );
     } catch (error) {
       toast.error(handleApiError(error).message);
@@ -693,7 +693,7 @@ export function TimetablePage() {
           )}
 
           <div className="flex flex-wrap justify-end gap-2 print:hidden">
-            {isClassTeacher && table.editable && (
+            {isHod && table.editable && (
               <Button
                 disabled={saving || !table.entries.length}
                 onClick={() => void submitForReview()}

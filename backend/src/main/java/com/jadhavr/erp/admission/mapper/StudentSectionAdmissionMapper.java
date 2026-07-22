@@ -3,6 +3,7 @@ package com.jadhavr.erp.admission.mapper;
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
@@ -11,6 +12,7 @@ import java.util.Objects;
 public class StudentSectionAdmissionMapper {
     private final AdmissionDocumentRepository documents;
 
+    @Autowired
     public StudentSectionAdmissionMapper(AdmissionDocumentRepository documents) {
         this.documents = documents;
     }

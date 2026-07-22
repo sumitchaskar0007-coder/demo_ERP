@@ -10,6 +10,7 @@ import {
   Hash,
   IndianRupee,
   List,
+  QrCode,
   Search,
   UserRound,
   Users,
@@ -23,6 +24,8 @@ import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
+import { Modal } from "@/components/common/Modal";
+import { PaymentQrManager } from "@/components/colleges/PaymentQrManager";
 import { Select } from "@/components/common/Select";
 import { Pagination } from "@/components/common/Pagination";
 import { handleApiError } from "@/lib/handleApiError";
@@ -1365,6 +1368,7 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
   const [data, setData] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
+  const [qrManagerOpen, setQrManagerOpen] = useState(false);
   const [filters, setFilters] = useState({
     collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
@@ -1400,10 +1404,26 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
   }, [filters, principal]);
   return (
     <div className="page-container pb-10">
-      <div>
-        <h1 className="page-title">Analytics</h1>
-        <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Analytics</h1>
+          <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
+        </div>
+        {principal && (
+          <Button variant="secondary" onClick={() => setQrManagerOpen(true)}>
+            <QrCode className="h-4 w-4" /> Change Payment QR
+          </Button>
+        )}
       </div>
+      <Modal
+        open={qrManagerOpen}
+        onClose={() => setQrManagerOpen(false)}
+        title="Change College Payment QR"
+        description="This QR code is shown to students when they submit fee payment proof."
+        size="xl"
+      >
+        <PaymentQrManager />
+      </Modal>
       <Card className="mt-6 p-4">
         <div
           className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}

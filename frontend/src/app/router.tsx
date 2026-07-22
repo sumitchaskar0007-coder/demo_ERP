@@ -62,7 +62,6 @@ import { NoticesPage } from "@/features/notices/NoticesPage";
 import { AcademicSetupPage } from "@/features/academics/AcademicSetupPage";
 import { TimetablePage } from "@/features/academics/TimetablePage";
 import { AttendancePage } from "@/features/academics/AttendancePage";
-import { ClassTeacherTimetablePage } from "@/pages/academic/ClassTeacherTimetablePage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -99,6 +98,7 @@ import { TeacherTimetablePage } from "@/features/teacherTimetable/TeacherTimetab
 import { TeacherAttendancePage } from "@/features/attendance/TeacherAttendancePage";
 import { StudentAttendancePage } from "@/features/attendance/StudentAttendancePage";
 import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage";
+import { StudentAcademicAccessProvider } from "@/features/academics/StudentAcademicAccessContext";
 import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
 import { TeacherWorkspacePage } from "@/pages/teacher/TeacherWorkspacePage";
 
@@ -136,7 +136,13 @@ export function AppRouter() {
         <Route element={<ProtectedRoute />}>
           <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
           <Route element={<StudentAdmissionGate />}>
-            <Route element={<DashboardLayout />}>
+            <Route
+              element={
+                <StudentAcademicAccessProvider>
+                  <DashboardLayout />
+                </StudentAcademicAccessProvider>
+              }
+            >
               <Route path={ROUTES.profile} element={<ProfilePage />} />
               <Route path={ROUTES.account} element={<AccountPage />} />
               <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
@@ -277,9 +283,7 @@ export function AppRouter() {
 
               <Route
                 element={
-                  <RoleRoute
-                    roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]}
-                  />
+                  <RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />
                 }
               >
                 <Route path={ROUTES.timetable} element={<TimetablePage />} />
@@ -309,10 +313,6 @@ export function AppRouter() {
 
               <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}>
                 <Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} />
-                <Route
-                  path={ROUTES.classTeacherTimetable}
-                  element={<ClassTeacherTimetablePage />}
-                />
               </Route>
               <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]} />}>
                 <Route path={ROUTES.teacherWorkspace} element={<TeacherWorkspacePage />} />

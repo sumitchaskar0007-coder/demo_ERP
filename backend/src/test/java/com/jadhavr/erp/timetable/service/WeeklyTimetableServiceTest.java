@@ -73,7 +73,7 @@ class WeeklyTimetableServiceTest {
     void setUpSecurityContext() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(userDetails(), null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_PRINCIPAL"))));
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_HOD"))));
     }
 
     @AfterEach
@@ -100,7 +100,7 @@ class WeeklyTimetableServiceTest {
         editor.setId(70L);
         editor.setCollege(college);
         editor.setDepartment(department);
-        editor.setStaffType(StaffType.CLASS_TEACHER);
+        editor.setStaffType(StaffType.HOD);
         editor.setStatus(StaffStatus.ACTIVE);
         section.setClassTeacher(editor);
 
@@ -160,7 +160,7 @@ class WeeklyTimetableServiceTest {
         College college = new College();
         college.setId(10L);
         user.setCollege(college);
-        role.setName(RoleName.CLASS_TEACHER);
+        role.setName(RoleName.HOD);
         user.setRoles(Set.of(role));
         return new CustomUserDetails(user);
     }

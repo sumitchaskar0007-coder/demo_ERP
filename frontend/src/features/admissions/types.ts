@@ -14,7 +14,14 @@ export type AdmissionAction =
   | "STUDENT_SECTION_APPROVED"
   | "STUDENT_SECTION_REJECTED"
   | "ADMISSION_FORM_PRINTED"
-  | "STATUS_UPDATED";
+  | "STATUS_UPDATED"
+  | "FEE_ACCOUNT_CREATED"
+  | "PAYMENT_SUBMITTED"
+  | "PAYMENT_VERIFIED"
+  | "PAYMENT_REJECTED"
+  | "PRINCIPAL_REVIEW_PENDING"
+  | "PRINCIPAL_APPROVED"
+  | "PRINCIPAL_REJECTED";
 
 export type StudentCategory = "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
 export interface AcademicRecord {

@@ -178,6 +178,8 @@ const compact = (params: Record<string, unknown>) =>
 export const attendanceApi = {
   current: async () =>
     unwrap<Lecture | null>(await apiClient.get("/api/teacher/attendance/current-lecture")),
+  today: async () =>
+    unwrap<Lecture[]>(await apiClient.get("/api/teacher/attendance/today-lectures")),
   roster: async (lectureId: number) =>
     unwrap<Roster>(
       await apiClient.get("/api/teacher/attendance/students", { params: { lectureId } }),

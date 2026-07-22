@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
-import type { College, CollegeFormValues, CollegeSearchParams } from "./types";
+import type { College, CollegeFormValues, CollegeSearchParams, PaymentQrSettings } from "./types";
 
 const BASE = "/api/super-admin/colleges";
 
@@ -53,4 +53,26 @@ export async function uploadCollegeImage(file: File, kind: "logo" | "qr-code") {
     },
   );
   return data.data.url;
+}
+
+export async function getPaymentQrSettings(collegeId?: number) {
+  const { data } = await apiClient.get<ApiResponse<PaymentQrSettings>>(
+    "/api/college-settings/payment-qr",
+    { params: collegeId ? { collegeId } : undefined },
+  );
+  return data.data;
+}
+
+export async function updatePaymentQr(file: File, collegeId?: number) {
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<PaymentQrSettings>>(
+    "/api/college-settings/payment-qr",
+    body,
+    {
+      params: collegeId ? { collegeId } : undefined,
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
+  return data.data;
 }

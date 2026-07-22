@@ -25,6 +25,7 @@ const statuses = Object.keys(statusStyles) as AttendanceStatus[];
 
 export function TeacherAttendancePage() {
   const [lecture, setLecture] = useState<Lecture | null>();
+  const [lectures, setLectures] = useState<Lecture[]>([]);
   const [roster, setRoster] = useState<Roster>();
   const [history, setHistory] = useState<SessionSummary[]>([]);
   const [query, setQuery] = useState("");
@@ -34,9 +35,15 @@ export function TeacherAttendancePage() {
 
   const load = async () => {
     try {
-      const active = await attendanceApi.current();
-      setLecture(active);
-      setRoster(active ? await attendanceApi.roster(active.lectureId) : undefined);
+      const today = await attendanceApi.today();
+      setLectures(today);
+      const selected =
+        today.find((item) => item.active && item.canMark) ??
+        today.find((item) => item.canMark) ??
+        today[0] ??
+        null;
+      setLecture(selected);
+      setRoster(selected ? await attendanceApi.roster(selected.lectureId) : undefined);
     } catch (error) {
       toast.error(handleApiError(error).message);
     }
@@ -90,6 +97,19 @@ export function TeacherAttendancePage() {
         current && { ...current, students: current.students.map((s) => ({ ...s, status })) },
     );
 
+  async function selectLecture(lectureId: number) {
+    const selected = lectures.find((item) => item.lectureId === lectureId);
+    if (!selected) return;
+    setLecture(selected);
+    setRoster(undefined);
+    setQuery("");
+    try {
+      setRoster(await attendanceApi.roster(lectureId));
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    }
+  }
+
   async function save(submit: boolean) {
     if (!roster || !lecture) return;
     setBusy(true);
@@ -104,6 +124,11 @@ export function TeacherAttendancePage() {
         : await attendanceApi.create(lecture.lectureId, payload, submit);
       setRoster(updated);
       setLecture(updated.lecture);
+      setLectures((current) =>
+        current.map((item) =>
+          item.lectureId === updated.lecture.lectureId ? updated.lecture : item,
+        ),
+      );
       setConfirming(false);
       toast.success(submit ? "Attendance submitted and locked" : "Draft saved");
     } catch (error) {
@@ -123,7 +148,7 @@ export function TeacherAttendancePage() {
           </p>
           <h1 className="page-title mt-1">Attendance</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Attendance is available only for your current scheduled lecture.
+            Mark any of today's scheduled lectures before the day ends.
           </p>
         </div>
         <div className="flex rounded-xl border bg-white p-1 shadow-sm">
@@ -135,7 +160,7 @@ export function TeacherAttendancePage() {
             )}
           >
             <CalendarCheck2 className="mr-2 inline h-4 w-4" />
-            Current
+            Today
           </button>
           <button
             onClick={() => setTab("history")}
@@ -156,14 +181,34 @@ export function TeacherAttendancePage() {
         <Card className="grid min-h-[360px] place-items-center p-8 text-center">
           <div>
             <Clock3 className="mx-auto h-12 w-12 text-slate-300" />
-            <h2 className="mt-4 text-lg font-bold">No active lecture right now</h2>
+            <h2 className="mt-4 text-lg font-bold">No lecture scheduled today</h2>
             <p className="mt-2 max-w-md text-sm text-slate-500">
-              Attendance opens automatically when one of your timetable lectures starts.
+              Attendance will be available here on the lecture's scheduled day.
             </p>
           </div>
         </Card>
       ) : (
         <>
+          {lectures.length > 1 && (
+            <Card className="p-4">
+              <label htmlFor="attendance-lecture" className="mb-2 block text-sm font-semibold">
+                Select today's lecture
+              </label>
+              <select
+                id="attendance-lecture"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                value={lecture.lectureId}
+                onChange={(event) => void selectLecture(Number(event.target.value))}
+              >
+                {lectures.map((item) => (
+                  <option key={item.lectureId} value={item.lectureId}>
+                    {item.startTime.slice(0, 5)} - {item.endTime.slice(0, 5)} · {item.subject} · {item.year} - {item.division}
+                    {item.sessionStatus === "SUBMITTED" ? " (submitted)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Card>
+          )}
           <Card className="overflow-hidden border-0 bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg">
             <div className="grid gap-5 p-6 md:grid-cols-[1fr_auto] md:items-center">
               <div>
@@ -186,7 +231,7 @@ export function TeacherAttendancePage() {
                 <p className="mt-1 text-lg font-bold">
                   {lecture.startTime.slice(0, 5)} - {lecture.endTime.slice(0, 5)}
                 </p>
-                <p className="text-xs text-blue-100">Active lecture window</p>
+                <p className="text-xs text-blue-100">Scheduled time · submission open today</p>
               </div>
             </div>
           </Card>

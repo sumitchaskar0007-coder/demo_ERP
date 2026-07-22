@@ -13,7 +13,6 @@ import {
   UserRound,
   WalletCards,
   FileText,
-  Printer,
   Bell,
   CheckCircle2,
   BookOpen,
@@ -21,6 +20,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
 import { useAuth } from "@/features/auth/authStore";
+import { useStudentAcademicAccess } from "@/features/academics/StudentAcademicAccessContext";
 import { ROLES, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +40,7 @@ const futureItems = [
 
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
   const { isRole } = useAuth();
+  const { divisionAllocated } = useStudentAcademicAccess();
   const location = useLocation();
   const isAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
@@ -62,7 +63,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
         { label: "Pending Fees", to: ROUTES.adminPendingFees, icon: CreditCard },
         { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
-        { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
         { label: "Staff Lecture Load", to: ROUTES.adminLectureLoad, icon: BarChart3 },
         { label: "Account", to: ROUTES.account, icon: UserRound },
       ]
@@ -121,12 +121,14 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                 { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
                 { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
                 { label: "My Fees", to: ROUTES.studentFees, icon: WalletCards },
-                { label: "My Payments", to: ROUTES.studentPayments, icon: CreditCard },
-                { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
-                { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
-                { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
-                { label: "Notices", to: ROUTES.notices, icon: Bell },
-                { label: "Account", to: ROUTES.account, icon: UserRound },
+                ...(divisionAllocated
+                  ? [
+                      { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
+                      { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
+                      { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
+                      { label: "Notices", to: ROUTES.notices, icon: Bell },
+                    ]
+                  : []),
                 { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
               ]
             : isOtherStaff
@@ -168,6 +170,11 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                           label: "Workload",
                           to: `${ROUTES.hodWorkspace}?tab=workload`,
                           icon: BarChart3,
+                        },
+                        {
+                          label: "Manage Timetable",
+                          to: ROUTES.timetable,
+                          icon: CalendarDays,
                         },
                       ]
                     : []),
@@ -230,9 +237,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                         },
                       ]
                     : []),
-                  ...(isClassTeacher
-                    ? [{ label: "Manage Timetable", to: ROUTES.timetable, icon: CalendarDays }]
-                    : []),
                   ...(isClassTeacher || isRole([ROLES.HOD])
                     ? [
                         {
@@ -267,10 +271,12 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       ]
     : isStudent
       ? [
-          { label: "Fee Payment", icon: CreditCard },
-          { label: "Attendance", icon: CalendarDays },
-          { label: "Timetable", icon: WalletCards },
-          { label: "Results", icon: Printer },
+          ...(!divisionAllocated
+            ? [
+                { label: "Attendance", icon: CalendarDays },
+                { label: "Timetable", icon: WalletCards },
+              ]
+            : []),
         ]
       : futureItems;
 

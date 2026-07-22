@@ -1,5 +1,7 @@
 import {
   ArrowRight,
+  BarChart3,
+  Bell,
   CalendarDays,
   FileText,
   GraduationCap,
@@ -17,9 +19,11 @@ import { ROUTES } from "@/lib/constants";
 import * as admissionsApi from "@/features/admissions/api";
 import { AdmissionStatusBadge, statusExplanation } from "@/components/admissions/components";
 import type { AdmissionResponse } from "@/features/admissions/types";
+import { useStudentAcademicAccess } from "@/features/academics/StudentAcademicAccessContext";
 
 export function StudentDashboardPage() {
   const { user } = useAuth();
+  const { divisionAllocated } = useStudentAcademicAccess();
   const [admission, setAdmission] = useState<AdmissionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -96,11 +100,26 @@ export function StudentDashboardPage() {
             <QuickCard to={ROUTES.studentAdmission} icon={<FileText />} label="My Admission" />
             <QuickCard to={ROUTES.studentProfile} icon={<UserRound />} label="My Profile" />
             <QuickCard to={ROUTES.studentFees} icon={<WalletCards />} label="My Fees" />
-            <QuickCard
-              to={ROUTES.studentAttendance}
-              icon={<CalendarDays />}
-              label="My Attendance"
-            />
+            {divisionAllocated && (
+              <>
+                <QuickCard
+                  to={ROUTES.studentTimetable}
+                  icon={<CalendarDays />}
+                  label="My Timetable"
+                />
+                <QuickCard
+                  to={ROUTES.studentAttendance}
+                  icon={<BarChart3 />}
+                  label="My Attendance"
+                />
+                <QuickCard
+                  to={ROUTES.studentClass}
+                  icon={<GraduationCap />}
+                  label="My Class"
+                />
+                <QuickCard to={ROUTES.notices} icon={<Bell />} label="Notices" />
+              </>
+            )}
           </div>
         </Card>
       </div>

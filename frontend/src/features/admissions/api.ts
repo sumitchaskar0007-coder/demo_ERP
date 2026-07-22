@@ -209,6 +209,12 @@ export async function uploadAdmissionPhoto(id: number, file: File) {
   );
   return data.data;
 }
+export async function getPrincipalAdmissionFees(id: number) {
+  const { data } = await apiClient.get<
+    ApiResponse<import("@/features/fees/types").AdmissionFeeSummaryResponse>
+  >(`/api/principal/admissions/${id}/fees`);
+  return data.data;
+}
 
 export async function uploadAdmissionDocument(
   id: number,
