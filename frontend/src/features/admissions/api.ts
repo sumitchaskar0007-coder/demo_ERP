@@ -128,7 +128,21 @@ export async function startAdmissionReview(id: number) {
 }
 export async function approveAdmission(
   id: number,
-  values: { studentCategory: import("./types").StudentCategory; remarks?: string },
+  values: {
+    studentCategory: import("./types").StudentCategory;
+    photoVerified: boolean;
+    tenthMarksheetVerified: boolean;
+    twelfthMarksheetVerified: boolean;
+    leavingCertificateVerified: boolean;
+    aadhaarCardVerified: boolean;
+    graduationPgCertificateVerified: boolean;
+    migrationCertificateVerified: boolean;
+    gapAffidavitVerified: boolean;
+    casteCertificateVerified: boolean;
+    incomeProofVerified: boolean;
+    nameChangeCertificateVerified: boolean;
+    remarks?: string;
+  },
 ) {
   const { data } = await apiClient.patch<ApiResponse<StudentSectionAdmissionResponse>>(
     `/api/student-section/admissions/${id}/approve`,

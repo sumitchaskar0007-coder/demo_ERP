@@ -8,47 +8,46 @@ import { Loader } from "@/components/common/Loader";
 import { useAuth } from "@/features/auth/authStore";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
-import * as api from "@/features/admissions/api";
-import type { AdmissionStatus } from "@/features/admissions/types";
+import { getStudentSectionDashboard } from "@/features/dashboard/api";
 
 const cards: Array<{
   label: string;
-  status?: AdmissionStatus;
+  key: string;
   icon: typeof FileText;
   color: string;
   accent: string;
 }> = [
   {
     label: "Submitted Admissions",
-    status: "SUBMITTED",
+    key: "submittedAdmissions",
     icon: FileText,
     color: "bg-blue-50 text-blue-600",
     accent: "bg-blue-500",
   },
   {
     label: "Under Review",
-    status: "STUDENT_SECTION_REVIEW_PENDING",
+    key: "reviewPendingAdmissions",
     icon: Search,
     color: "bg-amber-50 text-amber-600",
     accent: "bg-amber-500",
   },
   {
     label: "Approved",
-    status: "STUDENT_SECTION_APPROVED",
+    key: "approvedByStudentSection",
     icon: CheckCircle2,
     color: "bg-emerald-50 text-emerald-600",
     accent: "bg-emerald-500",
   },
   {
     label: "Rejected",
-    status: "STUDENT_SECTION_REJECTED",
+    key: "rejectedByStudentSection",
     icon: XCircle,
     color: "bg-red-50 text-red-600",
     accent: "bg-red-500",
   },
   {
     label: "Printed Forms",
-    status: "STUDENT_SECTION_APPROVED",
+    key: "printedForms",
     icon: Printer,
     color: "bg-indigo-50 text-indigo-600",
     accent: "bg-indigo-500",
@@ -60,18 +59,20 @@ export function StudentSectionDashboardPage() {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    Promise.all(
-      cards.map((card) =>
-        api
-          .searchStudentSectionAdmissions({ status: card.status, size: 1 })
-          .then((page) => [card.label, page.totalElements] as const),
-      ),
-    )
-      .then((pairs) => setStats(Object.fromEntries(pairs)))
+    getStudentSectionDashboard()
+      .then((data) =>
+        setStats(
+          Object.fromEntries(
+            cards.map((card) => [card.label, Number(data[card.key] ?? 0)]),
+          ),
+        ),
+      )
       .catch((err) => toast.error(handleApiError(err).message))
       .finally(() => setLoading(false));
   }, []);
-  const total = Object.values(stats).reduce((sum, value) => sum + value, 0);
+  const total = cards
+    .slice(0, 4)
+    .reduce((sum, card) => sum + (stats[card.label] ?? 0), 0);
   return (
     <div className="page-container pb-10">
       <div className="mb-6">

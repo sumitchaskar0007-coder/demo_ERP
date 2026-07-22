@@ -43,7 +43,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const location = useLocation();
   const { isRole } = useAuth();
   const { divisionAllocated } = useStudentAcademicAccess();
-  const location = useLocation();
   const isAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);

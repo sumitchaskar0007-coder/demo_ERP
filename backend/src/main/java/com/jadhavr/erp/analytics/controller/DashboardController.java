@@ -92,8 +92,14 @@ public class DashboardController {
         return ApiResponse.success("Student Section dashboard", Map.of(
                 "submittedAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.SUBMITTED),
                 "reviewPendingAdmissions", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING),
-                "approvedByStudentSection", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.STUDENT_SECTION_APPROVED),
-                "rejectedByStudentSection", admissions.countByCollegeIdAndStatus(collegeId, AdmissionStatus.STUDENT_SECTION_REJECTED)));
+                "approvedByStudentSection", admissions.countByCollegeIdAndStatusIn(collegeId, Set.of(
+                        AdmissionStatus.STUDENT_SECTION_APPROVED,
+                        AdmissionStatus.PRINCIPAL_REVIEW_PENDING,
+                        AdmissionStatus.PRINCIPAL_APPROVED)),
+                "rejectedByStudentSection", admissions.countByCollegeIdAndStatusIn(collegeId, Set.of(
+                        AdmissionStatus.STUDENT_SECTION_REJECTED,
+                        AdmissionStatus.PRINCIPAL_REJECTED)),
+                "printedForms", admissions.countByCollegeIdAndPrintCountGreaterThan(collegeId, 0)));
     }
 
     @GetMapping("/fee-section")

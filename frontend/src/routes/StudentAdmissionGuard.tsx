@@ -8,7 +8,7 @@ export function StudentAdmissionGuard() {
   const [state, setState] = useState<"loading" | "complete" | "pending">("loading");
   useEffect(() => {
     let active = true;
-    admissionsApi.getMyDetailedAdmission()
+    admissionsApi.getMyAdmission()
       .then((admission) => {
         const correctionRequired = admission.status === "STUDENT_SECTION_REJECTED";
         if (active) setState(admission.detailsCompletedAt && admission.status !== "STUDENT_DETAILS_PENDING" && !correctionRequired ? "complete" : "pending");

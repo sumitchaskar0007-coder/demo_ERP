@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
@@ -39,8 +38,6 @@ export function StudentSectionAdmissionListPage() {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState<StudentSectionAdmissionResponse | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -62,23 +59,6 @@ export function StudentSectionAdmissionListPage() {
     const timer = setTimeout(load, 250);
     return () => clearTimeout(timer);
   }, [load]);
-  const runAction = async () => {
-    if (!action) return;
-    setActionLoading(true);
-    try {
-      await api.approveAdmission(action.id, {
-        studentCategory: action.studentCategory,
-        remarks: "Student data verified successfully",
-      });
-      toast.success("Admission updated");
-      setAction(null);
-      await load();
-    } catch (err) {
-      toast.error(handleApiError(err).message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
   const columns: Column<StudentSectionAdmissionResponse>[] = [
     {
       key: "ref",
@@ -122,7 +102,9 @@ export function StudentSectionAdmissionListPage() {
             View
           </Button>
           {canManage && ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(row.status) && (
-            <Button onClick={() => setAction(row)}>Approve</Button>
+            <Button onClick={() => navigate(`/student-section/admissions/${row.id}`)}>
+              Review
+            </Button>
           )}
           {canManage && row.status === "STUDENT_SECTION_APPROVED" && (
             <Button
@@ -189,17 +171,6 @@ export function StudentSectionAdmissionListPage() {
           />
         )}
       </Card>
-      {canManage && (
-        <ConfirmDialog
-          open={Boolean(action)}
-          onClose={() => setAction(null)}
-          onConfirm={runAction}
-          loading={actionLoading}
-          title="Approve admission?"
-          description={`This confirms student category ${action?.studentCategory ?? ""} and creates the matching fee account.`}
-          confirmLabel="Approve"
-        />
-      )}
     </div>
   );
 }

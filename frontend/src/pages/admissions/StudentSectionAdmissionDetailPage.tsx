@@ -181,6 +181,7 @@ export function StudentSectionAdmissionDetailPage() {
         onClose={() => setModal(null)}
         id={id}
         requestedCategory={admission.studentCategory}
+        admission={admission}
         reload={load}
       />
     </div>
@@ -192,32 +193,59 @@ function ActionModal({
   onClose,
   id,
   requestedCategory,
+  admission,
   reload,
 }: {
   modal: "approve" | "reject" | null;
   onClose: () => void;
   id: number;
   requestedCategory: StudentSectionAdmissionResponse["studentCategory"];
+  admission: StudentSectionAdmissionResponse;
   reload: () => Promise<void>;
 }) {
   const approveForm = useForm<z.infer<typeof approveAdmissionSchema>>({
     resolver: zodResolver(approveAdmissionSchema),
-    defaultValues: { studentCategory: requestedCategory, remarks: "" },
+    defaultValues: {
+      studentCategory: requestedCategory,
+      photoVerified: false,
+      tenthMarksheetVerified: false,
+      twelfthMarksheetVerified: false,
+      leavingCertificateVerified: false,
+      aadhaarCardVerified: false,
+      graduationPgCertificateVerified: false,
+      migrationCertificateVerified: false,
+      gapAffidavitVerified: false,
+      casteCertificateVerified: false,
+      incomeProofVerified: false,
+      nameChangeCertificateVerified: false,
+      remarks: "",
+    },
   });
   const rejectForm = useForm<z.infer<typeof rejectAdmissionSchema>>({
     resolver: zodResolver(rejectAdmissionSchema),
     defaultValues: { rejectionReason: "" },
   });
-  const submit = async (values: Record<string, string>) => {
+  const submit = async (values: Record<string, string | boolean>) => {
     try {
       if (modal === "approve")
         await api.approveAdmission(id, {
           studentCategory:
             values.studentCategory as StudentSectionAdmissionResponse["studentCategory"],
-          remarks: values.remarks,
+          photoVerified: Boolean(values.photoVerified),
+          tenthMarksheetVerified: Boolean(values.tenthMarksheetVerified),
+          twelfthMarksheetVerified: Boolean(values.twelfthMarksheetVerified),
+          leavingCertificateVerified: Boolean(values.leavingCertificateVerified),
+          aadhaarCardVerified: Boolean(values.aadhaarCardVerified),
+          graduationPgCertificateVerified: Boolean(values.graduationPgCertificateVerified),
+          migrationCertificateVerified: Boolean(values.migrationCertificateVerified),
+          gapAffidavitVerified: Boolean(values.gapAffidavitVerified),
+          casteCertificateVerified: Boolean(values.casteCertificateVerified),
+          incomeProofVerified: Boolean(values.incomeProofVerified),
+          nameChangeCertificateVerified: Boolean(values.nameChangeCertificateVerified),
+          remarks: String(values.remarks || ""),
         });
       if (modal === "reject")
-        await api.rejectAdmission(id, { rejectionReason: values.rejectionReason });
+        await api.rejectAdmission(id, { rejectionReason: String(values.rejectionReason) });
       toast.success("Admission updated");
       onClose();
       await reload();
@@ -252,6 +280,23 @@ function ActionModal({
             {...approveForm.register("studentCategory")}
             error={approveForm.formState.errors.studentCategory?.message}
           />
+          <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
+            <p className="text-sm font-bold">Required document verification</p>
+            <VerificationCheckbox label="Passport photo" available={admission.photoAvailable} {...approveForm.register("photoVerified")} />
+            <VerificationCheckbox label="10th marksheet" available={admission.tenthMarksheetAvailable} {...approveForm.register("tenthMarksheetVerified")} />
+            <VerificationCheckbox label="12th marksheet" available={admission.twelfthMarksheetAvailable} {...approveForm.register("twelfthMarksheetVerified")} />
+            <VerificationCheckbox label="Leaving certificate" available={admission.leavingCertificateAvailable} {...approveForm.register("leavingCertificateVerified")} />
+            <VerificationCheckbox label="Aadhaar card" available={admission.aadhaarCardAvailable} {...approveForm.register("aadhaarCardVerified")} />
+          </div>
+          <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
+            <p className="text-sm font-bold">Optional document verification</p>
+            <VerificationCheckbox label="Graduation / PG certificate" available={admission.graduationPgCertificateAvailable} {...approveForm.register("graduationPgCertificateVerified")} />
+            <VerificationCheckbox label="Migration certificate" available={admission.migrationCertificateAvailable} {...approveForm.register("migrationCertificateVerified")} />
+            <VerificationCheckbox label="Gap affidavit" available={admission.gapAffidavitAvailable} {...approveForm.register("gapAffidavitVerified")} />
+            <VerificationCheckbox label="Caste certificate" available={admission.casteCertificateAvailable} {...approveForm.register("casteCertificateVerified")} />
+            <VerificationCheckbox label="Income proof" available={admission.incomeProofAvailable} {...approveForm.register("incomeProofVerified")} />
+            <VerificationCheckbox label="Name-change certificate" available={admission.nameChangeCertificateAvailable} {...approveForm.register("nameChangeCertificateVerified")} />
+          </div>
           <Textarea
             label="Remarks"
             {...approveForm.register("remarks")}
@@ -275,5 +320,23 @@ function ActionModal({
         </form>
       )}
     </Modal>
+  );
+}
+
+function VerificationCheckbox({
+  label,
+  available,
+  ...inputProps
+}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; available: boolean }) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-sm">
+      <span>{label}</span>
+      <span className="flex items-center gap-2">
+        <span className={available ? "text-emerald-700" : "text-rose-600"}>
+          {available ? "Available" : "Missing"}
+        </span>
+        <input type="checkbox" disabled={!available} {...inputProps} />
+      </span>
+    </label>
   );
 }
