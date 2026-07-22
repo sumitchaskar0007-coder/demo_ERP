@@ -19,6 +19,17 @@ hostname for its HTTPS backend origin.
 ## Release order
 
 1. Build and push an immutable image tag (or digest) to the ECR repository.
+
+From the repository root, after Terraform has created the ECR repository and
+your AWS CLI is authenticated, run:
+
+```sh
+AWS_REGION=ap-south-1 ./scripts/push-backend-ecr.sh
+```
+
+The script uses the current Git commit as the image tag. To use an explicit
+tag or repository URI, set `IMAGE_TAG` or `ECR_REPOSITORY_URI`. It does not
+read or print application secrets.
 2. Upload the frontend build to the private frontend bucket.
 3. Apply Terraform for infrastructure changes and invalidate CloudFront.
 4. Run the migration task and wait for a successful exit before changing the
