@@ -183,14 +183,19 @@ export const approveAdmissionSchema = z.object({
   photoVerified: z.boolean().refine(Boolean, "Verify the passport photo"),
   tenthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 10th marksheet"),
   twelfthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 12th marksheet"),
+  provisionalCertificateVerified: z.boolean().refine(Boolean, "Verify the provisional certificate"),
   leavingCertificateVerified: z.boolean().refine(Boolean, "Verify the leaving certificate"),
+  nationalityCertificateVerified: z.boolean().refine(Boolean, "Verify the nationality certificate"),
+  domicileCertificateVerified: z.boolean().refine(Boolean, "Verify the domicile certificate"),
   aadhaarCardVerified: z.boolean().refine(Boolean, "Verify the Aadhaar card"),
-  graduationPgCertificateVerified: z.boolean(),
-  migrationCertificateVerified: z.boolean(),
-  gapAffidavitVerified: z.boolean(),
-  casteCertificateVerified: z.boolean(),
-  incomeProofVerified: z.boolean(),
-  nameChangeCertificateVerified: z.boolean(),
+  // Disabled checkboxes are omitted by the browser. Missing optional documents
+  // therefore resolve to false instead of blocking the entire approval form.
+  graduationPgCertificateVerified: z.boolean().optional().default(false),
+  migrationCertificateVerified: z.boolean().optional().default(false),
+  gapAffidavitVerified: z.boolean().optional().default(false),
+  casteCertificateVerified: z.boolean().optional().default(false),
+  incomeProofVerified: z.boolean().optional().default(false),
+  nameChangeCertificateVerified: z.boolean().optional().default(false),
   remarks: z.string().max(500).optional().default(""),
 });
 

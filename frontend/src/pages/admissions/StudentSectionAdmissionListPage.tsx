@@ -92,31 +92,37 @@ export function StudentSectionAdmissionListPage() {
     {
       key: "actions",
       header: "",
-      render: (row) => (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => navigate(`/student-section/admissions/${row.id}`)}
-          >
-            <Eye className="h-4 w-4" />
-            View
-          </Button>
-          {canManage && ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(row.status) && (
-            <Button onClick={() => navigate(`/student-section/admissions/${row.id}`)}>
-              Review
-            </Button>
-          )}
-          {canManage && row.status === "STUDENT_SECTION_APPROVED" && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
-            >
-              <FileText className="h-4 w-4" />
-              Print
-            </Button>
-          )}
-        </div>
-      ),
+      render: (row) => {
+        const reviewable = canManage && row.status === "SUBMITTED";
+        return (
+          <div className="flex flex-wrap gap-2">
+            {reviewable ? (
+              <Button onClick={() => navigate(`/student-section/admissions/${row.id}`)}>
+                Review
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/student-section/admissions/${row.id}`)}
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
+                {canManage && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Print
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        );
+      },
     },
   ];
   return (

@@ -32,8 +32,9 @@ describe("student sidebar", () => {
     expect(screen.queryByRole("link", { name: "Account" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "My Payments" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "My Profile" })).toBeInTheDocument();
-    expect(screen.getByText("Attendance")).toBeInTheDocument();
-    expect(screen.getByText("Timetable")).toBeInTheDocument();
+    expect(screen.queryByText("Future modules")).not.toBeInTheDocument();
+    expect(screen.queryByText("Attendance")).not.toBeInTheDocument();
+    expect(screen.queryByText("Timetable")).not.toBeInTheDocument();
     expect(screen.queryByText("Fee Payment")).not.toBeInTheDocument();
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
   });
@@ -51,5 +52,18 @@ describe("student sidebar", () => {
     expect(screen.getByRole("link", { name: "My Class" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Notices" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Account" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the full student navigation visible on My Admission", () => {
+    render(
+      <MemoryRouter initialEntries={["/student/admission"]}>
+        <Sidebar collapsed={false} onToggle={() => undefined} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "My Admission" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "My Fees" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "My Profile" })).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { forwardRef, useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,10 +12,7 @@ import { Modal } from "@/components/common/Modal";
 import { Select } from "@/components/common/Select";
 import { Textarea } from "@/components/common/Textarea";
 import { handleApiError } from "@/lib/handleApiError";
-import {
-  approveAdmissionSchema,
-  rejectAdmissionSchema,
-} from "@/lib/validators";
+import { approveAdmissionSchema, rejectAdmissionSchema } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
 import {
   DetailedAdmissionForm,
@@ -210,7 +207,10 @@ function ActionModal({
       photoVerified: false,
       tenthMarksheetVerified: false,
       twelfthMarksheetVerified: false,
+      provisionalCertificateVerified: false,
       leavingCertificateVerified: false,
+      nationalityCertificateVerified: false,
+      domicileCertificateVerified: false,
       aadhaarCardVerified: false,
       graduationPgCertificateVerified: false,
       migrationCertificateVerified: false,
@@ -257,14 +257,18 @@ function ActionModal({
     <Modal
       open={Boolean(modal)}
       onClose={onClose}
-      title={
-        modal === "reject"
-          ? "Reject admission"
-          : "Approve admission"
-      }
+      title={modal === "reject" ? "Reject admission" : "Approve admission"}
     >
       {modal === "approve" && (
-        <form onSubmit={approveForm.handleSubmit(submit)} className="space-y-4">
+        <form
+          onSubmit={approveForm.handleSubmit(submit, (errors) => {
+            const messages = Object.values(errors)
+              .map((error) => error?.message)
+              .filter((message): message is string => typeof message === "string");
+            toast.error(messages[0] ?? "Please verify every available required document");
+          })}
+          className="space-y-4"
+        >
           <Select
             label="Verified student category"
             options={[
@@ -281,21 +285,85 @@ function ActionModal({
             error={approveForm.formState.errors.studentCategory?.message}
           />
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
-            <p className="text-sm font-bold">Required document verification</p>
-            <VerificationCheckbox label="Passport photo" available={admission.photoAvailable} {...approveForm.register("photoVerified")} />
-            <VerificationCheckbox label="10th marksheet" available={admission.tenthMarksheetAvailable} {...approveForm.register("tenthMarksheetVerified")} />
-            <VerificationCheckbox label="12th marksheet" available={admission.twelfthMarksheetAvailable} {...approveForm.register("twelfthMarksheetVerified")} />
-            <VerificationCheckbox label="Leaving certificate" available={admission.leavingCertificateAvailable} {...approveForm.register("leavingCertificateVerified")} />
-            <VerificationCheckbox label="Aadhaar card" available={admission.aadhaarCardAvailable} {...approveForm.register("aadhaarCardVerified")} />
+            <div>
+              <p className="text-sm font-bold">Required document verification</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Verify the passport photo and all 7 required documents.
+              </p>
+            </div>
+            <VerificationCheckbox
+              label="Passport photo"
+              available={admission.photoAvailable}
+              {...approveForm.register("photoVerified")}
+            />
+            <VerificationCheckbox
+              label="10th marksheet"
+              available={admission.tenthMarksheetAvailable}
+              {...approveForm.register("tenthMarksheetVerified")}
+            />
+            <VerificationCheckbox
+              label="12th marksheet"
+              available={admission.twelfthMarksheetAvailable}
+              {...approveForm.register("twelfthMarksheetVerified")}
+            />
+            <VerificationCheckbox
+              label="Provisional certificate"
+              available={admission.uploadedDocuments.includes("PROVISIONAL_CERTIFICATE")}
+              {...approveForm.register("provisionalCertificateVerified")}
+            />
+            <VerificationCheckbox
+              label="Transfer / leaving certificate"
+              available={admission.leavingCertificateAvailable}
+              {...approveForm.register("leavingCertificateVerified")}
+            />
+            <VerificationCheckbox
+              label="Nationality certificate"
+              available={admission.uploadedDocuments.includes("NATIONALITY_CERTIFICATE")}
+              {...approveForm.register("nationalityCertificateVerified")}
+            />
+            <VerificationCheckbox
+              label="Domicile certificate"
+              available={admission.uploadedDocuments.includes("DOMICILE_CERTIFICATE")}
+              {...approveForm.register("domicileCertificateVerified")}
+            />
+            <VerificationCheckbox
+              label="Aadhaar card"
+              available={admission.aadhaarCardAvailable}
+              {...approveForm.register("aadhaarCardVerified")}
+            />
           </div>
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
             <p className="text-sm font-bold">Optional document verification</p>
-            <VerificationCheckbox label="Graduation / PG certificate" available={admission.graduationPgCertificateAvailable} {...approveForm.register("graduationPgCertificateVerified")} />
-            <VerificationCheckbox label="Migration certificate" available={admission.migrationCertificateAvailable} {...approveForm.register("migrationCertificateVerified")} />
-            <VerificationCheckbox label="Gap affidavit" available={admission.gapAffidavitAvailable} {...approveForm.register("gapAffidavitVerified")} />
-            <VerificationCheckbox label="Caste certificate" available={admission.casteCertificateAvailable} {...approveForm.register("casteCertificateVerified")} />
-            <VerificationCheckbox label="Income proof" available={admission.incomeProofAvailable} {...approveForm.register("incomeProofVerified")} />
-            <VerificationCheckbox label="Name-change certificate" available={admission.nameChangeCertificateAvailable} {...approveForm.register("nameChangeCertificateVerified")} />
+            <VerificationCheckbox
+              label="Graduation / PG certificate"
+              available={admission.graduationPgCertificateAvailable}
+              {...approveForm.register("graduationPgCertificateVerified")}
+            />
+            <VerificationCheckbox
+              label="Migration certificate"
+              available={admission.migrationCertificateAvailable}
+              {...approveForm.register("migrationCertificateVerified")}
+            />
+            <VerificationCheckbox
+              label="Gap affidavit"
+              available={admission.gapAffidavitAvailable}
+              {...approveForm.register("gapAffidavitVerified")}
+            />
+            <VerificationCheckbox
+              label="Caste certificate"
+              available={admission.casteCertificateAvailable}
+              {...approveForm.register("casteCertificateVerified")}
+            />
+            <VerificationCheckbox
+              label="Income proof"
+              available={admission.incomeProofAvailable}
+              {...approveForm.register("incomeProofVerified")}
+            />
+            <VerificationCheckbox
+              label="Name-change certificate"
+              available={admission.nameChangeCertificateAvailable}
+              {...approveForm.register("nameChangeCertificateVerified")}
+            />
           </div>
           <Textarea
             label="Remarks"
@@ -323,11 +391,10 @@ function ActionModal({
   );
 }
 
-function VerificationCheckbox({
-  label,
-  available,
-  ...inputProps
-}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; available: boolean }) {
+const VerificationCheckbox = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { label: string; available: boolean }
+>(function VerificationCheckbox({ label, available, ...inputProps }, ref) {
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
       <span>{label}</span>
@@ -335,8 +402,8 @@ function VerificationCheckbox({
         <span className={available ? "text-emerald-700" : "text-rose-600"}>
           {available ? "Available" : "Missing"}
         </span>
-        <input type="checkbox" disabled={!available} {...inputProps} />
+        <input ref={ref} type="checkbox" disabled={!available} {...inputProps} />
       </span>
     </label>
   );
-}
+});

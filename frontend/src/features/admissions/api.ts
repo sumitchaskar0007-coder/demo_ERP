@@ -76,7 +76,10 @@ export async function getMyAdmissionPhoto() {
   });
   return URL.createObjectURL(response.data);
 }
-export async function uploadMyAdmissionDocument(type: import("./types").AdmissionDocumentType, file: File) {
+export async function uploadMyAdmissionDocument(
+  type: import("./types").AdmissionDocumentType,
+  file: File,
+) {
   const body = new FormData();
   body.append("file", file);
   const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
@@ -254,6 +257,62 @@ export async function getAdmissionDocument(
     { responseType: "blob" },
   );
   return URL.createObjectURL(response.data);
+}
+
+export async function downloadAdmissionDocument(
+  id: number,
+  type: import("./types").AdmissionDocumentType,
+) {
+  const response = await apiClient.get<Blob>(
+    `/api/student-section/admissions/${id}/documents/${type}`,
+    { responseType: "blob" },
+  );
+  let blob = response.data;
+  let extension =
+    blob.type === "application/pdf" ? ".pdf" : blob.type === "image/png" ? ".png" : ".jpg";
+
+  // Keep downloads in the requested PNG/JPG/PDF formats. Legacy WebP uploads
+  // are converted to PNG in the browser before they are saved.
+  if (blob.type === "image/webp") {
+    blob = await convertImageToPng(blob);
+    extension = ".png";
+  }
+
+  const disposition = String(response.headers["content-disposition"] || "");
+  const matchedName = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i)?.[1];
+  let originalName = `${type.toLowerCase().replaceAll("_", "-")}${extension}`;
+  if (matchedName) {
+    try {
+      originalName = decodeURIComponent(matchedName.replace(/^\"|\"$/g, ""));
+    } catch {
+      originalName = matchedName.replace(/^\"|\"$/g, "");
+    }
+  }
+  const baseName = originalName.replace(/\.[^.]+$/, "");
+  const hasMatchingExtension =
+    (extension === ".pdf" && /\.pdf$/i.test(originalName)) ||
+    (extension === ".png" && /\.png$/i.test(originalName)) ||
+    (extension === ".jpg" && /\.jpe?g$/i.test(originalName));
+  const filename = hasMatchingExtension ? originalName : `${baseName}${extension}`;
+  return { blob, filename, format: extension.slice(1).toUpperCase() };
+}
+
+async function convertImageToPng(source: Blob) {
+  const bitmap = await createImageBitmap(source);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Unable to convert this image");
+  context.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (converted) =>
+        converted ? resolve(converted) : reject(new Error("Unable to convert this image")),
+      "image/png",
+    ),
+  );
 }
 
 export async function getAdmissionPhoto(id: number, principal = false) {

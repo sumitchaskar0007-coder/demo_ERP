@@ -19,6 +19,7 @@ import { PublicAdmissionPage } from "@/pages/admissions/PublicAdmissionPage";
 import { StudentSectionAdmissionDetailPage } from "@/pages/admissions/StudentSectionAdmissionDetailPage";
 import { StudentSectionAdmissionListPage } from "@/pages/admissions/StudentSectionAdmissionListPage";
 import { StudentSectionDashboardPage } from "@/pages/admissions/StudentSectionDashboardPage";
+import { StudentDocumentsPage } from "@/pages/admissions/StudentDocumentsPage";
 import { DepartmentDetailsPage } from "@/pages/departments/DepartmentDetailsPage";
 import { DepartmentListPage } from "@/pages/departments/DepartmentListPage";
 import { CreateStudentSectionStaffPage } from "@/pages/staff/CreateStudentSectionStaffPage";
@@ -281,11 +282,7 @@ export function AppRouter() {
                 />
               </Route>
 
-              <Route
-                element={
-                  <RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />
-                }
-              >
+              <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />}>
                 <Route path={ROUTES.timetable} element={<TimetablePage />} />
               </Route>
 
@@ -305,6 +302,7 @@ export function AppRouter() {
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.STUDENT_SECTION]} />}>
+                <Route path={ROUTES.studentSectionDocuments} element={<StudentDocumentsPage />} />
                 <Route
                   path="/student-section/admissions/:admissionId/print"
                   element={<AdmissionPrintPage />}

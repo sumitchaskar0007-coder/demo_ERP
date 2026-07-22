@@ -14,10 +14,12 @@ vi.mock("@/features/admissions/api", () => ({
   getAdmissionHistory: vi.fn(),
   getAdmissionCourseYears: vi.fn(),
   getAdmissionDocument: vi.fn(),
+  getAdmissionPhoto: vi.fn(),
   startAdmissionReview: vi.fn(),
   updateAdmissionDetails: vi.fn(),
   uploadAdmissionPhoto: vi.fn(),
   uploadAdmissionDocument: vi.fn(),
+  approveAdmission: vi.fn(),
 }));
 
 import * as admissionApi from "@/features/admissions/api";
@@ -79,6 +81,7 @@ describe("StudentSectionAdmissionDetailPage", () => {
     vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue(admission);
     vi.mocked(admissionApi.getAdmissionHistory).mockResolvedValue([]);
     vi.mocked(admissionApi.getAdmissionCourseYears).mockResolvedValue([]);
+    vi.mocked(admissionApi.getAdmissionPhoto).mockResolvedValue("blob:test-photo");
   });
 
   it("starts read-only, shows uploaded documents, and enables editing on request", async () => {
@@ -108,5 +111,46 @@ describe("StudentSectionAdmissionDetailPage", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "Cancel Changes" })).toBeInTheDocument();
+  });
+
+  it("approves when all available required documents are verified", async () => {
+    const user = userEvent.setup();
+    vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue({
+      ...admission,
+      photoAvailable: true,
+      twelfthMarksheetAvailable: true,
+      leavingCertificateAvailable: true,
+      aadhaarCardAvailable: true,
+      uploadedDocuments: [
+        "TENTH_MARKSHEET",
+        "TWELFTH_MARKSHEET",
+        "PROVISIONAL_CERTIFICATE",
+        "TRANSFER_CERTIFICATE",
+        "NATIONALITY_CERTIFICATE",
+        "DOMICILE_CERTIFICATE",
+        "AADHAAR_CARD",
+      ],
+    });
+    vi.mocked(admissionApi.approveAdmission).mockResolvedValue(admission);
+
+    render(
+      <MemoryRouter initialEntries={["/student-section/admissions/42"]}>
+        <Routes>
+          <Route
+            path="/student-section/admissions/:admissionId"
+            element={<StudentSectionAdmissionDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Approve" }));
+    const checkboxes = screen.getAllByRole("checkbox");
+    for (const checkbox of checkboxes) {
+      if (!checkbox.hasAttribute("disabled")) await user.click(checkbox);
+    }
+    await user.click(screen.getAllByRole("button", { name: "Approve" }).at(-1)!);
+
+    await waitFor(() => expect(admissionApi.approveAdmission).toHaveBeenCalledTimes(1));
   });
 });

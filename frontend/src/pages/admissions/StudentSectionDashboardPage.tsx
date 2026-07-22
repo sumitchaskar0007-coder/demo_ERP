@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, FileText, Printer, Search, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, FileText, Search, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -45,13 +45,6 @@ const cards: Array<{
     color: "bg-red-50 text-red-600",
     accent: "bg-red-500",
   },
-  {
-    label: "Printed Forms",
-    key: "printedForms",
-    icon: Printer,
-    color: "bg-indigo-50 text-indigo-600",
-    accent: "bg-indigo-500",
-  },
 ];
 
 export function StudentSectionDashboardPage() {
@@ -62,17 +55,13 @@ export function StudentSectionDashboardPage() {
     getStudentSectionDashboard()
       .then((data) =>
         setStats(
-          Object.fromEntries(
-            cards.map((card) => [card.label, Number(data[card.key] ?? 0)]),
-          ),
+          Object.fromEntries(cards.map((card) => [card.label, Number(data[card.key] ?? 0)])),
         ),
       )
       .catch((err) => toast.error(handleApiError(err).message))
       .finally(() => setLoading(false));
   }, []);
-  const total = cards
-    .slice(0, 4)
-    .reduce((sum, card) => sum + (stats[card.label] ?? 0), 0);
+  const total = cards.reduce((sum, card) => sum + (stats[card.label] ?? 0), 0);
   return (
     <div className="page-container pb-10">
       <div className="mb-6">
@@ -107,7 +96,7 @@ export function StudentSectionDashboardPage() {
       {loading ? (
         <Loader label="Loading dashboard..." />
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {cards.map(({ label, icon: Icon, color, accent }) => (
             <Card key={label} className="relative overflow-hidden p-5">
               <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
@@ -134,7 +123,7 @@ export function StudentSectionDashboardPage() {
             </p>
           </div>
           <div className="space-y-5 p-6">
-            {cards.slice(0, 4).map((card) => (
+            {cards.map((card) => (
               <div key={card.label}>
                 <div className="mb-2 flex justify-between text-sm">
                   <span className="font-medium text-slate-600">{card.label}</span>
@@ -160,7 +149,7 @@ export function StudentSectionDashboardPage() {
           <div className="p-6">
             <DonutChart
               centerLabel="Applications"
-              segments={cards.slice(0, 4).map((card) => ({
+              segments={cards.map((card) => ({
                 label: card.label,
                 value: stats[card.label] ?? 0,
                 color:

@@ -2,11 +2,13 @@ package com.jadhavr.erp.admission.mapper;
 
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
+import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
+import java.util.Set;
 
 @Component
 public class StudentSectionAdmissionMapper {
@@ -22,6 +24,9 @@ public class StudentSectionAdmissionMapper {
     }
 
     public StudentSectionAdmissionResponse toResponse(AdmissionForm admission) {
+        Set<AdmissionDocumentType> uploadedDocuments = documents == null
+                ? Set.of()
+                : documents.findTypesByAdmissionId(admission.getId());
         return new StudentSectionAdmissionResponse(
                 admission.getId(),
                 admission.getAdmissionReferenceNumber(),
@@ -54,16 +59,26 @@ public class StudentSectionAdmissionMapper {
                 admission.getPreviousClassName(),
                 admission.getPreviousPercentage(),
                 admission.getPhotoStorageName() != null,
-                admission.getTenthMarksheetStorageName() != null,
-                admission.getTwelfthMarksheetStorageName() != null,
-                admission.getGraduationPgCertificateStorageName() != null,
-                admission.getLeavingCertificateStorageName() != null,
-                admission.getMigrationCertificateStorageName() != null,
-                admission.getGapAffidavitStorageName() != null,
-                admission.getCasteCertificateStorageName() != null,
-                admission.getIncomeProofStorageName() != null,
-                admission.getNameChangeCertificateStorageName() != null,
-                admission.getAadhaarCardStorageName() != null,
+                available(uploadedDocuments, AdmissionDocumentType.TENTH_MARKSHEET,
+                        admission.getTenthMarksheetStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.TWELFTH_MARKSHEET,
+                        admission.getTwelfthMarksheetStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.GRADUATION_MARKSHEET,
+                        admission.getGraduationPgCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.TRANSFER_CERTIFICATE,
+                        admission.getLeavingCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.MIGRATION_CERTIFICATE,
+                        admission.getMigrationCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.GAP_CERTIFICATE,
+                        admission.getGapAffidavitStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.CASTE_CERTIFICATE,
+                        admission.getCasteCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.INCOME_CERTIFICATE,
+                        admission.getIncomeProofStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.NAME_CHANGE_CERTIFICATE,
+                        admission.getNameChangeCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.AADHAAR_CARD,
+                        admission.getAadhaarCardStorageName()),
                 admission.isPhotoVerified(),
                 admission.isTenthMarksheetVerified(),
                 admission.isTwelfthMarksheetVerified(),
@@ -103,7 +118,7 @@ public class StudentSectionAdmissionMapper {
                 admission.getQualifyingEntranceTotalScore(),
                 admission.getLastGraduationCollegeName(),
                 admission.getLastGraduationCollegeAddress(),
-                documents == null ? java.util.Set.of() : documents.findTypesByAdmissionId(admission.getId()),
+                uploadedDocuments,
                 admission.getDetailsCompletedAt(),
                 admission.getPrincipalApprovedAt(),
                 admission.getStatus(),
@@ -121,5 +136,10 @@ public class StudentSectionAdmissionMapper {
                 admission.getCreatedAt(),
                 admission.getUpdatedAt()
         );
+    }
+
+    private boolean available(Set<AdmissionDocumentType> uploadedDocuments,
+            AdmissionDocumentType type, String legacyStorageName) {
+        return legacyStorageName != null || uploadedDocuments.contains(type);
     }
 }

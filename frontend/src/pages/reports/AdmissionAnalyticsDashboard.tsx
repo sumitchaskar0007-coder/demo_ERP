@@ -5,13 +5,11 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  Download,
   Eye,
   FileCheck2,
   FileText,
   Filter,
   GraduationCap,
-  Printer,
   QrCode,
   RotateCcw,
   TrendingUp,
@@ -53,13 +51,14 @@ import { useAuth } from "@/features/auth/authStore";
 import { ROLES } from "@/lib/constants";
 
 const date = localDateString;
-const initial = () => {
+const CURRENT_ACADEMIC_YEAR = "2026-2027";
+const initial = (collegeId?: number | null) => {
   const end = new Date(),
     start = new Date();
   start.setMonth(end.getMonth() - 6);
   return {
-    academicYear: "",
-    collegeId: "",
+    academicYear: CURRENT_ACADEMIC_YEAR,
+    collegeId: collegeId ? String(collegeId) : "",
     departmentId: "",
     course: "",
     year: "",
@@ -91,11 +90,11 @@ const pendingStatuses = [
 ];
 
 export function AdmissionAnalyticsDashboard() {
-  const { isRole } = useAuth();
+  const { isRole, user } = useAuth();
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const [qrManagerOpen, setQrManagerOpen] = useState(false);
-  const [draft, setDraft] = useState<Filters>(initial);
-  const [applied, setApplied] = useState<Filters>(initial);
+  const [draft, setDraft] = useState<Filters>(() => initial(user?.collegeId));
+  const [applied, setApplied] = useState<Filters>(() => initial(user?.collegeId));
   const [data, setData] = useState<AdmissionAnalytics>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -131,10 +130,6 @@ export function AdmissionAnalyticsDashboard() {
       .finally(() => setLoading(false));
   };
   useEffect(() => load(applied, page, size), [page, size]);
-  const years = useMemo(
-    () => [...new Set([...(data?.rows ?? []).map((r) => r.academicYear)])].sort(),
-    [data],
-  );
   const colleges = useMemo(
     () =>
       uniqueBy(data?.rows ?? [], (r) => r.collegeId).map((r) => ({
@@ -161,7 +156,7 @@ export function AdmissionAnalyticsDashboard() {
     load(draft, 0, size);
   };
   const reset = () => {
-    const f = initial();
+    const f = initial(user?.collegeId);
     setDraft(f);
     setApplied(f);
     setPage(0);
@@ -344,22 +339,6 @@ export function AdmissionAnalyticsDashboard() {
               Change Payment QR
             </Button>
           )}
-          <Button variant="secondary" disabled={!data} onClick={() => exportLocal("pdf")}>
-            <FileText className="mr-2 h-4 w-4" />
-            PDF
-          </Button>
-          <Button variant="secondary" disabled={!data} onClick={() => exportLocal("excel")}>
-            <Download className="mr-2 h-4 w-4" />
-            Excel
-          </Button>
-          <Button variant="secondary" disabled={!data} onClick={() => exportLocal("csv")}>
-            <Download className="mr-2 h-4 w-4" />
-            CSV
-          </Button>
-          <Button variant="secondary" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
         </div>
       </header>
       <Modal
@@ -376,36 +355,15 @@ export function AdmissionAnalyticsDashboard() {
           <Filter className="h-4 w-4 text-brand-600" />
           Admission filters
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <Select
-            label="Academic Year"
-            value={draft.academicYear}
-            set={(v) => setDraft((x) => ({ ...x, academicYear: v }))}
-            options={years}
-            all="All academic years"
-          />
-          <Select
-            label="College"
-            value={draft.collegeId}
-            set={(v) => setDraft((x) => ({ ...x, collegeId: v }))}
-            options={colleges.map((x) => ({ v: String(x.id), l: x.name }))}
-            all="All colleges"
-          />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ReadOnlyField label="Academic Year" value={CURRENT_ACADEMIC_YEAR} />
+          <ReadOnlyField label="College" value={user?.collegeName || "Assigned college"} />
           <Select
             label="Department"
             value={draft.departmentId}
-            set={(v) =>
-              setDraft((x) => ({ ...x, departmentId: v, course: "", year: "", divisionId: "" }))
-            }
+            set={(v) => setDraft((x) => ({ ...x, departmentId: v, year: "", divisionId: "" }))}
             options={departments.map((x) => ({ v: x.key, l: x.label }))}
             all="All departments"
-          />
-          <Select
-            label="Course"
-            value={draft.course}
-            set={(v) => setDraft((x) => ({ ...x, course: v }))}
-            options={departments.map((x) => x.label)}
-            all="All courses"
           />
           <Select
             label="Year"
@@ -439,33 +397,25 @@ export function AdmissionAnalyticsDashboard() {
             ]}
             all="All statuses"
           />
-          <Field
-            label="Date From"
-            type="date"
-            value={draft.from}
-            set={(v) => setDraft((x) => ({ ...x, from: v }))}
-          />
-          <Field
-            label="Date To"
-            type="date"
-            value={draft.to}
-            set={(v) => setDraft((x) => ({ ...x, to: v }))}
-          />
-          <Field
-            label="Student Name"
-            value={draft.studentName}
-            set={(v) => setDraft((x) => ({ ...x, studentName: v }))}
-          />
-          <Field
-            label="Admission Number"
-            value={draft.admissionNumber}
-            set={(v) => setDraft((x) => ({ ...x, admissionNumber: v }))}
-          />
-          <Field
-            label="Mobile Number"
-            value={draft.mobile}
-            set={(v) => setDraft((x) => ({ ...x, mobile: v }))}
-          />
+        </div>
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Date range
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field
+              label="Date From"
+              type="date"
+              value={draft.from}
+              set={(v) => setDraft((x) => ({ ...x, from: v }))}
+            />
+            <Field
+              label="Date To"
+              type="date"
+              value={draft.to}
+              set={(v) => setDraft((x) => ({ ...x, to: v }))}
+            />
+          </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={apply}>Apply Filters</Button>
@@ -573,34 +523,6 @@ export function AdmissionAnalyticsDashboard() {
               value={s.feePending}
               sub="Minimum fee not met"
               tone="red"
-            />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Alert
-              count={s.pendingReviews}
-              text="Applications Pending Review"
-              click={() => quick("pending")}
-            />
-            <Alert
-              count={s.documentsPending}
-              text="Students Pending Documents"
-              click={() => quick("all")}
-            />
-            <Alert
-              count={s.feePending}
-              text="Students Pending Fee Payment"
-              click={() => toast.info("Fee-pending records are listed in Smart Insights")}
-            />
-            <Alert
-              count={
-                (data.rows ?? []).filter(
-                  (r) =>
-                    r.status.includes("REJECTED") &&
-                    r.submittedAt.slice(0, 10) === date(new Date()),
-                ).length
-              }
-              text="Applications Rejected Today"
-              click={() => quick("rejected")}
             />
           </div>
           <div className="grid gap-6 xl:grid-cols-3">
@@ -1001,36 +923,6 @@ function StudentTable({
                     <Eye className="mr-1 inline h-3.5 w-3.5" />
                     View
                   </button>
-                  <details className="relative">
-                    <summary className="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold">
-                      More
-                    </summary>
-                    <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border bg-white p-2 shadow-xl">
-                      {[
-                        "Admission Timeline",
-                        "Download Application",
-                        "Print Admission Form",
-                        "Download Documents",
-                        "Add Remarks",
-                      ].map((a) => (
-                        <button
-                          key={a}
-                          onClick={() =>
-                            a === "Admission Timeline"
-                              ? view(r)
-                              : a.includes("Print")
-                                ? window.print()
-                                : toast.info(
-                                    `${a} will use the admission record for ${r.studentName}.`,
-                                  )
-                          }
-                          className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-50"
-                        >
-                          {a}
-                        </button>
-                      ))}
-                    </div>
-                  </details>
                 </div>
               </td>
             </tr>
@@ -1323,18 +1215,18 @@ function Field({
     </label>
   );
 }
-function Alert({ count, text, click }: { count: number; text: string; click: () => void }) {
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
-    <button
-      onClick={click}
-      className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-amber-900 transition hover:-translate-y-0.5"
-    >
-      <span>
-        <b className="text-xl">{count}</b>
-        <span className="ml-2 text-sm font-semibold">{text}</span>
-      </span>
-      <ChevronRight className="h-4 w-4" />
-    </button>
+    <label className="text-xs font-semibold text-slate-600">
+      {label}
+      <input
+        value={value}
+        readOnly
+        aria-readonly="true"
+        className="mt-1.5 h-10 w-full cursor-default rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700"
+      />
+    </label>
   );
 }
 function Insight({

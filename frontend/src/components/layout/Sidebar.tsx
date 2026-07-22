@@ -32,13 +32,6 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
-const futureItems = [
-  { label: "Fees", icon: CreditCard },
-  { label: "Attendance", icon: CalendarDays },
-  { label: "Timetable", icon: WalletCards },
-  { label: "Analytics", icon: BarChart3 },
-];
-
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
   const location = useLocation();
   const { isRole } = useAuth();
@@ -103,20 +96,48 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               icon: GraduationCap,
             },
             { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
+            { label: "Documents", to: ROUTES.studentSectionDocuments, icon: FileText },
             { label: "Notices", to: ROUTES.notices, icon: Bell },
-            { label: "Account", to: ROUTES.account, icon: UserRound },
             { label: "Profile", to: ROUTES.profile, icon: UserRound },
           ]
         : isFeeSection
           ? [
               { label: "Dashboard", to: ROUTES.feeOfficerWorkspace, icon: LayoutDashboard },
-              { label: "Fee Accounts", to: `${ROUTES.feeOfficerWorkspace}?tab=accounts`, icon: WalletCards },
-              { label: "Pending Verifications", to: `${ROUTES.feeOfficerWorkspace}?tab=pending`, icon: Clock3 },
-              { label: "Verified Payments", to: `${ROUTES.feeOfficerWorkspace}?tab=verified`, icon: CheckCircle2 },
-              { label: "Rejected Payments", to: `${ROUTES.feeOfficerWorkspace}?tab=rejected`, icon: FileText },
-              { label: "Payment History", to: `${ROUTES.feeOfficerWorkspace}?tab=history`, icon: CreditCard },
-              { label: "Pending Dues", to: `${ROUTES.feeOfficerWorkspace}?tab=dues`, icon: WalletCards },
-              { label: "Fee Reports", to: `${ROUTES.feeOfficerWorkspace}?tab=reports`, icon: BarChart3 },
+              {
+                label: "Fee Accounts",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=accounts`,
+                icon: WalletCards,
+              },
+              {
+                label: "Pending Verifications",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=pending`,
+                icon: Clock3,
+              },
+              {
+                label: "Verified Payments",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=verified`,
+                icon: CheckCircle2,
+              },
+              {
+                label: "Rejected Payments",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=rejected`,
+                icon: FileText,
+              },
+              {
+                label: "Payment History",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=history`,
+                icon: CreditCard,
+              },
+              {
+                label: "Pending Dues",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=dues`,
+                icon: WalletCards,
+              },
+              {
+                label: "Fee Reports",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=reports`,
+                icon: BarChart3,
+              },
               { label: "Notices", to: ROUTES.notices, icon: Bell },
               { label: "Account", to: ROUTES.account, icon: UserRound },
               { label: "Profile", to: ROUTES.profile, icon: UserRound },
@@ -255,10 +276,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
                 ]
               : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
-  const onboardingOnly = isStudent && location.pathname === ROUTES.studentAdmission;
-  const visibleNav = onboardingOnly
-    ? [{ label: "My Admission", to: ROUTES.studentAdmission, icon: FileText }]
-    : nav;
+  const visibleNav = nav;
+  const roleFuture: Array<{ label: string; icon: typeof FileText }> = [];
   const sectionLabel = isAdmin
     ? "Admin"
     : isPrincipal
@@ -272,23 +291,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
             : isOtherStaff
               ? "Staff"
               : "Menu";
-  const roleFuture = isStudentSection
-    ? [
-        { label: "Fee Verification", icon: CreditCard },
-        { label: "Documents", icon: FileText },
-        { label: "Reports", icon: BarChart3 },
-      ]
-    : isStudent
-      ? [
-          ...(!divisionAllocated
-            ? [
-                { label: "Attendance", icon: CalendarDays },
-                { label: "Timetable", icon: WalletCards },
-              ]
-            : []),
-        ]
-      : futureItems;
-
   const isCurrentLink = (to: string, routerActive: boolean) => {
     const [targetPath, targetQuery = ""] = to.split("?");
     const currentParams = new URLSearchParams(location.search);
@@ -350,39 +352,43 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
             </NavLink>
           ))}
         </nav>
-        {!onboardingOnly && <><div className="my-5 border-t" />
-        <p
-          className={cn(
-            "mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400",
-            collapsed && !mobile && "sr-only",
-          )}
-        >
-          Future modules
-        </p>
-        <div className="space-y-1">
-          {roleFuture
-            .filter((item) => isAdmin || item.label !== "Analytics")
-            .map(({ label, icon: Icon }) => (
-              <div
-                key={label}
-                title={`${label} — coming soon`}
-                className={cn(
-                  "flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm text-slate-400",
-                  collapsed && !mobile && "justify-center",
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {(!collapsed || mobile) && (
-                  <>
-                    <span className="flex-1">{label}</span>
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase">
-                      Soon
-                    </span>
-                  </>
-                )}
-              </div>
-            ))}
-        </div></>}
+        {roleFuture.length > 0 && (
+          <div>
+            <div className="my-5 border-t" />
+            <p
+              className={cn(
+                "mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400",
+                collapsed && !mobile && "sr-only",
+              )}
+            >
+              Future modules
+            </p>
+            <div className="space-y-1">
+              {roleFuture
+                .filter((item) => isAdmin || item.label !== "Analytics")
+                .map(({ label, icon: Icon }) => (
+                  <div
+                    key={label}
+                    title={`${label} — coming soon`}
+                    className={cn(
+                      "flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm text-slate-400",
+                      collapsed && !mobile && "justify-center",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {(!collapsed || mobile) && (
+                      <>
+                        <span className="flex-1">{label}</span>
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase">
+                          Soon
+                        </span>
+                      </>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
       {!mobile && (
         <button
