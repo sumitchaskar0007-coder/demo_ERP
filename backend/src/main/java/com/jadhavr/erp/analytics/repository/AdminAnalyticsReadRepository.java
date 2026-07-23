@@ -2,6 +2,7 @@ package com.jadhavr.erp.analytics.repository;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -100,6 +101,38 @@ public class AdminAnalyticsReadRepository {
                 group by c.id,c.name order by c.name
                 """, parameters, (rs, row) -> Map.of("label", rs.getString("label"), "value", rs.getBigDecimal("value")));
 
+        List<Map<String, Object>> feeCollectionTrend = jdbc.query("""
+                select to_char(date_trunc('month', p.payment_date), 'Mon YYYY') label,
+                       coalesce(sum(p.amount),0) value
+                from fee_payments p
+                where p.status='VERIFIED'
+                  and (:collegeId is null or p.college_id=:collegeId)
+                  and (:departmentId is null or p.department_id=:departmentId)
+                  and ((:courseYearId is null and :divisionId is null) or exists(
+                    select 1 from student_section_enrollments e where e.student_id=p.student_id and e.status='ACTIVE'
+                      and (:courseYearId is null or e.academic_class_id=:courseYearId)
+                      and (:divisionId is null or e.section_id=:divisionId)))
+                group by date_trunc('month', p.payment_date)
+                order by date_trunc('month', p.payment_date)
+                """, parameters, (rs, row) -> Map.of(
+                "label", rs.getString("label"),
+                "value", rs.getBigDecimal("value")));
+
+        List<Map<String, Object>> departmentWiseStudents = jdbc.query("""
+                select d.name label,count(s.id) value
+                from student_profiles s
+                join departments d on d.id=s.department_id
+                where (:collegeId is null or s.college_id=:collegeId)
+                  and (:departmentId is null or s.department_id=:departmentId)
+                  and ((:courseYearId is null and :divisionId is null) or exists(
+                    select 1 from student_section_enrollments e where e.student_id=s.id and e.status='ACTIVE'
+                      and (:courseYearId is null or e.academic_class_id=:courseYearId)
+                      and (:divisionId is null or e.section_id=:divisionId)))
+                group by d.id,d.name order by d.name
+                """, parameters, (rs, row) -> Map.of(
+                "label", rs.getString("label"),
+                "value", rs.getLong("value")));
+
         Map<String, Long> admissionDistribution = new LinkedHashMap<>();
         jdbc.query("""
                 select a.status,count(*) value from admission_forms a
@@ -110,8 +143,9 @@ public class AdminAnalyticsReadRepository {
                       and (:courseYearId is null or e.academic_class_id=:courseYearId)
                       and (:divisionId is null or e.section_id=:divisionId)))
                 group by a.status order by a.status
-                """, parameters, rs -> {
+                """, parameters, (ResultSetExtractor<Void>) rs -> {
             while (rs.next()) admissionDistribution.put(rs.getString("status"), rs.getLong("value"));
+            return null;
         });
 
         List<Map<String, Object>> pendingFees = jdbc.query("""
@@ -135,6 +169,8 @@ public class AdminAnalyticsReadRepository {
         result.put("summary", summary);
         result.put("collegeWiseStudents", collegeWiseStudents);
         result.put("collegeWiseFeeCollection", collegeWiseFees);
+        result.put("feeCollectionTrend", feeCollectionTrend);
+        result.put("departmentWiseStudents", departmentWiseStudents);
         result.put("admissionStatusDistribution", admissionDistribution);
         result.put("pendingFees", pendingFees);
         return result;

@@ -2,13 +2,31 @@ package com.jadhavr.erp.admission.mapper;
 
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
+import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
+import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
+import java.util.Set;
 
 @Component
 public class StudentSectionAdmissionMapper {
+    private final AdmissionDocumentRepository documents;
+
+    @Autowired
+    public StudentSectionAdmissionMapper(AdmissionDocumentRepository documents) {
+        this.documents = documents;
+    }
+
+    public StudentSectionAdmissionMapper() {
+        this.documents = null;
+    }
+
     public StudentSectionAdmissionResponse toResponse(AdmissionForm admission) {
+        Set<AdmissionDocumentType> uploadedDocuments = documents == null
+                ? Set.of()
+                : documents.findTypesByAdmissionId(admission.getId());
         return new StudentSectionAdmissionResponse(
                 admission.getId(),
                 admission.getAdmissionReferenceNumber(),
@@ -20,6 +38,9 @@ public class StudentSectionAdmissionMapper {
                 admission.getDepartment().getName(),
                 admission.getDepartment().getCode(),
                 admission.getAcademicYear(),
+                admission.getCourseYear() == null ? null : admission.getCourseYear().getId(),
+                admission.getCourseYear() == null ? null : admission.getCourseYear().getYearName(),
+                admission.getCourseYear() == null ? null : admission.getCourseYear().getName(),
                 admission.getStudentCategory(),
                 admission.getFullName(),
                 admission.getEmail(),
@@ -38,6 +59,37 @@ public class StudentSectionAdmissionMapper {
                 admission.getPreviousClassName(),
                 admission.getPreviousPercentage(),
                 admission.getPhotoStorageName() != null,
+                available(uploadedDocuments, AdmissionDocumentType.TENTH_MARKSHEET,
+                        admission.getTenthMarksheetStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.TWELFTH_MARKSHEET,
+                        admission.getTwelfthMarksheetStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.GRADUATION_MARKSHEET,
+                        admission.getGraduationPgCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.TRANSFER_CERTIFICATE,
+                        admission.getLeavingCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.MIGRATION_CERTIFICATE,
+                        admission.getMigrationCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.GAP_CERTIFICATE,
+                        admission.getGapAffidavitStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.CASTE_CERTIFICATE,
+                        admission.getCasteCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.INCOME_CERTIFICATE,
+                        admission.getIncomeProofStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.NAME_CHANGE_CERTIFICATE,
+                        admission.getNameChangeCertificateStorageName()),
+                available(uploadedDocuments, AdmissionDocumentType.AADHAAR_CARD,
+                        admission.getAadhaarCardStorageName()),
+                admission.isPhotoVerified(),
+                admission.isTenthMarksheetVerified(),
+                admission.isTwelfthMarksheetVerified(),
+                admission.isLeavingCertificateVerified(),
+                admission.isAadhaarCardVerified(),
+                admission.isGraduationPgCertificateVerified(),
+                admission.isMigrationCertificateVerified(),
+                admission.isGapAffidavitVerified(),
+                admission.isCasteCertificateVerified(),
+                admission.isIncomeProofVerified(),
+                admission.isNameChangeCertificateVerified(),
                 admission.getPlaceOfBirth(),
                 admission.getMaritalStatus(),
                 admission.getAadhaarNumber(),
@@ -59,12 +111,14 @@ public class StudentSectionAdmissionMapper {
                         .map(record -> new com.jadhavr.erp.admission.dto.AcademicRecordDto(
                                 record.getQualification(), record.getInstituteName(),
                                 record.getBoardUniversity(), record.getYearOfPassing(),
+                                record.getTotalMarks(), record.getObtainedMarks(),
                                 record.getMarksPercentage()))
                         .toList(),
                 admission.getQualifyingEntranceSeatNumber(),
                 admission.getQualifyingEntranceTotalScore(),
                 admission.getLastGraduationCollegeName(),
                 admission.getLastGraduationCollegeAddress(),
+                uploadedDocuments,
                 admission.getDetailsCompletedAt(),
                 admission.getPrincipalApprovedAt(),
                 admission.getStatus(),
@@ -82,5 +136,10 @@ public class StudentSectionAdmissionMapper {
                 admission.getCreatedAt(),
                 admission.getUpdatedAt()
         );
+    }
+
+    private boolean available(Set<AdmissionDocumentType> uploadedDocuments,
+            AdmissionDocumentType type, String legacyStorageName) {
+        return legacyStorageName != null || uploadedDocuments.contains(type);
     }
 }

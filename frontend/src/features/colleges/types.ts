@@ -17,6 +17,12 @@ export interface College {
   updatedAt: string;
 }
 
+export interface PaymentQrSettings {
+  collegeId: number;
+  collegeName: string;
+  qrCodeUrl: string | null;
+}
+
 export interface CollegeFormValues {
   name: string;
   code?: string;

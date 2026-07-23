@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -114,14 +116,30 @@ class StudentSectionAdmissionServiceImplTest {
         when(admissions.save(admission)).thenReturn(admission);
         when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
 
-        var result = service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.SC, "Verified"));
+        var result = service.approveAdmission(100L, verificationRequest(StudentCategory.SC, "Verified"));
 
         assertEquals(AdmissionStatus.STUDENT_SECTION_APPROVED, result.status());
         assertEquals(StudentStatus.UNDER_REVIEW, admission.getStudent().getStatus());
         assertEquals(StudentCategory.SC, admission.getStudentCategory());
         assertEquals(StudentCategory.SC, admission.getStudent().getStudentCategory());
+        assertTrue(admission.getStudentUser().isMustChangePassword());
         assertEquals("Verified", admission.getStudentSectionRemarks());
         verifyHistory(AdmissionAction.STUDENT_SECTION_APPROVED);
+    }
+
+    @Test
+    void approvalDoesNotRequireAnotherPasswordChangeWhenStudentAlreadyChangedIt() {
+        AdmissionForm admission = admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        admission.setPhotoStorageName("student-photo.jpg");
+        admission.getStudentUser().setPasswordHash(new BCryptPasswordEncoder().encode("already-changed"));
+        when(admissions.findById(100L)).thenReturn(Optional.of(admission));
+        when(admissions.save(admission)).thenReturn(admission);
+        when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
+
+        service.approveAdmission(100L, verificationRequest(StudentCategory.SC, "Verified"));
+
+        assertFalse(admission.getStudentUser().isMustChangePassword());
     }
 
     @Test
@@ -145,7 +163,7 @@ class StudentSectionAdmissionServiceImplTest {
                 .thenReturn(Optional.of(admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REJECTED)));
 
         assertThrows(BadRequestException.class,
-                () -> service.approveAdmission(100L, new VerifyAdmissionRequest(StudentCategory.OPEN, null)));
+                () -> service.approveAdmission(100L, verificationRequest(StudentCategory.OPEN, null)));
     }
 
     @Test
@@ -157,6 +175,24 @@ class StudentSectionAdmissionServiceImplTest {
                 () -> service.rejectAdmission(100L, new RejectAdmissionRequest("Wrong data")));
     }
 
+    private VerifyAdmissionRequest verificationRequest(StudentCategory category, String remarks) {
+        return new VerifyAdmissionRequest(
+                category,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                remarks
+        );
+    }
+
     @Test
     void printDataIsAvailableAsSoonAsAdmissionIsSubmitted() {
         AdmissionForm admission = admission(100L, 1L, AdmissionStatus.SUBMITTED);
@@ -166,7 +202,8 @@ class StudentSectionAdmissionServiceImplTest {
         admission.setCorrespondenceAddress("Narhe Road");
         admission.setQualifyingEntranceSeatNumber("CET-101");
         admission.setAcademicRecords(List.of(new AdmissionAcademicRecord(
-                "12TH", "ABC College", "State Board", "2025", new BigDecimal("82.50"))));
+                "12TH", "ABC College", "State Board", "2025",
+                new BigDecimal("100"), new BigDecimal("82.50"), new BigDecimal("82.50"))));
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
 
         var result = service.getPrintData(100L);
@@ -266,7 +303,9 @@ class StudentSectionAdmissionServiceImplTest {
         admission.setCollege(college);
         admission.setDepartment(department);
         admission.setStudent(profile);
-        admission.setStudentUser(user(60L, collegeId, RoleName.STUDENT));
+        User studentUser = user(60L, collegeId, RoleName.STUDENT);
+        studentUser.setPasswordHash(new BCryptPasswordEncoder().encode("9876543210"));
+        admission.setStudentUser(studentUser);
         admission.setAcademicYear("2026-2027");
         admission.setFullName("Aarav Patil");
         admission.setEmail("aarav@example.com");

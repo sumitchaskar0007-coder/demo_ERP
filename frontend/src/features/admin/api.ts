@@ -42,6 +42,8 @@ export interface AdminAnalytics {
   summary: AdminSummary;
   collegeWiseStudents: { label: string; value: number }[];
   collegeWiseFeeCollection: { label: string; value: number }[];
+  feeCollectionTrend: { label: string; value: number }[];
+  departmentWiseStudents: { label: string; value: number }[];
   admissionStatusDistribution: Record<string, number>;
   pendingFees: Row[];
 }

@@ -10,12 +10,26 @@ import {
   Hash,
   IndianRupee,
   List,
+  QrCode,
   Search,
   UserRound,
   Users,
   WalletCards,
 } from "lucide-react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
@@ -23,13 +37,15 @@ import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
+import { Modal } from "@/components/common/Modal";
+import { PaymentQrManager } from "@/components/colleges/PaymentQrManager";
 import { Select } from "@/components/common/Select";
 import { Pagination } from "@/components/common/Pagination";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
 import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/admin/api";
-import { getActiveColleges } from "@/features/colleges/api";
+import { getActiveColleges, getAllColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { getActiveDepartmentsForAdmin } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
@@ -160,10 +176,12 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
     <div className="page-container pb-10">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-semibold text-slate-400">
-            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;{principal ? "Principal" : "Super Admin"}
-          </p>
-          <h1 className="mt-2 text-2xl font-bold">
+          {principal && (
+            <p className="text-xs font-semibold text-slate-400">
+              Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Principal
+            </p>
+          )}
+          <h1 className={`${principal ? "mt-2 " : ""}text-2xl font-bold`}>
             {principal ? "Principal" : "Super Admin"} Dashboard
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -202,19 +220,12 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
               Have a productive day managing your education workspace.
             </p>
           </div>
-          <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-right backdrop-blur sm:block">
-            <p className="text-xs text-blue-200">Account status</p>
-            <p className="mt-1 font-bold">{user?.status}</p>
-          </div>
         </div>
       </section>
 
       <section className="mt-6">
         <div className="mb-4">
           <h2 className="text-lg font-bold">Organization Overview</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Live people and institution counts from the database
-          </p>
         </div>
         <div
           className={`grid gap-4 sm:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}
@@ -348,13 +359,22 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
         </Card>
       </div>
 
-      <DashboardAnalytics analytics={d} />
+      <DashboardAnalytics analytics={d} principal={principal} />
     </div>
   );
 }
-function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
+function DashboardAnalytics({
+  analytics,
+  principal = false,
+}: {
+  analytics: api.AdminAnalytics;
+  principal?: boolean;
+}) {
   const chartColors = ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#f43f5e"];
   const feeCollection = analytics.collegeWiseFeeCollection
+    .map((item) => ({ ...item, value: Number(item.value) || 0 }))
+    .filter((item) => item.value > 0);
+  const feeCollectionTrend = analytics.feeCollectionTrend
     .map((item) => ({ ...item, value: Number(item.value) || 0 }))
     .filter((item) => item.value > 0);
   const admissions = Object.entries(analytics.admissionStatusDistribution)
@@ -367,7 +387,7 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
       color: chartColors[index % chartColors.length],
     }))
     .filter((item) => item.value > 0);
-  const academics = analytics.collegeWiseStudents
+  const academics = (principal ? analytics.departmentWiseStudents : analytics.collegeWiseStudents)
     .map((item) => ({ ...item, value: Number(item.value) || 0 }))
     .filter((item) => item.value > 0);
   const staffCards = [
@@ -409,11 +429,50 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
     <section className="mt-6 space-y-6">
       <div className="grid gap-6 xl:grid-cols-2">
         <AnalyticsCard
-          title="Fee Collection"
-          subtitle="College-wise verified collection"
+          title={principal ? "College Fee Collection Trend" : "Fee Collection"}
+          subtitle={
+            principal
+              ? "Monthly verified collections for your college"
+              : "College-wise verified collection"
+          }
           contentClassName="h-[380px]"
         >
-          {feeCollection.length ? (
+          {principal && feeCollectionTrend.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={feeCollectionTrend} margin={{ top: 16, right: 16, left: 4, bottom: 4 }}>
+                <defs>
+                  <linearGradient id="principalFeeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `₹${Number(value).toLocaleString("en-IN")}`}
+                  width={82}
+                />
+                <Tooltip
+                  formatter={(value) => [
+                    `₹${Number(value ?? 0).toLocaleString("en-IN")}`,
+                    "Collected",
+                  ]}
+                  contentStyle={{ borderRadius: 14, borderColor: "#dbeafe" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  fill="url(#principalFeeGradient)"
+                  activeDot={{ r: 6, fill: "#2563eb", stroke: "white", strokeWidth: 3 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : !principal && feeCollection.length ? (
             <CollegeBarList
               items={feeCollection}
               barClassName="bg-blue-600"
@@ -457,11 +516,55 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
 
         <AnalyticsCard
           title="Academics"
-          subtitle="Students allocated across colleges"
+          subtitle={
+            principal
+              ? "Students in your college grouped by department"
+              : "Students allocated across colleges"
+          }
           contentClassName="h-[380px]"
         >
-          {academics.length ? (
-            <CollegeBarList items={academics} barClassName="bg-teal-500" valueLabel="Students" />
+          {principal && academics.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={academics} margin={{ top: 16, right: 16, left: 4, bottom: 4 }}>
+                <defs>
+                  <linearGradient id="principalStudentGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={1} />
+                    <stop offset="95%" stopColor="#0d9488" stopOpacity={0.72} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12 }}
+                  width={44}
+                />
+                <Tooltip
+                  formatter={(value) => [Number(value ?? 0).toLocaleString("en-IN"), "Students"]}
+                  contentStyle={{ borderRadius: 14, borderColor: "#ccfbf1" }}
+                />
+                <Bar
+                  dataKey="value"
+                  fill="url(#principalStudentGradient)"
+                  radius={[10, 10, 0, 0]}
+                  maxBarSize={64}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : !principal && academics.length ? (
+            <CollegeBarList
+              items={academics}
+              barClassName="bg-teal-500"
+              valueLabel="Students"
+              categoryLabel={principal ? "Department" : "College"}
+            />
           ) : (
             <ChartEmpty message="No students allocated yet" />
           )}
@@ -500,28 +603,33 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
         </AnalyticsCard>
       </div>
 
-      <div>
-        <Card className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="font-bold">Staff Overview</h2>
-              <p className="mt-1 text-xs text-slate-500">Allocated people and institutions</p>
-            </div>
-            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-          </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {staffCards.map(({ label, value, icon: Icon, tone }) => (
-              <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                <div className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <p className="mt-4 text-2xl font-black">{value}</p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
+      {!principal && (
+        <div>
+          <Card className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-bold">Staff Overview</h2>
+                <p className="mt-1 text-xs text-slate-500">Allocated people and institutions</p>
               </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {staffCards.map(({ label, value, icon: Icon, tone }) => (
+                <div
+                  key={label}
+                  className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
+                >
+                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-2xl font-black">{value}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
     </section>
   );
 }
@@ -560,11 +668,13 @@ function CollegeBarList({
   barClassName,
   valueLabel,
   currency = false,
+  categoryLabel = "College",
 }: {
   items: { label: string; value: number }[];
   barClassName: string;
   valueLabel: string;
   currency?: boolean;
+  categoryLabel?: string;
 }) {
   const maximum = Math.max(...items.map((item) => item.value), 1);
   const formatValue = (value: number) =>
@@ -572,9 +682,9 @@ function CollegeBarList({
 
   return (
     <div className="dashboard-chart-scroll h-full overflow-auto pr-1">
-      <div className="college-bar-chart" role="img" aria-label={`College-wise ${valueLabel}`}>
+      <div className="college-bar-chart" role="img" aria-label={`${categoryLabel}-wise ${valueLabel}`}>
         <div className="college-bar-chart__header" aria-hidden="true">
-          <span>College name</span>
+          <span>{categoryLabel} name</span>
           <span>{valueLabel}</span>
           <span className="text-right">Total</span>
         </div>
@@ -1018,7 +1128,7 @@ export function AdminMoneyPage({
             className={`rounded-2xl px-5 py-3 ${pending ? "bg-orange-50 text-orange-800" : "bg-emerald-50 text-emerald-800"}`}
           >
             <p className="text-[10px] font-bold uppercase tracking-wider">
-              {pending ? "Pending on this page" : "Collected on this page"}
+              {pending ? "Pending Fee" : "Collected Fee"}
             </p>
             <p className="mt-1 text-xl font-black">₹{displayedAmount.toLocaleString("en-IN")}</p>
           </div>
@@ -1365,6 +1475,7 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
   const [data, setData] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
+  const [qrManagerOpen, setQrManagerOpen] = useState(false);
   const [filters, setFilters] = useState({
     collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
@@ -1400,10 +1511,26 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
   }, [filters, principal]);
   return (
     <div className="page-container pb-10">
-      <div>
-        <h1 className="page-title">Analytics</h1>
-        <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Analytics</h1>
+          <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
+        </div>
+        {principal && (
+          <Button variant="secondary" onClick={() => setQrManagerOpen(true)}>
+            <QrCode className="h-4 w-4" /> Change Payment QR
+          </Button>
+        )}
       </div>
+      <Modal
+        open={qrManagerOpen}
+        onClose={() => setQrManagerOpen(false)}
+        title="Change College Payment QR"
+        description="This QR code is shown to students when they submit fee payment proof."
+        size="xl"
+      >
+        <PaymentQrManager />
+      </Modal>
       <Card className="mt-6 p-4">
         <div
           className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}
@@ -1470,7 +1597,11 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
           />
         </div>
       </Card>
-      {data ? <DashboardAnalytics analytics={data} /> : <Loader label="Loading analytics…" />}
+      {data ? (
+        <DashboardAnalytics analytics={data} principal={principal} />
+      ) : (
+        <Loader label="Loading analytics…" />
+      )}
     </div>
   );
 }
@@ -1496,7 +1627,7 @@ export function AdminLectureLoadPage() {
   });
 
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()])
+    Promise.all([getAllColleges(), weeklyTimetableApi.divisions()])
       .then(([c, d]) => {
         setColleges(c);
         setDivisions(d);

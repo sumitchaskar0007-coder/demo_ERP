@@ -31,6 +31,7 @@ export type Student = {
   enrollmentId?: number | null;
   courseYearId?: number | null;
   courseYear?: string | null;
+  academicYear?: string | null;
   divisionId?: number | null;
   division?: string | null;
   rollNumber?: string | null;

@@ -5,7 +5,12 @@ import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.fee.dto.*;
 import com.jadhavr.erp.fee.enums.*;
 import com.jadhavr.erp.fee.service.FeeService;
+import com.jadhavr.erp.fee.service.PaymentProofStorageService;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +20,11 @@ import java.util.List;
 @RequestMapping("/api/fee-section")
 public class FeeSectionController {
     private final FeeService service;
+    private final PaymentProofStorageService proofStorage;
 
-    public FeeSectionController(FeeService service) {
+    public FeeSectionController(FeeService service, PaymentProofStorageService proofStorage) {
         this.service = service;
+        this.proofStorage = proofStorage;
     }
 
     @GetMapping("/dashboard")
@@ -49,6 +56,13 @@ public class FeeSectionController {
         return ApiResponse.success("Pending fee reminder queued to the student email", null);
     }
 
+    @PostMapping("/fee-accounts/send-reminders")
+    @PreAuthorize("hasRole('FEE_SECTION')")
+    public ApiResponse<Integer> reminders() {
+        int students = service.sendPendingFeeReminders();
+        return ApiResponse.success("Pending fee reminders processed", students);
+    }
+
     @GetMapping("/fee-accounts/{id}/transactions")
     public ApiResponse<List<FeeTransactionResponse>> transactions(@PathVariable Long id) {
         return ApiResponse.success("Transactions retrieved", service.accountTransactions(id));
@@ -69,6 +83,17 @@ public class FeeSectionController {
     @GetMapping("/payments/{id}")
     public ApiResponse<PaymentResponse> payment(@PathVariable Long id) {
         return ApiResponse.success("Payment retrieved", service.getPayment(id));
+    }
+
+    @GetMapping("/payments/{id}/proof")
+    public ResponseEntity<Resource> paymentProof(@PathVariable Long id) {
+        var proof = proofStorage.load(service.paymentProofStorageName(id));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename("payment-proof-" + id, java.nio.charset.StandardCharsets.UTF_8)
+                        .build().toString())
+                .contentType(proof.mediaType())
+                .body(proof.resource());
     }
 
     @PatchMapping("/payments/{id}/verify")

@@ -1,4 +1,5 @@
 export type AdmissionStatus =
+  | "STUDENT_DETAILS_PENDING"
   | "SUBMITTED"
   | "STUDENT_SECTION_REVIEW_PENDING"
   | "STUDENT_SECTION_APPROVED"
@@ -9,12 +10,20 @@ export type AdmissionStatus =
   | "CANCELLED";
 
 export type AdmissionAction =
+  | "STUDENT_DETAILS_SUBMITTED"
   | "SUBMITTED"
   | "STUDENT_SECTION_REVIEW_STARTED"
   | "STUDENT_SECTION_APPROVED"
   | "STUDENT_SECTION_REJECTED"
   | "ADMISSION_FORM_PRINTED"
-  | "STATUS_UPDATED";
+  | "STATUS_UPDATED"
+  | "FEE_ACCOUNT_CREATED"
+  | "PAYMENT_SUBMITTED"
+  | "PAYMENT_VERIFIED"
+  | "PAYMENT_REJECTED"
+  | "PRINCIPAL_REVIEW_PENDING"
+  | "PRINCIPAL_APPROVED"
+  | "PRINCIPAL_REJECTED";
 
 export type StudentCategory = "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
 export interface AcademicRecord {
@@ -22,10 +31,39 @@ export interface AcademicRecord {
   instituteName?: string | null;
   boardUniversity?: string | null;
   yearOfPassing?: string | null;
+  totalMarks?: number | null;
+  obtainedMarks?: number | null;
   marksPercentage?: number | null;
 }
 
+export type AdmissionDocumentType =
+  | "TENTH_MARKSHEET"
+  | "TWELFTH_MARKSHEET"
+  | "PROVISIONAL_CERTIFICATE"
+  | "TRANSFER_CERTIFICATE"
+  | "NATIONALITY_CERTIFICATE"
+  | "DOMICILE_CERTIFICATE"
+  | "AADHAAR_CARD"
+  | "GRADUATION_MARKSHEET"
+  | "MIGRATION_CERTIFICATE"
+  | "GAP_CERTIFICATE"
+  | "ENTRANCE_SCORE_CARD"
+  | "CASTE_CERTIFICATE"
+  | "CASTE_VALIDITY"
+  | "NON_CREAMY_LAYER_CERTIFICATE"
+  | "NAME_CHANGE_CERTIFICATE"
+  | "INCOME_CERTIFICATE"
+  | "FORM_O_MINORITY";
+
+export interface AdmissionCourseYearOption {
+  id: number;
+  yearName: "FIRST_YEAR" | "SECOND_YEAR" | "THIRD_YEAR";
+  displayName: string;
+  academicYear: string;
+}
+
 export interface DetailedAdmissionRequest {
+  courseYearId: number;
   fullName: string;
   email: string;
   phone: string;
@@ -155,6 +193,9 @@ export interface AdmissionResponse {
   rejectionReason?: string | null;
 }
 export interface StudentSectionAdmissionResponse extends AdmissionResponse {
+  courseYearId?: number | null;
+  courseYearName?: "FIRST_YEAR" | "SECOND_YEAR" | "THIRD_YEAR" | null;
+  courseYearDisplayName?: string | null;
   studentSectionVerifiedAt?: string | null;
   studentSectionVerifiedByName?: string | null;
   studentSectionRemarks?: string | null;
@@ -164,6 +205,27 @@ export interface StudentSectionAdmissionResponse extends AdmissionResponse {
   lastPrintedByName?: string | null;
   printCount: number;
   photoAvailable: boolean;
+  tenthMarksheetAvailable: boolean;
+  twelfthMarksheetAvailable: boolean;
+  graduationPgCertificateAvailable: boolean;
+  leavingCertificateAvailable: boolean;
+  migrationCertificateAvailable: boolean;
+  gapAffidavitAvailable: boolean;
+  casteCertificateAvailable: boolean;
+  incomeProofAvailable: boolean;
+  nameChangeCertificateAvailable: boolean;
+  aadhaarCardAvailable: boolean;
+  photoVerified: boolean;
+  tenthMarksheetVerified: boolean;
+  twelfthMarksheetVerified: boolean;
+  leavingCertificateVerified: boolean;
+  aadhaarCardVerified: boolean;
+  graduationPgCertificateVerified: boolean;
+  migrationCertificateVerified: boolean;
+  gapAffidavitVerified: boolean;
+  casteCertificateVerified: boolean;
+  incomeProofVerified: boolean;
+  nameChangeCertificateVerified: boolean;
   placeOfBirth?: string | null;
   maritalStatus?: string | null;
   aadhaarNumber?: string | null;
@@ -185,6 +247,7 @@ export interface StudentSectionAdmissionResponse extends AdmissionResponse {
   qualifyingEntranceTotalScore?: number | null;
   lastGraduationCollegeName?: string | null;
   lastGraduationCollegeAddress?: string | null;
+  uploadedDocuments: AdmissionDocumentType[];
   detailsCompletedAt?: string | null;
   principalApprovedAt?: string | null;
 }

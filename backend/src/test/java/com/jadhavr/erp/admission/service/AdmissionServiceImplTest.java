@@ -171,7 +171,7 @@ class AdmissionServiceImplTest {
         assertEquals(RoleName.STUDENT, savedUser.getRoles().iterator().next().getName());
         assertNotEquals(result.temporaryPassword(), savedUser.getPasswordHash());
         assertTrue(passwordEncoder.matches(result.temporaryPassword(), savedUser.getPasswordHash()));
-        assertTrue(savedUser.isMustChangePassword());
+        assertFalse(savedUser.isMustChangePassword());
 
         ArgumentCaptor<StudentProfile> profileCaptor = ArgumentCaptor.forClass(StudentProfile.class);
         verify(studentProfileRepository).save(profileCaptor.capture());
@@ -360,7 +360,7 @@ class AdmissionServiceImplTest {
                 .thenReturn(Optional.of(admission));
         DetailedAdmissionRequest valid = detailedRequest();
         DetailedAdmissionRequest changedEmail = new DetailedAdmissionRequest(
-                valid.fullName(), "attacker@example.com", valid.phone(), valid.dateOfBirth(),
+                valid.courseYearId(), valid.fullName(), "attacker@example.com", valid.phone(), valid.dateOfBirth(),
                 valid.gender(), valid.placeOfBirth(), valid.maritalStatus(), valid.aadhaarNumber(),
                 valid.apaarId(), valid.nationality(), valid.religion(), valid.caste(),
                 valid.studentCategory(), valid.parentName(), valid.parentPhone(), valid.parentEmail(),
@@ -404,7 +404,7 @@ class AdmissionServiceImplTest {
 
     private DetailedAdmissionRequest detailedRequest() {
         return new DetailedAdmissionRequest(
-                "Aarav Rajesh Patil", "aarav.patil@example.com", "9876543210",
+                1L, "Aarav Rajesh Patil", "aarav.patil@example.com", "9876543210",
                 LocalDate.of(2007, 5, 14), "MALE", "Pune", "UNMARRIED",
                 "123456789012", "APAAR123", "Indian", "Hindu", "Patil",
                 StudentCategory.SC, "Rajesh Patil", "9876500001",
@@ -413,7 +413,7 @@ class AdmissionServiceImplTest {
                 "Updated Pune address", "Pune", "411001", "Maharashtra", null,
                 "9876543210", "aarav.patil@example.com",
                 List.of(new AcademicRecordDto("12TH", "ABC College", "State Board", "2025",
-                        new BigDecimal("78.50"))),
+                        new BigDecimal("100"), new BigDecimal("78.50"), new BigDecimal("78.50"))),
                 "MHT123", new BigDecimal("82.00"), "ABC College", "Pune");
     }
 

@@ -1,5 +1,6 @@
-import { Building2, CalendarDays, Mail, Phone, Search } from "lucide-react";
+import { Building2, CalendarDays, ChevronRight, Mail, Phone, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge, StatusBadge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -14,7 +15,7 @@ import { useAuth } from "@/features/auth/authStore";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { handleApiError } from "@/lib/handleApiError";
-import { PAGE_SIZE, ROLES, STAFF_TYPE_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
+import { PAGE_SIZE, ROLES, ROUTES, STAFF_TYPE_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { initials } from "@/lib/utils";
 import type { PageResponse } from "@/types/api";
 import * as api from "@/features/staff/api";
@@ -30,6 +31,7 @@ const emptyPage: PageResponse<StaffResponse> = {
 };
 
 export function StaffListPage() {
+  const navigate = useNavigate();
   const { user, isRole } = useAuth();
   const admin = isRole([ROLES.SUPER_ADMIN]);
   const [result, setResult] = useState(emptyPage);
@@ -88,9 +90,17 @@ export function StaffListPage() {
   };
   return (
     <div className="page-container">
-      <div>
-        <h1 className="page-title">Staff</h1>
-        <p className="page-subtitle">Manage all staff roles without deleting records.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="page-title">Staff</h1>
+          <p className="page-subtitle">Manage all staff roles without deleting records.</p>
+        </div>
+        {!admin && (
+          <Button onClick={() => navigate(ROUTES.createStaff)}>
+            <Plus className="h-4 w-4" />
+            Create Staff
+          </Button>
+        )}
       </div>
       <Card className="mt-6 overflow-hidden">
         <div
@@ -146,24 +156,40 @@ export function StaffListPage() {
               <table className="erp-table table-fixed">
                 <thead>
                   <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="w-[26%] px-5 py-4">Staff Member</th>
+                    <th className={`${admin ? "w-[29%]" : "w-[26%]"} px-5 py-4`}>
+                      Staff Member
+                    </th>
                     <th className="w-[21%] px-5 py-4">Contact</th>
-                    <th className="w-[24%] px-5 py-4">Assignment</th>
+                    <th className={`${admin ? "w-[27%]" : "w-[24%]"} px-5 py-4`}>
+                      Assignment
+                    </th>
                     <th className="w-[11%] px-5 py-4">Status</th>
-                    <th className="w-[11%] px-5 py-4">Joined</th>
-                    <th className="w-[7%] px-5 py-4 text-right">Action</th>
+                    <th className={`${admin ? "w-[12%]" : "w-[11%]"} px-5 py-4`}>Joined</th>
+                    {!admin && <th className="w-[7%] px-5 py-4 text-right">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {result.content.map((row) => (
-                    <StaffTableRow key={row.id} row={row} admin={admin} onToggle={setConfirming} />
+                    <StaffTableRow
+                      key={row.id}
+                      row={row}
+                      admin={admin}
+                      onOpen={() => navigate(`/staff/${row.id}`)}
+                      onToggle={setConfirming}
+                    />
                   ))}
                 </tbody>
               </table>
             </div>
             <div className="grid gap-4 p-4 sm:grid-cols-2 lg:hidden">
               {result.content.map((row) => (
-                <StaffCard key={row.id} row={row} admin={admin} onToggle={setConfirming} />
+                <StaffCard
+                  key={row.id}
+                  row={row}
+                  admin={admin}
+                  onOpen={() => navigate(`/staff/${row.id}`)}
+                  onToggle={setConfirming}
+                />
               ))}
             </div>
             <div className="border-t p-4">
@@ -178,7 +204,11 @@ export function StaffListPage() {
         ) : (
           <EmptyState
             title="No staff found"
-            description="Create staff to begin assigning ERP responsibilities."
+            description={
+              admin
+                ? "No staff records match the selected filters."
+                : "Create staff to begin assigning ERP responsibilities."
+            }
           />
         )}
       </Card>
@@ -222,14 +252,24 @@ function departmentLabels(row: StaffResponse) {
 function StaffTableRow({
   row,
   admin,
+  onOpen,
   onToggle,
 }: {
   row: StaffResponse;
   admin: boolean;
+  onOpen: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
   return (
-    <tr className="align-top transition hover:bg-slate-50/70">
+    <tr
+      className="cursor-pointer align-top transition hover:bg-slate-50/70"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onOpen();
+      }}
+      tabIndex={0}
+      aria-label={`View ${row.fullName}'s staff details`}
+    >
       <td className="px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <StaffAvatar name={row.fullName} />
@@ -268,19 +308,20 @@ function StaffTableRow({
         <StatusBadge status={row.status} />
       </td>
       <td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td>
-      <td className="px-5 py-4 text-right">
-        {admin ? (
-          <span className="whitespace-nowrap text-xs text-slate-400">View only</span>
-        ) : (
+      {!admin && (
+        <td className="px-5 py-4 text-right">
           <Button
             className="whitespace-nowrap"
             variant={row.status === "ACTIVE" ? "danger" : "secondary"}
-            onClick={() => onToggle(row)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle(row);
+            }}
           >
             {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
           </Button>
-        )}
-      </td>
+        </td>
+      )}
     </tr>
   );
 }
@@ -288,14 +329,24 @@ function StaffTableRow({
 function StaffCard({
   row,
   admin,
+  onOpen,
   onToggle,
 }: {
   row: StaffResponse;
   admin: boolean;
+  onOpen: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <article
+      className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onOpen();
+      }}
+      tabIndex={0}
+      aria-label={`View ${row.fullName}'s staff details`}
+    >
       <div className="flex items-start gap-3">
         <StaffAvatar name={row.fullName} />
         <div className="min-w-0 flex-1">
@@ -340,15 +391,30 @@ function StaffCard({
           Joined {joiningDate(row.joiningDate)}
         </p>
       </div>
-      {!admin && (
+      <div className="mt-4 flex gap-2">
         <Button
-          className="mt-4 w-full"
-          variant={row.status === "ACTIVE" ? "danger" : "secondary"}
-          onClick={() => onToggle(row)}
+          className="flex-1"
+          variant="secondary"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
         >
-          {row.status === "ACTIVE" ? "Deactivate Staff" : "Activate Staff"}
+          View details
+          <ChevronRight className="h-4 w-4" />
         </Button>
-      )}
+        {!admin && (
+          <Button
+            variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle(row);
+            }}
+          >
+            {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+          </Button>
+        )}
+      </div>
     </article>
   );
 }

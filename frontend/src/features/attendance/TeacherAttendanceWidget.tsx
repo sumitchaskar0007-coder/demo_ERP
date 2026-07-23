@@ -9,8 +9,15 @@ export function TeacherAttendanceWidget() {
   const [lecture, setLecture] = useState<Lecture | null>();
   useEffect(() => {
     attendanceApi
-      .current()
-      .then(setLecture)
+      .today()
+      .then((lectures) =>
+        setLecture(
+          lectures.find((item) => item.active && item.canMark) ??
+            lectures.find((item) => item.canMark) ??
+            lectures[0] ??
+            null,
+        ),
+      )
       .catch(() => setLecture(null));
   }, []);
   return (
@@ -22,7 +29,7 @@ export function TeacherAttendanceWidget() {
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-              Current active lecture
+              Today's attendance
             </p>
             {lecture === undefined ? (
               <p className="mt-1 text-sm text-slate-500">Checking timetable...</p>
@@ -37,7 +44,7 @@ export function TeacherAttendanceWidget() {
                 </p>
               </>
             ) : (
-              <p className="mt-1 text-sm text-slate-500">No lecture is active right now.</p>
+              <p className="mt-1 text-sm text-slate-500">No lecture is scheduled today.</p>
             )}
           </div>
         </div>
@@ -46,7 +53,7 @@ export function TeacherAttendanceWidget() {
             to={ROUTES.teacherAttendance}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"
           >
-            Start attendance <ArrowRight className="h-4 w-4" />
+            Open attendance <ArrowRight className="h-4 w-4" />
           </Link>
         )}
       </div>

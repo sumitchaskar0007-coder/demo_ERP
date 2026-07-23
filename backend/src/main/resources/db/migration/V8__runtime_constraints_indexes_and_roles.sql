@@ -41,6 +41,43 @@ ALTER TABLE staff_profiles ADD CONSTRAINT staff_profiles_staff_type_check CHECK 
     'CLASS_TEACHER', 'SUBJECT_TEACHER', 'GENERAL_STAFF'
 ));
 
+UPDATE admission_forms
+SET status = 'SUBMITTED'
+WHERE status = 'STUDENT_DETAILS_PENDING';
+
+UPDATE admission_status_history
+SET old_status = 'SUBMITTED'
+WHERE old_status = 'STUDENT_DETAILS_PENDING';
+
+UPDATE admission_status_history
+SET new_status = 'SUBMITTED'
+WHERE new_status = 'STUDENT_DETAILS_PENDING';
+
+UPDATE admission_status_history
+SET action = 'SUBMITTED'
+WHERE action = 'STUDENT_DETAILS_SUBMITTED';
+
+ALTER TABLE admission_forms DROP CONSTRAINT IF EXISTS admission_forms_status_check;
+ALTER TABLE admission_forms ADD CONSTRAINT admission_forms_status_check CHECK (status IN (
+    'SUBMITTED', 'STUDENT_SECTION_REVIEW_PENDING', 'STUDENT_SECTION_APPROVED',
+    'STUDENT_SECTION_REJECTED', 'PRINCIPAL_REVIEW_PENDING', 'PRINCIPAL_APPROVED',
+    'PRINCIPAL_REJECTED', 'CANCELLED'
+));
+
+ALTER TABLE admission_status_history DROP CONSTRAINT IF EXISTS admission_status_history_old_status_check;
+ALTER TABLE admission_status_history ADD CONSTRAINT admission_status_history_old_status_check CHECK (old_status IN (
+    'SUBMITTED', 'STUDENT_SECTION_REVIEW_PENDING', 'STUDENT_SECTION_APPROVED',
+    'STUDENT_SECTION_REJECTED', 'PRINCIPAL_REVIEW_PENDING', 'PRINCIPAL_APPROVED',
+    'PRINCIPAL_REJECTED', 'CANCELLED'
+));
+
+ALTER TABLE admission_status_history DROP CONSTRAINT IF EXISTS admission_status_history_new_status_check;
+ALTER TABLE admission_status_history ADD CONSTRAINT admission_status_history_new_status_check CHECK (new_status IN (
+    'SUBMITTED', 'STUDENT_SECTION_REVIEW_PENDING', 'STUDENT_SECTION_APPROVED',
+    'STUDENT_SECTION_REJECTED', 'PRINCIPAL_REVIEW_PENDING', 'PRINCIPAL_APPROVED',
+    'PRINCIPAL_REJECTED', 'CANCELLED'
+));
+
 INSERT INTO roles (name, description, created_at, updated_at)
 VALUES
     ('SUPER_ADMIN', 'SUPER ADMIN role', now(), now()),

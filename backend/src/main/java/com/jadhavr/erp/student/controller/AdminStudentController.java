@@ -21,7 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/super-admin/students")
+@RequestMapping({"/api/super-admin/students", "/api/principal/students"})
 public class AdminStudentController {
     private final AdminStudentService adminStudentService;
     private final StudentProfileRepository students;

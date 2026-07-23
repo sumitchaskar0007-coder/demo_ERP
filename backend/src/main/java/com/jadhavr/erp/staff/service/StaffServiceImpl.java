@@ -1,5 +1,14 @@
 package com.jadhavr.erp.staff.service;
 
+import com.jadhavr.erp.academic.entity.Section;
+import com.jadhavr.erp.academic.enums.AcademicStatus;
+import com.jadhavr.erp.academic.enums.SectionStatus;
+import com.jadhavr.erp.academic.repository.SectionRepository;
+import com.jadhavr.erp.academic.repository.SubjectTeacherAssignmentRepository;
+import com.jadhavr.erp.attendance.entity.WeeklyAttendanceRecord;
+import com.jadhavr.erp.attendance.entity.WeeklyAttendanceSession;
+import com.jadhavr.erp.attendance.repository.WeeklyAttendanceRecordRepository;
+import com.jadhavr.erp.attendance.repository.WeeklyAttendanceSessionRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.college.entity.College;
@@ -14,6 +23,7 @@ import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.email.service.EmailNotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.jadhavr.erp.staff.dto.StaffResponse;
+import com.jadhavr.erp.staff.dto.StaffDetailResponse;
 import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateStaffRequest;
 import com.jadhavr.erp.department.entity.Department;
@@ -43,7 +53,9 @@ import java.time.Year;
 import java.util.Locale;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -58,6 +70,10 @@ public class StaffServiceImpl implements StaffService {
     private final RoleRepository roles;
     private final CollegeRepository colleges;
     private DepartmentRepository departments;
+    private SectionRepository sections;
+    private SubjectTeacherAssignmentRepository subjectAssignments;
+    private WeeklyAttendanceSessionRepository attendanceSessions;
+    private WeeklyAttendanceRecordRepository attendanceRecords;
     private final PasswordEncoder passwordEncoder;
     private final StaffMapper mapper;
     private final SecureRandom random = new SecureRandom();
@@ -84,6 +100,18 @@ public class StaffServiceImpl implements StaffService {
     @Autowired
     public void setDepartments(DepartmentRepository departments) { this.departments = departments; }
 
+    @Autowired
+    public void setStaffDetailRepositories(
+            SectionRepository sections,
+            SubjectTeacherAssignmentRepository subjectAssignments,
+            WeeklyAttendanceSessionRepository attendanceSessions,
+            WeeklyAttendanceRecordRepository attendanceRecords) {
+        this.sections = sections;
+        this.subjectAssignments = subjectAssignments;
+        this.attendanceSessions = attendanceSessions;
+        this.attendanceRecords = attendanceRecords;
+    }
+
     @Override
     @Transactional
     public StaffResponse createStaff(CreateStaffRequest request) {
@@ -109,7 +137,7 @@ public class StaffServiceImpl implements StaffService {
 
         Set<RoleName> roleNames = staffTypes.stream().map(this::roleFor).collect(java.util.stream.Collectors.toSet());
         StaffResponse created = createStaff(collegeId, request.fullName(), request.email(),
-                request.phone(), request.password(), request.joiningDate(), roleNames, staffType, false);
+                request.phone(), request.phone().trim(), request.joiningDate(), roleNames, staffType, true);
         StaffProfile profile = staffProfiles.findById(created.id()).orElseThrow();
         profile.setDepartment(department);
         profile.setDepartments(assignedDepartments);
@@ -199,6 +227,97 @@ public class StaffServiceImpl implements StaffService {
         StaffProfile profile = findStaff(id);
         ensureStaffVisible(profile);
         return mapper.toResponse(profile);
+    }
+
+    @Override
+    public StaffDetailResponse getStaffDetails(Long id) {
+        StaffProfile profile = findStaff(id);
+        ensureStaffVisible(profile);
+
+        List<StaffDetailResponse.ClassAssignment> classAssignments =
+                sections.findByClassTeacherIdAndStatus(id, SectionStatus.ACTIVE).stream()
+                        .map(section -> new StaffDetailResponse.ClassAssignment(
+                                section.getId(),
+                                section.getDepartment().getName(),
+                                section.getAcademicClass().getName(),
+                                section.getName(),
+                                section.getCode(),
+                                section.getAcademicYear(),
+                                section.getCapacity()))
+                        .toList();
+
+        List<StaffDetailResponse.SubjectAssignment> teachingAssignments =
+                subjectAssignments.findByTeacherIdAndStatus(id, AcademicStatus.ACTIVE).stream()
+                        .map(assignment -> new StaffDetailResponse.SubjectAssignment(
+                                assignment.getSubject().getId(),
+                                assignment.getSubject().getCode(),
+                                assignment.getSubject().getName(),
+                                assignment.getSubject().getAcademicClass().getName(),
+                                assignment.getAcademicYear(),
+                                assignment.getSections().stream()
+                                        .map(Section::getName)
+                                        .sorted()
+                                        .toList()))
+                        .toList();
+
+        long totalSessions = attendanceSessions.countByTeacherId(id);
+        long submittedSessions = attendanceSessions.countByTeacherIdAndStatus(
+                id, WeeklyAttendanceSession.Status.SUBMITTED);
+        StaffDetailResponse.AttendanceSummary summary = new StaffDetailResponse.AttendanceSummary(
+                totalSessions,
+                submittedSessions,
+                totalSessions - submittedSessions,
+                attendanceRecords.countBySessionTeacherId(id),
+                attendanceRecords.countBySessionTeacherIdAndStatus(
+                        id, WeeklyAttendanceRecord.Status.PRESENT),
+                attendanceRecords.countBySessionTeacherIdAndStatus(
+                        id, WeeklyAttendanceRecord.Status.ABSENT),
+                attendanceRecords.countBySessionTeacherIdAndStatus(
+                        id, WeeklyAttendanceRecord.Status.LATE),
+                attendanceRecords.countBySessionTeacherIdAndStatus(
+                        id, WeeklyAttendanceRecord.Status.LEAVE));
+
+        List<WeeklyAttendanceSession> recentSessions =
+                attendanceSessions.findTop20ByTeacherIdOrderByAttendanceDateDescStartTimeDesc(id);
+        Map<Long, List<WeeklyAttendanceRecord>> recordsBySession = recentSessions.isEmpty()
+                ? Map.of()
+                : attendanceRecords.findBySessionIdIn(
+                                recentSessions.stream().map(WeeklyAttendanceSession::getId).toList())
+                        .stream()
+                        .collect(Collectors.groupingBy(record -> record.getSession().getId()));
+        List<StaffDetailResponse.AttendanceSessionItem> recentAttendance = recentSessions.stream()
+                .map(session -> attendanceSessionItem(
+                        session, recordsBySession.getOrDefault(session.getId(), List.of())))
+                .toList();
+
+        return new StaffDetailResponse(
+                mapper.toResponse(profile),
+                classAssignments,
+                teachingAssignments,
+                summary,
+                recentAttendance);
+    }
+
+    private StaffDetailResponse.AttendanceSessionItem attendanceSessionItem(
+            WeeklyAttendanceSession session, List<WeeklyAttendanceRecord> records) {
+        Map<WeeklyAttendanceRecord.Status, Long> totals = records.stream()
+                .collect(Collectors.groupingBy(
+                        WeeklyAttendanceRecord::getStatus, Collectors.counting()));
+        return new StaffDetailResponse.AttendanceSessionItem(
+                session.getId(),
+                session.getAttendanceDate(),
+                session.getStartTime(),
+                session.getEndTime(),
+                session.getLectureNumber(),
+                session.getSubject().getName(),
+                session.getSection().getAcademicClass().getName(),
+                session.getSection().getName(),
+                session.getStatus().name(),
+                records.size(),
+                totals.getOrDefault(WeeklyAttendanceRecord.Status.PRESENT, 0L),
+                totals.getOrDefault(WeeklyAttendanceRecord.Status.ABSENT, 0L),
+                totals.getOrDefault(WeeklyAttendanceRecord.Status.LATE, 0L),
+                totals.getOrDefault(WeeklyAttendanceRecord.Status.LEAVE, 0L));
     }
 
     @Override

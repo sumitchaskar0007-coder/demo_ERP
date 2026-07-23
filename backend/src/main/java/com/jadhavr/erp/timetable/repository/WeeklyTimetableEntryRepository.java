@@ -8,6 +8,9 @@ public interface WeeklyTimetableEntryRepository extends JpaRepository<WeeklyTime
  }
  List<WeeklyTimetableEntry> findByTimetableId(Long id); List<WeeklyTimetableEntry> findByPeriodId(Long id); Optional<WeeklyTimetableEntry> findByTimetableIdAndDayOfWeekAndPeriodId(Long id,DayOfWeek day,Long periodId);
  List<WeeklyTimetableEntry> findByTeacherId(Long teacherId);
+ @EntityGraph(attributePaths={"teacher","timetable","timetable.section","timetable.section.department"})
+ List<WeeklyTimetableEntry> findByTimetableCollegeIdAndDayOfWeekAndTimetableStatusNot(
+  Long collegeId,DayOfWeek day,com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status status);
  @Query(value="""
   select teacher.id "staffId",teacher.employee_code "employeeCode",teacher.full_name "staffName",
     college.id "collegeId",college.name "collegeName",department.id "departmentId",department.name "departmentName",

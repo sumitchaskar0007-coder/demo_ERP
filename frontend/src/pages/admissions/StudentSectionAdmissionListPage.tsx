@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
@@ -20,6 +19,7 @@ import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/admissions/api";
 import type { AdmissionStatus, StudentSectionAdmissionResponse } from "@/features/admissions/types";
 import { ROLES } from "@/lib/constants";
+import { PrincipalAdmissionTabs } from "@/components/principal/PrincipalAdmissionTabs";
 
 const emptyPage: PageResponse<StudentSectionAdmissionResponse> = {
   content: [],
@@ -34,16 +34,12 @@ export function StudentSectionAdmissionListPage() {
   const navigate = useNavigate();
   const { isRole } = useAuth();
   const canManage = isRole([ROLES.STUDENT_SECTION]);
+  const principal = isRole([ROLES.PRINCIPAL]);
   const [result, setResult] = useState(emptyPage);
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState<{
-    type: "start" | "approve";
-    admission: StudentSectionAdmissionResponse;
-  } | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -65,25 +61,6 @@ export function StudentSectionAdmissionListPage() {
     const timer = setTimeout(load, 250);
     return () => clearTimeout(timer);
   }, [load]);
-  const runAction = async () => {
-    if (!action) return;
-    setActionLoading(true);
-    try {
-      if (action.type === "start") await api.startAdmissionReview(action.admission.id);
-      else
-        await api.approveAdmission(action.admission.id, {
-          studentCategory: action.admission.studentCategory,
-          remarks: "Student data verified successfully",
-        });
-      toast.success("Admission updated");
-      setAction(null);
-      await load();
-    } catch (err) {
-      toast.error(handleApiError(err).message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
   const columns: Column<StudentSectionAdmissionResponse>[] = [
     {
       key: "ref",
@@ -117,41 +94,42 @@ export function StudentSectionAdmissionListPage() {
     {
       key: "actions",
       header: "",
-      render: (row) => (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => navigate(`/student-section/admissions/${row.id}`)}
-          >
-            <Eye className="h-4 w-4" />
-            View
-          </Button>
-          {canManage && row.status === "SUBMITTED" && (
-            <Button
-              variant="secondary"
-              onClick={() => setAction({ type: "start", admission: row })}
-            >
-              Start
-            </Button>
-          )}
-          {canManage && ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(row.status) && (
-            <Button onClick={() => setAction({ type: "approve", admission: row })}>Approve</Button>
-          )}
-          {canManage && row.status === "STUDENT_SECTION_APPROVED" && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
-            >
-              <FileText className="h-4 w-4" />
-              Print
-            </Button>
-          )}
-        </div>
-      ),
+      render: (row) => {
+        const reviewable = canManage && row.status === "SUBMITTED";
+        return (
+          <div className="flex flex-wrap gap-2">
+            {reviewable ? (
+              <Button onClick={() => navigate(`/student-section/admissions/${row.id}`)}>
+                Review
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/student-section/admissions/${row.id}`)}
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
+                {canManage && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Print
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        );
+      },
     },
   ];
   return (
     <div className="page-container">
+      {principal && <PrincipalAdmissionTabs />}
       <div>
         <h1 className="page-title">Admission Records</h1>
         <p className="page-subtitle">
@@ -202,21 +180,6 @@ export function StudentSectionAdmissionListPage() {
           />
         )}
       </Card>
-      {canManage && (
-        <ConfirmDialog
-          open={Boolean(action)}
-          onClose={() => setAction(null)}
-          onConfirm={runAction}
-          loading={actionLoading}
-          title={`${action?.type === "start" ? "Start review" : "Approve admission"}?`}
-          description={
-            action?.type === "approve"
-              ? `This confirms student category ${action.admission.studentCategory} and creates the matching fee account.`
-              : "This will record a status history entry."
-          }
-          confirmLabel={action?.type === "start" ? "Start Review" : "Approve"}
-        />
-      )}
     </div>
   );
 }

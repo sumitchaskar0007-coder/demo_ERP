@@ -8,7 +8,9 @@ import com.jadhavr.erp.auth.security.CustomUserDetailsService;
 import com.jadhavr.erp.auth.security.JwtService;
 import com.jadhavr.erp.admission.filter.StudentAdmissionAccessFilter;
 import com.jadhavr.erp.timetable.controller.TimetableController;
+import com.jadhavr.erp.timetable.controller.WeeklyTimetableController;
 import com.jadhavr.erp.timetable.service.TimetableService;
+import com.jadhavr.erp.timetable.service.WeeklyTimetableService;
 import com.jadhavr.erp.user.entity.RoleName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,12 +39,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {AcademicController.class, TimetableController.class, AttendanceController.class})
+@WebMvcTest(controllers = {
+        AcademicController.class,
+        TimetableController.class,
+        WeeklyTimetableController.class,
+        AttendanceController.class
+})
 class AcademicAuthorizationWebTest {
     @Autowired private MockMvc mvc;
 
     @MockBean private AcademicService academicService;
     @MockBean private TimetableService timetableService;
+    @MockBean private WeeklyTimetableService weeklyTimetableService;
     @MockBean private AttendanceService attendanceService;
     @MockBean private StringRedisTemplate redis;
     @MockBean private JwtService jwtService;
@@ -95,6 +103,15 @@ class AcademicAuthorizationWebTest {
         when(academicService.classes(null)).thenReturn(List.of());
         mvc.perform(get("/api/academic/classes/search")
                         .with(authentication(TestSecurityUsers.authentication(RoleName.PRINCIPAL, 2L, 10L))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void superAdminCanReadWeeklyTimetableDivisionsForLectureLoadFilters() throws Exception {
+        when(weeklyTimetableService.divisions()).thenReturn(List.of());
+
+        mvc.perform(get("/api/weekly-timetables/divisions")
+                        .with(authentication(TestSecurityUsers.authentication(RoleName.SUPER_ADMIN, 1L, null))))
                 .andExpect(status().isOk());
     }
 

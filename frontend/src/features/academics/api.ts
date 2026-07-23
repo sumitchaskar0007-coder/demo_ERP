@@ -207,3 +207,18 @@ export const attendanceApi = {
     (await apiClient.get(`/api/attendance/reports/students/${studentId}`, { params: { from, to } }))
       .data,
 };
+
+export interface StudentAcademicAccess {
+  divisionAllocated: boolean;
+  courseYearId?: number | null;
+  courseYear?: string | null;
+  divisionId?: number | null;
+  division?: string | null;
+  academicYear?: string | null;
+  rollNumber?: string | null;
+}
+
+export const studentAcademicApi = {
+  accessState: async () =>
+    unwrap<StudentAcademicAccess>(await apiClient.get("/api/student/academic/access-state")),
+};

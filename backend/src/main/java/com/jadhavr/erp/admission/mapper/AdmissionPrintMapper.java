@@ -80,6 +80,7 @@ public class AdmissionPrintMapper {
                                 .map(record -> new com.jadhavr.erp.admission.dto.AcademicRecordDto(
                                         record.getQualification(), record.getInstituteName(),
                                         record.getBoardUniversity(), record.getYearOfPassing(),
+                                        record.getTotalMarks(), record.getObtainedMarks(),
                                         record.getMarksPercentage()))
                                 .toList(),
                         admission.getQualifyingEntranceSeatNumber(),

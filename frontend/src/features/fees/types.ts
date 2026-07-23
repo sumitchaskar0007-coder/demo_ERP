@@ -69,7 +69,6 @@ export interface SubmitPaymentRequest {
   paymentMode: PaymentMode;
   transactionReference: string;
   paymentDate: string;
-  proofUrl: string;
   remarks?: string;
 }
 export interface PaymentResponse {
@@ -97,6 +96,10 @@ export interface PaymentResponse {
   rejectionReason?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+export interface AdmissionFeeSummaryResponse {
+  account: StudentFeeAccountResponse | null;
+  payments: PaymentResponse[];
 }
 export interface FeeTransactionResponse {
   id: number;

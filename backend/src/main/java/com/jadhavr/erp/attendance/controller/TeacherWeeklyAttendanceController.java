@@ -19,6 +19,9 @@ public class TeacherWeeklyAttendanceController {
     @GetMapping("/current-lecture")
     public ApiResponse<?> current(){ return ApiResponse.success("Current scheduled lecture", service.currentLecture()); }
 
+    @GetMapping("/today-lectures")
+    public ApiResponse<?> today(){ return ApiResponse.success("Today's scheduled lectures", service.todayLectures()); }
+
     @GetMapping("/students")
     public ApiResponse<?> students(@RequestParam Long lectureId){
         return ApiResponse.success("Lecture student roster", service.roster(lectureId));

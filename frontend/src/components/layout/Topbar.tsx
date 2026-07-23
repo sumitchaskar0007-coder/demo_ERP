@@ -1,4 +1,12 @@
-import { Bell, CalendarDays, ChevronDown, LogOut, Menu, UserRound } from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  ChevronDown,
+  LockKeyhole,
+  LogOut,
+  Menu,
+  UserRound,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -91,6 +99,15 @@ export function Topbar({
                 <UserRound className="h-4 w-4" />
                 Profile
               </Link>
+              <Link
+                to={ROUTES.accountChangePassword}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm hover:bg-slate-50"
+              >
+                <LockKeyhole className="h-4 w-4" />
+                Security
+              </Link>
+              <div className="my-1 border-t border-slate-100" />
               <button
                 onClick={handleLogout}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-red-600 hover:bg-red-50"

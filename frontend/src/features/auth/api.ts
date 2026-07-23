@@ -41,7 +41,7 @@ export async function changePassword(request: {
   newPassword: string;
   confirmPassword: string;
 }): Promise<void> {
-  await apiClient.post("/api/auth/change-password", request);
+  await apiClient.patch("/api/account/change-password", request);
 }
 export async function forgotPassword(email: string) {
   const { data } = await apiClient.post<ApiResponse<null>>("/api/auth/password/forgot", { email });

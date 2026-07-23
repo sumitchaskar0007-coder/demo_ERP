@@ -60,7 +60,6 @@ export function CreateStaffPage() {
       fullName: "",
       email: "",
       phone: "",
-      password: "",
       staffTypes: ["SUBJECT_TEACHER"],
       departmentIds: [],
       joiningDate: "",
@@ -116,7 +115,7 @@ export function CreateStaffPage() {
         staffType: values.staffTypes[0],
         departmentId: values.departmentIds[0],
       });
-      toast.success("Staff account created with all selected roles and departments");
+      toast.success("Staff account created. The first password is the phone number.");
       navigate(ROUTES.staff);
     } catch (error) {
       toast.error(handleApiError(error).message);
@@ -133,12 +132,13 @@ export function CreateStaffPage() {
         <Card className="grid gap-4 p-6 md:grid-cols-2">
           <Input label="Full Name" error={errors.fullName?.message} {...register("fullName")} />
           <Input label="Email" type="email" error={errors.email?.message} {...register("email")} />
-          <Input label="Phone (optional)" error={errors.phone?.message} {...register("phone")} />
           <Input
-            label="Password"
-            type="password"
-            error={errors.password?.message}
-            {...register("password")}
+            label="Phone Number"
+            type="tel"
+            autoComplete="tel"
+            placeholder="Used as the temporary password"
+            error={errors.phone?.message}
+            {...register("phone")}
           />
           <Input
             label="Joining Date"
@@ -146,6 +146,10 @@ export function CreateStaffPage() {
             error={errors.joiningDate?.message}
             {...register("joiningDate")}
           />
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 md:col-span-2">
+            The phone number is the staff member&apos;s temporary password. They must create a new
+            password immediately after their first login.
+          </div>
         </Card>
 
         <Card className="p-6">

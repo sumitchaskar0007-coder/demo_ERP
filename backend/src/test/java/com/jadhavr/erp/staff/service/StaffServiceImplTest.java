@@ -162,7 +162,7 @@ class StaffServiceImplTest {
     }
 
     @Test
-    void unifiedFormCreatesTeacherWithDepartmentAndEncodedPassword() {
+    void unifiedFormUsesPhoneAsTemporaryPasswordAndRequiresChange() {
         authenticate(2L, 1L, RoleName.PRINCIPAL);
         Department department = department(5L, 1L);
         when(departments.findById(5L)).thenReturn(Optional.of(department));
@@ -174,7 +174,8 @@ class StaffServiceImplTest {
         assertEquals(5L, result.departmentId());
         ArgumentCaptor<User> user = ArgumentCaptor.forClass(User.class);
         verify(users).save(user.capture());
-        assertTrue(passwordEncoder.matches("Teacher@123", user.getValue().getPasswordHash()));
+        assertTrue(passwordEncoder.matches("9876543210", user.getValue().getPasswordHash()));
+        assertTrue(user.getValue().isMustChangePassword());
     }
 
     @Test
@@ -189,7 +190,7 @@ class StaffServiceImplTest {
         when(roles.findByName(RoleName.CLASS_TEACHER))
                 .thenReturn(Optional.of(role(RoleName.CLASS_TEACHER)));
         CreateStaffRequest request = new CreateStaffRequest("Multi Teacher", "multi@example.com",
-                "9876543210", "Teacher@123", 5L, StaffType.SUBJECT_TEACHER,
+                "9876543210", 5L, StaffType.SUBJECT_TEACHER,
                 Set.of(5L, 6L), Set.of(StaffType.SUBJECT_TEACHER, StaffType.CLASS_TEACHER),
                 LocalDate.of(2026, 7, 10));
 
@@ -251,7 +252,7 @@ class StaffServiceImplTest {
     }
 
     private CreateStaffRequest unified(StaffType type, Long departmentId, String email) {
-        return new CreateStaffRequest("Mr. Kale", email, "9876543210", "Teacher@123",
+        return new CreateStaffRequest("Mr. Kale", email, "9876543210",
                 departmentId, type, null, null, LocalDate.of(2026, 7, 10));
     }
 

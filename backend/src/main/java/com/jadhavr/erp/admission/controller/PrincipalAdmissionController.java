@@ -6,6 +6,8 @@ import com.jadhavr.erp.admission.service.PrincipalAdmissionService;
 import com.jadhavr.erp.admission.service.AdmissionPhotoService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
+import com.jadhavr.erp.fee.dto.AdmissionFeeSummaryResponse;
+import com.jadhavr.erp.fee.service.FeeService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
@@ -21,12 +23,15 @@ import java.util.List;
 public class PrincipalAdmissionController {
     private final PrincipalAdmissionService principalAdmissionService;
     private final AdmissionPhotoService photoService;
+    private final FeeService feeService;
 
     public PrincipalAdmissionController(
             PrincipalAdmissionService principalAdmissionService,
-            AdmissionPhotoService photoService) {
+            AdmissionPhotoService photoService,
+            FeeService feeService) {
         this.principalAdmissionService = principalAdmissionService;
         this.photoService = photoService;
+        this.feeService = feeService;
     }
 
     @GetMapping("/review-ready")
@@ -58,6 +63,13 @@ public class PrincipalAdmissionController {
                 "Admission history retrieved successfully",
                 principalAdmissionService.getAdmissionHistoryForPrincipal(admissionId)
         );
+    }
+
+    @GetMapping("/{admissionId}/fees")
+    public ApiResponse<AdmissionFeeSummaryResponse> getFees(@PathVariable Long admissionId) {
+        principalAdmissionService.getAdmissionForPrincipal(admissionId);
+        return ApiResponse.success("Admission fee information retrieved",
+                feeService.getAdmissionFeeSummary(admissionId));
     }
     @GetMapping("/{admissionId}/photo")
     public ResponseEntity<Resource> getPhoto(@PathVariable Long admissionId) {

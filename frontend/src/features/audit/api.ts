@@ -35,6 +35,32 @@ export interface BusinessActivityRow {
   previousValue?: string;
   newValue?: string;
 }
+export interface TeacherEngagementSummary {
+  totalTeachers: number;
+  loggedInToday: number;
+  notLoggedInToday: number;
+  scheduledLecturesToday: number;
+  attendanceCompletedToday: number;
+  attendanceRemainingToday: number;
+  lowUsageTeachers: number;
+}
+export interface TeacherEngagementRow {
+  staffId: number;
+  userId: number;
+  teacher: string;
+  employeeCode: string;
+  department: string;
+  role: string;
+  lastLoginAt?: string | null;
+  loginDaysLast7: number;
+  loggedInToday: boolean;
+  scheduledLectures: number;
+  attendanceSubmitted: number;
+  attendanceRemaining: number;
+  attendanceDraft: number;
+  usageStatus: "REGULAR" | "ACTIVE_TODAY" | "LOW_USAGE" | "INACTIVE_7_DAYS";
+  attendanceStatus: "COMPLETED" | "PARTIAL" | "PENDING" | "NO_LECTURES";
+}
 export interface BusinessActivityDashboard {
   summary: {
     todayActivities: number;
@@ -58,6 +84,8 @@ export interface BusinessActivityDashboard {
   actionDistribution: { label: string; value: number }[];
   alerts: { key: string; label: string; count: number; module: string; action: string }[];
   insights: string[];
+  teacherSummary: TeacherEngagementSummary;
+  teachers: TeacherEngagementRow[];
   rows: BusinessActivityRow[];
   totalElements: number;
   totalPages: number;

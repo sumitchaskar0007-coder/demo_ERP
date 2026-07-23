@@ -19,6 +19,7 @@ import { PublicAdmissionPage } from "@/pages/admissions/PublicAdmissionPage";
 import { StudentSectionAdmissionDetailPage } from "@/pages/admissions/StudentSectionAdmissionDetailPage";
 import { StudentSectionAdmissionListPage } from "@/pages/admissions/StudentSectionAdmissionListPage";
 import { StudentSectionDashboardPage } from "@/pages/admissions/StudentSectionDashboardPage";
+import { StudentDocumentsPage } from "@/pages/admissions/StudentDocumentsPage";
 import { DepartmentDetailsPage } from "@/pages/departments/DepartmentDetailsPage";
 import { DepartmentListPage } from "@/pages/departments/DepartmentListPage";
 import { CreateStudentSectionStaffPage } from "@/pages/staff/CreateStudentSectionStaffPage";
@@ -41,7 +42,9 @@ import {
   PaymentDetailsPage,
   PaymentsPage,
 } from "@/pages/fees/FeeSectionPages";
+import { FeeOfficerWorkspacePage } from "@/pages/fees/FeeOfficerWorkspacePage";
 import { StaffListPage } from "@/pages/staff/StaffListPage";
+import { StaffDetailsPage } from "@/pages/staff/StaffDetailsPage";
 import { CreateStaffPage } from "@/pages/staff/CreateStaffPage";
 import {
   CourseYearFormPage,
@@ -62,7 +65,6 @@ import { NoticesPage } from "@/features/notices/NoticesPage";
 import { AcademicSetupPage } from "@/features/academics/AcademicSetupPage";
 import { TimetablePage } from "@/features/academics/TimetablePage";
 import { AttendancePage } from "@/features/academics/AttendancePage";
-import { ClassTeacherTimetablePage } from "@/pages/academic/ClassTeacherTimetablePage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -99,8 +101,11 @@ import { TeacherTimetablePage } from "@/features/teacherTimetable/TeacherTimetab
 import { TeacherAttendancePage } from "@/features/attendance/TeacherAttendancePage";
 import { StudentAttendancePage } from "@/features/attendance/StudentAttendancePage";
 import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage";
+import { StudentAcademicAccessProvider } from "@/features/academics/StudentAcademicAccessContext";
 import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
 import { TeacherWorkspacePage } from "@/pages/teacher/TeacherWorkspacePage";
+import { PrincipalWorkspacePage } from "@/pages/principal/PrincipalWorkspacePage";
+import { AdminWorkspacePage } from "@/pages/admin/AdminWorkspacePage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -136,7 +141,13 @@ export function AppRouter() {
         <Route element={<ProtectedRoute />}>
           <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
           <Route element={<StudentAdmissionGate />}>
-            <Route element={<DashboardLayout />}>
+            <Route
+              element={
+                <StudentAcademicAccessProvider>
+                  <DashboardLayout />
+                </StudentAcademicAccessProvider>
+              }
+            >
               <Route path={ROUTES.profile} element={<ProfilePage />} />
               <Route path={ROUTES.account} element={<AccountPage />} />
               <Route path={ROUTES.accountChangePassword} element={<ChangePasswordPage />} />
@@ -154,9 +165,27 @@ export function AppRouter() {
 
               <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
                 <Route path={ROUTES.staff} element={<StaffListPage />} />
+                <Route path="/staff/:id" element={<StaffDetailsPage />} />
+                <Route path={ROUTES.students} element={<AdminStudentListPage />} />
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
+                <Route
+                  path={ROUTES.adminPeople}
+                  element={<AdminWorkspacePage kind="people" />}
+                />
+                <Route
+                  path={ROUTES.adminFees}
+                  element={<AdminWorkspacePage kind="fees" />}
+                />
+                <Route
+                  path={ROUTES.adminInsights}
+                  element={<AdminWorkspacePage kind="insights" />}
+                />
+                <Route
+                  path={ROUTES.adminAdministration}
+                  element={<AdminWorkspacePage kind="administration" />}
+                />
                 <Route path={ROUTES.colleges} element={<CollegeListPage />} />
                 <Route path="/colleges/create" element={<CollegeListPage />} />
                 <Route path="/colleges/:id" element={<CollegeDetailsPage />} />
@@ -165,7 +194,6 @@ export function AppRouter() {
                 <Route path={ROUTES.createPrincipal} element={<CreatePrincipalPage />} />
                 <Route path={ROUTES.editPrincipal} element={<EditPrincipalPage />} />
                 <Route path="/principals/create" element={<CreatePrincipalPage />} />
-                <Route path={ROUTES.students} element={<AdminStudentListPage />} />
                 <Route path={ROUTES.adminFeeSetup} element={<AdminFeeSetupPage />} />
                 <Route path={ROUTES.adminFeeCollection} element={<AdminMoneyPage />} />
                 <Route path={ROUTES.adminPendingFees} element={<AdminMoneyPage pending />} />
@@ -174,6 +202,22 @@ export function AppRouter() {
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
+                <Route
+                  path={ROUTES.principalAcademics}
+                  element={<PrincipalWorkspacePage kind="academics" />}
+                />
+                <Route
+                  path={ROUTES.principalFees}
+                  element={<PrincipalWorkspacePage kind="fees" />}
+                />
+                <Route
+                  path={ROUTES.principalReports}
+                  element={<PrincipalWorkspacePage kind="reports" />}
+                />
+                <Route
+                  path={ROUTES.principalAdministration}
+                  element={<PrincipalWorkspacePage kind="administration" />}
+                />
                 <Route path={ROUTES.departments} element={<DepartmentListPage />} />
                 <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
                 <Route path={ROUTES.createStaff} element={<CreateStaffPage />} />
@@ -275,13 +319,7 @@ export function AppRouter() {
                 />
               </Route>
 
-              <Route
-                element={
-                  <RoleRoute
-                    roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER]}
-                  />
-                }
-              >
+              <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.HOD]} />}>
                 <Route path={ROUTES.timetable} element={<TimetablePage />} />
               </Route>
 
@@ -301,6 +339,7 @@ export function AppRouter() {
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.STUDENT_SECTION]} />}>
+                <Route path={ROUTES.studentSectionDocuments} element={<StudentDocumentsPage />} />
                 <Route
                   path="/student-section/admissions/:admissionId/print"
                   element={<AdmissionPrintPage />}
@@ -309,10 +348,6 @@ export function AppRouter() {
 
               <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}>
                 <Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} />
-                <Route
-                  path={ROUTES.classTeacherTimetable}
-                  element={<ClassTeacherTimetablePage />}
-                />
               </Route>
               <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]} />}>
                 <Route path={ROUTES.teacherWorkspace} element={<TeacherWorkspacePage />} />
@@ -332,6 +367,7 @@ export function AppRouter() {
                 <Route path={ROUTES.studentClass} element={<StudentClassPage />} />
               </Route>
               <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.FEE_SECTION]} />}>
+                <Route path={ROUTES.feeOfficerWorkspace} element={<FeeOfficerWorkspacePage />} />
                 <Route path={ROUTES.feeSectionDashboard} element={<FeeSectionDashboardPage />} />
                 <Route path={ROUTES.feeAccounts} element={<FeeAccountsPage />} />
                 <Route

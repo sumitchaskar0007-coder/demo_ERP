@@ -17,9 +17,20 @@ public final class BusinessActivityDtos {
             LocalDateTime lastActivity, String mostActiveUser, String status) {}
     public record Distribution(String label, long value) {}
     public record AlertItem(String key, String label, long count, String module, String action) {}
+    public record TeacherEngagementSummary(long totalTeachers, long loggedInToday,
+            long notLoggedInToday, long scheduledLecturesToday,
+            long attendanceCompletedToday, long attendanceRemainingToday,
+            long lowUsageTeachers) {}
+    public record TeacherEngagementRow(Long staffId, Long userId, String teacher,
+            String employeeCode, String department, String role, LocalDateTime lastLoginAt,
+            int loginDaysLast7, boolean loggedInToday, long scheduledLectures,
+            long attendanceSubmitted, long attendanceRemaining, long attendanceDraft,
+            String usageStatus, String attendanceStatus) {}
     public record DashboardResponse(Summary summary, List<ActivityRow> timeline,
             List<ModuleAnalytics> modules, List<DepartmentAnalytics> departments,
             List<TrendPoint> trend, List<Distribution> actionDistribution,
-            List<AlertItem> alerts, List<String> insights, List<ActivityRow> rows,
+            List<AlertItem> alerts, List<String> insights,
+            TeacherEngagementSummary teacherSummary, List<TeacherEngagementRow> teachers,
+            List<ActivityRow> rows,
             long totalElements, int totalPages, int page, int size) {}
 }

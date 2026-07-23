@@ -232,6 +232,7 @@ export function PaymentsPage() {
 export function PaymentDetailsPage() {
   const { paymentId } = useParams();
   const [p, setP] = useState<PaymentResponse | null>(null);
+  const [openingProof, setOpeningProof] = useState(false);
   const load = () => {
     if (paymentId) api.getPaymentById(+paymentId).then(setP);
   };
@@ -255,6 +256,24 @@ export function PaymentDetailsPage() {
         load();
       });
   };
+  const openProof = async () => {
+    setOpeningProof(true);
+    try {
+      // Keep older URL-based records usable while all new proofs use protected file storage.
+      if (/^https?:\/\//i.test(p.proofUrl)) {
+        window.open(p.proofUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const proof = await api.getPaymentProof(p.id);
+      const proofUrl = URL.createObjectURL(proof);
+      window.open(proofUrl, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(proofUrl), 60_000);
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setOpeningProof(false);
+    }
+  };
   return (
     <div className="page-container">
       <Card className="mx-auto max-w-3xl p-7">
@@ -277,14 +296,11 @@ export function PaymentDetailsPage() {
             </div>
           ))}
         </div>
-        <a
-          href={p.proofUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 inline-block font-semibold text-blue-600"
-        >
-          Open Payment Proof
-        </a>
+        <div className="mt-5">
+          <Button variant="secondary" disabled={openingProof} onClick={() => void openProof()}>
+            {openingProof ? "Opening proof…" : "Open Payment Proof"}
+          </Button>
+        </div>
         {p.status === "PENDING" && (
           <div className="mt-6 flex gap-3">
             <Button onClick={verify}>Verify Payment</Button>
