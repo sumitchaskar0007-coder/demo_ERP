@@ -37,10 +37,7 @@ import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Select as ResponsiveSelect } from "@/components/common/Select";
 import { useAuth } from "@/features/auth/authStore";
-import {
-  weeklyTimetableApi,
-  type WeeklyDivision,
-} from "@/features/academics/api";
+import { weeklyTimetableApi, type WeeklyDivision } from "@/features/academics/api";
 import { ROLES } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
 import { localDateString } from "@/lib/date";
@@ -136,75 +133,58 @@ export function AttendanceReportPage() {
       .catch(() => setAcademicDivisions([]));
   }, []);
 
-  const departments = useMemo(
-    () => {
-      if (academicDivisions.length) {
-        return uniqueBy(academicDivisions, (division) => division.departmentId).map(
-          (division) => ({
-            id: division.departmentId,
-            name: division.department,
-          }),
-        );
-      }
-      return uniqueBy(data?.students ?? [], (student) => student.departmentId).map(
-        (student) => ({
-          id: student.departmentId,
-          name: student.department,
-        }),
-      );
-    },
-    [academicDivisions, data],
-  );
-  const years = useMemo(
-    () => {
-      if (academicDivisions.length) {
-        return unique(
-          academicDivisions
-            .filter(
-              (division) =>
-                (!draft.departmentId ||
-                  division.departmentId === Number(draft.departmentId)) &&
-                (!draft.academicYear || division.academicYear === draft.academicYear),
-            )
-            .map((division) => division.year),
-        );
-      }
+  const departments = useMemo(() => {
+    if (academicDivisions.length) {
+      return uniqueBy(academicDivisions, (division) => division.departmentId).map((division) => ({
+        id: division.departmentId,
+        name: division.department,
+      }));
+    }
+    return uniqueBy(data?.students ?? [], (student) => student.departmentId).map((student) => ({
+      id: student.departmentId,
+      name: student.department,
+    }));
+  }, [academicDivisions, data]);
+  const years = useMemo(() => {
+    if (academicDivisions.length) {
       return unique(
-        (data?.students ?? [])
-          .filter(
-            (student) =>
-              !draft.departmentId || student.departmentId === Number(draft.departmentId),
-          )
-          .map((student) => student.year),
-      );
-    },
-    [academicDivisions, data, draft.academicYear, draft.departmentId],
-  );
-  const divisions = useMemo(
-    () => {
-      if (academicDivisions.length) {
-        return academicDivisions
+        academicDivisions
           .filter(
             (division) =>
-              (!draft.departmentId ||
-                division.departmentId === Number(draft.departmentId)) &&
-              (!draft.year || division.year === draft.year) &&
+              (!draft.departmentId || division.departmentId === Number(draft.departmentId)) &&
               (!draft.academicYear || division.academicYear === draft.academicYear),
           )
-          .map((division) => ({ id: division.id, name: division.division }));
-      }
-      return uniqueBy(
-        (data?.students ?? []).filter(
-          (student) =>
-            (!draft.departmentId ||
-              student.departmentId === Number(draft.departmentId)) &&
-            (!draft.year || student.year === draft.year),
-        ),
-        (student) => student.divisionId,
-      ).map((student) => ({ id: student.divisionId, name: student.division }));
-    },
-    [academicDivisions, data, draft.academicYear, draft.departmentId, draft.year],
-  );
+          .map((division) => division.year),
+      );
+    }
+    return unique(
+      (data?.students ?? [])
+        .filter(
+          (student) => !draft.departmentId || student.departmentId === Number(draft.departmentId),
+        )
+        .map((student) => student.year),
+    );
+  }, [academicDivisions, data, draft.academicYear, draft.departmentId]);
+  const divisions = useMemo(() => {
+    if (academicDivisions.length) {
+      return academicDivisions
+        .filter(
+          (division) =>
+            (!draft.departmentId || division.departmentId === Number(draft.departmentId)) &&
+            (!draft.year || division.year === draft.year) &&
+            (!draft.academicYear || division.academicYear === draft.academicYear),
+        )
+        .map((division) => ({ id: division.id, name: division.division }));
+    }
+    return uniqueBy(
+      (data?.students ?? []).filter(
+        (student) =>
+          (!draft.departmentId || student.departmentId === Number(draft.departmentId)) &&
+          (!draft.year || student.year === draft.year),
+      ),
+      (student) => student.divisionId,
+    ).map((student) => ({ id: student.divisionId, name: student.division }));
+  }, [academicDivisions, data, draft.academicYear, draft.departmentId, draft.year]);
   const scopedFilterRows = useMemo(
     () =>
       (data?.rows ?? []).filter(
@@ -373,9 +353,7 @@ export function AttendanceReportPage() {
             <Select
               label="Division"
               value={draft.divisionId}
-              onChange={(v) =>
-                setDraft((x) => ({ ...x, divisionId: v, teacher: "", subject: "" }))
-              }
+              onChange={(v) => setDraft((x) => ({ ...x, divisionId: v, teacher: "", subject: "" }))}
               options={divisions.map((x) => ({ value: String(x.id), label: x.name }))}
               all="All divisions"
             />
@@ -1376,15 +1354,7 @@ function AttentionPanel({
   );
 }
 
-function MonthlyHeatMap({
-  trend,
-  from,
-  to,
-}: {
-  trend: TrendPoint[];
-  from: string;
-  to: string;
-}) {
+function MonthlyHeatMap({ trend, from, to }: { trend: TrendPoint[]; from: string; to: string }) {
   const monthSource = to || today;
   const [year, month] = monthSource.split("-").map(Number);
   const firstDay = new Date(year, month - 1, 1);
@@ -1488,9 +1458,7 @@ function TeacherAnalytics({ operations }: { operations: OperationalSummary[] }) 
     lectures: operation.lectures,
     submitted: operation.submitted,
     pending: operation.pending,
-    percentage: operation.lectures
-      ? round((operation.submitted * 100) / operation.lectures)
-      : 0,
+    percentage: operation.lectures ? round((operation.submitted * 100) / operation.lectures) : 0,
   }));
   return (
     <Card className="overflow-hidden">
@@ -1854,14 +1822,14 @@ function Status({ value }: { value: string }) {
       : v === "ABSENT"
         ? "bg-rose-100 text-rose-700"
         : v === "GOOD" || v === "LEAVE"
-        ? "bg-blue-100 text-blue-700"
-        : v === "AVERAGE" || v === "LATE"
-          ? "bg-amber-100 text-amber-700"
-          : v === "WARNING"
-            ? "bg-orange-100 text-orange-700"
-            : v === "NO DATA"
-              ? "bg-slate-100 text-slate-600"
-              : "bg-rose-100 text-rose-700";
+          ? "bg-blue-100 text-blue-700"
+          : v === "AVERAGE" || v === "LATE"
+            ? "bg-amber-100 text-amber-700"
+            : v === "WARNING"
+              ? "bg-orange-100 text-orange-700"
+              : v === "NO DATA"
+                ? "bg-slate-100 text-slate-600"
+                : "bg-rose-100 text-rose-700";
   return (
     <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold ${c}`}>
       {v}

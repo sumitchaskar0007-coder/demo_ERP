@@ -526,10 +526,7 @@ export function StudentAcademicPage({ attendance = false }: { attendance?: boole
   }, [attendance]);
   if (!attendance) return <StudentWeeklyTimetable />;
   return (
-    <Shell
-      title="My Attendance"
-      subtitle="Your current academic section information."
-    >
+    <Shell title="My Attendance" subtitle="Your current academic section information.">
       {!data ? (
         <Loader />
       ) : (
@@ -585,8 +582,12 @@ function StudentWeeklyTimetable() {
                 <CalendarDays className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900">{table.year} - Division {table.division}</h2>
-                <p className="text-xs text-slate-500">{table.department} | {table.academicYear}</p>
+                <h2 className="font-bold text-slate-900">
+                  {table.year} - Division {table.division}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {table.department} | {table.academicYear}
+                </p>
               </div>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700">
@@ -594,35 +595,60 @@ function StudentWeeklyTimetable() {
             </span>
           </div>
           {!table.periods.length ? (
-            <EmptyState title="No timetable configured" description="Periods have not been configured yet." />
+            <EmptyState
+              title="No timetable configured"
+              description="Periods have not been configured yet."
+            />
           ) : (
             <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
               <div className="min-w-[1080px]">
                 <div className="grid grid-cols-[145px_repeat(6,minmax(150px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
                   <div className="p-3 text-left">Period</div>
-                  {STUDENT_TIMETABLE_DAYS.map((day) => <div className="border-l p-3" key={day}>{day.slice(0, 3)}</div>)}
+                  {STUDENT_TIMETABLE_DAYS.map((day) => (
+                    <div className="border-l p-3" key={day}>
+                      {day.slice(0, 3)}
+                    </div>
+                  ))}
                 </div>
                 {table.periods.map((period) => (
-                  <div key={period.id} className={`grid grid-cols-[145px_repeat(6,minmax(150px,1fr))] border-t ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}>
-                    <div className={`p-3 ${period.kind !== "TEACHING" ? "bg-amber-50" : "bg-white"}`}>
+                  <div
+                    key={period.id}
+                    className={`grid grid-cols-[145px_repeat(6,minmax(150px,1fr))] border-t ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}
+                  >
+                    <div
+                      className={`p-3 ${period.kind !== "TEACHING" ? "bg-amber-50" : "bg-white"}`}
+                    >
                       <b className="text-sm text-slate-800">{period.label}</b>
-                      <p className="mt-1 text-[10px] text-slate-400">{period.startTime.slice(0, 5)}-{period.endTime.slice(0, 5)}</p>
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        {period.startTime.slice(0, 5)}-{period.endTime.slice(0, 5)}
+                      </p>
                     </div>
                     {period.kind !== "TEACHING" ? (
-                      <div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.18em] text-amber-700">{period.label.toUpperCase()}</div>
+                      <div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.18em] text-amber-700">
+                        {period.label.toUpperCase()}
+                      </div>
                     ) : (
                       STUDENT_TIMETABLE_DAYS.map((day) => {
                         const entry = entries.get(`${day}:${period.id}`);
                         return (
                           <div className="min-h-24 border-l p-2" key={day}>
                             {entry ? (
-                              <div className={`h-full rounded-xl border p-2.5 shadow-sm ${STUDENT_TIMETABLE_COLORS[entry.subjectId % STUDENT_TIMETABLE_COLORS.length]}`}>
+                              <div
+                                className={`h-full rounded-xl border p-2.5 shadow-sm ${STUDENT_TIMETABLE_COLORS[entry.subjectId % STUDENT_TIMETABLE_COLORS.length]}`}
+                              >
                                 <b className="text-xs leading-5">{entry.subject}</b>
-                                <p className="mt-1 truncate text-[10px] opacity-75">{entry.teacher}</p>
-                                <p className="mt-1 text-[10px] font-semibold">{entry.lectureType}{entry.room ? ` - ${entry.room}` : ""}</p>
+                                <p className="mt-1 truncate text-[10px] opacity-75">
+                                  {entry.teacher}
+                                </p>
+                                <p className="mt-1 text-[10px] font-semibold">
+                                  {entry.lectureType}
+                                  {entry.room ? ` - ${entry.room}` : ""}
+                                </p>
                               </div>
                             ) : (
-                              <div className="grid h-full place-items-center text-xs text-slate-300">-</div>
+                              <div className="grid h-full place-items-center text-xs text-slate-300">
+                                -
+                              </div>
                             )}
                           </div>
                         );

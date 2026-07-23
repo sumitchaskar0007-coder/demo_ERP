@@ -112,11 +112,7 @@ export function StudentDashboardPage() {
                   icon={<BarChart3 />}
                   label="My Attendance"
                 />
-                <QuickCard
-                  to={ROUTES.studentClass}
-                  icon={<GraduationCap />}
-                  label="My Class"
-                />
+                <QuickCard to={ROUTES.studentClass} icon={<GraduationCap />} label="My Class" />
                 <QuickCard to={ROUTES.notices} icon={<Bell />} label="Notices" />
               </>
             )}

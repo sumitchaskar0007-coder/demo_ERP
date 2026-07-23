@@ -183,9 +183,13 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
       <div className="bg-gradient-to-r from-blue-700 to-indigo-700 px-6 py-6 text-white">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[.18em] text-blue-200">Fee Account</p>
+            <p className="text-xs font-bold uppercase tracking-[.18em] text-blue-200">
+              Fee Account
+            </p>
             <h2 className="mt-1 text-xl font-bold">Student Fee Information</h2>
-            <p className="mt-1 text-sm text-blue-100">{account.academicYear} · {account.studentCategory}</p>
+            <p className="mt-1 text-sm text-blue-100">
+              {account.academicYear} · {account.studentCategory}
+            </p>
           </div>
           <StatusBadge status={account.status} />
         </div>
@@ -199,7 +203,10 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
               <p className="text-sm font-bold">{percentage}% paid</p>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
-              <div className="h-full rounded-full bg-emerald-300" style={{ width: `${percentage}%` }} />
+              <div
+                className="h-full rounded-full bg-emerald-300"
+                style={{ width: `${percentage}%` }}
+              />
             </div>
           </div>
           <div className="rounded-xl bg-white/10 px-5 py-3 text-right backdrop-blur">
@@ -223,7 +230,9 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
       <div className="p-6">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-bold">Payment Submissions</h3>
-          <span className="text-xs font-semibold text-slate-400">{fees?.payments.length || 0} records</span>
+          <span className="text-xs font-semibold text-slate-400">
+            {fees?.payments.length || 0} records
+          </span>
         </div>
         {fees?.payments.length ? (
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -237,17 +246,27 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
                   <StatusBadge status={payment.status} />
                 </div>
                 <div className="mt-4 grid gap-2 border-t pt-3 text-sm sm:grid-cols-2">
-                  <div><span className="text-slate-400">UTR</span><p className="font-semibold">{payment.transactionReference}</p></div>
-                  <div><span className="text-slate-400">Mode</span><p className="font-semibold">{payment.paymentMode.replaceAll("_", " ")}</p></div>
+                  <div>
+                    <span className="text-slate-400">UTR</span>
+                    <p className="font-semibold">{payment.transactionReference}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Mode</span>
+                    <p className="font-semibold">{payment.paymentMode.replaceAll("_", " ")}</p>
+                  </div>
                 </div>
                 {payment.rejectionReason && (
-                  <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{payment.rejectionReason}</p>
+                  <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                    {payment.rejectionReason}
+                  </p>
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No payment proof has been submitted yet.</p>
+          <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+            No payment proof has been submitted yet.
+          </p>
         )}
       </div>
     </Card>

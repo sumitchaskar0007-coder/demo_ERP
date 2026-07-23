@@ -202,7 +202,8 @@ export function TeacherAttendancePage() {
               >
                 {lectures.map((item) => (
                   <option key={item.lectureId} value={item.lectureId}>
-                    {item.startTime.slice(0, 5)} - {item.endTime.slice(0, 5)} · {item.subject} · {item.year} - {item.division}
+                    {item.startTime.slice(0, 5)} - {item.endTime.slice(0, 5)} · {item.subject} ·{" "}
+                    {item.year} - {item.division}
                     {item.sessionStatus === "SUBMITTED" ? " (submitted)" : ""}
                   </option>
                 ))}

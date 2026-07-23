@@ -156,13 +156,9 @@ export function StaffListPage() {
               <table className="erp-table table-fixed">
                 <thead>
                   <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className={`${admin ? "w-[29%]" : "w-[26%]"} px-5 py-4`}>
-                      Staff Member
-                    </th>
+                    <th className={`${admin ? "w-[29%]" : "w-[26%]"} px-5 py-4`}>Staff Member</th>
                     <th className="w-[21%] px-5 py-4">Contact</th>
-                    <th className={`${admin ? "w-[27%]" : "w-[24%]"} px-5 py-4`}>
-                      Assignment
-                    </th>
+                    <th className={`${admin ? "w-[27%]" : "w-[24%]"} px-5 py-4`}>Assignment</th>
                     <th className="w-[11%] px-5 py-4">Status</th>
                     <th className={`${admin ? "w-[12%]" : "w-[11%]"} px-5 py-4`}>Joined</th>
                     {!admin && <th className="w-[7%] px-5 py-4 text-right">Action</th>}

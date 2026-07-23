@@ -87,7 +87,8 @@ export function PublicAdmissionPage() {
         <Card className="mx-auto max-w-2xl p-7">
           <h1 className="text-2xl font-bold text-slate-900">Student account created</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Save these credentials and log in. On first login you must complete the detailed admission form and upload your marksheets.
+            Save these credentials and log in. On first login you must complete the detailed
+            admission form and upload your marksheets.
           </p>
           <div className="mt-6 grid gap-3 rounded-2xl bg-blue-50 p-5 text-sm">
             <p>

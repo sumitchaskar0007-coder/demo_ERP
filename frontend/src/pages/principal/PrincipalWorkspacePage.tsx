@@ -238,53 +238,53 @@ export function PrincipalWorkspacePage({ kind }: { kind: WorkspaceKind }) {
           const style = moduleStyles[index % moduleStyles.length];
           const featured = featureFirst && index === 0;
           return (
-          <Link
-            key={to}
-            to={to}
-            className={cn("group", featured && "md:col-span-2 xl:col-span-2")}
-          >
-            <Card
-              className={cn(
-                "relative flex h-full min-h-52 overflow-hidden p-0 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)]",
-                style.hover,
-                featured && "bg-gradient-to-br from-white via-white to-blue-50/60",
-              )}
+            <Link
+              key={to}
+              to={to}
+              className={cn("group", featured && "md:col-span-2 xl:col-span-2")}
             >
-              <div className={cn("absolute inset-x-0 top-0 h-1", style.bar)} />
-              <span
+              <Card
                 className={cn(
-                  "pointer-events-none absolute -right-2 -top-7 text-[92px] font-black leading-none opacity-70",
-                  style.number,
+                  "relative flex h-full min-h-52 overflow-hidden p-0 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)]",
+                  style.hover,
+                  featured && "bg-gradient-to-br from-white via-white to-blue-50/60",
                 )}
-                aria-hidden="true"
               >
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <div className="relative flex w-full flex-col p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-3">
+                <div className={cn("absolute inset-x-0 top-0 h-1", style.bar)} />
                 <span
                   className={cn(
-                    "grid h-12 w-12 place-items-center rounded-2xl ring-1 ring-inset",
-                    style.icon,
+                    "pointer-events-none absolute -right-2 -top-7 text-[92px] font-black leading-none opacity-70",
+                    style.number,
                   )}
+                  aria-hidden="true"
                 >
-                  <Icon className="h-5 w-5" strokeWidth={2.2} />
+                  {String(index + 1).padStart(2, "0")}
                 </span>
-                <span className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition group-hover:translate-x-0.5 group-hover:border-blue-200 group-hover:text-blue-700">
-                  <ChevronRight className="h-4 w-4" />
-                </span>
-              </div>
-              <div className="mt-5 flex-1">
-                <h3 className="text-lg font-bold text-slate-950">{title}</h3>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">{description}</p>
-              </div>
-              <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4 text-xs font-bold uppercase tracking-[0.12em] text-slate-400 transition group-hover:text-blue-700">
-                Open module
-                <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
-              </div>
-              </div>
-            </Card>
-          </Link>
+                <div className="relative flex w-full flex-col p-5 sm:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <span
+                      className={cn(
+                        "grid h-12 w-12 place-items-center rounded-2xl ring-1 ring-inset",
+                        style.icon,
+                      )}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={2.2} />
+                    </span>
+                    <span className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition group-hover:translate-x-0.5 group-hover:border-blue-200 group-hover:text-blue-700">
+                      <ChevronRight className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <div className="mt-5 flex-1">
+                    <h3 className="text-lg font-bold text-slate-950">{title}</h3>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">{description}</p>
+                  </div>
+                  <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4 text-xs font-bold uppercase tracking-[0.12em] text-slate-400 transition group-hover:text-blue-700">
+                    Open module
+                    <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                  </div>
+                </div>
+              </Card>
+            </Link>
           );
         })}
       </div>

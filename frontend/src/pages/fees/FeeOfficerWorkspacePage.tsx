@@ -135,7 +135,7 @@ export function FeeOfficerWorkspacePage() {
       {tab === "verified" && (
         <Payments title="Verified payments" rows={data.verified} open={setPayment} receipt />
       )}{" "}
-      {tab === "rejected" && <Rejected rows={data.rejected} open={setPayment} />} {" "}
+      {tab === "rejected" && <Rejected rows={data.rejected} open={setPayment} />}{" "}
       {tab === "history" && <HistoryView rows={data.history} open={setPayment} />}{" "}
       {tab === "dues" && <Dues rows={data.dues} open={setAccountId} />}{" "}
       {tab === "reports" && <Reports data={data} />}{" "}
@@ -497,13 +497,7 @@ function Payments({
     </Panel>
   );
 }
-function Rejected({
-  rows,
-  open,
-}: {
-  rows: api.Payment[];
-  open: (v: api.Payment) => void;
-}) {
+function Rejected({ rows, open }: { rows: api.Payment[]; open: (v: api.Payment) => void }) {
   return (
     <Panel
       title="Rejected Payments"
@@ -901,7 +895,10 @@ function Reports({ data }: { data: api.Workspace }) {
     setDraftTo("");
     setReportPage(0);
   };
-  const exportRows = rows.map(({ id: _id, ...row }) => row);
+  const exportRows = rows.map(({ id, ...row }) => {
+    void id;
+    return row;
+  });
   const downloadCsv = () => {
     const keys = Object.keys(exportRows[0] || {});
     const content = [

@@ -45,7 +45,8 @@ export function DashboardLayout() {
       setMobileOpen(false);
     };
     window.addEventListener(DASHBOARD_NAVIGATION_VISIBILITY_EVENT, updateVisibility);
-    return () => window.removeEventListener(DASHBOARD_NAVIGATION_VISIBILITY_EVENT, updateVisibility);
+    return () =>
+      window.removeEventListener(DASHBOARD_NAVIGATION_VISIBILITY_EVENT, updateVisibility);
   }, []);
 
   useEffect(() => {
@@ -136,7 +137,9 @@ export function DashboardLayout() {
     <div className="min-h-screen w-full overflow-x-clip bg-slate-50">
       {navigationVisible && (
         <>
-          <div className="fixed inset-y-0 left-0 z-40 hidden lg:block"><Sidebar collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} /></div>
+          <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
+            <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
+          </div>
           <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
         </>
       )}
@@ -151,8 +154,18 @@ export function DashboardLayout() {
           {loggingOut ? "Logging out..." : "Logout"}
         </button>
       )}
-      <div className={!navigationVisible ? "min-w-0" : collapsed ? "min-w-0 transition-[padding] duration-300 lg:pl-20" : "min-w-0 transition-[padding] duration-300 lg:pl-64"}>
-        {navigationVisible && <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unread.length} />}
+      <div
+        className={
+          !navigationVisible
+            ? "min-w-0"
+            : collapsed
+              ? "min-w-0 transition-[padding] duration-300 lg:pl-20"
+              : "min-w-0 transition-[padding] duration-300 lg:pl-64"
+        }
+      >
+        {navigationVisible && (
+          <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unread.length} />
+        )}
         <main className={navigationVisible ? "min-w-0 pt-16 lg:pt-0" : "min-w-0"}>
           {priorityNotice ? (
             <div className="relative grid min-h-[calc(100vh-4rem)] place-items-center overflow-hidden bg-slate-50 p-4 sm:p-8">
@@ -178,7 +191,9 @@ export function DashboardLayout() {
                     <h1 className="mt-2 text-2xl font-bold text-slate-950">
                       {priorityNotice.title}
                     </h1>
-                    <p className="mt-1 text-sm text-slate-500">From {priorityNotice.createdByName}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      From {priorityNotice.createdByName}
+                    </p>
                   </div>
                 </div>
                 <div className="px-6 py-6 sm:px-8 sm:py-7">

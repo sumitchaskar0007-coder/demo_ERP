@@ -279,13 +279,13 @@ export async function downloadAdmissionDocument(
   }
 
   const disposition = String(response.headers["content-disposition"] || "");
-  const matchedName = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i)?.[1];
+  const matchedName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
   let originalName = `${type.toLowerCase().replaceAll("_", "-")}${extension}`;
   if (matchedName) {
     try {
-      originalName = decodeURIComponent(matchedName.replace(/^\"|\"$/g, ""));
+      originalName = decodeURIComponent(matchedName.replace(/^"|"$/g, ""));
     } catch {
-      originalName = matchedName.replace(/^\"|\"$/g, "");
+      originalName = matchedName.replace(/^"|"$/g, "");
     }
   }
   const baseName = originalName.replace(/\.[^.]+$/, "");

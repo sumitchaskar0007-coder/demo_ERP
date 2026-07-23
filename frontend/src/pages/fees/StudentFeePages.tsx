@@ -147,7 +147,8 @@ export function SubmitPaymentPage() {
       setSubmitting(false);
     }
   };
-  if (!a) return <div className="page-container text-sm text-slate-500">Loading fee account...</div>;
+  if (!a)
+    return <div className="page-container text-sm text-slate-500">Loading fee account...</div>;
   return (
     <div className="page-container space-y-5 pb-10">
       <div>
@@ -159,7 +160,9 @@ export function SubmitPaymentPage() {
           Back to My Fees
         </Link>
         <h1 className="page-title">Submit Payment Proof</h1>
-        <p className="page-subtitle">Pay using the college QR and attach the receipt for verification.</p>
+        <p className="page-subtitle">
+          Pay using the college QR and attach the receipt for verification.
+        </p>
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[0.85fr_1.15fr]">
@@ -188,7 +191,8 @@ export function SubmitPaymentPage() {
               )}
               <p className="mt-4 text-sm text-slate-500">Remaining fee</p>
               <p className="text-2xl font-black text-slate-900">
-                {"\u20B9"}{Number(a.remainingAmount).toLocaleString("en-IN")}
+                {"\u20B9"}
+                {Number(a.remainingAmount).toLocaleString("en-IN")}
               </p>
             </div>
           </Card>
@@ -202,8 +206,8 @@ export function SubmitPaymentPage() {
                 <h3 className="font-bold text-amber-950">Verify before you pay</h3>
                 <p className="mt-2 text-sm leading-6 text-amber-900">
                   Pay only if the account name shown after scanning the QR code is exactly
-                  <strong className="mx-1">Jadhavr Senior College</strong>.
-                  Do not continue if any other account name appears.
+                  <strong className="mx-1">Jadhavr Senior College</strong>. Do not continue if any
+                  other account name appears.
                 </p>
               </div>
             </div>
@@ -238,7 +242,9 @@ export function SubmitPaymentPage() {
                 onChange={(e) => setV({ ...v, paymentMode: e.target.value as PaymentMode })}
               >
                 {["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER"].map((mode) => (
-                  <option key={mode} value={mode}>{mode.replaceAll("_", " ")}</option>
+                  <option key={mode} value={mode}>
+                    {mode.replaceAll("_", " ")}
+                  </option>
                 ))}
               </select>
             </label>
@@ -282,7 +288,9 @@ export function SubmitPaymentPage() {
                   <Upload className="h-6 w-6" />
                 </span>
                 <span className="mt-3 text-sm font-bold text-slate-800">Choose payment proof</span>
-                <span className="mt-1 text-xs text-slate-500">PDF, JPEG, PNG or WebP - maximum 5 MB</span>
+                <span className="mt-1 text-xs text-slate-500">
+                  PDF, JPEG, PNG or WebP - maximum 5 MB
+                </span>
                 <input
                   type="file"
                   accept="application/pdf,image/jpeg,image/png,image/webp"
@@ -309,7 +317,8 @@ export function SubmitPaymentPage() {
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
             />
             <span>
-              I verified that the QR account name is <strong>Jadhavr Senior College</strong> before paying.
+              I verified that the QR account name is <strong>Jadhavr Senior College</strong> before
+              paying.
             </span>
           </label>
 

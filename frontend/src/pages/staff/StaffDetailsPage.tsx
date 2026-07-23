@@ -285,15 +285,7 @@ export function StaffDetailsPage() {
   );
 }
 
-function Info({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Mail;
-  label: string;
-  value: string;
-}) {
+function Info({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string }) {
   return (
     <div className="rounded-xl bg-slate-50 p-4">
       <Icon className="h-4 w-4 text-blue-600" />

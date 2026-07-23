@@ -65,7 +65,9 @@ export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
       </div>
       <div>
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><QrCode className="h-5 w-5" /></div>
+          <div className="rounded-xl bg-blue-50 p-2.5 text-blue-700">
+            <QrCode className="h-5 w-5" />
+          </div>
           <div>
             <h3 className="text-lg font-bold">College payment QR code</h3>
             <p className="mt-1 text-sm text-slate-500">
@@ -90,7 +92,9 @@ export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
               <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
               <span className="truncate font-semibold">{file.name}</span>
             </div>
-            <Button loading={saving} onClick={() => void save()}>Update QR Code</Button>
+            <Button loading={saving} onClick={() => void save()}>
+              Update QR Code
+            </Button>
           </div>
         )}
       </div>

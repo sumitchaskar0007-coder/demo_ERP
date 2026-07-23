@@ -439,7 +439,10 @@ function DashboardAnalytics({
         >
           {principal && feeCollectionTrend.length ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={feeCollectionTrend} margin={{ top: 16, right: 16, left: 4, bottom: 4 }}>
+              <AreaChart
+                data={feeCollectionTrend}
+                margin={{ top: 16, right: 16, left: 4, bottom: 4 }}
+              >
                 <defs>
                   <linearGradient id="principalFeeGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
@@ -533,12 +536,7 @@ function DashboardAnalytics({
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12 }}
-                />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
                 <YAxis
                   allowDecimals={false}
                   axisLine={false}
@@ -615,10 +613,7 @@ function DashboardAnalytics({
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               {staffCards.map(({ label, value, icon: Icon, tone }) => (
-                <div
-                  key={label}
-                  className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
-                >
+                <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                   <div className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}>
                     <Icon className="h-5 w-5" />
                   </div>
@@ -682,7 +677,11 @@ function CollegeBarList({
 
   return (
     <div className="dashboard-chart-scroll h-full overflow-auto pr-1">
-      <div className="college-bar-chart" role="img" aria-label={`${categoryLabel}-wise ${valueLabel}`}>
+      <div
+        className="college-bar-chart"
+        role="img"
+        aria-label={`${categoryLabel}-wise ${valueLabel}`}
+      >
         <div className="college-bar-chart__header" aria-hidden="true">
           <span>{categoryLabel} name</span>
           <span>{valueLabel}</span>

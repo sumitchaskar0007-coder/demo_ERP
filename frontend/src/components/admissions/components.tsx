@@ -50,7 +50,8 @@ export function HistoryTimeline({
   payments?: PaymentResponse[];
 }) {
   const admissionEvents = history.flatMap<JourneyEvent>((item) => {
-    const resubmitted = item.action === "SUBMITTED" && item.oldStatus === "STUDENT_SECTION_REJECTED";
+    const resubmitted =
+      item.action === "SUBMITTED" && item.oldStatus === "STUDENT_SECTION_REJECTED";
     const config: Partial<Record<typeof item.action, Pick<JourneyEvent, "label" | "tone">>> = {
       SUBMITTED: {
         label: resubmitted ? "Application Resubmitted" : "Application Submitted",
@@ -68,25 +69,29 @@ export function HistoryTimeline({
     const visible = config[item.action];
     if (!visible) return [];
     if (payments.length && item.action.startsWith("PAYMENT_")) return [];
-    return [{
-      id: `admission-${item.id}`,
-      label: visible.label,
-      detail: item.remarks || "Status updated",
-      actor: item.changedByName,
-      at: item.createdAt,
-      tone: visible.tone,
-    }];
+    return [
+      {
+        id: `admission-${item.id}`,
+        label: visible.label,
+        detail: item.remarks || "Status updated",
+        actor: item.changedByName,
+        at: item.createdAt,
+        tone: visible.tone,
+      },
+    ];
   });
   const paymentEvents = payments.flatMap<JourneyEvent>((payment) => {
     const amount = `₹${Number(payment.amount).toLocaleString("en-IN")}`;
     const detail = `${amount} via ${payment.paymentMode.replaceAll("_", " ")} · UTR ${payment.transactionReference}`;
-    const events: JourneyEvent[] = [{
-      id: `payment-${payment.id}-submitted`,
-      label: "Fee Proof Submitted",
-      detail,
-      at: payment.submittedAt,
-      tone: "warning",
-    }];
+    const events: JourneyEvent[] = [
+      {
+        id: `payment-${payment.id}-submitted`,
+        label: "Fee Proof Submitted",
+        detail,
+        at: payment.submittedAt,
+        tone: "warning",
+      },
+    ];
     if (payment.status === "REJECTED") {
       events.push({
         id: `payment-${payment.id}-rejected`,
@@ -125,7 +130,9 @@ export function HistoryTimeline({
     <Card className="overflow-hidden">
       <div className="border-b bg-slate-50/70 px-6 py-5">
         <h2 className="text-lg font-bold">Student Admission Journey</h2>
-        <p className="mt-1 text-sm text-slate-500">Complete admission and fee-verification progress.</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Complete admission and fee-verification progress.
+        </p>
       </div>
       <div className="p-6">
         {events.map((event, index) => (
@@ -133,7 +140,9 @@ export function HistoryTimeline({
             {index < events.length - 1 && (
               <span className="absolute left-[15px] top-8 h-[calc(100%-1rem)] w-px bg-slate-200" />
             )}
-            <span className={`relative z-10 mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border-4 border-white shadow-sm ${colors[event.tone]}`}>
+            <span
+              className={`relative z-10 mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border-4 border-white shadow-sm ${colors[event.tone]}`}
+            >
               <span className="h-2 w-2 rounded-full bg-white" />
             </span>
             <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
@@ -142,7 +151,9 @@ export function HistoryTimeline({
                 <span className="text-xs font-medium text-slate-400">{formatDate(event.at)}</span>
               </div>
               <p className="mt-1 text-sm text-slate-600">{event.detail}</p>
-              {event.actor && <p className="mt-1 text-xs text-slate-400">Updated by {event.actor}</p>}
+              {event.actor && (
+                <p className="mt-1 text-xs text-slate-400">Updated by {event.actor}</p>
+              )}
             </div>
           </div>
         ))}

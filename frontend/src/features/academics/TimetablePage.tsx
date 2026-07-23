@@ -236,9 +236,7 @@ export function TimetablePage() {
     setSaving(true);
     try {
       setTable(await weeklyTimetableApi.review(table.id, action, comment?.trim()));
-      toast.success(
-        action === "APPROVE" ? "Timetable approved" : "Timetable returned to the HOD",
-      );
+      toast.success(action === "APPROVE" ? "Timetable approved" : "Timetable returned to the HOD");
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -701,8 +699,7 @@ export function TimetablePage() {
             </Card>
           )}
 
-          {((isHod && table.editable) ||
-            (isPrincipal && table.status === "SUBMITTED")) && (
+          {((isHod && table.editable) || (isPrincipal && table.status === "SUBMITTED")) && (
             <div className="flex flex-wrap justify-end gap-2 print:hidden">
               {isHod && table.editable && (
                 <Button

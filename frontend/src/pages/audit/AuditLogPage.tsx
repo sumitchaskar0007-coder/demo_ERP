@@ -64,10 +64,7 @@ export function AuditLogPage() {
     [teachers],
   );
   const scopedTeachers = useMemo(
-    () =>
-      department
-        ? teachers.filter((teacher) => teacher.department === department)
-        : teachers,
+    () => (department ? teachers.filter((teacher) => teacher.department === department) : teachers),
     [department, teachers],
   );
   const visibleTeachers = useMemo(() => {
@@ -81,10 +78,7 @@ export function AuditLogPage() {
       )
         return false;
       if (filter === "NOT_LOGGED_IN" && teacher.loggedInToday) return false;
-      if (
-        filter === "LOW_USAGE" &&
-        !["LOW_USAGE", "INACTIVE_7_DAYS"].includes(teacher.usageStatus)
-      )
+      if (filter === "LOW_USAGE" && !["LOW_USAGE", "INACTIVE_7_DAYS"].includes(teacher.usageStatus))
         return false;
       if (filter === "ATTENDANCE_PENDING" && teacher.attendanceRemaining === 0) return false;
       if (filter === "ACTIVE" && !teacher.loggedInToday) return false;
@@ -341,12 +335,11 @@ export function AuditLogPage() {
           )}
         </div>
         <div className="border-t bg-slate-50 px-5 py-3 text-xs text-slate-500">
-          Remaining attendance is calculated as today’s scheduled timetable lectures minus
-          submitted attendance. “No lectures today” means the teacher has no timetable entry for
-          the selected department today.
+          Remaining attendance is calculated as today’s scheduled timetable lectures minus submitted
+          attendance. “No lectures today” means the teacher has no timetable entry for the selected
+          department today.
         </div>
       </Card>
-
     </div>
   );
 }
@@ -431,9 +424,7 @@ function TeacherCompactRow({
           <Badge label={`${teacher.attendanceRemaining} attendance remaining`} tone="amber" />
         )}
         {!attention && <AttendanceStatus teacher={teacher} />}
-        <span className="text-xs text-slate-400">
-          {teacher.loginDaysLast7}/7 usage days
-        </span>
+        <span className="text-xs text-slate-400">{teacher.loginDaysLast7}/7 usage days</span>
       </div>
     </div>
   );
@@ -441,7 +432,12 @@ function TeacherCompactRow({
 
 function AttendanceStatus({ teacher }: { teacher: TeacherEngagementRow }) {
   if (teacher.attendanceStatus === "COMPLETED")
-    return <Badge label={`${teacher.attendanceSubmitted}/${teacher.scheduledLectures} done`} tone="green" />;
+    return (
+      <Badge
+        label={`${teacher.attendanceSubmitted}/${teacher.scheduledLectures} done`}
+        tone="green"
+      />
+    );
   if (teacher.attendanceStatus === "PARTIAL")
     return (
       <Badge

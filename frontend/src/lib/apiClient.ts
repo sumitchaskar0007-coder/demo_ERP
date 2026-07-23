@@ -44,7 +44,10 @@ async function ensureCsrfToken(force = false) {
 }
 
 apiClient.interceptors.request.use(async (config) => {
-  if (config.data instanceof FormData && config.headers.get("Content-Type") === "application/json") {
+  if (
+    config.data instanceof FormData &&
+    config.headers.get("Content-Type") === "application/json"
+  ) {
     config.headers.set("Content-Type", "multipart/form-data");
   }
   if (unsafeMethods.has(config.method?.toLowerCase() ?? "")) {

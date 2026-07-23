@@ -81,8 +81,7 @@ export const markAttendance = (id: number, data: object) =>
   patch(`/api/academic/attendance/sessions/${id}/mark`, data);
 export const submitAttendance = (id: number) =>
   patch(`/api/academic/attendance/sessions/${id}/submit`);
-export const getMyStudentTimetable = () =>
-  get<WeeklyTimetable>("/api/student/academic/timetable");
+export const getMyStudentTimetable = () => get<WeeklyTimetable>("/api/student/academic/timetable");
 export const getMyStudentAttendanceSummary = () =>
   get<Record<string, number>>("/api/student/academic/attendance/summary");
 export type StudentRosterItem = {

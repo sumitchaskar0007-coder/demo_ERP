@@ -309,7 +309,9 @@ function StudentsPanel({
   run: Runner;
 }) {
   const courseYears = Array.from(
-    new Map(data.divisions.map((division) => [division.courseYearId, division.courseYear])).entries(),
+    new Map(
+      data.divisions.map((division) => [division.courseYearId, division.courseYear]),
+    ).entries(),
   );
   const readyToLoad = allocationDepartment === String(data.departmentId) && !!courseYearFilter;
   const visibleStudents = readyToLoad
@@ -346,7 +348,9 @@ function StudentsPanel({
     >
       <div className="mb-5 grid gap-3 rounded-2xl border border-violet-100 bg-violet-50/60 p-4 md:grid-cols-3">
         <label>
-          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">1. Department</span>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+            1. Department
+          </span>
           <select
             className={inputClass}
             value={allocationDepartment}
@@ -362,7 +366,9 @@ function StudentsPanel({
           </select>
         </label>
         <label>
-          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">2. Course year</span>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+            2. Course year
+          </span>
           <select
             className={inputClass}
             value={courseYearFilter}
@@ -382,7 +388,9 @@ function StudentsPanel({
           </select>
         </label>
         <label>
-          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">3. Division</span>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+            3. Division
+          </span>
           <select
             className={inputClass}
             value={target}
@@ -391,7 +399,9 @@ function StudentsPanel({
           >
             <option value="">Select created division</option>
             {targetDivisions.map((d) => (
-              <option key={d.id} value={d.id}>Division {d.name} ({d.allocated}/{d.capacity})</option>
+              <option key={d.id} value={d.id}>
+                Division {d.name} ({d.allocated}/{d.capacity})
+              </option>
             ))}
           </select>
         </label>
@@ -407,12 +417,7 @@ function StudentsPanel({
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
-        <select
-          className={inputClass}
-          value=""
-          onChange={() => undefined}
-          hidden
-        >
+        <select className={inputClass} value="" onChange={() => undefined} hidden>
           <option value="">All divisions</option>
           {data.divisions.map((d) => (
             <option value={d.id} key={d.id}>
@@ -420,12 +425,7 @@ function StudentsPanel({
             </option>
           ))}
         </select>
-        <select
-          className={inputClass}
-          value=""
-          onChange={() => undefined}
-          hidden
-        >
+        <select className={inputClass} value="" onChange={() => undefined} hidden>
           <option value="">All allocations</option>
           <option value="UNALLOCATED">Unallocated</option>
           <option value="ALLOCATED">Allocated</option>
@@ -503,7 +503,9 @@ function StudentsPanel({
         </table>
         {!visibleStudents.length && (
           <Empty
-            title={readyToLoad ? "No unallocated students found" : "Select department and course year"}
+            title={
+              readyToLoad ? "No unallocated students found" : "Select department and course year"
+            }
             text={
               readyToLoad
                 ? "All matching students may already be allocated, or no approved students match your search."

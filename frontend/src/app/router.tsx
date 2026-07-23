@@ -170,14 +170,8 @@ export function AppRouter() {
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
-                <Route
-                  path={ROUTES.adminPeople}
-                  element={<AdminWorkspacePage kind="people" />}
-                />
-                <Route
-                  path={ROUTES.adminFees}
-                  element={<AdminWorkspacePage kind="fees" />}
-                />
+                <Route path={ROUTES.adminPeople} element={<AdminWorkspacePage kind="people" />} />
+                <Route path={ROUTES.adminFees} element={<AdminWorkspacePage kind="fees" />} />
                 <Route
                   path={ROUTES.adminInsights}
                   element={<AdminWorkspacePage kind="insights" />}
