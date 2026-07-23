@@ -105,6 +105,7 @@ import { StudentAcademicAccessProvider } from "@/features/academics/StudentAcade
 import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
 import { TeacherWorkspacePage } from "@/pages/teacher/TeacherWorkspacePage";
 import { PrincipalWorkspacePage } from "@/pages/principal/PrincipalWorkspacePage";
+import { AdminWorkspacePage } from "@/pages/admin/AdminWorkspacePage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -164,10 +165,27 @@ export function AppRouter() {
 
               <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
                 <Route path={ROUTES.staff} element={<StaffListPage />} />
+                <Route path="/staff/:id" element={<StaffDetailsPage />} />
                 <Route path={ROUTES.students} element={<AdminStudentListPage />} />
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
+                <Route
+                  path={ROUTES.adminPeople}
+                  element={<AdminWorkspacePage kind="people" />}
+                />
+                <Route
+                  path={ROUTES.adminFees}
+                  element={<AdminWorkspacePage kind="fees" />}
+                />
+                <Route
+                  path={ROUTES.adminInsights}
+                  element={<AdminWorkspacePage kind="insights" />}
+                />
+                <Route
+                  path={ROUTES.adminAdministration}
+                  element={<AdminWorkspacePage kind="administration" />}
+                />
                 <Route path={ROUTES.colleges} element={<CollegeListPage />} />
                 <Route path="/colleges/create" element={<CollegeListPage />} />
                 <Route path="/colleges/:id" element={<CollegeDetailsPage />} />
@@ -184,7 +202,6 @@ export function AppRouter() {
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
-                <Route path="/staff/:id" element={<StaffDetailsPage />} />
                 <Route
                   path={ROUTES.principalAcademics}
                   element={<PrincipalWorkspacePage kind="academics" />}

@@ -45,7 +45,7 @@ import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
 import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/admin/api";
-import { getActiveColleges } from "@/features/colleges/api";
+import { getActiveColleges, getAllColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { getActiveDepartmentsForAdmin } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
@@ -176,10 +176,12 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
     <div className="page-container pb-10">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-semibold text-slate-400">
-            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;{principal ? "Principal" : "Super Admin"}
-          </p>
-          <h1 className="mt-2 text-2xl font-bold">
+          {principal && (
+            <p className="text-xs font-semibold text-slate-400">
+              Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Principal
+            </p>
+          )}
+          <h1 className={`${principal ? "mt-2 " : ""}text-2xl font-bold`}>
             {principal ? "Principal" : "Super Admin"} Dashboard
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -218,23 +220,12 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
               Have a productive day managing your education workspace.
             </p>
           </div>
-          {!principal && (
-            <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-right backdrop-blur sm:block">
-              <p className="text-xs text-blue-200">Account status</p>
-              <p className="mt-1 font-bold">{user?.status}</p>
-            </div>
-          )}
         </div>
       </section>
 
       <section className="mt-6">
         <div className="mb-4">
           <h2 className="text-lg font-bold">Organization Overview</h2>
-          {!principal && (
-            <p className="mt-1 text-xs text-slate-500">
-              Live people and institution counts from the database
-            </p>
-          )}
         </div>
         <div
           className={`grid gap-4 sm:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}
@@ -1636,7 +1627,7 @@ export function AdminLectureLoadPage() {
   });
 
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()])
+    Promise.all([getAllColleges(), weeklyTimetableApi.divisions()])
       .then(([c, d]) => {
         setColleges(c);
         setDivisions(d);

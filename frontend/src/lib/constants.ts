@@ -29,6 +29,10 @@ export const ROUTES = {
   adminFeeCollection: "/admin/fee-collection",
   adminPendingFees: "/admin/pending-fees",
   adminAnalytics: "/admin/analytics",
+  adminPeople: "/admin/people",
+  adminFees: "/admin/fees",
+  adminInsights: "/admin/insights",
+  adminAdministration: "/admin/administration",
   principalFeeCollection: "/principal/fee-collection",
   principalPendingFees: "/principal/pending-fees",
   principalAnalytics: "/principal/analytics",
@@ -125,6 +129,7 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
       path.startsWith("/colleges") ||
       path.startsWith("/principals") ||
       path === ROUTES.staff ||
+      path.startsWith("/staff/") ||
       path === ROUTES.students ||
       path.startsWith("/admin/")
     );

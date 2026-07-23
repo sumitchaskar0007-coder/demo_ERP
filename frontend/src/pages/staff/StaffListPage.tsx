@@ -156,12 +156,16 @@ export function StaffListPage() {
               <table className="erp-table table-fixed">
                 <thead>
                   <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="w-[26%] px-5 py-4">Staff Member</th>
+                    <th className={`${admin ? "w-[29%]" : "w-[26%]"} px-5 py-4`}>
+                      Staff Member
+                    </th>
                     <th className="w-[21%] px-5 py-4">Contact</th>
-                    <th className="w-[24%] px-5 py-4">Assignment</th>
+                    <th className={`${admin ? "w-[27%]" : "w-[24%]"} px-5 py-4`}>
+                      Assignment
+                    </th>
                     <th className="w-[11%] px-5 py-4">Status</th>
-                    <th className="w-[11%] px-5 py-4">Joined</th>
-                    <th className="w-[7%] px-5 py-4 text-right">Action</th>
+                    <th className={`${admin ? "w-[12%]" : "w-[11%]"} px-5 py-4`}>Joined</th>
+                    {!admin && <th className="w-[7%] px-5 py-4 text-right">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -200,7 +204,11 @@ export function StaffListPage() {
         ) : (
           <EmptyState
             title="No staff found"
-            description="Create staff to begin assigning ERP responsibilities."
+            description={
+              admin
+                ? "No staff records match the selected filters."
+                : "Create staff to begin assigning ERP responsibilities."
+            }
           />
         )}
       </Card>
@@ -254,13 +262,13 @@ function StaffTableRow({
 }) {
   return (
     <tr
-      className={`align-top transition hover:bg-slate-50/70 ${admin ? "" : "cursor-pointer"}`}
-      onClick={admin ? undefined : onOpen}
+      className="cursor-pointer align-top transition hover:bg-slate-50/70"
+      onClick={onOpen}
       onKeyDown={(event) => {
-        if (!admin && (event.key === "Enter" || event.key === " ")) onOpen();
+        if (event.key === "Enter" || event.key === " ") onOpen();
       }}
-      tabIndex={admin ? undefined : 0}
-      aria-label={admin ? undefined : `View ${row.fullName}'s staff details`}
+      tabIndex={0}
+      aria-label={`View ${row.fullName}'s staff details`}
     >
       <td className="px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
@@ -300,10 +308,8 @@ function StaffTableRow({
         <StatusBadge status={row.status} />
       </td>
       <td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td>
-      <td className="px-5 py-4 text-right">
-        {admin ? (
-          <span className="whitespace-nowrap text-xs text-slate-400">View only</span>
-        ) : (
+      {!admin && (
+        <td className="px-5 py-4 text-right">
           <Button
             className="whitespace-nowrap"
             variant={row.status === "ACTIVE" ? "danger" : "secondary"}
@@ -314,8 +320,8 @@ function StaffTableRow({
           >
             {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
           </Button>
-        )}
-      </td>
+        </td>
+      )}
     </tr>
   );
 }
@@ -333,13 +339,13 @@ function StaffCard({
 }) {
   return (
     <article
-      className={`rounded-2xl border border-slate-100 bg-white p-4 shadow-sm ${admin ? "" : "cursor-pointer transition hover:border-blue-200 hover:shadow-md"}`}
-      onClick={admin ? undefined : onOpen}
+      className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md"
+      onClick={onOpen}
       onKeyDown={(event) => {
-        if (!admin && (event.key === "Enter" || event.key === " ")) onOpen();
+        if (event.key === "Enter" || event.key === " ") onOpen();
       }}
-      tabIndex={admin ? undefined : 0}
-      aria-label={admin ? undefined : `View ${row.fullName}'s staff details`}
+      tabIndex={0}
+      aria-label={`View ${row.fullName}'s staff details`}
     >
       <div className="flex items-start gap-3">
         <StaffAvatar name={row.fullName} />
@@ -385,19 +391,19 @@ function StaffCard({
           Joined {joiningDate(row.joiningDate)}
         </p>
       </div>
-      {!admin && (
-        <div className="mt-4 flex gap-2">
-          <Button
-            className="flex-1"
-            variant="secondary"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpen();
-            }}
-          >
-            View details
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      <div className="mt-4 flex gap-2">
+        <Button
+          className="flex-1"
+          variant="secondary"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        >
+          View details
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        {!admin && (
           <Button
             variant={row.status === "ACTIVE" ? "danger" : "secondary"}
             onClick={(event) => {
@@ -407,8 +413,8 @@ function StaffCard({
           >
             {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </article>
   );
 }

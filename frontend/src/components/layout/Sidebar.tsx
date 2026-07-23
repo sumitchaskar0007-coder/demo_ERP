@@ -8,7 +8,6 @@ import {
   GraduationCap,
   LayoutDashboard,
   LibraryBig,
-  UserPlus,
   Users,
   UserRound,
   WalletCards,
@@ -49,16 +48,11 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
         { label: "Colleges", to: ROUTES.colleges, icon: Building2 },
-        { label: "Principals", to: ROUTES.principals, icon: UserPlus },
-        { label: "Staff", to: ROUTES.staff, icon: Users },
-        { label: "Students", to: ROUTES.students, icon: GraduationCap },
-        { label: "Fee Setup", to: ROUTES.adminFeeSetup, icon: CreditCard },
-        { label: "Fee Collection", to: ROUTES.adminFeeCollection, icon: WalletCards },
-        { label: "Pending Fees", to: ROUTES.adminPendingFees, icon: CreditCard },
-        { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
+        { label: "User Management", to: ROUTES.adminPeople, icon: Users },
+        { label: "Fees", to: ROUTES.adminFees, icon: WalletCards },
+        { label: "Analytics", to: ROUTES.adminInsights, icon: BarChart3 },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
-        { label: "Staff Lecture Load", to: ROUTES.adminLectureLoad, icon: BarChart3 },
-        { label: "Account", to: ROUTES.account, icon: UserRound },
+        { label: "Administration", to: ROUTES.adminAdministration, icon: FileText },
       ]
     : isPrincipal
       ? [
@@ -319,6 +313,27 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           location.pathname === ROUTES.profile,
       };
       if (principalGroups[to]) return true;
+    }
+    if (isAdmin) {
+      const adminGroups: Record<string, boolean> = {
+        [ROUTES.adminPeople]:
+          location.pathname.startsWith("/principals") ||
+          location.pathname.startsWith("/users/") ||
+          location.pathname.startsWith("/staff") ||
+          location.pathname.startsWith("/students"),
+        [ROUTES.adminFees]:
+          location.pathname === ROUTES.adminFeeSetup ||
+          location.pathname === ROUTES.adminFeeCollection ||
+          location.pathname === ROUTES.adminPendingFees,
+        [ROUTES.adminInsights]:
+          location.pathname === ROUTES.adminAnalytics ||
+          location.pathname === ROUTES.adminLectureLoad,
+        [ROUTES.adminAdministration]:
+          location.pathname === ROUTES.account ||
+          location.pathname === ROUTES.accountChangePassword ||
+          location.pathname === ROUTES.profile,
+      };
+      if (adminGroups[to]) return true;
     }
     return routerActive;
   };

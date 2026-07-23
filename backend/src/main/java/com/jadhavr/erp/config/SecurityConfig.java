@@ -101,6 +101,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/academic/**")
                                 .hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER", "SUBJECT_TEACHER")
                         .requestMatchers("/api/timetables/**").hasRole("PRINCIPAL")
+                        .requestMatchers(HttpMethod.GET, "/api/weekly-timetables/divisions")
+                                .hasAnyRole("SUPER_ADMIN", "PRINCIPAL", "HOD", "CLASS_TEACHER")
                         .requestMatchers("/api/weekly-timetables/**")
                                 .hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER")
                         .requestMatchers("/api/attendance/**")
