@@ -45,7 +45,8 @@ public class TeacherWorkspaceService {
         Set<Long> sessionIds=scopedSessions.stream().filter(s->s.getStatus()==WeeklyAttendanceSession.Status.SUBMITTED).map(WeeklyAttendanceSession::getId).collect(Collectors.toSet());
         List<WeeklyAttendanceRecord> scopedRecords=sessionIds.isEmpty()?List.of():records.findBySessionIdIn(sessionIds);
         Map<Long,List<WeeklyAttendanceRecord>> byStudent=scopedRecords.stream().collect(Collectors.groupingBy(r->r.getStudent().getId()));
-        List<StudentSectionEnrollment> activeEnrollments=c.sections().stream().flatMap(s->enrollments.findBySectionIdAndStatus(s.getId(),AcademicStatus.ACTIVE).stream()).collect(Collectors.toMap(e->e.getStudent().getId(),Function.identity(),(a,b)->a,LinkedHashMap::new)).values().stream().toList();
+        List<Section> studentDirectorySections=c.classTeacher()?c.classSections():c.sections();
+        List<StudentSectionEnrollment> activeEnrollments=studentDirectorySections.stream().flatMap(s->enrollments.findBySectionIdAndStatus(s.getId(),AcademicStatus.ACTIVE).stream()).collect(Collectors.toMap(e->e.getStudent().getId(),Function.identity(),(a,b)->a,LinkedHashMap::new)).values().stream().toList();
         List<StudentRow> all=activeEnrollments.stream().map(e->student(e,byStudent.getOrDefault(e.getStudent().getId(),List.of()))).filter(r->matches(r,search,attendanceBelow,gender,divisionId,activeEnrollments)).sorted(Comparator.comparing(StudentRow::name)).toList();
         int safeSize=Math.min(Math.max(size,1),100),safePage=Math.max(page,0),from=Math.min(safePage*safeSize,all.size()),to=Math.min(from+safeSize,all.size());
         StudentPage studentPage=new StudentPage(all.subList(from,to),all.size(),safePage,(int)Math.ceil(all.size()/(double)safeSize));

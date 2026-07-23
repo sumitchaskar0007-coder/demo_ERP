@@ -83,6 +83,11 @@ type RiskView = "below75" | "below50";
 
 export function AttendanceReportPage() {
   const { user } = useAuth();
+  const classTeacherReport =
+    user?.roles.includes(ROLES.CLASS_TEACHER) &&
+    !user.roles.includes(ROLES.PRINCIPAL) &&
+    !user.roles.includes(ROLES.SUPER_ADMIN) &&
+    !user.roles.includes(ROLES.HOD);
   const [draft, setDraft] = useState<Filters>(emptyFilters);
   const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [data, setData] = useState<AttendanceReport>();
@@ -333,88 +338,94 @@ export function AttendanceReportPage() {
           <Filter className="h-4 w-4 text-brand-600" />
           Report filters
         </div>
-        <div>
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-            Academic scope
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <ReadOnlyField label="Academic Year" value="2026-2027" />
-            <Select
-              label="Department"
-              value={draft.departmentId}
-              onChange={(v) =>
-                setDraft((x) => ({
-                  ...x,
-                  departmentId: v,
-                  year: "",
-                  divisionId: "",
-                  teacher: "",
-                  subject: "",
-                }))
-              }
-              options={departments.map((x) => ({ value: String(x.id), label: x.name }))}
-              all="All departments"
-            />
-            <Select
-              label="Year"
-              value={draft.year}
-              onChange={(v) =>
-                setDraft((x) => ({
-                  ...x,
-                  year: v,
-                  divisionId: "",
-                  teacher: "",
-                  subject: "",
-                }))
-              }
-              options={years}
-              all="All years"
-            />
-            <Select
-              label="Division"
-              value={draft.divisionId}
-              onChange={(v) =>
-                setDraft((x) => ({ ...x, divisionId: v, teacher: "", subject: "" }))
-              }
-              options={divisions.map((x) => ({ value: String(x.id), label: x.name }))}
-              all="All divisions"
-            />
-          </div>
-        </div>
+        {!classTeacherReport && (
+          <>
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+                Academic scope
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <ReadOnlyField label="Academic Year" value="2026-2027" />
+                <Select
+                  label="Department"
+                  value={draft.departmentId}
+                  onChange={(v) =>
+                    setDraft((x) => ({
+                      ...x,
+                      departmentId: v,
+                      year: "",
+                      divisionId: "",
+                      teacher: "",
+                      subject: "",
+                    }))
+                  }
+                  options={departments.map((x) => ({ value: String(x.id), label: x.name }))}
+                  all="All departments"
+                />
+                <Select
+                  label="Year"
+                  value={draft.year}
+                  onChange={(v) =>
+                    setDraft((x) => ({
+                      ...x,
+                      year: v,
+                      divisionId: "",
+                      teacher: "",
+                      subject: "",
+                    }))
+                  }
+                  options={years}
+                  all="All years"
+                />
+                <Select
+                  label="Division"
+                  value={draft.divisionId}
+                  onChange={(v) =>
+                    setDraft((x) => ({ ...x, divisionId: v, teacher: "", subject: "" }))
+                  }
+                  options={divisions.map((x) => ({ value: String(x.id), label: x.name }))}
+                  all="All divisions"
+                />
+              </div>
+            </div>
 
-        <div className="mt-5 border-t border-slate-100 pt-5">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-            Attendance filters
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Select
-              label="Teacher"
-              value={draft.teacher}
-              onChange={(v) => setDraft((x) => ({ ...x, teacher: v }))}
-              options={teachers}
-              all="All teachers"
-            />
-            <Select
-              label="Subject"
-              value={draft.subject}
-              onChange={(v) => setDraft((x) => ({ ...x, subject: v }))}
-              options={subjects}
-              all="All subjects"
-            />
-            <Select
-              label="Attendance Range"
-              value={draft.range}
-              onChange={(v) => setDraft((x) => ({ ...x, range: v }))}
-              options={[
-                { value: "below75", label: "Below 75%" },
-                { value: "below50", label: "Below 50%" },
-              ]}
-              all="All attendance"
-            />
-          </div>
-        </div>
+            <div className="mt-5 border-t border-slate-100 pt-5">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+                Attendance filters
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Select
+                  label="Teacher"
+                  value={draft.teacher}
+                  onChange={(v) => setDraft((x) => ({ ...x, teacher: v }))}
+                  options={teachers}
+                  all="All teachers"
+                />
+                <Select
+                  label="Subject"
+                  value={draft.subject}
+                  onChange={(v) => setDraft((x) => ({ ...x, subject: v }))}
+                  options={subjects}
+                  all="All subjects"
+                />
+                <Select
+                  label="Attendance Range"
+                  value={draft.range}
+                  onChange={(v) => setDraft((x) => ({ ...x, range: v }))}
+                  options={[
+                    { value: "below75", label: "Below 75%" },
+                    { value: "below50", label: "Below 50%" },
+                  ]}
+                  all="All attendance"
+                />
+              </div>
+            </div>
+          </>
+        )}
 
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <div
+          className={`${classTeacherReport ? "" : "mt-5"} rounded-xl border border-slate-200 bg-slate-50/70 p-4`}
+        >
           <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
             Date range
           </p>
@@ -435,7 +446,7 @@ export function AttendanceReportPage() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={apply} disabled={loading}>
-            Apply Filters
+            {classTeacherReport ? "Apply Date" : "Apply Filters"}
           </Button>
           <Button variant="secondary" onClick={reset}>
             <RotateCcw className="mr-2 h-4 w-4" />
