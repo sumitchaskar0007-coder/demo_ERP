@@ -82,6 +82,10 @@ export interface TrendPoint {
   total: number;
   attended: number;
   percentage: number;
+  lectures: number;
+  scheduledLectures: number;
+  averagePresent: number;
+  averageStudents: number;
 }
 export interface OperationalSummary {
   id: number;

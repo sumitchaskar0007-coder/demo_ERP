@@ -63,29 +63,22 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     : isPrincipal
       ? [
           { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
-          { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
-          { label: "Course Years", to: ROUTES.courseYears, icon: GraduationCap },
-          { label: "Divisions", to: ROUTES.divisions, icon: Users },
+          { label: "Students", to: ROUTES.students, icon: GraduationCap },
           { label: "Staff", to: ROUTES.staff, icon: Users },
-          { label: "Create Staff", to: ROUTES.createStaff, icon: UserPlus },
-          { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
-          { label: "Fee Collection", to: ROUTES.principalFeeCollection, icon: WalletCards },
-          { label: "Pending Fees", to: ROUTES.principalPendingFees, icon: CreditCard },
-          { label: "Analytics", to: ROUTES.principalAnalytics, icon: BarChart3 },
           {
-            label: "Admission Records",
+            label: "Admissions",
             to: ROUTES.studentSectionAdmissions,
             icon: GraduationCap,
           },
-          { label: "Final Admission Review", to: ROUTES.principalReviewReady, icon: FileText },
-          { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
-          { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
-          { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
-          { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
-          { label: "Audit Logs", to: ROUTES.auditLogs, icon: FileText },
+          { label: "Academics", to: ROUTES.principalAcademics, icon: LibraryBig },
+          { label: "Fees", to: ROUTES.principalFees, icon: WalletCards },
+          { label: "Reports & Analytics", to: ROUTES.principalReports, icon: BarChart3 },
           { label: "Notices", to: ROUTES.notices, icon: Bell },
-          { label: "Account", to: ROUTES.account, icon: UserRound },
-          { label: "Profile", to: ROUTES.profile, icon: UserRound },
+          {
+            label: "Administration",
+            to: ROUTES.principalAdministration,
+            icon: FileText,
+          },
         ]
       : isStudentSection
         ? [
@@ -300,6 +293,32 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     }
     if (location.pathname === targetPath && currentParams.has("tab")) {
       return currentParams.get("tab") === "overview";
+    }
+    if (isPrincipal) {
+      const principalGroups: Record<string, boolean> = {
+        [ROUTES.studentSectionAdmissions]:
+          location.pathname.startsWith("/student-section/admissions") ||
+          location.pathname.startsWith("/principal/admissions"),
+        [ROUTES.principalAcademics]:
+          location.pathname.startsWith("/departments") ||
+          location.pathname.startsWith("/principal/course-years") ||
+          location.pathname.startsWith("/principal/divisions") ||
+          location.pathname.startsWith("/academic/subjects") ||
+          location.pathname === ROUTES.timetable,
+        [ROUTES.principalFees]:
+          location.pathname.startsWith("/fee-structures") ||
+          location.pathname.startsWith("/principal/fee-"),
+        [ROUTES.attendanceReport]: location.pathname === ROUTES.attendanceReport,
+        [ROUTES.principalReports]:
+          location.pathname === ROUTES.principalAnalytics ||
+          location.pathname.startsWith("/reports/"),
+        [ROUTES.principalAdministration]:
+          location.pathname === ROUTES.auditLogs ||
+          location.pathname === ROUTES.account ||
+          location.pathname === ROUTES.accountChangePassword ||
+          location.pathname === ROUTES.profile,
+      };
+      if (principalGroups[to]) return true;
     }
     return routerActive;
   };

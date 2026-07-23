@@ -19,6 +19,7 @@ import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/admissions/api";
 import type { AdmissionStatus, StudentSectionAdmissionResponse } from "@/features/admissions/types";
 import { ROLES } from "@/lib/constants";
+import { PrincipalAdmissionTabs } from "@/components/principal/PrincipalAdmissionTabs";
 
 const emptyPage: PageResponse<StudentSectionAdmissionResponse> = {
   content: [],
@@ -33,6 +34,7 @@ export function StudentSectionAdmissionListPage() {
   const navigate = useNavigate();
   const { isRole } = useAuth();
   const canManage = isRole([ROLES.STUDENT_SECTION]);
+  const principal = isRole([ROLES.PRINCIPAL]);
   const [result, setResult] = useState(emptyPage);
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
@@ -127,6 +129,7 @@ export function StudentSectionAdmissionListPage() {
   ];
   return (
     <div className="page-container">
+      {principal && <PrincipalAdmissionTabs />}
       <div>
         <h1 className="page-title">Admission Records</h1>
         <p className="page-subtitle">

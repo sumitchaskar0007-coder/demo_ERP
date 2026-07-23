@@ -10,4 +10,6 @@ public interface WeeklyAttendanceRecordRepository extends JpaRepository<WeeklyAt
     Optional<WeeklyAttendanceRecord> findBySessionIdAndStudentId(Long sessionId, Long studentId);
     List<WeeklyAttendanceRecord> findByStudentIdOrderBySessionAttendanceDateDescSessionStartTimeDesc(Long studentId);
     long countBySessionIdAndStatus(Long sessionId, WeeklyAttendanceRecord.Status status);
+    long countBySessionTeacherId(Long teacherId);
+    long countBySessionTeacherIdAndStatus(Long teacherId, WeeklyAttendanceRecord.Status status);
 }

@@ -1,5 +1,6 @@
 package com.jadhavr.erp.student.service;
 
+import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Locale;
 import java.util.Set;
@@ -35,8 +37,10 @@ public class AdminStudentServiceImpl implements AdminStudentService {
 
     @Override
     public StudentProfileResponse getStudentById(Long id) {
-        return mapper.toResponse(studentProfiles.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found")));
+        StudentProfile student = studentProfiles.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+        ensureVisible(student);
+        return mapper.toResponse(student);
     }
 
     @Override
@@ -59,9 +63,11 @@ public class AdminStudentServiceImpl implements AdminStudentService {
             direction = Sort.Direction.DESC;
         }
 
+        Long scopedCollegeId = scopedCollegeId(collegeId);
         Specification<StudentProfile> spec = Specification.where(null);
-        if (collegeId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("college").get("id"), collegeId));
+        if (scopedCollegeId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("college").get("id"), scopedCollegeId));
         }
         if (departmentId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("department").get("id"), departmentId));
@@ -87,5 +93,25 @@ public class AdminStudentServiceImpl implements AdminStudentService {
                 spec,
                 PageRequest.of(page, size, Sort.by(direction, safeSort))
         ).map(mapper::toResponse));
+    }
+
+    private Long scopedCollegeId(Long requestedCollegeId) {
+        if (SecurityUtils.isSuperAdmin()) return requestedCollegeId;
+        Long currentCollegeId = SecurityUtils.requireCurrentUser().getCollegeId();
+        if (currentCollegeId == null) {
+            throw new AccessDeniedException("Principal college is required");
+        }
+        if (requestedCollegeId != null && !requestedCollegeId.equals(currentCollegeId)) {
+            throw new AccessDeniedException("Students are outside your college");
+        }
+        return currentCollegeId;
+    }
+
+    private void ensureVisible(StudentProfile student) {
+        if (SecurityUtils.isSuperAdmin()) return;
+        Long currentCollegeId = SecurityUtils.requireCurrentUser().getCollegeId();
+        if (currentCollegeId == null || !currentCollegeId.equals(student.getCollege().getId())) {
+            throw new AccessDeniedException("Student is outside your college");
+        }
     }
 }

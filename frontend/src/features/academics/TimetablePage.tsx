@@ -4,15 +4,12 @@ import {
   CalendarDays,
   Check,
   ClipboardCopy,
-  FileDown,
   GripVertical,
   Pencil,
   Plus,
-  Printer,
   Redo2,
   Search,
   Settings2,
-  Sheet,
   Trash2,
   Undo2,
   X,
@@ -33,7 +30,6 @@ import {
   type WeeklyPeriodInput,
   type WeeklyTimetable,
 } from "./api";
-import { exportWeeklyTimetableExcel, exportWeeklyTimetablePdf } from "./weeklyTimetableExport";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { useAuth } from "@/features/auth/authStore";
@@ -176,6 +172,10 @@ export function TimetablePage() {
     [table],
   );
   const normalizedQuery = query.trim().toLowerCase();
+  const selectedCollegeName =
+    colleges.find((college) => college.id === Number(scope.collegeId))?.name ??
+    table?.college ??
+    "";
   const matchesSearch = (entry?: WeeklyEntry) =>
     !normalizedQuery ||
     Boolean(
@@ -468,22 +468,32 @@ export function TimetablePage() {
 
       <Card className="p-4 sm:p-5 print:border-0 print:shadow-none">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 print:hidden">
-          <Select
-            label="College"
-            value={scope.collegeId}
-            onChange={(event) => {
-              setScope({ collegeId: event.target.value, departmentId: "", courseYearId: "" });
-              setSectionId("");
-            }}
-            options={[
-              { label: "Select college", value: "" },
-              ...colleges
-                .filter((college) =>
-                  divisions.some((division) => division.collegeId === college.id),
-                )
-                .map((college) => ({ label: college.name, value: college.id })),
-            ]}
-          />
+          {isPrincipal ? (
+            <Input
+              label="College"
+              value={selectedCollegeName}
+              readOnly
+              aria-readonly="true"
+              className="cursor-not-allowed bg-slate-50 text-slate-700"
+            />
+          ) : (
+            <Select
+              label="College"
+              value={scope.collegeId}
+              onChange={(event) => {
+                setScope({ collegeId: event.target.value, departmentId: "", courseYearId: "" });
+                setSectionId("");
+              }}
+              options={[
+                { label: "Select college", value: "" },
+                ...colleges
+                  .filter((college) =>
+                    divisions.some((division) => division.collegeId === college.id),
+                  )
+                  .map((college) => ({ label: college.name, value: college.id })),
+              ]}
+            />
+          )}
           <Select
             label="Department"
             disabled={!scope.collegeId}
@@ -555,7 +565,7 @@ export function TimetablePage() {
           />
         </div>
         {table && (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 print:mt-0 print:grid-cols-7 print:gap-1">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 print:mt-0 print:grid-cols-6 print:gap-1">
             {[
               ["College", table.college],
               ["Department", table.department],
@@ -563,7 +573,6 @@ export function TimetablePage() {
               ["Division", table.division],
               ["Class Teacher", table.classTeacher],
               ["Academic Year", table.academicYear],
-              ["Status", table.status],
             ].map(([key, value]) => (
               <div
                 key={key}
@@ -578,7 +587,7 @@ export function TimetablePage() {
               </div>
             ))}
             {table.reviewComment && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2 lg:col-span-4 xl:col-span-7 print:hidden">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2 lg:col-span-3 xl:col-span-6 print:hidden">
                 <b>Principal review:</b> {table.reviewComment}
               </div>
             )}
@@ -692,51 +701,42 @@ export function TimetablePage() {
             </Card>
           )}
 
-          <div className="flex flex-wrap justify-end gap-2 print:hidden">
-            {isHod && table.editable && (
-              <Button
-                disabled={saving || !table.entries.length}
-                onClick={() => void submitForReview()}
-              >
-                <Check className="h-4 w-4" />
-                Submit to Principal
-              </Button>
-            )}
-            {isPrincipal && table.status === "SUBMITTED" && (
-              <>
-                <Button disabled={saving} onClick={() => void reviewTimetable("APPROVE")}>
+          {((isHod && table.editable) ||
+            (isPrincipal && table.status === "SUBMITTED")) && (
+            <div className="flex flex-wrap justify-end gap-2 print:hidden">
+              {isHod && table.editable && (
+                <Button
+                  disabled={saving || !table.entries.length}
+                  onClick={() => void submitForReview()}
+                >
                   <Check className="h-4 w-4" />
-                  Approve timetable
+                  Submit to Principal
                 </Button>
-                <Button
-                  variant="secondary"
-                  disabled={saving}
-                  onClick={() => void reviewTimetable("REQUEST_CHANGES")}
-                >
-                  Request changes
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={saving}
-                  onClick={() => void reviewTimetable("REJECT")}
-                >
-                  Reject
-                </Button>
-              </>
-            )}
-            <Button variant="secondary" onClick={() => window.print()}>
-              <Printer className="h-4 w-4" />
-              Print
-            </Button>
-            <Button variant="secondary" onClick={() => void exportWeeklyTimetablePdf(table)}>
-              <FileDown className="h-4 w-4" />
-              Download PDF
-            </Button>
-            <Button variant="secondary" onClick={() => void exportWeeklyTimetableExcel(table)}>
-              <Sheet className="h-4 w-4" />
-              Download Excel
-            </Button>
-          </div>
+              )}
+              {isPrincipal && table.status === "SUBMITTED" && (
+                <>
+                  <Button disabled={saving} onClick={() => void reviewTimetable("APPROVE")}>
+                    <Check className="h-4 w-4" />
+                    Approve timetable
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={saving}
+                    onClick={() => void reviewTimetable("REQUEST_CHANGES")}
+                  >
+                    Request changes
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={saving}
+                    onClick={() => void reviewTimetable("REJECT")}
+                  >
+                    Reject
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           <DesktopGrid
             table={table}

@@ -14,10 +14,11 @@ import { DataTable, type Column } from "@/components/table/DataTable";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { handleApiError } from "@/lib/handleApiError";
-import { PAGE_SIZE } from "@/lib/constants";
+import { PAGE_SIZE, ROLES } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import type { PageResponse } from "@/types/api";
 import * as api from "@/features/student/api";
+import { useAuth } from "@/features/auth/authStore";
 import type {
   AdminStudentDetails,
   StudentProfileResponse,
@@ -44,6 +45,8 @@ const studentStatusOptions = [
 ];
 
 export function AdminStudentListPage() {
+  const { isRole } = useAuth();
+  const principal = isRole([ROLES.PRINCIPAL]);
   const [result, setResult] = useState(emptyPage);
   const [colleges, setColleges] = useState<College[]>([]);
   const [keyword, setKeyword] = useState("");
@@ -57,7 +60,7 @@ export function AdminStudentListPage() {
   const openDetails = async (id: number) => {
     setDetailsLoading(true);
     try {
-      setDetails(await api.getStudentDetails(id));
+      setDetails(await api.getStudentDetails(id, principal));
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -66,31 +69,35 @@ export function AdminStudentListPage() {
   };
 
   useEffect(() => {
+    if (principal) return;
     getActiveColleges()
       .then(setColleges)
       .catch(() => setColleges([]));
-  }, []);
+  }, [principal]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setResult(
-        await api.searchStudents({
-          keyword: keyword || undefined,
-          collegeId: Number(collegeId) || undefined,
-          status: status as StudentStatus | "",
-          page,
-          size: PAGE_SIZE,
-          sortBy: "createdAt",
-          sortDir: "desc",
-        }),
+        await api.searchStudents(
+          {
+            keyword: keyword || undefined,
+            collegeId: principal ? undefined : Number(collegeId) || undefined,
+            status: status as StudentStatus | "",
+            page,
+            size: PAGE_SIZE,
+            sortBy: "createdAt",
+            sortDir: "desc",
+          },
+          principal,
+        ),
       );
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
       setLoading(false);
     }
-  }, [collegeId, keyword, page, status]);
+  }, [collegeId, keyword, page, principal, status]);
 
   useEffect(() => {
     const timer = setTimeout(load, 250);
@@ -221,7 +228,11 @@ export function AdminStudentListPage() {
     <div className="page-container">
       <div>
         <h1 className="page-title">Students</h1>
-        <p className="page-subtitle">View student profiles separately from staff accounts.</p>
+        <p className="page-subtitle">
+          {principal
+            ? "View student profiles, academic placement, and attendance for your college."
+            : "View student profiles separately from staff accounts."}
+        </p>
       </div>
       <Card className="mt-6 overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/60 p-4 sm:p-5">
@@ -234,7 +245,7 @@ export function AdminStudentListPage() {
                   : `${result.totalElements} student${result.totalElements === 1 ? "" : "s"} found`}
               </p>
             </div>
-            {(keyword || collegeId || status) && (
+            {(keyword || (!principal && collegeId) || status) && (
               <Button
                 variant="ghost"
                 className="h-9 px-3"
@@ -250,7 +261,13 @@ export function AdminStudentListPage() {
               </Button>
             )}
           </div>
-          <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(280px,1fr)_minmax(220px,300px)_minmax(210px,240px)]">
+          <div
+            className={`grid min-w-0 gap-3 ${
+              principal
+                ? "lg:grid-cols-[minmax(280px,1fr)_minmax(210px,280px)]"
+                : "lg:grid-cols-[minmax(280px,1fr)_minmax(220px,300px)_minmax(210px,240px)]"
+            }`}
+          >
             <Input
               label="Search students"
               placeholder="Search name, email, admission no..."
@@ -261,19 +278,21 @@ export function AdminStudentListPage() {
                 setPage(0);
               }}
             />
-            <Select
-              label="College"
-              options={[
-                { label: "All colleges", value: "" },
-                ...colleges.map((college) => ({ label: college.name, value: college.id })),
-              ]}
-              value={collegeId}
-              onChange={(event) => {
-                setCollegeId(event.target.value ? Number(event.target.value) : "");
-                setPage(0);
-              }}
-              aria-label="Filter by college"
-            />
+            {!principal && (
+              <Select
+                label="College"
+                options={[
+                  { label: "All colleges", value: "" },
+                  ...colleges.map((college) => ({ label: college.name, value: college.id })),
+                ]}
+                value={collegeId}
+                onChange={(event) => {
+                  setCollegeId(event.target.value ? Number(event.target.value) : "");
+                  setPage(0);
+                }}
+                aria-label="Filter by college"
+              />
+            )}
             <Select
               label="Student status"
               options={studentStatusOptions}

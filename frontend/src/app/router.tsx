@@ -44,6 +44,7 @@ import {
 } from "@/pages/fees/FeeSectionPages";
 import { FeeOfficerWorkspacePage } from "@/pages/fees/FeeOfficerWorkspacePage";
 import { StaffListPage } from "@/pages/staff/StaffListPage";
+import { StaffDetailsPage } from "@/pages/staff/StaffDetailsPage";
 import { CreateStaffPage } from "@/pages/staff/CreateStaffPage";
 import {
   CourseYearFormPage,
@@ -103,6 +104,7 @@ import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage
 import { StudentAcademicAccessProvider } from "@/features/academics/StudentAcademicAccessContext";
 import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
 import { TeacherWorkspacePage } from "@/pages/teacher/TeacherWorkspacePage";
+import { PrincipalWorkspacePage } from "@/pages/principal/PrincipalWorkspacePage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -162,6 +164,7 @@ export function AppRouter() {
 
               <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN, ROLES.PRINCIPAL]} />}>
                 <Route path={ROUTES.staff} element={<StaffListPage />} />
+                <Route path={ROUTES.students} element={<AdminStudentListPage />} />
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.SUPER_ADMIN]} />}>
@@ -173,7 +176,6 @@ export function AppRouter() {
                 <Route path={ROUTES.createPrincipal} element={<CreatePrincipalPage />} />
                 <Route path={ROUTES.editPrincipal} element={<EditPrincipalPage />} />
                 <Route path="/principals/create" element={<CreatePrincipalPage />} />
-                <Route path={ROUTES.students} element={<AdminStudentListPage />} />
                 <Route path={ROUTES.adminFeeSetup} element={<AdminFeeSetupPage />} />
                 <Route path={ROUTES.adminFeeCollection} element={<AdminMoneyPage />} />
                 <Route path={ROUTES.adminPendingFees} element={<AdminMoneyPage pending />} />
@@ -182,6 +184,23 @@ export function AppRouter() {
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
+                <Route path="/staff/:id" element={<StaffDetailsPage />} />
+                <Route
+                  path={ROUTES.principalAcademics}
+                  element={<PrincipalWorkspacePage kind="academics" />}
+                />
+                <Route
+                  path={ROUTES.principalFees}
+                  element={<PrincipalWorkspacePage kind="fees" />}
+                />
+                <Route
+                  path={ROUTES.principalReports}
+                  element={<PrincipalWorkspacePage kind="reports" />}
+                />
+                <Route
+                  path={ROUTES.principalAdministration}
+                  element={<PrincipalWorkspacePage kind="administration" />}
+                />
                 <Route path={ROUTES.departments} element={<DepartmentListPage />} />
                 <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
                 <Route path={ROUTES.createStaff} element={<CreateStaffPage />} />

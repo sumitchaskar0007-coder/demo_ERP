@@ -5,6 +5,7 @@ import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateFeeSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
+import com.jadhavr.erp.staff.dto.StaffDetailResponse;
 import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateStaffRequest;
 import com.jadhavr.erp.staff.enums.StaffStatus;
@@ -80,6 +81,12 @@ public class StaffController {
     @GetMapping("/{id}")
     public ApiResponse<StaffResponse> getStaffById(@PathVariable Long id) {
         return ApiResponse.success("Staff retrieved successfully", staffService.getStaffById(id));
+    }
+
+    @GetMapping("/{id}/details")
+    public ApiResponse<StaffDetailResponse> getStaffDetails(@PathVariable Long id) {
+        return ApiResponse.success(
+                "Staff details retrieved successfully", staffService.getStaffDetails(id));
     }
 
     @PatchMapping("/{id}/activate")

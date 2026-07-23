@@ -17,6 +17,7 @@ import type { PageResponse } from "@/types/api";
 import { AdmissionStatusBadge } from "@/components/admissions/components";
 import * as api from "@/features/admissions/api";
 import type { StudentSectionAdmissionResponse } from "@/features/admissions/types";
+import { PrincipalAdmissionTabs } from "@/components/principal/PrincipalAdmissionTabs";
 
 const emptyPage: PageResponse<StudentSectionAdmissionResponse> = {
   content: [],
@@ -95,6 +96,7 @@ export function PrincipalReviewQueuePage() {
   ];
   return (
     <div className="page-container">
+      <PrincipalAdmissionTabs />
       <div>
         <h1 className="page-title">Final Admission Review</h1>
         <p className="page-subtitle">

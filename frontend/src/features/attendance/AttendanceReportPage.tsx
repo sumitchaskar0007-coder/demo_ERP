@@ -8,11 +8,9 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  Download,
   Eye,
   Filter,
   GraduationCap,
-  Printer,
   RotateCcw,
   Search,
   TrendingUp,
@@ -39,6 +37,10 @@ import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Select as ResponsiveSelect } from "@/components/common/Select";
 import { useAuth } from "@/features/auth/authStore";
+import {
+  weeklyTimetableApi,
+  type WeeklyDivision,
+} from "@/features/academics/api";
 import { ROLES } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
 import { localDateString } from "@/lib/date";
@@ -50,7 +52,6 @@ import {
   type StudentAnalyticsRow,
   type TrendPoint,
 } from "./api";
-import { exportAttendanceCsv, exportAttendanceExcel, exportAttendancePdf } from "./export";
 
 const iso = localDateString;
 const today = iso(new Date());
@@ -62,9 +63,8 @@ const initialDates = () => {
 };
 type Filters = ReturnType<typeof emptyFilters>;
 const emptyFilters = () => ({
-  academicYear: "",
+  academicYear: "2026-2027",
   departmentId: "",
-  course: "",
   year: "",
   divisionId: "",
   teacher: "",
@@ -79,6 +79,7 @@ type Drill = {
   divisionId?: number;
   division?: string;
 };
+type RiskView = "below75" | "below50";
 
 export function AttendanceReportPage() {
   const { user } = useAuth();
@@ -96,6 +97,8 @@ export function AttendanceReportPage() {
   const [registerSearch, setRegisterSearch] = useState("");
   const [registerPage, setRegisterPage] = useState(1);
   const [registerSort, setRegisterSort] = useState("date-desc");
+  const [riskView, setRiskView] = useState<RiskView>();
+  const [academicDivisions, setAcademicDivisions] = useState<WeeklyDivision[]>([]);
   const path =
     user?.roles.includes(ROLES.PRINCIPAL) || user?.roles.includes(ROLES.SUPER_ADMIN)
       ? "/api/principal/attendance/report"
@@ -126,40 +129,100 @@ export function AttendanceReportPage() {
   useEffect(() => {
     load(applied);
   }, [path]);
+  useEffect(() => {
+    weeklyTimetableApi
+      .divisions()
+      .then(setAcademicDivisions)
+      .catch(() => setAcademicDivisions([]));
+  }, []);
 
   const departments = useMemo(
-    () =>
-      uniqueBy(data?.students ?? [], (s) => s.departmentId).map((s) => ({
-        id: s.departmentId,
-        name: s.department,
-      })),
-    [data],
-  );
-  const academicYears = useMemo(
-    () => unique((data?.students ?? []).map((s) => s.academicYear)),
-    [data],
+    () => {
+      if (academicDivisions.length) {
+        return uniqueBy(academicDivisions, (division) => division.departmentId).map(
+          (division) => ({
+            id: division.departmentId,
+            name: division.department,
+          }),
+        );
+      }
+      return uniqueBy(data?.students ?? [], (student) => student.departmentId).map(
+        (student) => ({
+          id: student.departmentId,
+          name: student.department,
+        }),
+      );
+    },
+    [academicDivisions, data],
   );
   const years = useMemo(
-    () =>
-      unique(
+    () => {
+      if (academicDivisions.length) {
+        return unique(
+          academicDivisions
+            .filter(
+              (division) =>
+                (!draft.departmentId ||
+                  division.departmentId === Number(draft.departmentId)) &&
+                (!draft.academicYear || division.academicYear === draft.academicYear),
+            )
+            .map((division) => division.year),
+        );
+      }
+      return unique(
         (data?.students ?? [])
-          .filter((s) => !applied.departmentId || s.departmentId === Number(applied.departmentId))
-          .map((s) => s.year),
-      ),
-    [data, applied.departmentId],
+          .filter(
+            (student) =>
+              !draft.departmentId || student.departmentId === Number(draft.departmentId),
+          )
+          .map((student) => student.year),
+      );
+    },
+    [academicDivisions, data, draft.academicYear, draft.departmentId],
   );
   const divisions = useMemo(
-    () =>
-      uniqueBy(
+    () => {
+      if (academicDivisions.length) {
+        return academicDivisions
+          .filter(
+            (division) =>
+              (!draft.departmentId ||
+                division.departmentId === Number(draft.departmentId)) &&
+              (!draft.year || division.year === draft.year) &&
+              (!draft.academicYear || division.academicYear === draft.academicYear),
+          )
+          .map((division) => ({ id: division.id, name: division.division }));
+      }
+      return uniqueBy(
         (data?.students ?? []).filter(
-          (s) => !applied.departmentId || s.departmentId === Number(applied.departmentId),
+          (student) =>
+            (!draft.departmentId ||
+              student.departmentId === Number(draft.departmentId)) &&
+            (!draft.year || student.year === draft.year),
         ),
-        (s) => s.divisionId,
-      ).map((s) => ({ id: s.divisionId, name: s.division })),
-    [data, applied.departmentId],
+        (student) => student.divisionId,
+      ).map((student) => ({ id: student.divisionId, name: student.division }));
+    },
+    [academicDivisions, data, draft.academicYear, draft.departmentId, draft.year],
   );
-  const teachers = useMemo(() => unique((data?.rows ?? []).map((r) => r.teacher)), [data]);
-  const subjects = useMemo(() => unique((data?.rows ?? []).map((r) => r.subject)), [data]);
+  const scopedFilterRows = useMemo(
+    () =>
+      (data?.rows ?? []).filter(
+        (row) =>
+          (!draft.departmentId || row.departmentId === Number(draft.departmentId)) &&
+          (!draft.year || row.year === draft.year) &&
+          (!draft.divisionId || row.divisionId === Number(draft.divisionId)),
+      ),
+    [data, draft.departmentId, draft.divisionId, draft.year],
+  );
+  const teachers = useMemo(
+    () => unique(scopedFilterRows.map((row) => row.teacher)),
+    [scopedFilterRows],
+  );
+  const subjects = useMemo(
+    () => unique(scopedFilterRows.map((row) => row.subject)),
+    [scopedFilterRows],
+  );
 
   const students = useMemo(
     () =>
@@ -167,7 +230,6 @@ export function AttendanceReportPage() {
         (s) =>
           (!applied.academicYear || s.academicYear === applied.academicYear) &&
           (!applied.departmentId || s.departmentId === Number(applied.departmentId)) &&
-          (!applied.course || s.department === applied.course) &&
           (!applied.year || s.year === applied.year) &&
           (!applied.divisionId || s.divisionId === Number(applied.divisionId)) &&
           (!applied.teacher || s.history.some((h) => h.teacher === applied.teacher)) &&
@@ -239,21 +301,19 @@ export function AttendanceReportPage() {
     setDraft(clean);
     setApplied(clean);
     setDrill({});
+    setRiskView(undefined);
     setStudentSearch("");
     load(clean);
   };
-  const exportData = data
-    ? {
-        ...data,
-        students,
-        rows,
-        totalStudents: students.length,
-        percentage: overall,
-        below75,
-        below50,
-      }
-    : undefined;
-
+  const showRiskStudents = (risk: RiskView) => {
+    setRiskView(risk);
+    window.requestAnimationFrame(() =>
+      document.getElementById("risk-student-list")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      }),
+    );
+  };
   return (
     <div className="page-container space-y-6 pb-12 print:bg-white">
       <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -266,7 +326,6 @@ export function AttendanceReportPage() {
             Monitor attendance risks from college level down to individual student records.
           </p>
         </div>
-        <ExportActions data={exportData} collegeName={user?.collegeName ?? undefined} />
       </header>
 
       <Card className="sticky top-0 z-20 border-slate-200/80 bg-white/95 p-5 shadow-sm backdrop-blur print:hidden">
@@ -274,84 +333,109 @@ export function AttendanceReportPage() {
           <Filter className="h-4 w-4 text-brand-600" />
           Report filters
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <Select
-            label="Academic Year"
-            value={draft.academicYear}
-            onChange={(v) => setDraft((x) => ({ ...x, academicYear: v }))}
-            options={academicYears}
-            all="All academic years"
-          />
-          <Select
-            label="Department"
-            value={draft.departmentId}
-            onChange={(v) =>
-              setDraft((x) => ({ ...x, departmentId: v, course: "", year: "", divisionId: "" }))
-            }
-            options={departments.map((x) => ({ value: String(x.id), label: x.name }))}
-            all="All departments"
-          />
-          <Select
-            label="Course"
-            value={draft.course}
-            onChange={(v) => setDraft((x) => ({ ...x, course: v }))}
-            options={departments.map((x) => x.name)}
-            all="All courses"
-          />
-          <Select
-            label="Year"
-            value={draft.year}
-            onChange={(v) => setDraft((x) => ({ ...x, year: v, divisionId: "" }))}
-            options={years}
-            all="All years"
-          />
-          <Select
-            label="Division"
-            value={draft.divisionId}
-            onChange={(v) => setDraft((x) => ({ ...x, divisionId: v }))}
-            options={divisions.map((x) => ({ value: String(x.id), label: x.name }))}
-            all="All divisions"
-          />
-          <Select
-            label="Teacher"
-            value={draft.teacher}
-            onChange={(v) => setDraft((x) => ({ ...x, teacher: v }))}
-            options={teachers}
-            all="All teachers"
-          />
-          <Select
-            label="Subject"
-            value={draft.subject}
-            onChange={(v) => setDraft((x) => ({ ...x, subject: v }))}
-            options={subjects}
-            all="All subjects"
-          />
-          <Select
-            label="Attendance Range"
-            value={draft.range}
-            onChange={(v) => setDraft((x) => ({ ...x, range: v }))}
-            options={[
-              { value: "below75", label: "Below 75%" },
-              { value: "below50", label: "Below 50%" },
-            ]}
-            all="All attendance"
-          />
-          <Field
-            label="Date From"
-            type="date"
-            value={draft.from}
-            onChange={(v) => setDraft((x) => ({ ...x, from: v }))}
-          />
-          <Field
-            label="Date To"
-            type="date"
-            value={draft.to}
-            onChange={(v) => setDraft((x) => ({ ...x, to: v }))}
-          />
+        <div>
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Academic scope
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <ReadOnlyField label="Academic Year" value="2026-2027" />
+            <Select
+              label="Department"
+              value={draft.departmentId}
+              onChange={(v) =>
+                setDraft((x) => ({
+                  ...x,
+                  departmentId: v,
+                  year: "",
+                  divisionId: "",
+                  teacher: "",
+                  subject: "",
+                }))
+              }
+              options={departments.map((x) => ({ value: String(x.id), label: x.name }))}
+              all="All departments"
+            />
+            <Select
+              label="Year"
+              value={draft.year}
+              onChange={(v) =>
+                setDraft((x) => ({
+                  ...x,
+                  year: v,
+                  divisionId: "",
+                  teacher: "",
+                  subject: "",
+                }))
+              }
+              options={years}
+              all="All years"
+            />
+            <Select
+              label="Division"
+              value={draft.divisionId}
+              onChange={(v) =>
+                setDraft((x) => ({ ...x, divisionId: v, teacher: "", subject: "" }))
+              }
+              options={divisions.map((x) => ({ value: String(x.id), label: x.name }))}
+              all="All divisions"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Attendance filters
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Select
+              label="Teacher"
+              value={draft.teacher}
+              onChange={(v) => setDraft((x) => ({ ...x, teacher: v }))}
+              options={teachers}
+              all="All teachers"
+            />
+            <Select
+              label="Subject"
+              value={draft.subject}
+              onChange={(v) => setDraft((x) => ({ ...x, subject: v }))}
+              options={subjects}
+              all="All subjects"
+            />
+            <Select
+              label="Attendance Range"
+              value={draft.range}
+              onChange={(v) => setDraft((x) => ({ ...x, range: v }))}
+              options={[
+                { value: "below75", label: "Below 75%" },
+                { value: "below50", label: "Below 50%" },
+              ]}
+              all="All attendance"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Date range
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field
+              label="Date From"
+              type="date"
+              value={draft.from}
+              onChange={(v) => setDraft((x) => ({ ...x, from: v }))}
+            />
+            <Field
+              label="Date To"
+              type="date"
+              value={draft.to}
+              onChange={(v) => setDraft((x) => ({ ...x, to: v }))}
+            />
+          </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={apply} disabled={loading}>
-            Apply
+            Apply Filters
           </Button>
           <Button variant="secondary" onClick={reset}>
             <RotateCcw className="mr-2 h-4 w-4" />
@@ -432,52 +516,45 @@ export function AttendanceReportPage() {
             />
             <Metric
               icon={UserCheck}
-              label="Unique Students Present Today"
+              label="Students Present Today"
               value={presentToday}
-              subtitle="Distinct students, not lecture totals"
+              subtitle="Students marked present today"
               tone="green"
             />
             <Metric
               icon={Users}
-              label="Unique Students Absent Today"
+              label="Students Absent Today"
               value={absentToday}
-              subtitle="Distinct students, not lecture totals"
+              subtitle="Students marked absent today"
               tone="red"
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <AlertCard
               tone="amber"
               value={below75}
               label="Students below 75%"
-              onClick={() => {
-                setApplied((x) => ({ ...x, range: "below75" }));
-                setDrill({});
-              }}
+              active={riskView === "below75"}
+              onClick={() => showRiskStudents("below75")}
             />
             <AlertCard
               tone="red"
               value={below50}
               label="Students below 50%"
-              onClick={() => {
-                setApplied((x) => ({ ...x, range: "below50" }));
-                setDrill({});
-              }}
-            />
-            <AlertCard
-              tone="orange"
-              value={divisionStats.filter((x) => x.percentage < 80).length}
-              label="Divisions below 80%"
-              onClick={() => setDrill({})}
-            />
-            <AlertCard
-              tone="rose"
-              value={deptStats.filter((x) => x.percentage < 85).length}
-              label="Departments below 85%"
-              onClick={() => setDrill({})}
+              active={riskView === "below50"}
+              onClick={() => showRiskStudents("below50")}
             />
           </div>
+
+          {riskView && (
+            <RiskStudentsPanel
+              risk={riskView}
+              students={students}
+              onClose={() => setRiskView(undefined)}
+              onSelect={setSelected}
+            />
+          )}
 
           <div className="grid gap-6 xl:grid-cols-3">
             <Card className="p-5 xl:col-span-2">
@@ -628,12 +705,12 @@ export function AttendanceReportPage() {
           <Card className="overflow-hidden">
             <SectionTitleWrap>
               <SectionTitle
-                icon={Building2}
-                title="Attendance heat map"
-                subtitle="Department and year comparison; click a cell to drill down"
+                icon={CalendarDays}
+                title="Monthly attendance heat map"
+                subtitle="Average student attendance across each day's submitted lectures"
               />
             </SectionTitleWrap>
-            <HeatMap students={students} setDrill={setDrill} />
+            <MonthlyHeatMap trend={data.trend} from={applied.from} to={applied.to} />
           </Card>
           <div className="grid gap-6 xl:grid-cols-2">
             <TeacherAnalytics operations={data.teacherOperations} />
@@ -655,38 +732,17 @@ export function AttendanceReportPage() {
   );
 }
 
-function ExportActions({ data, collegeName }: { data?: AttendanceReport; collegeName?: string }) {
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-wrap gap-2 print:hidden">
-      <Button
-        variant="secondary"
-        disabled={!data}
-        onClick={() => data && void exportAttendancePdf(data, collegeName)}
-      >
-        <Printer className="mr-2 h-4 w-4" />
-        PDF
-      </Button>
-      <Button
-        variant="secondary"
-        disabled={!data}
-        onClick={() => data && void exportAttendanceExcel(data, collegeName)}
-      >
-        <Download className="mr-2 h-4 w-4" />
-        Excel
-      </Button>
-      <Button
-        variant="secondary"
-        disabled={!data}
-        onClick={() => data && exportAttendanceCsv(data)}
-      >
-        <Download className="mr-2 h-4 w-4" />
-        CSV
-      </Button>
-      <Button variant="secondary" onClick={() => window.print()}>
-        <Printer className="mr-2 h-4 w-4" />
-        Print
-      </Button>
-    </div>
+    <label className="text-xs font-semibold text-slate-600">
+      {label}
+      <input
+        value={value}
+        readOnly
+        aria-readonly="true"
+        className="mt-1.5 h-10 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700"
+      />
+    </label>
   );
 }
 function Select({
@@ -777,17 +833,23 @@ function AlertCard({
   tone,
   value,
   label,
+  active,
   onClick,
 }: {
   tone: string;
   value: number;
   label: string;
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center justify-between rounded-xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${tone === "red" || tone === "rose" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}
+      className={`flex items-center justify-between rounded-xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${
+        tone === "red" || tone === "rose"
+          ? `border-rose-200 bg-rose-50 text-rose-800 ${active ? "ring-2 ring-rose-300" : ""}`
+          : `border-amber-200 bg-amber-50 text-amber-800 ${active ? "ring-2 ring-amber-300" : ""}`
+      }`}
     >
       <span>
         <b className="text-xl">{value}</b>
@@ -797,6 +859,98 @@ function AlertCard({
         View <ChevronRight className="inline h-3 w-3" />
       </span>
     </button>
+  );
+}
+
+function RiskStudentsPanel({
+  risk,
+  students,
+  onClose,
+  onSelect,
+}: {
+  risk: RiskView;
+  students: StudentAnalyticsRow[];
+  onClose: () => void;
+  onSelect: (student: StudentAnalyticsRow) => void;
+}) {
+  const threshold = risk === "below50" ? 50 : 75;
+  const list = [...students]
+    .filter((student) => student.total > 0 && student.percentage < threshold)
+    .sort((a, b) => a.percentage - b.percentage);
+
+  return (
+    <Card id="risk-student-list" className="scroll-mt-24 overflow-hidden">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+        <div>
+          <h2 className="font-bold text-slate-900">Students below {threshold}%</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {list.length} {list.length === 1 ? "student needs" : "students need"} attendance
+            attention
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close student risk list"
+          className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="bg-white text-xs uppercase text-slate-500">
+            <tr>
+              <th className="px-5 py-3">Student</th>
+              <th className="px-4 py-3">Department</th>
+              <th className="px-4 py-3">Class</th>
+              <th className="px-4 py-3">Attendance</th>
+              <th className="px-4 py-3">Present</th>
+              <th className="px-4 py-3">Absent</th>
+              <th className="px-4 py-3">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((student) => (
+              <tr key={student.studentId} className="border-t border-slate-100 hover:bg-slate-50">
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar name={student.studentName} />
+                    <div>
+                      <b className="block text-slate-900">{student.studentName}</b>
+                      <span className="text-xs text-slate-500">
+                        {student.rollNumber || "No roll number"}
+                      </span>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">{student.department}</td>
+                <td className="px-4 py-3">
+                  {student.year} · {student.division}
+                </td>
+                <td className="px-4 py-3">
+                  <Percent value={student.percentage} />
+                </td>
+                <td className="px-4 py-3 font-semibold text-emerald-600">{student.present}</td>
+                <td className="px-4 py-3 font-semibold text-rose-600">{student.absent}</td>
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(student)}
+                    className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-100"
+                  >
+                    <Eye className="mr-1 inline h-3.5 w-3.5" />
+                    View details
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!list.length && <Empty label={`No students below ${threshold}%`} />}
+      </div>
+    </Card>
   );
 }
 function SectionTitle({
@@ -1222,60 +1376,110 @@ function AttentionPanel({
   );
 }
 
-function HeatMap({
-  students,
-  setDrill,
+function MonthlyHeatMap({
+  trend,
+  from,
+  to,
 }: {
-  students: StudentAnalyticsRow[];
-  setDrill: (d: Drill) => void;
+  trend: TrendPoint[];
+  from: string;
+  to: string;
 }) {
-  const depts = uniqueBy(students, (s) => s.departmentId);
-  const years = unique(students.map((s) => s.year));
+  const monthSource = to || today;
+  const [year, month] = monthSource.split("-").map(Number);
+  const firstDay = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const leadingDays = firstDay.getDay();
+  const monthLabel = firstDay.toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+  const daily = new Map(trend.map((point) => [point.date, point]));
+  const cells: Array<{ date: string; day: number; point?: TrendPoint } | null> = [
+    ...Array.from({ length: leadingDays }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1;
+      const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return { date, day, point: daily.get(date) };
+    }),
+  ];
+  const trailingDays = (7 - (cells.length % 7)) % 7;
+  cells.push(...Array.from({ length: trailingDays }, () => null));
+
+  const color = (percentage: number) =>
+    percentage >= 85
+      ? "border-emerald-200 bg-emerald-100 text-emerald-800"
+      : percentage >= 75
+        ? "border-amber-200 bg-amber-100 text-amber-800"
+        : "border-rose-200 bg-rose-100 text-rose-800";
   return (
     <div className="overflow-x-auto p-5">
-      <table className="w-full min-w-[620px] text-sm">
-        <thead>
-          <tr>
-            <th className="p-2 text-left">Department</th>
-            {years.map((y) => (
-              <th key={y} className="p-2 text-center">
-                {y}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {depts.map((d) => (
-            <tr key={d.departmentId}>
-              <td className="p-2 font-semibold">{d.department}</td>
-              {years.map((y) => {
-                const group = students.filter(
-                  (s) => s.departmentId === d.departmentId && s.year === y,
-                );
-                const pct = studentPct(group);
-                return (
-                  <td key={y} className="p-2">
-                    <button
-                      disabled={!group.length}
-                      onClick={() =>
-                        setDrill({
-                          departmentId: d.departmentId,
-                          department: d.department,
-                          year: y,
-                        })
-                      }
-                      className={`w-full rounded-lg p-3 font-bold ${!group.length ? "bg-slate-50 text-slate-300" : pct >= 85 ? "bg-emerald-100 text-emerald-800" : pct >= 75 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}
-                    >
-                      {group.length ? `${pct}%` : "—"}
-                    </button>
-                  </td>
-                );
-              })}
-            </tr>
+      <div className="min-w-[640px]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-slate-900">{monthLabel}</h3>
+            <p className="text-xs text-slate-500">
+              Showing attendance recorded between {from} and {to}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+            <HeatLegend className="bg-emerald-100" label="85% and above" />
+            <HeatLegend className="bg-amber-100" label="75%–84%" />
+            <HeatLegend className="bg-rose-100" label="Below 75%" />
+            <HeatLegend className="bg-slate-100" label="No attendance" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-2">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <div
+              key={day}
+              className="px-2 pb-1 text-center text-[11px] font-bold uppercase tracking-wide text-slate-400"
+            >
+              {day}
+            </div>
           ))}
-        </tbody>
-      </table>
+          {cells.map((cell, index) =>
+            cell ? (
+              <div
+                key={cell.date}
+                title={
+                  cell.point
+                    ? `${cell.date}: ${round(cell.point.percentage)}% average student attendance; ${cell.point.lectures} of ${cell.point.scheduledLectures} lectures submitted`
+                    : `${cell.date}: No submitted attendance`
+                }
+                className={`min-h-20 rounded-xl border p-2.5 ${
+                  cell.point
+                    ? color(round(cell.point.percentage))
+                    : "border-slate-100 bg-slate-50 text-slate-400"
+                }`}
+              >
+                <span className="block text-xs font-semibold">{cell.day}</span>
+                <strong className="mt-2 block text-center text-lg">
+                  {cell.point ? `${round(cell.point.percentage)}%` : "—"}
+                </strong>
+                <span className="mt-1 block text-center text-[10px]">
+                  {cell.point
+                    ? `${cell.point.lectures}/${cell.point.scheduledLectures} lectures`
+                    : "No attendance"}
+                </span>
+              </div>
+            ) : (
+              <div key={`empty-${index}`} aria-hidden="true" />
+            ),
+          )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function HeatLegend({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`h-3 w-3 rounded-sm border border-black/5 ${className}`} />
+      {label}
+    </span>
   );
 }
 function TeacherAnalytics({ operations }: { operations: OperationalSummary[] }) {
@@ -1645,11 +1849,13 @@ function Percent({ value }: { value: number }) {
 function Status({ value }: { value: string }) {
   const v = value.replaceAll("_", " ");
   const c =
-    v === "EXCELLENT" || v === "SUBMITTED"
+    v === "EXCELLENT" || v === "SUBMITTED" || v === "PRESENT"
       ? "bg-emerald-100 text-emerald-700"
-      : v === "GOOD"
+      : v === "ABSENT"
+        ? "bg-rose-100 text-rose-700"
+        : v === "GOOD" || v === "LEAVE"
         ? "bg-blue-100 text-blue-700"
-        : v === "AVERAGE"
+        : v === "AVERAGE" || v === "LATE"
           ? "bg-amber-100 text-amber-700"
           : v === "WARNING"
             ? "bg-orange-100 text-orange-700"

@@ -9,10 +9,17 @@ import com.jadhavr.erp.audit.dto.BusinessActivityDtos.*;
 import com.jadhavr.erp.audit.entity.AuditLog;
 import com.jadhavr.erp.audit.enums.*;
 import com.jadhavr.erp.audit.repository.AuditLogRepository;
+import com.jadhavr.erp.auth.entity.SecurityAuditEvent;
+import com.jadhavr.erp.auth.repository.SecurityAuditEventRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.staff.entity.StaffProfile;
+import com.jadhavr.erp.staff.enums.StaffStatus;
+import com.jadhavr.erp.staff.enums.StaffType;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
+import com.jadhavr.erp.timetable.entity.WeeklyTimetable;
+import com.jadhavr.erp.timetable.entity.WeeklyTimetableEntry;
+import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
 import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import org.slf4j.*;
@@ -34,10 +41,16 @@ public class AuditLogService {
     private final StaffProfileRepository staff;
     private final AdmissionFormRepository admissions;
     private final WeeklyAttendanceSessionRepository attendanceSessions;
+    private final SecurityAuditEventRepository securityEvents;
+    private final WeeklyTimetableEntryRepository timetableEntries;
 
     public AuditLogService(AuditLogRepository repo, UserRepository users, StaffProfileRepository staff,
-            AdmissionFormRepository admissions, WeeklyAttendanceSessionRepository attendanceSessions) {
-        this.repo=repo; this.users=users; this.staff=staff; this.admissions=admissions; this.attendanceSessions=attendanceSessions;
+            AdmissionFormRepository admissions, WeeklyAttendanceSessionRepository attendanceSessions,
+            SecurityAuditEventRepository securityEvents,
+            WeeklyTimetableEntryRepository timetableEntries) {
+        this.repo=repo; this.users=users; this.staff=staff; this.admissions=admissions;
+        this.attendanceSessions=attendanceSessions; this.securityEvents=securityEvents;
+        this.timetableEntries=timetableEntries;
     }
 
     @Transactional(propagation=Propagation.REQUIRES_NEW)
@@ -106,8 +119,94 @@ public class AuditLogService {
                 new AlertItem("fees","Fee Structures Modified",feeChanges,"Fees","UPDATE"),
                 new AlertItem("timetable","Timetable Changes",timetableChanges,"Academic","UPDATE"));
         List<String> insights=insights(summary,modules,departments,pendingAttendance,pendingApprovals);
-        return new DashboardResponse(summary,timeline,modules,departments,trend,distribution,alerts,insights,rows,
+        List<TeacherEngagementRow> teacherRows=teacherEngagement(
+                collegeId,departmentId,staffRows,today);
+        TeacherEngagementSummary teacherSummary=new TeacherEngagementSummary(
+                teacherRows.size(),
+                teacherRows.stream().filter(TeacherEngagementRow::loggedInToday).count(),
+                teacherRows.stream().filter(row->!row.loggedInToday()).count(),
+                teacherRows.stream().mapToLong(TeacherEngagementRow::scheduledLectures).sum(),
+                teacherRows.stream().mapToLong(TeacherEngagementRow::attendanceSubmitted).sum(),
+                teacherRows.stream().mapToLong(TeacherEngagementRow::attendanceRemaining).sum(),
+                teacherRows.stream().filter(row->row.loginDaysLast7()<5).count());
+        return new DashboardResponse(summary,timeline,modules,departments,trend,distribution,alerts,insights,
+                teacherSummary,teacherRows,rows,
                 result.getTotalElements(),result.getTotalPages(),result.getNumber(),result.getSize());
+    }
+
+    private List<TeacherEngagementRow> teacherEngagement(
+            Long collegeId, Long departmentId, List<StaffProfile> staffRows, LocalDate today) {
+        if (collegeId == null) return List.of();
+        Set<StaffType> teachingTypes=EnumSet.of(
+                StaffType.HOD,StaffType.TEACHER,StaffType.CLASS_TEACHER,StaffType.SUBJECT_TEACHER);
+        List<StaffProfile> teachers=staffRows.stream()
+                .filter(profile->profile.getStatus()==StaffStatus.ACTIVE)
+                .filter(profile->teachingTypes.contains(profile.getStaffType()))
+                .filter(profile->departmentId==null||profile.belongsToDepartment(departmentId))
+                .toList();
+        if(teachers.isEmpty())return List.of();
+
+        Set<Long> userIds=teachers.stream().map(profile->profile.getUser().getId()).collect(Collectors.toSet());
+        LocalDateTime weekStart=today.minusDays(6).atStartOfDay();
+        LocalDateTime tomorrow=today.plusDays(1).atStartOfDay();
+        List<SecurityAuditEvent> weeklyLogins=securityEvents
+                .findByInstitutionIdAndEventTypeAndSuccessTrueAndCreatedAtBetween(
+                        collegeId,"LOGIN_SUCCESS",weekStart,tomorrow);
+        Map<Long,Set<LocalDate>> loginDays=weeklyLogins.stream()
+                .filter(event->event.getUserId()!=null&&userIds.contains(event.getUserId()))
+                .collect(Collectors.groupingBy(
+                        SecurityAuditEvent::getUserId,
+                        Collectors.mapping(event->event.getCreatedAt().toLocalDate(),Collectors.toSet())));
+        Map<Long,LocalDateTime> lastLogin=new HashMap<>();
+        securityEvents.findLatestSuccessfulLogins(collegeId,userIds).forEach(row->
+                lastLogin.put((Long)row[0],(LocalDateTime)row[1]));
+
+        List<WeeklyTimetableEntry> scheduledEntries=timetableEntries
+                .findByTimetableCollegeIdAndDayOfWeekAndTimetableStatusNot(
+                        collegeId,today.getDayOfWeek(),WeeklyTimetable.Status.ARCHIVED)
+                .stream()
+                .filter(entry->departmentId==null
+                        ||entry.getTimetable().getSection().getDepartment().getId().equals(departmentId))
+                .toList();
+        Map<Long,List<WeeklyTimetableEntry>> entriesByTeacher=scheduledEntries.stream()
+                .collect(Collectors.groupingBy(entry->entry.getTeacher().getId()));
+        Set<Long> scheduledEntryIds=scheduledEntries.stream()
+                .map(WeeklyTimetableEntry::getId).collect(Collectors.toSet());
+        List<WeeklyAttendanceSession> todaySessions=attendanceSessions
+                .findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(
+                        collegeId,today,today);
+        Map<Long,List<WeeklyAttendanceSession>> sessionsByTeacher=todaySessions.stream()
+                .filter(session->scheduledEntryIds.contains(session.getTimetableEntry().getId()))
+                .filter(session->departmentId==null
+                        ||session.getSection().getDepartment().getId().equals(departmentId))
+                .collect(Collectors.groupingBy(session->session.getTeacher().getId()));
+
+        return teachers.stream().map(profile->{
+            Long userId=profile.getUser().getId();
+            Set<LocalDate> days=loginDays.getOrDefault(userId,Set.of());
+            boolean loggedToday=days.contains(today);
+            int daysUsed=days.size();
+            List<WeeklyAttendanceSession> sessions=sessionsByTeacher.getOrDefault(profile.getId(),List.of());
+            long scheduled=entriesByTeacher.getOrDefault(profile.getId(),List.of()).size();
+            long submitted=sessions.stream()
+                    .filter(session->session.getStatus()==WeeklyAttendanceSession.Status.SUBMITTED).count();
+            long draft=sessions.stream()
+                    .filter(session->session.getStatus()==WeeklyAttendanceSession.Status.DRAFT).count();
+            long remaining=Math.max(scheduled-submitted,0);
+            String usageStatus=loggedToday?(daysUsed>=5?"REGULAR":"ACTIVE_TODAY")
+                    :daysUsed==0?"INACTIVE_7_DAYS":"LOW_USAGE";
+            String attendanceStatus=scheduled==0?"NO_LECTURES"
+                    :remaining==0?"COMPLETED":submitted>0?"PARTIAL":"PENDING";
+            String department=profile.getDepartment()==null?"Unassigned":profile.getDepartment().getName();
+            return new TeacherEngagementRow(
+                    profile.getId(),userId,profile.getFullName(),profile.getEmployeeCode(),
+                    department,title(profile.getStaffType().name()),lastLogin.get(userId),daysUsed,
+                    loggedToday,scheduled,submitted,remaining,draft,usageStatus,attendanceStatus);
+        }).sorted(Comparator
+                .comparing(TeacherEngagementRow::loggedInToday)
+                .thenComparingInt(TeacherEngagementRow::loginDaysLast7)
+                .thenComparing(TeacherEngagementRow::teacher,String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     private Specification<AuditLog> baseSpec(String keyword,Long collegeId,AuditModule module,AuditAction action,

@@ -50,3 +50,58 @@ export interface StaffResponse {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface StaffClassAssignment {
+  sectionId: number;
+  departmentName: string;
+  className: string;
+  sectionName: string;
+  sectionCode: string;
+  academicYear: string;
+  capacity: number;
+}
+
+export interface StaffSubjectAssignment {
+  subjectId: number;
+  subjectCode: string;
+  subjectName: string;
+  className: string;
+  academicYear: string;
+  divisions: string[];
+}
+
+export interface StaffAttendanceSummary {
+  totalSessions: number;
+  submittedSessions: number;
+  draftSessions: number;
+  studentsMarked: number;
+  present: number;
+  absent: number;
+  late: number;
+  leave: number;
+}
+
+export interface StaffAttendanceSession {
+  sessionId: number;
+  attendanceDate: string;
+  startTime: string;
+  endTime: string;
+  lectureNumber: number;
+  subjectName: string;
+  className: string;
+  sectionName: string;
+  status: "DRAFT" | "SUBMITTED";
+  studentsMarked: number;
+  present: number;
+  absent: number;
+  late: number;
+  leave: number;
+}
+
+export interface StaffDetailResponse {
+  staff: StaffResponse;
+  classAssignments: StaffClassAssignment[];
+  subjectAssignments: StaffSubjectAssignment[];
+  attendanceSummary: StaffAttendanceSummary;
+  recentAttendance: StaffAttendanceSession[];
+}

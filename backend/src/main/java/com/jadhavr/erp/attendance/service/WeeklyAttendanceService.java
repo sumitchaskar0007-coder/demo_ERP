@@ -208,13 +208,15 @@ public class WeeklyAttendanceService {
         Set<Long> absentToday = all.stream().filter(r -> r.getSession().getAttendanceDate().equals(today))
                 .filter(r -> r.getStatus() == WeeklyAttendanceRecord.Status.ABSENT)
                 .map(r -> r.getStudent().getId()).collect(Collectors.toSet());
-        List<WeeklyTimetableEntry> expectedToday = entries.findAll().stream()
+        List<WeeklyTimetableEntry> expectedEntries = entries.findAll().stream()
                 .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
-                .filter(e -> e.getDayOfWeek() == today.getDayOfWeek()).filter(e -> scope.test(e.getTimetable().getSection()))
+                .filter(e -> scope.test(e.getTimetable().getSection()))
                 .filter(e -> subjectId == null || subjectId.equals(e.getSubject().getId()))
                 .filter(e -> divisionId == null || divisionId.equals(e.getTimetable().getSection().getId()))
                 .filter(e -> departmentId == null || departmentId.equals(e.getTimetable().getSection().getDepartment().getId()))
                 .filter(e -> teacherId == null || teacherId.equals(e.getTeacher().getId())).toList();
+        List<WeeklyTimetableEntry> expectedToday = expectedEntries.stream()
+                .filter(e -> e.getDayOfWeek() == today.getDayOfWeek()).toList();
         List<WeeklyAttendanceSession> todaySessions = (SecurityUtils.isSuperAdmin() ? sessions.findByAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(today, today)
                 : sessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(college, today, today))
                 .stream().filter(s -> scope.test(s.getSection()))
@@ -233,7 +235,8 @@ public class WeeklyAttendanceService {
                 percentage(all), studentRows.size(), presentToday.size(), absentToday.size(), todayLectures,
                 submittedToday, pendingToday, (int) active.stream().map(e -> e.getSection().getDepartment().getId()).distinct().count(),
                 (int) active.stream().map(e -> e.getSection().getId()).distinct().count(), below75, below50,
-                trend(all), operations(expectedToday, todaySessions, "DEPARTMENT"),
+                trend(all, start, end, expectedEntries),
+                operations(expectedToday, todaySessions, "DEPARTMENT"),
                 operations(expectedToday, todaySessions, "DIVISION"), operations(expectedToday, todaySessions, "TEACHER"),
                 studentRows, summaries, subjectSummaries(all), monthSummaries(all));
     }
@@ -280,10 +283,27 @@ public class WeeklyAttendanceService {
                 ordered.stream().map(this::studentRow).toList());
     }
 
-    private List<TrendPoint> trend(List<WeeklyAttendanceRecord> rows) {
-        return rows.stream().collect(Collectors.groupingBy(r -> r.getSession().getAttendanceDate(), TreeMap::new, Collectors.toList()))
-                .entrySet().stream().map(e -> new TrendPoint(e.getKey(), e.getValue().size(),
-                        (int) e.getValue().stream().filter(this::attended).count(), percentage(e.getValue()))).toList();
+    private List<TrendPoint> trend(List<WeeklyAttendanceRecord> rows, LocalDate start, LocalDate end,
+            List<WeeklyTimetableEntry> expected) {
+        Map<LocalDate, List<WeeklyAttendanceRecord>> byDate = rows.stream()
+                .collect(Collectors.groupingBy(r -> r.getSession().getAttendanceDate()));
+        LocalDate lastDate = end.isAfter(LocalDate.now()) ? LocalDate.now() : end;
+        if (start.isAfter(lastDate)) return List.of();
+        return start.datesUntil(lastDate.plusDays(1)).map(date -> {
+                    List<WeeklyAttendanceRecord> dayRecords = byDate.getOrDefault(date, List.of());
+                    int total = dayRecords.size();
+                    int attended = (int) dayRecords.stream().filter(this::attended).count();
+                    int lectures = (int) dayRecords.stream()
+                            .map(record -> record.getSession().getId()).distinct().count();
+                    int scheduledLectures = (int) expected.stream()
+                            .filter(entry -> entry.getDayOfWeek() == date.getDayOfWeek()).count();
+                    double averagePresent = lectures == 0 ? 0
+                            : Math.round(attended * 100.0 / lectures) / 100.0;
+                    double averageStudents = lectures == 0 ? 0
+                            : Math.round(total * 100.0 / lectures) / 100.0;
+                    return new TrendPoint(date, total, attended, percentage(dayRecords),
+                            lectures, scheduledLectures, averagePresent, averageStudents);
+                }).filter(point -> point.scheduledLectures() > 0 || point.lectures() > 0).toList();
     }
 
     private WeeklyAttendanceSession createSession(WeeklyTimetableEntry entry, LocalDate date) {

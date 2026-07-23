@@ -1,5 +1,6 @@
-import { Building2, CalendarDays, Mail, Phone, Search } from "lucide-react";
+import { Building2, CalendarDays, ChevronRight, Mail, Phone, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge, StatusBadge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -14,7 +15,7 @@ import { useAuth } from "@/features/auth/authStore";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { handleApiError } from "@/lib/handleApiError";
-import { PAGE_SIZE, ROLES, STAFF_TYPE_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
+import { PAGE_SIZE, ROLES, ROUTES, STAFF_TYPE_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { initials } from "@/lib/utils";
 import type { PageResponse } from "@/types/api";
 import * as api from "@/features/staff/api";
@@ -30,6 +31,7 @@ const emptyPage: PageResponse<StaffResponse> = {
 };
 
 export function StaffListPage() {
+  const navigate = useNavigate();
   const { user, isRole } = useAuth();
   const admin = isRole([ROLES.SUPER_ADMIN]);
   const [result, setResult] = useState(emptyPage);
@@ -88,9 +90,17 @@ export function StaffListPage() {
   };
   return (
     <div className="page-container">
-      <div>
-        <h1 className="page-title">Staff</h1>
-        <p className="page-subtitle">Manage all staff roles without deleting records.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="page-title">Staff</h1>
+          <p className="page-subtitle">Manage all staff roles without deleting records.</p>
+        </div>
+        {!admin && (
+          <Button onClick={() => navigate(ROUTES.createStaff)}>
+            <Plus className="h-4 w-4" />
+            Create Staff
+          </Button>
+        )}
       </div>
       <Card className="mt-6 overflow-hidden">
         <div
@@ -156,14 +166,26 @@ export function StaffListPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {result.content.map((row) => (
-                    <StaffTableRow key={row.id} row={row} admin={admin} onToggle={setConfirming} />
+                    <StaffTableRow
+                      key={row.id}
+                      row={row}
+                      admin={admin}
+                      onOpen={() => navigate(`/staff/${row.id}`)}
+                      onToggle={setConfirming}
+                    />
                   ))}
                 </tbody>
               </table>
             </div>
             <div className="grid gap-4 p-4 sm:grid-cols-2 lg:hidden">
               {result.content.map((row) => (
-                <StaffCard key={row.id} row={row} admin={admin} onToggle={setConfirming} />
+                <StaffCard
+                  key={row.id}
+                  row={row}
+                  admin={admin}
+                  onOpen={() => navigate(`/staff/${row.id}`)}
+                  onToggle={setConfirming}
+                />
               ))}
             </div>
             <div className="border-t p-4">
@@ -222,14 +244,24 @@ function departmentLabels(row: StaffResponse) {
 function StaffTableRow({
   row,
   admin,
+  onOpen,
   onToggle,
 }: {
   row: StaffResponse;
   admin: boolean;
+  onOpen: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
   return (
-    <tr className="align-top transition hover:bg-slate-50/70">
+    <tr
+      className={`align-top transition hover:bg-slate-50/70 ${admin ? "" : "cursor-pointer"}`}
+      onClick={admin ? undefined : onOpen}
+      onKeyDown={(event) => {
+        if (!admin && (event.key === "Enter" || event.key === " ")) onOpen();
+      }}
+      tabIndex={admin ? undefined : 0}
+      aria-label={admin ? undefined : `View ${row.fullName}'s staff details`}
+    >
       <td className="px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <StaffAvatar name={row.fullName} />
@@ -275,7 +307,10 @@ function StaffTableRow({
           <Button
             className="whitespace-nowrap"
             variant={row.status === "ACTIVE" ? "danger" : "secondary"}
-            onClick={() => onToggle(row)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle(row);
+            }}
           >
             {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
           </Button>
@@ -288,14 +323,24 @@ function StaffTableRow({
 function StaffCard({
   row,
   admin,
+  onOpen,
   onToggle,
 }: {
   row: StaffResponse;
   admin: boolean;
+  onOpen: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <article
+      className={`rounded-2xl border border-slate-100 bg-white p-4 shadow-sm ${admin ? "" : "cursor-pointer transition hover:border-blue-200 hover:shadow-md"}`}
+      onClick={admin ? undefined : onOpen}
+      onKeyDown={(event) => {
+        if (!admin && (event.key === "Enter" || event.key === " ")) onOpen();
+      }}
+      tabIndex={admin ? undefined : 0}
+      aria-label={admin ? undefined : `View ${row.fullName}'s staff details`}
+    >
       <div className="flex items-start gap-3">
         <StaffAvatar name={row.fullName} />
         <div className="min-w-0 flex-1">
@@ -341,13 +386,28 @@ function StaffCard({
         </p>
       </div>
       {!admin && (
-        <Button
-          className="mt-4 w-full"
-          variant={row.status === "ACTIVE" ? "danger" : "secondary"}
-          onClick={() => onToggle(row)}
-        >
-          {row.status === "ACTIVE" ? "Deactivate Staff" : "Activate Staff"}
-        </Button>
+        <div className="mt-4 flex gap-2">
+          <Button
+            className="flex-1"
+            variant="secondary"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen();
+            }}
+          >
+            View details
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle(row);
+            }}
+          >
+            {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+          </Button>
+        </div>
       )}
     </article>
   );

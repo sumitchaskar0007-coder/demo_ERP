@@ -1137,7 +1137,7 @@ export function AdminMoneyPage({
             className={`rounded-2xl px-5 py-3 ${pending ? "bg-orange-50 text-orange-800" : "bg-emerald-50 text-emerald-800"}`}
           >
             <p className="text-[10px] font-bold uppercase tracking-wider">
-              {pending ? "Pending on this page" : "Collected on this page"}
+              {pending ? "Pending Fee" : "Collected Fee"}
             </p>
             <p className="mt-1 text-xl font-black">₹{displayedAmount.toLocaleString("en-IN")}</p>
           </div>
