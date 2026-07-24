@@ -172,7 +172,7 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
       ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&
         path === ROUTES.attendanceReport) ||
       (roles.includes(ROLES.HOD) && path === ROUTES.timetable) ||
-      path === ROUTES.dashboard ||
+      (!roles.includes(ROLES.HOD) && path === ROUTES.dashboard) ||
       path === ROUTES.notices ||
       path === ROUTES.profile
     );

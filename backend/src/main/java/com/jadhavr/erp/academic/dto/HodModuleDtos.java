@@ -17,10 +17,6 @@ public final class HodModuleDtos {
     public record BulkAllocationRequest(@NotNull Long sectionId,@NotEmpty List<@NotNull Long> studentIds) {}
     public record AutomaticAllocationRequest(@NotNull Long courseYearId,List<Long> studentIds) {}
     public record TransferRequest(@NotNull Long targetSectionId,@NotEmpty List<@NotNull Long> studentIds) {}
-    public record RollPreviewRequest(@NotNull Long sectionId,@NotBlank String strategy) {}
-    public record RollAssignment(@NotNull Long studentId,@NotBlank @Size(max=60) String rollNumber) {}
-    public record RollConfirmRequest(@NotNull Long sectionId,@NotEmpty List<RollAssignment> assignments,boolean overwrite) {}
-    public record RollPreview(Long studentId,String studentName,String admissionNumber,String currentRollNumber,String proposedRollNumber) {}
     public record SubjectAllocationRequest(@NotNull Long teacherId,@NotEmpty List<@NotNull Long> divisionIds) {}
     public record ClassTeacherRequest(@NotNull Long teacherId) {}
     public record TimetableReviewRequest(@NotBlank String action,@Size(max=1000) String comment) {}

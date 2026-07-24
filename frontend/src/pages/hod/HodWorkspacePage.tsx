@@ -3,15 +3,18 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Activity,
+  ArrowRight,
   BookOpen,
   CalendarCheck,
-  Check,
   ChevronRight,
+  CircleGauge,
   ClipboardCheck,
+  Clock3,
   GraduationCap,
   LayoutDashboard,
   RefreshCw,
   Search,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { handleApiError } from "@/lib/handleApiError";
@@ -21,15 +24,12 @@ import * as api from "@/features/hod/api";
 const tabs = [
   ["overview", "Overview", LayoutDashboard],
   ["students", "Student allocation", Users],
-  ["rolls", "Roll numbers", GraduationCap],
   ["class-teachers", "Class teachers", Users],
   ["workload", "Workload", Activity],
   ["attendance", "Attendance", ClipboardCheck],
 ] as const;
 const actionClass =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50";
-const secondaryClass =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50";
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100";
 
@@ -94,23 +94,25 @@ export function HodWorkspacePage() {
     );
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 px-3 py-4 pb-10 sm:px-6 sm:py-5 lg:px-0 lg:py-0">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-violet-950 to-indigo-900 p-6 text-white shadow-xl md:p-8">
+      <div className="overflow-hidden rounded-2xl border border-brand-100 bg-gradient-to-r from-brand-50 via-white to-blue-50 p-6 shadow-sm md:p-7">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
-            <div className="mb-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-violet-100">
-              Department control center
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-700">
+              <CircleGauge className="h-3.5 w-3.5" />
+              Department control centre
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">{data.department} HOD Workspace</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">
-              Allocate students and faculty, review academic delivery, and monitor department
-              performance.
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
+              {data.department} HOD Workspace
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">
+              Review today&apos;s priorities and manage your department from one place.
             </p>
           </div>
           <button
-            className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-700 shadow-sm transition hover:bg-brand-50"
             onClick={() => void load()}
           >
-            <RefreshCw className="mr-2 inline h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
         </div>
@@ -121,7 +123,7 @@ export function HodWorkspacePage() {
             <button
               key={key}
               onClick={() => setParams({ tab: key })}
-              className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold ${tab === key ? "bg-violet-600 text-white shadow" : "text-slate-600 hover:bg-slate-100"}`}
+              className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold ${tab === key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
             >
               <Icon className="h-4 w-4" />
               {label}
@@ -129,7 +131,9 @@ export function HodWorkspacePage() {
           ))}
         </div>
       </div>
-      {tab === "overview" && <Overview data={data} setTab={(next) => setParams({ tab: next })} />}
+      {tab === "overview" && (
+        <Overview data={data} setTab={(next) => setParams({ tab: next })} navigate={navigate} />
+      )}
       {tab === "students" && (
         <StudentsPanel
           data={data}
@@ -147,7 +151,6 @@ export function HodWorkspacePage() {
           run={run}
         />
       )}
-      {tab === "rolls" && <RollPanel divisions={data.divisions} busy={busy} run={run} />}
       {tab === "class-teachers" && <ClassTeachersPanel data={data} busy={busy} run={run} />}
       {tab === "workload" && <WorkloadPanel teachers={data.teachers} />}
       {tab === "attendance" && (
@@ -187,80 +190,289 @@ export function HodWorkspacePage() {
   );
 }
 
-function Overview({ data, setTab }: { data: api.Workspace; setTab: (x: string) => void }) {
-  const cards = [
-    ["Students", data.summary.totalStudents, GraduationCap, "bg-blue-50 text-blue-700"],
-    ["Teachers", data.summary.totalTeachers, Users, "bg-violet-50 text-violet-700"],
-    ["Divisions", data.summary.totalDivisions, LayoutDashboard, "bg-amber-50 text-amber-700"],
-    ["Subjects", data.summary.totalSubjects, BookOpen, "bg-emerald-50 text-emerald-700"],
-    ["Classes today", data.summary.classesRunningToday, CalendarCheck, "bg-cyan-50 text-cyan-700"],
-    ["Pending tasks", data.summary.pendingTasks, ClipboardCheck, "bg-rose-50 text-rose-700"],
-  ] as const;
+function Overview({
+  data,
+  setTab,
+  navigate,
+}: {
+  data: api.Workspace;
+  setTab: (x: string) => void;
+  navigate: (to: string) => void;
+}) {
+  const unallocatedStudents = data.totalStudents;
+  const divisionsWithoutTeacher = data.divisions.filter((division) => !division.classTeacher);
+  const unassignedSubjects = data.subjects.filter((subject) => subject.teacherIds.length === 0);
+  const overloadedTeachers = data.teachers.filter((teacher) => teacher.loadStatus === "RED");
+  const timetablesNeedingWork = data.timetables.filter(
+    (timetable) =>
+      timetable.lectures === 0 ||
+      timetable.reviewStatus === "DRAFT" ||
+      timetable.reviewStatus === "REJECTED",
+  );
+
+  const stats = [
+    {
+      label: "Department students",
+      value: data.summary.totalStudents,
+      detail: `${unallocatedStudents} awaiting division`,
+      icon: GraduationCap,
+      tone: "bg-blue-50 text-blue-700",
+      action: () => setTab("students"),
+    },
+    {
+      label: "Teaching staff",
+      value: data.summary.totalTeachers,
+      detail: `${overloadedTeachers.length} need workload review`,
+      icon: Users,
+      tone: "bg-violet-50 text-violet-700",
+      action: () => setTab("workload"),
+    },
+    {
+      label: "Attendance",
+      value: `${data.summary.averageAttendance.toFixed(1)}%`,
+      detail: data.summary.averageAttendance < 75 ? "Below 75% target" : "Department average",
+      icon: UserCheck,
+      tone:
+        data.summary.averageAttendance < 75
+          ? "bg-rose-50 text-rose-700"
+          : "bg-emerald-50 text-emerald-700",
+      action: () => setTab("attendance"),
+    },
+    {
+      label: "Classes today",
+      value: data.summary.classesRunningToday,
+      detail: `${data.summary.totalDivisions} active divisions`,
+      icon: CalendarCheck,
+      tone: "bg-cyan-50 text-cyan-700",
+      action: () => navigate(ROUTES.timetable),
+    },
+  ];
+
+  const attention = [
+    {
+      label: "Students awaiting division",
+      value: unallocatedStudents,
+      description: "Allocate admitted students to an active division.",
+      icon: GraduationCap,
+      action: () => setTab("students"),
+    },
+    {
+      label: "Divisions without class teacher",
+      value: divisionsWithoutTeacher.length,
+      description: "Assign an eligible teacher to each uncovered division.",
+      icon: UserCheck,
+      action: () => setTab("class-teachers"),
+    },
+    {
+      label: "Subjects without teacher",
+      value: unassignedSubjects.length,
+      description: "Complete teaching assignments before timetable planning.",
+      icon: BookOpen,
+      action: () => navigate(ROUTES.subjectTeacherAssignments),
+    },
+    {
+      label: "Timetables needing attention",
+      value: timetablesNeedingWork.length,
+      description: "Finish drafts and resolve rejected timetable submissions.",
+      icon: Clock3,
+      action: () => navigate(ROUTES.timetable),
+    },
+  ];
+
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        {cards.map(([label, value, Icon, color]) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-              <Icon className="h-5 w-5" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map(({ label, value, detail, icon: Icon, tone, action }) => (
+          <button
+            key={label}
+            onClick={action}
+            className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${tone}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" />
             </div>
-            <p className="text-2xl font-bold text-slate-900">{value}</p>
-            <p className="text-sm text-slate-500">{label}</p>
-          </div>
+            <p className="mt-4 text-2xl font-bold text-slate-950">{value}</p>
+            <p className="mt-0.5 text-sm font-semibold text-slate-700">{label}</p>
+            <p className="mt-1 text-xs text-slate-500">{detail}</p>
+          </button>
         ))}
       </div>
-      <div className="grid gap-5 lg:grid-cols-[1.3fr_.7fr]">
-        <Panel title="Division capacity" subtitle="Live allocation against approved capacity">
-          <div className="space-y-4">
-            {data.divisions.map((d) => (
-              <div key={d.id}>
-                <div className="mb-1.5 flex justify-between text-sm">
-                  <span className="font-semibold text-slate-700">
-                    {d.courseYear} · {d.name}
-                  </span>
-                  <span className="text-slate-500">
-                    {d.allocated}/{d.capacity}
+
+      <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
+        <Panel title="Needs your attention" subtitle="Priority academic tasks for your department">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {attention.map(({ label, value, description, icon: Icon, action }) => (
+              <button
+                key={label}
+                onClick={action}
+                className="group rounded-xl border border-slate-200 p-4 text-left transition hover:border-brand-200 hover:bg-brand-50/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                      value > 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {value}
                   </span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full rounded-full ${d.allocated >= d.capacity ? "bg-rose-500" : "bg-violet-500"}`}
-                    style={{ width: `${Math.min(100, (d.allocated / d.capacity) * 100)}%` }}
-                  />
-                </div>
-              </div>
+                <p className="mt-3 text-sm font-bold text-slate-800">{label}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-brand-600">
+                  {value > 0 ? "Review now" : "View records"}
+                  <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                </span>
+              </button>
             ))}
           </div>
         </Panel>
-        <Panel title="Quick actions" subtitle="Continue with common department tasks">
+
+        <Panel title="Quick actions" subtitle="Common department operations">
           <div className="grid gap-2">
             {[
-              ["Allocate students", "students"],
-              ["Generate roll numbers", "rolls"],
-              ["Assign subjects", "subjects"],
-            ].map(([label, key]) => (
+              {
+                label: "Allocate students",
+                description: "Assign students to course years and divisions",
+                icon: GraduationCap,
+                action: () => setTab("students"),
+              },
+              {
+                label: "Teaching assignments",
+                description: "Allocate subjects to eligible teachers",
+                icon: BookOpen,
+                action: () => navigate(ROUTES.subjectTeacherAssignments),
+              },
+              {
+                label: "Manage timetable",
+                description: "Plan the department teaching schedule",
+                icon: CalendarCheck,
+                action: () => navigate(ROUTES.timetable),
+              },
+            ].map(({ label, description, icon: Icon, action }) => (
               <button
-                key={key}
-                onClick={() => setTab(key)}
-                className="flex items-center justify-between rounded-xl border border-slate-200 p-3 text-left text-sm font-semibold text-slate-700 hover:border-violet-300 hover:bg-violet-50"
+                key={label}
+                onClick={action}
+                className="group flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-brand-200 hover:bg-brand-50/50"
               >
-                {label}
-                <ChevronRight className="h-4 w-4" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                  <Icon className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-slate-800">{label}</p>
+                  <p className="truncate text-xs text-slate-500">{description}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" />
               </button>
             ))}
           </div>
         </Panel>
       </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
+        <Panel title="Division capacity" subtitle="Current allocation against approved capacity">
+          <div className="space-y-4">
+            {data.divisions.length ? (
+              data.divisions.map((division) => {
+                const usage =
+                  division.capacity > 0
+                    ? Math.min(100, (division.allocated / division.capacity) * 100)
+                    : 0;
+                return (
+                  <div key={division.id}>
+                    <div className="mb-1.5 flex justify-between gap-3 text-sm">
+                      <span className="truncate font-semibold text-slate-700">
+                        {division.courseYear} · {division.name}
+                      </span>
+                      <span className="shrink-0 text-slate-500">
+                        {division.allocated}/{division.capacity}
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full ${
+                          usage >= 100
+                            ? "bg-rose-500"
+                            : usage >= 85
+                              ? "bg-amber-500"
+                              : "bg-brand-500"
+                        }`}
+                        style={{ width: `${usage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <Empty title="No divisions" text="Active divisions will appear here." />
+            )}
+          </div>
+        </Panel>
+
+        <Panel title="Teacher workload" subtitle="Highest weekly lecture allocation">
+          <div className="space-y-2">
+            {[...data.teachers]
+              .sort((a, b) => b.weeklyLectures - a.weeklyLectures)
+              .slice(0, 5)
+              .map((teacher) => (
+                <button
+                  key={teacher.id}
+                  onClick={() => setTab("workload")}
+                  className="flex w-full items-center gap-3 rounded-xl border border-slate-100 px-3 py-2.5 text-left hover:bg-slate-50"
+                >
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-50 text-sm font-bold text-brand-700">
+                    {teacher.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-800">{teacher.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {teacher.subjects} subjects · {teacher.divisions} divisions
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-slate-800">{teacher.weeklyLectures}/24</p>
+                    <p
+                      className={`text-[11px] font-bold ${
+                        teacher.loadStatus === "RED"
+                          ? "text-rose-600"
+                          : teacher.loadStatus === "YELLOW"
+                            ? "text-amber-600"
+                            : "text-emerald-600"
+                      }`}
+                    >
+                      {teacher.loadStatus === "RED"
+                        ? "Overloaded"
+                        : teacher.loadStatus === "YELLOW"
+                          ? "Near capacity"
+                          : "Available"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            {!data.teachers.length && (
+              <Empty title="No teachers" text="Teaching staff will appear here." />
+            )}
+          </div>
+        </Panel>
+      </div>
+
       <Panel title="Recent activity" subtitle="Latest department allocation changes">
         <div className="divide-y divide-slate-100">
           {data.recentActivity.length ? (
-            data.recentActivity.map((a, i) => (
-              <div className="flex gap-3 py-3" key={`${a.occurredAt}-${i}`}>
-                <div className="mt-1 h-2.5 w-2.5 rounded-full bg-violet-500" />
-                <div>
-                  <p className="text-sm font-medium text-slate-700">{a.message}</p>
-                  <p className="text-xs text-slate-400">
-                    {new Date(a.occurredAt).toLocaleString()}
+            data.recentActivity.slice(0, 6).map((activity, index) => (
+              <div className="flex items-start gap-3 py-3" key={`${activity.occurredAt}-${index}`}>
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+                  <Activity className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-700">{activity.message}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {new Date(activity.occurredAt).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -513,120 +725,6 @@ function StudentsPanel({
           />
         )}
       </div>
-    </Panel>
-  );
-}
-
-function RollPanel({
-  divisions,
-  busy,
-  run,
-}: {
-  divisions: api.Division[];
-  busy: boolean;
-  run: Runner;
-}) {
-  const [section, setSection] = useState(""),
-    [strategy, setStrategy] = useState("ALPHABETICAL_NAME"),
-    [rows, setRows] = useState<api.RollPreview[]>([]);
-  const preview = async () => {
-    if (!section) return;
-    try {
-      setRows(await api.previewRolls(Number(section), strategy));
-    } catch (e) {
-      toast.error(handleApiError(e).message);
-    }
-  };
-  return (
-    <Panel
-      title="Roll number generation"
-      subtitle="Preview the sequence, edit individual values, then confirm the batch."
-    >
-      <div className="grid gap-3 md:grid-cols-[1fr_240px_auto]">
-        <select
-          className={inputClass}
-          value={section}
-          onChange={(e) => {
-            setSection(e.target.value);
-            setRows([]);
-          }}
-        >
-          <option value="">Select division</option>
-          {divisions.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.courseYear} · {d.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className={inputClass}
-          value={strategy}
-          onChange={(e) => setStrategy(e.target.value)}
-        >
-          <option value="ALPHABETICAL_NAME">Alphabetical name</option>
-          <option value="ADMISSION_DATE">Admission date</option>
-          <option value="ADMISSION_NUMBER">Admission number</option>
-          <option value="MERIT_RANK">Merit rank / admission</option>
-        </select>
-        <button className={secondaryClass} disabled={!section} onClick={() => void preview()}>
-          Preview
-        </button>
-      </div>
-      {rows.length > 0 && (
-        <>
-          <div className="responsive-table mt-5">
-            <table>
-              <thead>
-                <tr>
-                  <th className="p-3">Student</th>
-                  <th>Admission</th>
-                  <th>Current</th>
-                  <th>Proposed roll number</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr className="border-t" key={r.studentId}>
-                    <td className="p-3 font-semibold">{r.studentName}</td>
-                    <td>{r.admissionNumber}</td>
-                    <td>{r.currentRollNumber || "—"}</td>
-                    <td>
-                      <input
-                        className={`${inputClass} max-w-52`}
-                        value={r.proposedRollNumber}
-                        onChange={(e) =>
-                          setRows((v) =>
-                            v.map((x, j) =>
-                              j === i ? { ...x, proposedRollNumber: e.target.value } : x,
-                            ),
-                          )
-                        }
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <button
-            className={`${actionClass} mt-4`}
-            disabled={busy || rows.some((r) => !r.proposedRollNumber.trim())}
-            onClick={() =>
-              void run(
-                () =>
-                  api.confirmRolls(
-                    Number(section),
-                    rows.map((r) => ({ studentId: r.studentId, rollNumber: r.proposedRollNumber })),
-                  ),
-                "Roll numbers generated",
-              )
-            }
-          >
-            <Check className="h-4 w-4" />
-            Confirm roll numbers
-          </button>
-        </>
-      )}
     </Panel>
   );
 }

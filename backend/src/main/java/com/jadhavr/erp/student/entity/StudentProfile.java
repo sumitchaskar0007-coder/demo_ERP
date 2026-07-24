@@ -101,8 +101,11 @@ public class StudentProfile extends BaseAuditEntity {
     @Column(nullable = false, length = 40)
     private StudentStatus status = StudentStatus.ADMISSION_SUBMITTED;
 
-    @Column(name = "roll_number", unique = true, length = 60)
+    @Column(name = "roll_number", length = 60)
     private String rollNumber;
+
+    @Column(name = "prn_number", length = 60)
+    private String prn;
 
     @Column(name = "activated_at")
     private LocalDateTime activatedAt;
@@ -155,6 +158,8 @@ public class StudentProfile extends BaseAuditEntity {
     public void setStatus(StudentStatus status) { this.status = status; }
     public String getRollNumber() { return rollNumber; }
     public void setRollNumber(String rollNumber) { this.rollNumber = rollNumber; }
+    public String getPrn() { return prn; }
+    public void setPrn(String prn) { this.prn = prn; }
     public LocalDateTime getActivatedAt() { return activatedAt; }
     public void setActivatedAt(LocalDateTime activatedAt) { this.activatedAt = activatedAt; }
 }

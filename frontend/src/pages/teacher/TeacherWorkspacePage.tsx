@@ -24,8 +24,11 @@ import {
   Clock3,
   Eye,
   GraduationCap,
+  Hash,
   RefreshCw,
+  Save,
   Search,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -55,7 +58,7 @@ export function TeacherWorkspacePage() {
         await api.getWorkspace({
           search: search || undefined,
           page,
-          size: 20,
+          size: tab === "identifiers" ? 100 : 20,
         }),
       );
     } catch (e) {
@@ -63,7 +66,7 @@ export function TeacherWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  }, [search, page]);
+  }, [search, page, tab]);
   useEffect(() => {
     const timer = setTimeout(() => void load(), search ? 250 : 0);
     return () => clearTimeout(timer);
@@ -75,7 +78,7 @@ export function TeacherWorkspacePage() {
         await api.getWorkspace({
           search: search || undefined,
           page,
-          size: 20,
+          size: tab === "identifiers" ? 100 : 20,
           refresh: Date.now(),
         }),
       );
@@ -127,6 +130,9 @@ export function TeacherWorkspacePage() {
       </header>
       {tab === "overview" && <Overview data={data} go={setTab} navigate={navigate} />}{" "}
       {tab === "class" && data.classTeacher && <MyClass data={data} go={setTab} />}{" "}
+      {tab === "identifiers" && data.classTeacher && (
+        <IdentifierManager students={data.students.content} reload={load} />
+      )}{" "}
       {tab === "students" && (
         <Students
           data={data}
@@ -342,7 +348,7 @@ function Students({
             className={`${input} w-full pl-9`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name, PRN or roll number"
+            placeholder="Name, admission number, PRN or roll number"
           />
         </label>
       </div>
@@ -369,6 +375,177 @@ function Students({
         </div>
       </div>
     </Panel>
+  );
+}
+
+function IdentifierManager({
+  students,
+  reload,
+}: {
+  students: api.Student[];
+  reload: () => Promise<void>;
+}) {
+  const [query, setQuery] = useState("");
+  const [drafts, setDrafts] = useState<Record<number, { prn: string; rollNumber: string }>>({});
+  const [saving, setSaving] = useState<number | null>(null);
+  useEffect(() => {
+    setDrafts(
+      Object.fromEntries(
+        students.map((student) => [
+          student.id,
+          { prn: student.prn ?? "", rollNumber: student.rollNumber ?? "" },
+        ]),
+      ),
+    );
+  }, [students]);
+  const complete = students.filter((student) => student.prn && student.rollNumber).length;
+  const visible = students.filter((student) => {
+    const value = `${student.name} ${student.admissionNumber} ${student.prn ?? ""} ${student.rollNumber ?? ""}`.toLowerCase();
+    return value.includes(query.trim().toLowerCase());
+  });
+  const save = async (student: api.Student) => {
+    const draft = drafts[student.id];
+    if (!draft?.prn.trim() || !draft.rollNumber.trim()) {
+      toast.error("Enter both university PRN and class roll number");
+      return;
+    }
+    setSaving(student.id);
+    try {
+      await api.saveStudentIdentifiers(student.id, draft.prn.trim(), draft.rollNumber.trim());
+      toast.success(`Identifiers saved for ${student.name}`);
+      await reload();
+    } catch (e) {
+      toast.error(handleApiError(e).message);
+    } finally {
+      setSaving(null);
+    }
+  };
+  return (
+    <div className="space-y-5">
+      <section className="overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-sm">
+        <div className="relative bg-gradient-to-r from-slate-950 via-blue-950 to-blue-700 px-6 py-7 text-white">
+          <div className="absolute -right-12 -top-16 h-52 w-52 rounded-full bg-cyan-300/10 blur-2xl" />
+          <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold">
+                <ShieldCheck className="h-3.5 w-3.5" /> Class teacher access only
+              </span>
+              <h2 className="mt-4 text-2xl font-bold">Student PRN & roll numbers</h2>
+              <p className="mt-2 max-w-2xl text-sm text-blue-100">
+                Enter the university-issued PRN and your class roll number. Admission numbers stay
+                unchanged and are shown only as a reliable student reference.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-5 py-3 backdrop-blur">
+                <p className="text-2xl font-bold">{complete}</p>
+                <p className="text-xs text-blue-100">Complete</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-5 py-3 backdrop-blur">
+                <p className="text-2xl font-bold">{students.length - complete}</p>
+                <p className="text-xs text-blue-100">Pending</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="border-b border-slate-200 p-4">
+          <label className="relative block">
+            <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
+            <input
+              className={`${input} w-full pl-11`}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by student, admission number, PRN or roll number"
+            />
+          </label>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {visible.map((student) => {
+            const draft = drafts[student.id] ?? { prn: "", rollNumber: "" };
+            const saved = Boolean(student.prn && student.rollNumber);
+            const changed =
+              draft.prn.trim() !== (student.prn ?? "") ||
+              draft.rollNumber.trim() !== (student.rollNumber ?? "");
+            return (
+              <div
+                key={student.id}
+                className="grid gap-4 p-5 transition hover:bg-blue-50/40 xl:grid-cols-[minmax(230px,1.2fr)_minmax(180px,.8fr)_minmax(180px,.8fr)_120px] xl:items-end"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue-100 font-bold text-blue-700">
+                    {student.name.charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-bold text-slate-900">{student.name}</p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${saved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
+                      >
+                        {saved ? "ASSIGNED" : "PENDING"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Admission {student.admissionNumber} · {student.division}
+                    </p>
+                  </div>
+                </div>
+                <label>
+                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" /> University PRN
+                  </span>
+                  <input
+                    className={`${input} w-full font-semibold uppercase`}
+                    maxLength={60}
+                    value={draft.prn}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [student.id]: { ...draft, prn: event.target.value },
+                      }))
+                    }
+                    placeholder="Enter PRN"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                    <Hash className="h-3.5 w-3.5 text-violet-600" /> Class roll number
+                  </span>
+                  <input
+                    className={`${input} w-full font-semibold uppercase`}
+                    maxLength={60}
+                    value={draft.rollNumber}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [student.id]: { ...draft, rollNumber: event.target.value },
+                      }))
+                    }
+                    placeholder="Enter roll no."
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={`${primary} h-11`}
+                  disabled={
+                    saving === student.id ||
+                    !draft.prn.trim() ||
+                    !draft.rollNumber.trim() ||
+                    (!changed && saved)
+                  }
+                  onClick={() => void save(student)}
+                >
+                  <Save className="h-4 w-4" />
+                  {saving === student.id ? "Saving..." : saved ? "Update" : "Save"}
+                </button>
+              </div>
+            );
+          })}
+          {!visible.length && (
+            <Empty title="No students found" text="Try a different student or identifier search." />
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 function Attendance({ data, select }: { data: api.Workspace; select: (x: api.Student) => void }) {

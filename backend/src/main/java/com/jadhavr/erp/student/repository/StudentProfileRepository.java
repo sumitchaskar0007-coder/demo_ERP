@@ -17,6 +17,7 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     Optional<StudentProfile> findByAdmissionNumber(String admissionNumber);
     boolean existsByAdmissionNumber(String admissionNumber);
     boolean existsByRollNumber(String rollNumber);
+    boolean existsByPrnIgnoreCaseAndIdNot(String prn, Long id);
     boolean existsByEmailAndCollegeId(String email, Long collegeId);
     List<StudentProfile> findByCollegeId(Long collegeId);
     List<StudentProfile> findByDepartmentId(Long departmentId);
