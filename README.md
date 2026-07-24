@@ -1,4 +1,4 @@
-# Jadhavr ERP
+# Jadhavar ERP
 
 ## Final Super Admin Scope
 
@@ -69,7 +69,7 @@ Authenticated users can call `POST /api/auth/email-verification/request`. Super 
 
 All variables are documented in `.env.example`. Never commit real credentials. For production, use a verified transactional sender/domain with SPF, DKIM and DMARC, such as AWS SES SMTP credentials, and set authentication/TLS variables to `true`. Backend credentials must never use `VITE_` variables or be exposed to React.
 
-Jadhavr ERP is a secure, modular college management platform.
+Jadhavar ERP is a secure, modular college management platform.
 
 ## Repository structure
 

@@ -1,0 +1,214 @@
+name: jadhavr-erp
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-security: &default-security
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-college_erp}
+      POSTGRES_USER: ${DB_USERNAME:-erp_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    shm_size: 256m
+    mem_limit: 1g
+    cpus: "1.0"
+    logging: *default-logging
+    <<: *default-security
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      - sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - redis_data:/data
+    networks:
+      - cache
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 512m
+    cpus: "0.50"
+    logging: *default-logging
+    <<: *default-security
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        JAVA_VERSION: "17"
+    image: jadhavr-erp-backend:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    init: true
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: "8081"
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-college_erp}?sslmode=disable
+      DB_USERNAME: ${DB_USERNAME:-erp_app}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-20}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-5}
+      FLYWAY_ENABLED: ${FLYWAY_ENABLED:-true}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to at least 32 random characters}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-900000}
+      RATE_LIMIT_KEY_SECRET: ${RATE_LIMIT_KEY_SECRET:?Set RATE_LIMIT_KEY_SECRET in .env}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+      REDIS_SSL_ENABLED: "false"
+      RATE_LIMIT_REDIS_ENABLED: "true"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_ENVIRONMENT: ${CACHE_ENVIRONMENT:-docker}
+      STORAGE_PROVIDER: local
+      UPLOAD_DIR: /app/uploads
+      ADMISSION_PHOTO_DIR: /app/uploads/admission-photos
+      ADMISSION_DOCUMENT_DIR: /app/uploads/admission-documents
+      PAYMENT_PROOF_DIR: /app/uploads/payment-proofs
+      FRONTEND_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN, for example https://erp.example.com}
+      CORS_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN, for example https://erp.example.com}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-Strict}
+      BOOTSTRAP_ENABLED: ${BOOTSTRAP_ENABLED:-false}
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      SUPER_ADMIN_PHONE: ${SUPER_ADMIN_PHONE:-}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HEALTH_ENABLED: ${MAIL_HEALTH_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-smtp.example.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-disabled}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-disabled}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@example.com}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Jadhavar ERP}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-noreply@example.com}
+      MAIL_MAX_RETRIES: ${MAIL_MAX_RETRIES:-3}
+      MAIL_RETRY_DELAY_SECONDS: ${MAIL_RETRY_DELAY_SECONDS:-60}
+      MAIL_BATCH_SIZE: ${MAIL_BATCH_SIZE:-20}
+      MAIL_TOKEN_EXPIRY_MINUTES: ${MAIL_TOKEN_EXPIRY_MINUTES:-30}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_STARTTLS_ENABLED: ${MAIL_STARTTLS_ENABLED:-true}
+      MAIL_STARTTLS_REQUIRED: ${MAIL_STARTTLS_REQUIRED:-true}
+      MAIL_CONNECTION_TIMEOUT: ${MAIL_CONNECTION_TIMEOUT:-5000}
+      MAIL_TIMEOUT: ${MAIL_TIMEOUT:-5000}
+      MAIL_WRITE_TIMEOUT: ${MAIL_WRITE_TIMEOUT:-5000}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_PRIVATE_UPLOAD_BUCKET: ${AWS_PRIVATE_UPLOAD_BUCKET:-}
+      AWS_SECRETS_NAME: ${AWS_SECRETS_NAME:-}
+      TZ: ${TZ:-UTC}
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=${JVM_MAX_RAM_PERCENTAGE:-75.0}
+        -XX:InitialRAMPercentage=${JVM_INITIAL_RAM_PERCENTAGE:-25.0}
+        -XX:+ExitOnOutOfMemoryError
+        -Djava.io.tmpdir=/app/tmp
+        -Duser.timezone=${TZ:-UTC}
+        -Dfile.encoding=UTF-8
+    volumes:
+      - uploads_data:/app/uploads
+    tmpfs:
+      - /app/tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001
+    read_only: true
+    expose:
+      - "8081"
+    networks:
+      - application
+      - database
+      - cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:8081/actuator/health/readiness",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    stop_grace_period: 45s
+    mem_limit: 2g
+    cpus: "1.0"
+    logging: *default-logging
+    <<: *default-security
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+    image: jadhavr-erp-frontend:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${HTTP_BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-8080}:8080"
+    networks:
+      - application
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    stop_grace_period: 20s
+    mem_limit: 256m
+    cpus: "0.50"
+    logging: *default-logging
+    <<: *default-security
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  application:
+    driver: bridge
+  database:
+    driver: bridge
+    internal: true
+  cache:
+    driver: bridge
+    internal: true

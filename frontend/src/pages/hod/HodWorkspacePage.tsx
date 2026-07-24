@@ -93,7 +93,7 @@ export function HodWorkspacePage() {
       <Empty title="Workspace unavailable" text="The department workspace could not be loaded." />
     );
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-10">
+    <div className="mx-auto max-w-[1500px] space-y-6 px-3 py-4 pb-10 sm:px-6 sm:py-5 lg:px-0 lg:py-0">
       <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-violet-950 to-indigo-900 p-6 text-white shadow-xl md:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>

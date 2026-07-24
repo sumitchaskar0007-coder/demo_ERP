@@ -19,8 +19,13 @@ export function Modal({
   useEffect(() => {
     if (!open) return;
     const handler = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handler);
+    };
   }, [onClose, open]);
   if (!open) return null;
   const sizes = { md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
@@ -31,7 +36,7 @@ export function Modal({
       aria-modal="true"
     >
       <div
-        className={`max-h-[92dvh] w-full min-w-0 overflow-y-auto overflow-x-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl ${sizes[size]}`}
+        className={`max-h-[calc(100dvh-1rem)] w-full min-w-0 overflow-y-auto overflow-x-hidden rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl sm:pb-0 ${sizes[size]}`}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-white px-4 py-4 sm:px-6 sm:py-5">
           <div className="min-w-0">
@@ -40,7 +45,7 @@ export function Modal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"
             aria-label="Close modal"
           >
             <X className="h-5 w-5" />

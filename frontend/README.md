@@ -1,6 +1,6 @@
-# Jadhavr ERP Frontend
+# Jadhavar ERP Frontend
 
-Production-oriented React administration portal for the Jadhavr College ERP backend.
+Production-oriented React administration portal for the Jadhavar College ERP backend.
 
 ## Technology
 

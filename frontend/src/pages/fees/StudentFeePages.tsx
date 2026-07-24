@@ -206,7 +206,7 @@ export function SubmitPaymentPage() {
                 <h3 className="font-bold text-amber-950">Verify before you pay</h3>
                 <p className="mt-2 text-sm leading-6 text-amber-900">
                   Pay only if the account name shown after scanning the QR code is exactly
-                  <strong className="mx-1">Jadhavr Senior College</strong>. Do not continue if any
+                  <strong className="mx-1">Jadhavar Senior College</strong>. Do not continue if any
                   other account name appears.
                 </p>
               </div>
@@ -317,7 +317,7 @@ export function SubmitPaymentPage() {
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
             />
             <span>
-              I verified that the QR account name is <strong>Jadhavr Senior College</strong> before
+              I verified that the QR account name is <strong>Jadhavar Senior College</strong> before
               paying.
             </span>
           </label>

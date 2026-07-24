@@ -17,7 +17,7 @@ export function DataTable<T>({
   rowKey: (row: T) => string | number;
 }) {
   return (
-    <div className="data-table w-full min-w-0 overflow-x-auto">
+    <div className="data-table w-full min-w-0 overscroll-x-contain overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-left">
         <thead>
           <tr>

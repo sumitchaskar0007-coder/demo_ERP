@@ -10,7 +10,7 @@ export function FeeCollectionCard({
   const total = collected + pending;
   const percentage = total ? Math.round((collected / total) * 100) : 0;
   return (
-    <Card className="p-6">
+    <Card className="p-4 sm:p-6">
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Fees Collection</h2>
@@ -20,9 +20,11 @@ export function FeeCollectionCard({
           <WalletCards className="h-6 w-6" />
         </div>
       </div>
-      <div className="mt-7 flex items-end gap-1 text-slate-900">
+      <div className="mt-5 flex min-w-0 items-end gap-1 text-slate-900 sm:mt-7">
         <IndianRupee className="mb-1 h-5 w-5" />
-        <span className="text-3xl font-black">{collected.toLocaleString("en-IN")}</span>
+        <span className="min-w-0 break-all text-2xl font-black sm:text-3xl">
+          {collected.toLocaleString("en-IN")}
+        </span>
       </div>
       <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
         <div

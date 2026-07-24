@@ -189,7 +189,7 @@ export async function exportCollegeExcel(options: CollegeExcelOptions) {
   workbook.Props = {
     Title: options.title,
     Subject: options.subtitle ?? options.title,
-    Author: "Jadhavr ERP",
+    Author: "Jadhavar ERP",
     Company: options.institution ?? "Jadhavar Group of Institutes",
     CreatedDate: new Date(),
   };

@@ -29,7 +29,7 @@ const admission = {
   admissionReferenceNumber: "ADM-REF-42",
   admissionNumber: "ADM-42",
   collegeId: 1,
-  collegeName: "Jadhavr College",
+  collegeName: "Jadhavar College",
   collegeCode: "JCE",
   departmentId: 2,
   departmentName: "Computer Science",

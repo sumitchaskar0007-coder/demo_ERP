@@ -86,7 +86,7 @@ export function FeeOfficerWorkspacePage() {
       />
     );
   return (
-    <div className="mx-auto max-w-[1550px] space-y-6 pb-10">
+    <div className="mx-auto max-w-[1550px] space-y-6 px-3 py-4 pb-10 sm:px-6 sm:py-5 lg:px-0 lg:py-0">
       <header className="overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 p-7 text-white shadow-xl shadow-blue-200/60">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
@@ -1477,7 +1477,7 @@ async function downloadReceipt(p: api.Payment) {
   const { default: JsPdf } = await import("jspdf");
   const doc = new JsPdf();
   doc.setFontSize(20);
-  doc.text("Jadhavr ERP - Payment Receipt", 20, 25);
+  doc.text("Jadhavar ERP - Payment Receipt", 20, 25);
   doc.setFontSize(11);
   [
     ["Receipt", p.receiptNumber || "Pending"],
@@ -1645,7 +1645,7 @@ function Skeleton() {
   return (
     <div className="animate-pulse space-y-5">
       <div className="h-44 rounded-3xl bg-slate-200" />
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-32 rounded-2xl bg-slate-100" />
         ))}

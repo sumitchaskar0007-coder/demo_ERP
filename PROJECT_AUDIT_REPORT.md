@@ -1,4 +1,4 @@
-# Jadhavr ERP — Backend and Frontend Audit Report
+# Jadhavar ERP — Backend and Frontend Audit Report
 
 **Audit date:** 21 July 2026  
 **Scope:** Static code review, configuration review, automated checks, local runtime health, and PostgreSQL connectivity.  
@@ -273,4 +273,3 @@ Do not label the current revision production-ready. A reasonable minimum release
 - No destructive workflow was executed against the existing local database.
 - No cross-browser, visual regression, accessibility-tool, load, backup/restore, SMTP delivery, Redis failover, or clean production deployment test was performed.
 - Dependency vulnerability databases were not queried; use automated Maven/npm dependency scanning in CI.
-

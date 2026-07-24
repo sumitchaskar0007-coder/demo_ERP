@@ -232,7 +232,7 @@ export function DashboardLayout() {
           )}
         </main>
         {popup && (
-          <div className="fixed right-4 top-24 z-50 w-[calc(100%-2rem)] max-w-md animate-[fadeIn_.2s_ease-out] overflow-hidden rounded-2xl border border-brand-200 bg-white shadow-2xl sm:right-6">
+          <div className="fixed right-3 top-20 z-50 w-[calc(100%-1.5rem)] max-w-md animate-[fadeIn_.2s_ease-out] overflow-hidden rounded-2xl border border-brand-200 bg-white shadow-2xl sm:right-6 sm:top-24 sm:w-[calc(100%-2rem)]">
             <div className="flex items-start gap-3 bg-brand-50 px-5 py-4">
               <div className="rounded-xl bg-brand-600 p-2 text-white">
                 <Bell className="h-5 w-5" />
@@ -255,7 +255,7 @@ export function DashboardLayout() {
               <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">
                 {popup.message}
               </p>
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-4 flex flex-col items-start gap-2 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
                 <span className="text-xs text-slate-400">From {popup.createdByName}</span>
                 <Link
                   to={ROUTES.notices}

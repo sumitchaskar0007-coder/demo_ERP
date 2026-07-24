@@ -254,7 +254,7 @@ export function RoleDashboardPage() {
         <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-blue-100">{user.collegeName || "Jadhavr ERP Workspace"}</p>
+            <p className="text-sm text-blue-100">{user.collegeName || "Jadhavar ERP Workspace"}</p>
             <h2 className="mt-2 text-3xl font-bold">Welcome back, {user.fullName.split(" ")[0]}</h2>
             <p className="mt-2 text-sm text-blue-100">
               Have a productive day managing your education workspace.

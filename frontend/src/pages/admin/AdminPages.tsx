@@ -211,7 +211,7 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
             <p className="text-sm text-blue-100">
-              {principal ? user?.collegeName : "Jadhavr ERP Administration"}
+              {principal ? user?.collegeName : "Jadhavar ERP Administration"}
             </p>
             <h2 className="mt-2 text-3xl font-bold">
               Welcome back, {user?.fullName?.split(" ")[0] || "Admin"}

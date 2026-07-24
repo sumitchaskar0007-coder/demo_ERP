@@ -4,12 +4,11 @@
 .env
 .env.*
 !.env.example
-target
-uploads
-.mvn
-mvnw
-mvnw.cmd
+node_modules
+dist
+coverage
+playwright-report
+test-results
 *.log
 *.pem
 *.key
-Dockerfile*

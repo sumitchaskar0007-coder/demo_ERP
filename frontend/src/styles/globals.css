@@ -349,6 +349,54 @@
   }
 
   @media (max-width: 639px) {
+    .page-container {
+      padding: 1rem 0.75rem 2rem;
+    }
+
+    .page-container > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .page-container [class~="p-6"] {
+      padding: 1rem;
+    }
+
+    .page-container [class~="px-6"] {
+      padding-right: 1rem;
+      padding-left: 1rem;
+    }
+
+    .page-container [class~="py-6"] {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    .page-container button:not([class*="h-"]):not([class*="min-h-"]) {
+      min-height: 2.75rem;
+    }
+
+    .page-title {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+    }
+
+    .page-subtitle {
+      line-height: 1.35rem;
+    }
+
+    .erp-panel-header {
+      align-items: flex-start;
+    }
+
+    .responsive-table,
+    .erp-table-scroll,
+    .dashboard-chart-scroll,
+    [class*="overflow-x-auto"] {
+      overscroll-behavior-inline: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .page-container > .flex {
       flex-wrap: wrap;
       gap: 0.75rem;
@@ -356,8 +404,7 @@
   }
 
   @media (max-width: 1023px) {
-    .data-table,
-    .responsive-table {
+    .data-table {
       overflow-x: hidden;
     }
 
@@ -466,60 +513,6 @@
 
     .data-table tbody td .table-action-group button {
       width: 100%;
-    }
-  }
-
-  @media (max-width: 639px) {
-    .responsive-table table,
-    .responsive-table tbody,
-    .responsive-table tr,
-    .responsive-table td {
-      display: block;
-      width: 100%;
-      min-width: 0;
-    }
-
-    .responsive-table table {
-      border-collapse: separate;
-    }
-
-    .responsive-table thead {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    .responsive-table tbody {
-      display: grid;
-      gap: 0.75rem;
-      padding: 0.75rem;
-      background: rgb(248 250 252);
-    }
-
-    .responsive-table tbody tr {
-      overflow: hidden;
-      border: 1px solid rgb(226 232 240);
-      border-radius: 0.875rem;
-      background: white;
-      box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
-    }
-
-    .responsive-table tbody td {
-      padding: 0.7rem 0.875rem;
-      border-bottom: 1px solid rgb(241 245 249);
-      text-align: left;
-      white-space: normal;
-      overflow-wrap: anywhere;
-    }
-
-    .responsive-table tbody td:last-child {
-      border-bottom: 0;
     }
   }
 }

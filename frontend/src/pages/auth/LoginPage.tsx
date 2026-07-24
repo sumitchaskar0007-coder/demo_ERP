@@ -261,7 +261,7 @@ export function LoginPage() {
               </form>
 
               <p className="mt-6 hidden items-center justify-center gap-2 text-center text-xs text-slate-400 sm:flex">
-                <ShieldCheck className="h-4 w-4" /> © 2026 Jadhavr ERP. All rights reserved.
+                <ShieldCheck className="h-4 w-4" /> © 2026 Jadhavar ERP. All rights reserved.
               </p>
             </div>
           </div>

@@ -79,7 +79,7 @@ export function ChangePasswordPage() {
       </div>
 
       <section className="relative grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.12)] lg:grid-cols-[0.9fr_1.1fr]">
-        <aside className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-brand-600 to-indigo-700 p-8 text-white sm:p-10 lg:p-12">
+        <aside className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-brand-600 to-indigo-700 p-6 text-white sm:p-10 lg:p-12">
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full border-[42px] border-white/10" />
           <div className="absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-white/5" />
           <div className="relative flex h-full flex-col">
@@ -87,14 +87,14 @@ export function ChangePasswordPage() {
               <BrandLogo className="w-40" />
             </div>
 
-            <div className="my-auto py-12">
+            <div className="my-auto py-8 sm:py-12">
               <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20 backdrop-blur">
                 <ShieldCheck className="h-7 w-7" />
               </span>
               <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-blue-100">
                 Account protection
               </p>
-              <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
+              <h1 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
                 {isStudent ? "Secure your student account" : "Secure your staff account"}
               </h1>
               <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100">
@@ -103,7 +103,7 @@ export function ChangePasswordPage() {
                   : "Your staff account is ready. Replace the temporary phone-number password before entering your dashboard."}
               </p>
 
-              <div className="mt-8 space-y-4 text-sm text-blue-50">
+              <div className="mt-8 hidden space-y-4 text-sm text-blue-50 sm:block">
                 {[
                   "Your temporary phone-number password will be replaced",
                   "Your dashboard stays locked until this step is complete",
@@ -127,7 +127,7 @@ export function ChangePasswordPage() {
           </div>
         </aside>
 
-        <div className="p-7 sm:p-10 lg:p-12">
+        <div className="p-5 sm:p-10 lg:p-12">
           <div className="mx-auto max-w-md">
             <div className="inline-flex rounded-2xl bg-brand-50 p-3 text-brand-700 ring-1 ring-brand-100">
               <LockKeyhole className="h-6 w-6" />
@@ -135,7 +135,7 @@ export function ChangePasswordPage() {
             <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-brand-600">
               Required security step
             </p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
               Change your password
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-500">
