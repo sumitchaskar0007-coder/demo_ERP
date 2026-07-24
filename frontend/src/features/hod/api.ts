@@ -84,6 +84,7 @@ export type Workspace = {
   page: number;
   totalPages: number;
   teachers: Teacher[];
+  eligibleClassTeachers: Teacher[];
   subjects: Subject[];
   timetables: Timetable[];
   recentActivity: Activity[];

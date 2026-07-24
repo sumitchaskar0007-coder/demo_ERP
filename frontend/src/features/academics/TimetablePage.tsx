@@ -467,55 +467,67 @@ export function TimetablePage() {
       </div>
 
       <Card className="p-4 sm:p-5 print:border-0 print:shadow-none">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 print:hidden">
-          {isPrincipal ? (
-            <Input
-              label="College"
-              value={selectedCollegeName}
-              readOnly
-              aria-readonly="true"
-              className="cursor-not-allowed bg-slate-50 text-slate-700"
-            />
-          ) : (
-            <Select
-              label="College"
-              value={scope.collegeId}
-              onChange={(event) => {
-                setScope({ collegeId: event.target.value, departmentId: "", courseYearId: "" });
-                setSectionId("");
-              }}
-              options={[
-                { label: "Select college", value: "" },
-                ...colleges
-                  .filter((college) =>
-                    divisions.some((division) => division.collegeId === college.id),
-                  )
-                  .map((college) => ({ label: college.name, value: college.id })),
-              ]}
-            />
+        <div
+          className={`grid gap-3 md:grid-cols-2 print:hidden ${
+            isHod ? "xl:grid-cols-2" : "xl:grid-cols-4"
+          }`}
+        >
+          {!isHod && (
+            <>
+              {isPrincipal ? (
+                <Input
+                  label="College"
+                  value={selectedCollegeName}
+                  readOnly
+                  aria-readonly="true"
+                  className="cursor-not-allowed bg-slate-50 text-slate-700"
+                />
+              ) : (
+                <Select
+                  label="College"
+                  value={scope.collegeId}
+                  onChange={(event) => {
+                    setScope({
+                      collegeId: event.target.value,
+                      departmentId: "",
+                      courseYearId: "",
+                    });
+                    setSectionId("");
+                  }}
+                  options={[
+                    { label: "Select college", value: "" },
+                    ...colleges
+                      .filter((college) =>
+                        divisions.some((division) => division.collegeId === college.id),
+                      )
+                      .map((college) => ({ label: college.name, value: college.id })),
+                  ]}
+                />
+              )}
+              <Select
+                label="Department"
+                disabled={!scope.collegeId}
+                value={scope.departmentId}
+                onChange={(event) => {
+                  setScope({ ...scope, departmentId: event.target.value, courseYearId: "" });
+                  setSectionId("");
+                }}
+                options={[
+                  { label: "Select department", value: "" },
+                  ...Array.from(
+                    new Map(
+                      divisions
+                        .filter(
+                          (division) =>
+                            !scope.collegeId || division.collegeId === Number(scope.collegeId),
+                        )
+                        .map((division) => [division.departmentId, division.department]),
+                    ).entries(),
+                  ).map(([value, label]) => ({ value, label })),
+                ]}
+              />
+            </>
           )}
-          <Select
-            label="Department"
-            disabled={!scope.collegeId}
-            value={scope.departmentId}
-            onChange={(event) => {
-              setScope({ ...scope, departmentId: event.target.value, courseYearId: "" });
-              setSectionId("");
-            }}
-            options={[
-              { label: "Select department", value: "" },
-              ...Array.from(
-                new Map(
-                  divisions
-                    .filter(
-                      (division) =>
-                        !scope.collegeId || division.collegeId === Number(scope.collegeId),
-                    )
-                    .map((division) => [division.departmentId, division.department]),
-                ).entries(),
-              ).map(([value, label]) => ({ value, label })),
-            ]}
-          />
           <Select
             label="Year / Class"
             disabled={!scope.collegeId || !scope.departmentId}

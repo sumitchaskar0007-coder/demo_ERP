@@ -217,6 +217,8 @@ public class DivisionServiceImpl implements DivisionService {
                 .filter(staff -> staff.belongsToDepartment(division.getDepartment().getId()))
                 .filter(staff -> staff.getStatus() == StaffStatus.ACTIVE)
                 .filter(staff -> CLASS_TEACHER_TYPES.contains(staff.getStaffType()))
+                .filter(staff -> divisions.findByClassTeacherIdAndStatus(
+                        staff.getId(), SectionStatus.ACTIVE).isEmpty())
                 .map(staffMapper::toResponse)
                 .toList();
     }

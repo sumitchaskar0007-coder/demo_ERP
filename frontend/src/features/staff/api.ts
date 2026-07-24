@@ -8,6 +8,7 @@ import type {
   StaffDetailResponse,
   StaffStatus,
   StaffType,
+  UpdateStaffAssignmentRequest,
 } from "./types";
 
 export async function createStaff(values: CreateStaffRequest) {
@@ -67,6 +68,13 @@ export async function getStaffById(id: number) {
 export async function getStaffDetails(id: number) {
   const { data } = await apiClient.get<ApiResponse<StaffDetailResponse>>(
     `/api/principal/staff/${id}/details`,
+  );
+  return data.data;
+}
+export async function updateStaffAssignment(id: number, values: UpdateStaffAssignmentRequest) {
+  const { data } = await apiClient.put<ApiResponse<StaffResponse>>(
+    `/api/principal/staff/${id}/assignment`,
+    values,
   );
   return data.data;
 }

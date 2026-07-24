@@ -25,4 +25,9 @@ public interface StaffProfileRepository extends JpaRepository<StaffProfile, Long
             @Param("collegeId") Long collegeId,
             @Param("roleNames") Collection<RoleName> roleNames);
     boolean existsByDepartmentIdAndStaffTypeAndStatus(Long departmentId, com.jadhavr.erp.staff.enums.StaffType type, com.jadhavr.erp.staff.enums.StaffStatus status);
+    boolean existsByDepartmentIdAndStaffTypeAndStatusAndIdNot(
+            Long departmentId,
+            com.jadhavr.erp.staff.enums.StaffType type,
+            com.jadhavr.erp.staff.enums.StaffStatus status,
+            Long id);
 }

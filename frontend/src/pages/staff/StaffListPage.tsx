@@ -1,4 +1,13 @@
-import { Building2, CalendarDays, ChevronRight, Mail, Phone, Plus, Search } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  Mail,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -156,16 +165,16 @@ export function StaffListPage() {
               <table className="erp-table table-fixed">
                 <thead>
                   <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className={`${admin ? "w-[29%]" : "w-[26%]"} px-5 py-4`}>
+                    <th className={`${admin ? "w-[29%]" : "w-[22%]"} px-5 py-4`}>
                       Staff Member
                     </th>
-                    <th className="w-[21%] px-5 py-4">Contact</th>
-                    <th className={`${admin ? "w-[27%]" : "w-[24%]"} px-5 py-4`}>
+                    <th className={`${admin ? "w-[21%]" : "w-[18%]"} px-5 py-4`}>Contact</th>
+                    <th className={`${admin ? "w-[27%]" : "w-[22%]"} px-5 py-4`}>
                       Assignment
                     </th>
-                    <th className="w-[11%] px-5 py-4">Status</th>
-                    <th className={`${admin ? "w-[12%]" : "w-[11%]"} px-5 py-4`}>Joined</th>
-                    {!admin && <th className="w-[7%] px-5 py-4 text-right">Action</th>}
+                    <th className={`${admin ? "w-[11%]" : "w-[10%]"} px-5 py-4`}>Status</th>
+                    <th className={`${admin ? "w-[12%]" : "w-[10%]"} px-5 py-4`}>Joined</th>
+                    {!admin && <th className="w-[18%] px-5 py-4 text-right">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -175,6 +184,7 @@ export function StaffListPage() {
                       row={row}
                       admin={admin}
                       onOpen={() => navigate(`/staff/${row.id}`)}
+                      onEdit={() => navigate(`/staff/${row.id}/edit`)}
                       onToggle={setConfirming}
                     />
                   ))}
@@ -188,6 +198,7 @@ export function StaffListPage() {
                   row={row}
                   admin={admin}
                   onOpen={() => navigate(`/staff/${row.id}`)}
+                  onEdit={() => navigate(`/staff/${row.id}/edit`)}
                   onToggle={setConfirming}
                 />
               ))}
@@ -253,11 +264,13 @@ function StaffTableRow({
   row,
   admin,
   onOpen,
+  onEdit,
   onToggle,
 }: {
   row: StaffResponse;
   admin: boolean;
   onOpen: () => void;
+  onEdit: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
   return (
@@ -310,16 +323,29 @@ function StaffTableRow({
       <td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td>
       {!admin && (
         <td className="px-5 py-4 text-right">
-          <Button
-            className="whitespace-nowrap"
-            variant={row.status === "ACTIVE" ? "danger" : "secondary"}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle(row);
-            }}
-          >
-            {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
-          </Button>
+          <div className="flex justify-end gap-2">
+            <Button
+              className="whitespace-nowrap"
+              variant="secondary"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <Button
+              className="whitespace-nowrap"
+              variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle(row);
+              }}
+            >
+              {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+            </Button>
+          </div>
         </td>
       )}
     </tr>
@@ -330,11 +356,13 @@ function StaffCard({
   row,
   admin,
   onOpen,
+  onEdit,
   onToggle,
 }: {
   row: StaffResponse;
   admin: boolean;
   onOpen: () => void;
+  onEdit: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
   return (
@@ -404,15 +432,27 @@ function StaffCard({
           <ChevronRight className="h-4 w-4" />
         </Button>
         {!admin && (
-          <Button
-            variant={row.status === "ACTIVE" ? "danger" : "secondary"}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle(row);
-            }}
-          >
-            {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+            <Button
+              variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle(row);
+              }}
+            >
+              {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+            </Button>
+          </>
         )}
       </div>
     </article>

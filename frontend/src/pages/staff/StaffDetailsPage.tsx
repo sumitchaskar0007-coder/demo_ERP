@@ -8,6 +8,7 @@ import {
   Clock3,
   GraduationCap,
   Mail,
+  Pencil,
   Phone,
   UserRound,
   UsersRound,
@@ -24,9 +25,13 @@ import { getStaffDetails } from "@/features/staff/api";
 import type { StaffDetailResponse } from "@/features/staff/types";
 import { handleApiError } from "@/lib/handleApiError";
 import { initials } from "@/lib/utils";
+import { useAuth } from "@/features/auth/authStore";
+import { ROLES } from "@/lib/constants";
 
 export function StaffDetailsPage() {
   const { id } = useParams();
+  const { isRole } = useAuth();
+  const principal = isRole([ROLES.PRINCIPAL]);
   const [details, setDetails] = useState<StaffDetailResponse | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -89,6 +94,14 @@ export function StaffDetailsPage() {
                 ))}
               </div>
             </div>
+            {principal && (
+              <Link to={`/staff/${staff.id}/edit`}>
+                <Button className="border-white/25 bg-white/10 text-white hover:bg-white/20">
+                  <Pencil className="h-4 w-4" />
+                  Edit assignment
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 

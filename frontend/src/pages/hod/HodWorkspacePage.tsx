@@ -22,7 +22,6 @@ const tabs = [
   ["overview", "Overview", LayoutDashboard],
   ["students", "Student allocation", Users],
   ["rolls", "Roll numbers", GraduationCap],
-  ["subjects", "Subject allocation", BookOpen],
   ["class-teachers", "Class teachers", Users],
   ["workload", "Workload", Activity],
   ["attendance", "Attendance", ClipboardCheck],
@@ -37,7 +36,8 @@ const inputClass =
 export function HodWorkspacePage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
-  const tab = params.get("tab") || "overview";
+  const requestedTab = params.get("tab") || "overview";
+  const tab = tabs.some(([key]) => key === requestedTab) ? requestedTab : "overview";
   const [data, setData] = useState<api.Workspace | null>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false);
@@ -148,7 +148,6 @@ export function HodWorkspacePage() {
         />
       )}
       {tab === "rolls" && <RollPanel divisions={data.divisions} busy={busy} run={run} />}
-      {tab === "subjects" && <SubjectsPanel data={data} busy={busy} run={run} />}
       {tab === "class-teachers" && <ClassTeachersPanel data={data} busy={busy} run={run} />}
       {tab === "workload" && <WorkloadPanel teachers={data.teachers} />}
       {tab === "attendance" && (
@@ -630,103 +629,6 @@ function RollPanel({
   );
 }
 
-function SubjectsPanel({ data, busy, run }: { data: api.Workspace; busy: boolean; run: Runner }) {
-  const [teacher, setTeacher] = useState<Record<number, string>>({}),
-    [divisions, setDivisions] = useState<Record<number, number[]>>({});
-  return (
-    <Panel
-      title="Subject and division allocation"
-      subtitle="Assign an active department teacher and one or more matching divisions."
-    >
-      <div className="space-y-4">
-        {data.subjects.map((s) => {
-          const options = data.divisions.filter(
-            (d) => d.courseYearId === s.courseYearId && d.academicYear === s.academicYear,
-          );
-          const selected = divisions[s.id] ?? s.divisionIds;
-          return (
-            <div key={s.id} className="rounded-2xl border border-slate-200 p-4">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-                <div className="xl:w-64">
-                  <p className="font-bold text-slate-800">
-                    {s.code} · {s.name}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {s.courseYear} · {s.academicYear}
-                  </p>
-                  {s.teacherNames.length > 0 && (
-                    <p className="mt-1 text-xs text-violet-600">
-                      Assigned: {s.teacherNames.join(", ")}
-                    </p>
-                  )}
-                </div>
-                <select
-                  className={`${inputClass} xl:w-64`}
-                  value={teacher[s.id] ?? s.teacherIds[0] ?? ""}
-                  onChange={(e) => setTeacher((v) => ({ ...v, [s.id]: e.target.value }))}
-                >
-                  <option value="">Choose teacher</option>
-                  {data.teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} · {t.weeklyLectures}/24
-                    </option>
-                  ))}
-                </select>
-                <div className="flex flex-1 flex-wrap gap-2">
-                  {options.map((d) => (
-                    <label
-                      key={d.id}
-                      className={`cursor-pointer rounded-xl border px-3 py-2 text-sm ${selected.includes(d.id) ? "border-violet-400 bg-violet-50 text-violet-700" : "border-slate-200"}`}
-                    >
-                      <input
-                        className="mr-2"
-                        type="checkbox"
-                        checked={selected.includes(d.id)}
-                        onChange={() =>
-                          setDivisions((v) => ({
-                            ...v,
-                            [s.id]: selected.includes(d.id)
-                              ? selected.filter((x) => x !== d.id)
-                              : [...selected, d.id],
-                          }))
-                        }
-                      />
-                      {d.name}
-                    </label>
-                  ))}
-                </div>
-                <button
-                  className={actionClass}
-                  disabled={busy || !(teacher[s.id] ?? s.teacherIds[0]) || !selected.length}
-                  onClick={() =>
-                    void run(
-                      () =>
-                        api.allocateSubject(
-                          s.id,
-                          Number(teacher[s.id] ?? s.teacherIds[0]),
-                          selected,
-                        ),
-                      "Subject allocation saved",
-                    )
-                  }
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        {!data.subjects.length && (
-          <Empty
-            title="No active subjects"
-            text="Create department subjects before assigning teachers."
-          />
-        )}
-      </div>
-    </Panel>
-  );
-}
-
 function ClassTeachersPanel({
   data,
   busy,
@@ -757,12 +659,17 @@ function ClassTeachersPanel({
               onChange={(e) => setValues((v) => ({ ...v, [d.id]: e.target.value }))}
             >
               <option value="">Select teacher</option>
-              {data.teachers.map((t) => (
+              {data.eligibleClassTeachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
               ))}
             </select>
+            {!data.eligibleClassTeachers.length && (
+              <p className="mt-2 text-xs text-amber-700">
+                No unassigned teachers are available in this department.
+              </p>
+            )}
             <button
               className={`${actionClass} mt-3 w-full`}
               disabled={busy || !values[d.id]}

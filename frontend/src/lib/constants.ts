@@ -54,6 +54,7 @@ export const ROUTES = {
   createStudentSectionStaff: "/staff/student-section/create",
   createFeeSectionStaff: "/staff/fee-section/create",
   createStaff: "/principal/staff/create",
+  editStaff: "/staff/:id/edit",
   courseYears: "/principal/course-years",
   createCourseYear: "/principal/course-years/create",
   divisions: "/principal/divisions",

@@ -60,6 +60,14 @@ class DataSeederTest {
     }
 
     private DataSeeder bootstrap(String password) {
-        return new DataSeeder(roles, users, encoder, "Platform Owner", "owner@example.com", "", password);
+        return new DataSeeder(
+                roles,
+                users,
+                encoder,
+                "Platform Owner",
+                "owner@example.com",
+                "",
+                password,
+                false);
     }
 }

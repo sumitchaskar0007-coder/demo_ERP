@@ -8,102 +8,88 @@ import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
-import { useAuth } from "@/features/auth/authStore";
-import { searchStaff } from "@/features/staff/api";
-import type { StaffResponse } from "@/features/staff/types";
-import { searchDepartments } from "@/features/departments/api";
-import type { Department } from "@/features/departments/types";
+import { workspace } from "@/features/hod/api";
 import {
   listSubjectTeacherAssignments,
   assignSubjectTeacher,
   unassignSubjectTeacher,
-  searchAcademicClasses,
   searchSubjects,
 } from "@/features/academic/api";
 import type { Subject, SubjectTeacherAssignment } from "@/features/academic/types";
 
-const TEACHING_TYPES = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
+type TeachingStaff = {
+  id: number;
+  fullName: string;
+  email: string;
+  staffType: string;
+  departmentName: string;
+};
+
+type CourseYearOption = {
+  id: number;
+  label: string;
+};
 
 export function SubjectTeacherAssignmentPage() {
-  const { user } = useAuth();
-  const [teachers, setTeachers] = useState<StaffResponse[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<StaffResponse | null>(null);
+  const [teachers, setTeachers] = useState<TeachingStaff[]>([]);
+  const [selectedTeacher, setSelectedTeacher] = useState<TeachingStaff | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [assignments, setAssignments] = useState<SubjectTeacherAssignment[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [saving, setSaving] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [departmentId, setDepartmentId] = useState<number | "">("");
-  const [yearName, setYearName] = useState("");
-  const [yearOptions, setYearOptions] = useState<string[]>([]);
+  const [departmentId, setDepartmentId] = useState<number | null>(null);
+  const [courseYearId, setCourseYearId] = useState<number | "">("");
+  const [courseYears, setCourseYears] = useState<CourseYearOption[]>([]);
 
-  const loadDepartments = useCallback(async () => {
+  const loadSubjects = useCallback(async (deptId: number, selectedCourseYearId?: number | "") => {
     try {
-      const result = await searchDepartments({
-        collegeId: user?.collegeId ?? undefined,
-        size: 100,
-        status: "ACTIVE" as never,
+      const data = await searchSubjects({
+        departmentId: deptId,
+        classId: selectedCourseYearId || undefined,
       });
-      setDepartments([
-        ...new Map(
-          result.content.map((department) => [
-            `${department.collegeId}:${department.code.trim().toUpperCase()}`,
-            department,
-          ]),
-        ).values(),
-      ]);
-    } catch {
-      setDepartments([]);
-    }
-  }, [user?.collegeId]);
-
-  const loadYears = useCallback(async (deptId: number | "") => {
-    setYearName("");
-    if (!deptId) {
-      setYearOptions([]);
-      return;
-    }
-    try {
-      const classes = await searchAcademicClasses({ departmentId: Number(deptId) });
-      setYearOptions([
-        ...new Set(classes.filter((item) => item.status === "ACTIVE").map((item) => item.yearName)),
-      ]);
-    } catch (error) {
-      setYearOptions([]);
-      toast.error(handleApiError(error).message);
-    }
-  }, []);
-
-  const loadTeachers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await searchStaff({
-        staffType: "" as never,
-        status: "ACTIVE" as never,
-        size: 100,
-      });
-      const teaching = result.content.filter((s) => TEACHING_TYPES.includes(s.staffType));
-      setTeachers(teaching);
-    } catch (e) {
-      toast.error(handleApiError(e).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadSubjects = useCallback(async (deptId?: number | "", yName?: string) => {
-    try {
-      const params: Record<string, unknown> = {};
-      if (deptId) params.departmentId = Number(deptId);
-      if (yName) params.yearName = yName;
-      const data = await searchSubjects(params);
       setSubjects(data as Subject[]);
     } catch {
       setSubjects([]);
     }
   }, []);
+
+  const loadHodScope = useCallback(async () => {
+    setLoading(true);
+    try {
+      const scope = await workspace({ size: 1 });
+      setDepartmentId(scope.departmentId);
+      setTeachers(
+        scope.teachers
+          .filter((teacher) => teacher.staffType !== "HOD")
+          .map((teacher) => ({
+            id: teacher.id,
+            fullName: teacher.name,
+            email: teacher.email,
+            staffType: teacher.staffType,
+            departmentName: scope.department,
+          })),
+      );
+      setCourseYears(
+        [
+          ...new Map(
+            scope.subjects.map((subject) => [
+              subject.courseYearId,
+              { id: subject.courseYearId, label: subject.courseYear },
+            ]),
+          ).values(),
+        ].sort((a, b) => a.label.localeCompare(b.label)),
+      );
+      await loadSubjects(scope.departmentId);
+    } catch (error) {
+      setTeachers([]);
+      setSubjects([]);
+      toast.error(handleApiError(error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadSubjects]);
 
   const loadAssignments = useCallback(async (teacherId: number) => {
     setLoadingAssignments(true);
@@ -118,15 +104,8 @@ export function SubjectTeacherAssignmentPage() {
   }, []);
 
   useEffect(() => {
-    void loadDepartments();
-    void loadTeachers();
-    void loadSubjects();
-  }, [loadDepartments, loadTeachers, loadSubjects]);
-
-  useEffect(() => {
-    void loadTeachers();
-    void loadSubjects(departmentId, yearName);
-  }, [departmentId, yearName, loadTeachers, loadSubjects]);
+    void loadHodScope();
+  }, [loadHodScope]);
 
   useEffect(() => {
     setAssignments([]);
@@ -190,35 +169,9 @@ export function SubjectTeacherAssignmentPage() {
         </p>
       </div>
 
-      <Card className="mb-6 p-4 sm:p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select
-            label="Department"
-            value={departmentId}
-            onChange={(e) => {
-              const val = e.target.value === "" ? "" : Number(e.target.value);
-              setDepartmentId(val);
-              void loadYears(val);
-            }}
-            options={[
-              { label: "All Departments", value: "" },
-              ...departments.map((d) => ({ label: `${d.code} - ${d.name}`, value: d.id })),
-            ]}
-          />
-          <Select
-            label="Year"
-            value={yearName}
-            onChange={(e) => setYearName(e.target.value)}
-            disabled={!departmentId}
-            options={[
-              {
-                label: departmentId ? "All created course years" : "Select a department first",
-                value: "",
-              },
-              ...yearOptions.map((y) => ({ label: y.replaceAll("_", " "), value: y })),
-            ]}
-          />
-          <div className="sm:col-span-2 lg:hidden">
+      <Card className="mb-4 p-4 lg:hidden">
+        <div className="max-w-xl">
+          <div>
             <Select
               label="Select teacher"
               value={selectedTeacher?.id ?? ""}
@@ -238,9 +191,12 @@ export function SubjectTeacherAssignmentPage() {
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        <Card className="hidden max-h-[calc(100vh-16rem)] flex-col p-0 lg:flex">
-          <div className="border-b px-4 py-3">
+      <div className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <Card className="hidden max-h-[calc(100vh-13rem)] flex-col overflow-hidden p-0 lg:sticky lg:top-4 lg:flex">
+          <div className="border-b bg-slate-50/70 px-4 py-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              Department teachers
+            </p>
             <Input
               placeholder="Search teachers..."
               value={search}
@@ -283,7 +239,7 @@ export function SubjectTeacherAssignmentPage() {
           </div>
         </Card>
 
-        <Card className="p-0">
+        <Card className="overflow-hidden p-0">
           {!selectedTeacher ? (
             <div className="flex h-full min-h-[20rem] items-center justify-center">
               <EmptyState
@@ -378,18 +334,39 @@ export function SubjectTeacherAssignmentPage() {
                 </details>
               </div>
 
-              <div className="border-b px-4 py-3 sm:px-5">
-                <h3 className="text-sm font-bold text-slate-900">Manage subject allocation</h3>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Tap a subject to assign or remove it for this teacher.
-                </p>
+              <div className="border-b bg-slate-50/70 px-4 py-3 sm:px-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Manage subject allocation
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Select a subject to assign or remove it for this teacher.
+                    </p>
+                  </div>
+                  <div className="w-full sm:w-72">
+                    <Select
+                      label="Course year"
+                      value={courseYearId}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? "" : Number(e.target.value);
+                        setCourseYearId(value);
+                        if (departmentId) void loadSubjects(departmentId, value);
+                      }}
+                      options={[
+                        { label: "All course years", value: "" },
+                        ...courseYears.map((year) => ({ label: year.label, value: year.id })),
+                      ]}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="divide-y">
                 {subjects.length === 0 && (
                   <EmptyState
                     title="No subjects"
-                    description="Select a department and year, or create subjects first."
+                    description="Select a course year, or create subjects for this department first."
                   />
                 )}
                 {subjects.map((subject) => {

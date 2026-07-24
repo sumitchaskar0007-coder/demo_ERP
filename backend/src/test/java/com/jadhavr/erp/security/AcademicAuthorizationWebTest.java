@@ -107,6 +107,22 @@ class AcademicAuthorizationWebTest {
     }
 
     @Test
+    void principalCannotReadTeachingAssignments() throws Exception {
+        mvc.perform(get("/api/academic/subject-teacher-assignments")
+                        .with(authentication(TestSecurityUsers.authentication(RoleName.PRINCIPAL, 2L, 10L))))
+                .andExpect(status().isForbidden());
+        verify(academicService, never()).listAssignments(null, null);
+    }
+
+    @Test
+    void hodCanReadTeachingAssignments() throws Exception {
+        when(academicService.listAssignments(null, null)).thenReturn(List.of());
+        mvc.perform(get("/api/academic/subject-teacher-assignments")
+                        .with(authentication(TestSecurityUsers.authentication(RoleName.HOD, 3L, 10L))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void superAdminCanReadWeeklyTimetableDivisionsForLectureLoadFilters() throws Exception {
         when(weeklyTimetableService.divisions()).thenReturn(List.of());
 

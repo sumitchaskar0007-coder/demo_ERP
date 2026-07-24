@@ -7,6 +7,7 @@ import com.jadhavr.erp.staff.dto.StaffResponse;
 import com.jadhavr.erp.staff.dto.StaffDetailResponse;
 import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateStaffRequest;
+import com.jadhavr.erp.staff.dto.UpdateStaffAssignmentRequest;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 
@@ -17,6 +18,7 @@ public interface StaffService {
     StaffResponse createAcademicStaff(CreateAcademicStaffRequest request, StaffType type);
     StaffResponse getStaffById(Long id);
     StaffDetailResponse getStaffDetails(Long id);
+    StaffResponse updateStaffAssignment(Long id, UpdateStaffAssignmentRequest request);
     PageResponse<StaffResponse> searchStaff(
             String keyword,
             Long collegeId,
