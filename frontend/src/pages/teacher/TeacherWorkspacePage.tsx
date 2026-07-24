@@ -22,7 +22,6 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
-  Download,
   GraduationCap,
   RefreshCw,
   Search,
@@ -31,8 +30,6 @@ import {
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
-import { exportCollegeExcel } from "@/lib/collegeExcel";
-import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/teacherWorkspace/api";
 
 const input =
@@ -41,7 +38,6 @@ const primary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50";
 
 export function TeacherWorkspacePage() {
-  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const tab = params.get("tab") || "overview";
@@ -49,9 +45,6 @@ export function TeacherWorkspacePage() {
     [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState(""),
-    [below, setBelow] = useState(""),
-    [gender, setGender] = useState(""),
-    [division, setDivision] = useState(""),
     [page, setPage] = useState(0),
     [selected, setSelected] = useState<api.Student | null>(null);
   const load = useCallback(async () => {
@@ -60,9 +53,6 @@ export function TeacherWorkspacePage() {
       setData(
         await api.getWorkspace({
           search: search || undefined,
-          attendanceBelow: below || undefined,
-          gender: gender || undefined,
-          divisionId: division || undefined,
           page,
           size: 20,
         }),
@@ -72,7 +62,7 @@ export function TeacherWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  }, [search, below, gender, division, page]);
+  }, [search, page]);
   useEffect(() => {
     const timer = setTimeout(() => void load(), search ? 250 : 0);
     return () => clearTimeout(timer);
@@ -83,9 +73,6 @@ export function TeacherWorkspacePage() {
       setData(
         await api.getWorkspace({
           search: search || undefined,
-          attendanceBelow: below || undefined,
-          gender: gender || undefined,
-          divisionId: division || undefined,
           page,
           size: 20,
           refresh: Date.now(),
@@ -142,25 +129,9 @@ export function TeacherWorkspacePage() {
       {tab === "students" && (
         <Students
           data={data}
-          collegeName={user?.collegeName ?? undefined}
           search={search}
           setSearch={(v) => {
             setSearch(v);
-            setPage(0);
-          }}
-          below={below}
-          setBelow={(v) => {
-            setBelow(v);
-            setPage(0);
-          }}
-          gender={gender}
-          setGender={(v) => {
-            setGender(v);
-            setPage(0);
-          }}
-          division={division}
-          setDivision={(v) => {
-            setDivision(v);
             setPage(0);
           }}
           page={page}
@@ -290,6 +261,11 @@ function Overview({
   );
 }
 function MyClass({ data, go }: { data: api.Workspace; go: (x: string) => void }) {
+  const classDivisionIds = new Set(data.classes.map((classItem) => classItem.divisionId));
+  const classInsights = data.divisionInsights.filter((insight) =>
+    classDivisionIds.has(insight.divisionId),
+  );
+
   return (
     <>
       <div className="grid gap-5 md:grid-cols-2">
@@ -308,9 +284,9 @@ function MyClass({ data, go }: { data: api.Workspace; go: (x: string) => void })
           </Panel>
         ))}
       </div>
-      <Panel title="Division insights" subtitle="Strength and attendance comparison">
+      <Panel title="My class insights" subtitle="Strength and attendance for your assigned class">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {data.divisionInsights.map((d) => (
+          {classInsights.map((d) => (
             <div key={d.divisionId} className="rounded-2xl border border-slate-200 p-5">
               <p className="font-bold text-slate-800">{d.division}</p>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -340,95 +316,26 @@ function MyClass({ data, go }: { data: api.Workspace; go: (x: string) => void })
 }
 function Students({
   data,
-  collegeName,
   search,
   setSearch,
-  below,
-  setBelow,
-  gender,
-  setGender,
-  division,
-  setDivision,
   page,
   setPage,
   select,
 }: {
   data: api.Workspace;
-  collegeName?: string;
   search: string;
   setSearch: (x: string) => void;
-  below: string;
-  setBelow: (x: string) => void;
-  gender: string;
-  setGender: (x: string) => void;
-  division: string;
-  setDivision: (x: string) => void;
   page: number;
   setPage: (x: number) => void;
   select: (x: api.Student) => void;
 }) {
-  const exportRows = async () => {
-    try {
-      const filters = {
-        search: search || undefined,
-        attendanceBelow: below || undefined,
-        gender: gender || undefined,
-        divisionId: division || undefined,
-        size: 100,
-      };
-      const first = await api.getWorkspace({ ...filters, page: 0 });
-      const remaining = await Promise.all(
-        Array.from({ length: Math.max(0, first.students.totalPages - 1) }, (_, index) =>
-          api.getWorkspace({ ...filters, page: index + 1 }),
-        ),
-      );
-      const students = [
-        ...first.students.content,
-        ...remaining.flatMap((result) => result.students.content),
-      ];
-      await exportCollegeExcel({
-        filename: "teacher-student-directory.xlsx",
-        sheetName: "Student Directory",
-        title: "Student Directory",
-        collegeName,
-        subtitle: "Class teacher student and attendance register",
-        metadata: [
-          ["Teacher", data.teacherName],
-          ["Employee Code", data.employeeCode],
-          ["Students in Export", students.length],
-        ],
-        headers: [
-          "Roll Number",
-          "Student Name",
-          "PRN",
-          "Division",
-          "Attendance %",
-          "Email",
-          "Status",
-        ],
-        rows: students.map((s) => [
-          s.rollNumber,
-          s.name,
-          s.prn,
-          s.division,
-          s.attendancePercentage,
-          s.email,
-          s.status,
-        ]),
-        widths: [18, 28, 20, 18, 14, 32, 14],
-        orientation: "landscape",
-      });
-    } catch (e) {
-      toast.error(handleApiError(e).message);
-    }
-  };
   return (
     <Panel
       title="Student directory"
       subtitle={`${data.students.totalElements} students in your assigned divisions`}
     >
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_180px_150px_200px_auto]">
-        <label className="relative">
+      <div className="mb-5">
+        <label className="relative block">
           <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
           <input
             className={`${input} w-full pl-9`}
@@ -437,28 +344,6 @@ function Students({
             placeholder="Name, PRN or roll number"
           />
         </label>
-        <select className={input} value={below} onChange={(e) => setBelow(e.target.value)}>
-          <option value="">All attendance</option>
-          <option value="75">Below 75%</option>
-          <option value="60">Below 60%</option>
-        </select>
-        <select className={input} value={gender} onChange={(e) => setGender(e.target.value)}>
-          <option value="">All genders</option>
-          <option>Male</option>
-          <option>Female</option>
-        </select>
-        <select className={input} value={division} onChange={(e) => setDivision(e.target.value)}>
-          <option value="">All divisions</option>
-          {data.divisionInsights.map((d) => (
-            <option value={d.divisionId} key={d.divisionId}>
-              {d.division}
-            </option>
-          ))}
-        </select>
-        <button className={primary} onClick={() => void exportRows()}>
-          <Download className="h-4 w-4" />
-          Excel
-        </button>
       </div>
       <StudentTable rows={data.students.content} select={select} />
       <div className="mt-4 flex items-center justify-between text-sm">
@@ -793,12 +678,19 @@ function StudentTable({
 }
 function StudentModal({ student, close }: { student: api.Student; close: () => void }) {
   const [history, setHistory] = useState<api.AttendanceHistory[] | null>(null);
+  const [historyPage, setHistoryPage] = useState(0);
+  const historyPageSize = 5;
   useEffect(() => {
+    setHistory(null);
+    setHistoryPage(0);
     api
       .getStudentAttendance(student.id)
       .then(setHistory)
       .catch((e) => toast.error(handleApiError(e).message));
   }, [student.id]);
+  const historyTotalPages = Math.max(1, Math.ceil((history?.length ?? 0) / historyPageSize));
+  const visibleHistory =
+    history?.slice(historyPage * historyPageSize, (historyPage + 1) * historyPageSize) ?? [];
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" onClick={close}>
       <div
@@ -830,9 +722,9 @@ function StudentModal({ student, close }: { student: api.Student; close: () => v
             <p className="text-sm text-slate-400">Loading history…</p>
           ) : history.length ? (
             <div className="space-y-2">
-              {history.map((r, i) => (
+              {visibleHistory.map((r, i) => (
                 <div
-                  key={`${r.date}-${r.time}-${i}`}
+                  key={`${r.date}-${r.time}-${historyPage * historyPageSize + i}`}
                   className="grid gap-2 rounded-xl bg-slate-50 p-3 text-sm sm:grid-cols-[100px_130px_1fr_auto]"
                 >
                   <span>{r.date}</span>
@@ -846,6 +738,29 @@ function StudentModal({ student, close }: { student: api.Student; close: () => v
                   )}
                 </div>
               ))}
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 text-sm">
+                <span className="text-slate-500">
+                  Page {historyPage + 1} of {historyTotalPages} · {history.length} records
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-200 px-3 py-2 font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={historyPage === 0}
+                    onClick={() => setHistoryPage((current) => current - 1)}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-200 px-3 py-2 font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={historyPage + 1 >= historyTotalPages}
+                    onClick={() => setHistoryPage((current) => current + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <Empty
