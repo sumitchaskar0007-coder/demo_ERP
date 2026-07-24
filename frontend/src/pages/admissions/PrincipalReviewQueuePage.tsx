@@ -1,8 +1,7 @@
-import { Eye, Search } from "lucide-react";
+import { ClipboardCheck, Eye, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -58,36 +57,56 @@ export function PrincipalReviewQueuePage() {
     {
       key: "ref",
       header: "Reference",
+      className: "w-[220px]",
       render: (row) => (
-        <div>
-          <p className="font-semibold">{row.admissionReferenceNumber}</p>
-          <p className="text-xs text-slate-400">{row.admissionNumber}</p>
+        <div className="min-w-0">
+          <p className="font-semibold leading-5 text-slate-900">{row.admissionReferenceNumber}</p>
+          <p className="mt-0.5 text-xs text-slate-400">{row.admissionNumber}</p>
         </div>
       ),
     },
-    { key: "name", header: "Student", render: (row) => row.fullName },
-    { key: "department", header: "Department", render: (row) => row.departmentName },
+    {
+      key: "name",
+      header: "Student",
+      className: "w-[180px]",
+      render: (row) => <span className="font-medium text-slate-800">{row.fullName}</span>,
+    },
+    {
+      key: "department",
+      header: "Department",
+      className: "w-[170px]",
+      render: (row) => row.departmentName,
+    },
     {
       key: "status",
       header: "Status",
-      render: (row) => (
-        <div className="space-y-1">
-          <AdmissionStatusBadge status={row.status} />
-          <Badge tone="warning">Ready for Principal Review</Badge>
-        </div>
-      ),
+      className: "w-[210px]",
+      render: (row) => <AdmissionStatusBadge status={row.status} />,
     },
     {
       key: "verified",
       header: "Verified At",
-      render: (row) => formatDate(row.studentSectionVerifiedAt),
+      className: "w-[190px]",
+      render: (row) => (
+        <span className="whitespace-nowrap">{formatDate(row.studentSectionVerifiedAt)}</span>
+      ),
     },
-    { key: "print", header: "Prints", render: (row) => row.printCount || 0 },
+    {
+      key: "print",
+      header: "Prints",
+      className: "w-[80px] text-center",
+      render: (row) => row.printCount || 0,
+    },
     {
       key: "actions",
       header: "",
+      className: "w-[130px] text-right",
       render: (row) => (
-        <Button variant="secondary" onClick={() => navigate(`/principal/admissions/${row.id}`)}>
+        <Button
+          className="min-w-[108px] whitespace-nowrap px-3"
+          variant="secondary"
+          onClick={() => navigate(`/principal/admissions/${row.id}`)}
+        >
           <Eye className="h-4 w-4" />
           Review
         </Button>
@@ -97,23 +116,39 @@ export function PrincipalReviewQueuePage() {
   return (
     <div className="page-container">
       <PrincipalAdmissionTabs />
-      <div>
-        <h1 className="page-title">Final Admission Review</h1>
-        <p className="page-subtitle">
-          Review fee-qualified admissions in detail, then approve or reject the final admission.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-600">
+            <ClipboardCheck className="h-4 w-4" />
+            Principal review queue
+          </div>
+          <h1 className="page-title">Final Admission Review</h1>
+          <p className="page-subtitle">
+            Review fee-qualified admissions in detail, then approve or reject the final admission.
+          </p>
+        </div>
+        {!loading && (
+          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 px-3.5 py-2 text-sm font-semibold text-brand-700">
+            <span className="grid h-6 min-w-6 place-items-center rounded-md bg-white px-1.5 text-xs shadow-sm">
+              {result.totalElements}
+            </span>
+            Awaiting review
+          </div>
+        )}
       </div>
-      <Card className="mt-6">
-        <div className="border-b p-4">
-          <Input
-            placeholder="Search review-ready admissions..."
-            icon={<Search className="h-4 w-4" />}
-            value={keyword}
-            onChange={(event) => {
-              setKeyword(event.target.value);
-              setPage(0);
-            }}
-          />
+      <Card className="mt-6 overflow-hidden">
+        <div className="border-b bg-slate-50/70 p-4">
+          <div className="max-w-xl">
+            <Input
+              placeholder="Search by student, reference or admission number..."
+              icon={<Search className="h-4 w-4" />}
+              value={keyword}
+              onChange={(event) => {
+                setKeyword(event.target.value);
+                setPage(0);
+              }}
+            />
+          </div>
         </div>
         {loading ? (
           <Loader label="Loading review queue..." />

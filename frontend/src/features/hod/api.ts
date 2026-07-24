@@ -89,14 +89,6 @@ export type Workspace = {
   timetables: Timetable[];
   recentActivity: Activity[];
 };
-export type RollPreview = {
-  studentId: number;
-  studentName: string;
-  admissionNumber: string;
-  currentRollNumber?: string | null;
-  proposedRollNumber: string;
-};
-
 const data = <T>(request: Promise<{ data: ApiResponse<T> }>) => request.then((r) => r.data.data);
 export const workspace = (params?: object) =>
   data<Workspace>(apiClient.get("/api/hod/workspace", { params }));
@@ -106,13 +98,6 @@ export const autoAllocate = (courseYearId: number, studentIds: number[]) =>
   data(apiClient.post("/api/hod/students/auto-allocate", { courseYearId, studentIds }));
 export const transfer = (targetSectionId: number, studentIds: number[]) =>
   data(apiClient.post("/api/hod/students/transfer", { targetSectionId, studentIds }));
-export const previewRolls = (sectionId: number, strategy: string) =>
-  data<RollPreview[]>(apiClient.post("/api/hod/roll-numbers/preview", { sectionId, strategy }));
-export const confirmRolls = (
-  sectionId: number,
-  assignments: { studentId: number; rollNumber: string }[],
-  overwrite = false,
-) => data(apiClient.post("/api/hod/roll-numbers/confirm", { sectionId, assignments, overwrite }));
 export const allocateSubject = (subjectId: number, teacherId: number, divisionIds: number[]) =>
   data(apiClient.put(`/api/hod/subjects/${subjectId}/allocation`, { teacherId, divisionIds }));
 export const assignClassTeacher = (sectionId: number, teacherId: number) =>

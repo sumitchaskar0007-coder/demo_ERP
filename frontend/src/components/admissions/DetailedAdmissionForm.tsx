@@ -1176,20 +1176,21 @@ function DocumentUpload({
           </p>
           {file && (
             <p className="mt-1 text-[11px] text-slate-500">
-              {formatFileSize(file.size)} · Ready to upload on submit
+              {formatFileSize(file.size)}
             </p>
           )}
         </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase",
-            state === "selected" && "bg-blue-600 text-white",
-            state === "uploaded" && "bg-emerald-600 text-white",
-            state === "empty" && "bg-white text-slate-500",
-          )}
-        >
-          {state === "selected" ? "Ready" : state === "uploaded" ? "Uploaded" : "Pending"}
-        </span>
+        {state !== "selected" && (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase",
+              state === "uploaded" && "bg-emerald-600 text-white",
+              state === "empty" && "bg-white text-slate-500",
+            )}
+          >
+            {state === "uploaded" ? "Uploaded" : "Pending"}
+          </span>
+        )}
       </div>
       <input
         id={inputId}

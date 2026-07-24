@@ -25,7 +25,8 @@ export type Student = {
   id: number;
   rollNumber?: string | null;
   name: string;
-  prn: string;
+  admissionNumber: string;
+  prn?: string | null;
   division: string;
   gender: string;
   attendancePercentage: number;
@@ -138,6 +139,10 @@ export const getWorkspace = (params?: object) =>
   unwrap<Workspace>(apiClient.get("/api/teacher/workspace", { params }));
 export const getStudentAttendance = (id: number) =>
   unwrap<AttendanceHistory[]>(apiClient.get(`/api/teacher/workspace/students/${id}/attendance`));
+export const saveStudentIdentifiers = (id: number, prn: string, rollNumber: string) =>
+  unwrap<Student>(
+    apiClient.put(`/api/teacher/workspace/students/${id}/identifiers`, { prn, rollNumber }),
+  );
 export const readNotification = (id: number) =>
   unwrap(apiClient.patch(`/api/teacher/workspace/notifications/${id}/read`));
 export const readAllNotifications = () =>

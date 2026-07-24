@@ -119,6 +119,7 @@ function SmartDashboard() {
   const { isRole } = useAuth();
   if (isRole([ROLES.SUPER_ADMIN])) return <AdminDashboardPage />;
   if (isRole([ROLES.PRINCIPAL])) return <AdminDashboardPage principal />;
+  if (isRole([ROLES.HOD])) return <Navigate to={ROUTES.hodWorkspace} replace />;
   return <RoleDashboardPage />;
 }
 

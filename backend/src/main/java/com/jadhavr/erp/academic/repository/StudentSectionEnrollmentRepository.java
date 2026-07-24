@@ -31,4 +31,7 @@ public interface StudentSectionEnrollmentRepository
 
     List<StudentSectionEnrollment> findBySectionDepartmentIdAndStatus(
             Long departmentId, AcademicStatus status);
+
+    boolean existsBySectionIdAndRollNumberIgnoreCaseAndStatusAndStudentIdNot(
+            Long sectionId, String rollNumber, AcademicStatus status, Long studentId);
 }

@@ -145,11 +145,15 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
               ]
             : isOtherStaff
               ? [
-                  {
-                    label: "Dashboard",
-                    to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard,
-                    icon: LayoutDashboard,
-                  },
+                  ...(!isHod
+                    ? [
+                        {
+                          label: "Dashboard",
+                          to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard,
+                          icon: LayoutDashboard,
+                        },
+                      ]
+                    : []),
                   ...(isHod
                     ? [
                         { label: "HOD Overview", to: ROUTES.hodWorkspace, icon: LayoutDashboard },
@@ -157,11 +161,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                           label: "Student Allocation",
                           to: `${ROUTES.hodWorkspace}?tab=students`,
                           icon: Users,
-                        },
-                        {
-                          label: "Roll Numbers",
-                          to: `${ROUTES.hodWorkspace}?tab=rolls`,
-                          icon: GraduationCap,
                         },
                         {
                           label: "Teaching Assignments",
@@ -191,6 +190,11 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                           label: "My Class",
                           to: `${ROUTES.teacherWorkspace}?tab=class`,
                           icon: GraduationCap,
+                        },
+                        {
+                          label: "PRN & Roll Numbers",
+                          to: `${ROUTES.teacherWorkspace}?tab=identifiers`,
+                          icon: FileText,
                         },
                       ]
                     : []),
