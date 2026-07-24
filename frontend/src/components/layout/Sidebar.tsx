@@ -164,11 +164,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                           icon: GraduationCap,
                         },
                         {
-                          label: "Subject Allocation",
-                          to: `${ROUTES.hodWorkspace}?tab=subjects`,
-                          icon: BookOpen,
-                        },
-                        {
                           label: "Teaching Assignments",
                           to: ROUTES.subjectTeacherAssignments,
                           icon: Users,

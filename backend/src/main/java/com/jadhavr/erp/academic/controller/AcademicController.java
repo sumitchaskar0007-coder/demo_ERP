@@ -43,7 +43,6 @@ public class AcademicController {
     public ApiResponse<?> createClass(@Valid @RequestBody CreateClass request) {
         return ApiResponse.success("Academic class created", service.createClass(request));
     }
-
     @GetMapping("/classes/search")
     @PreAuthorize("hasAnyRole('PRINCIPAL','HOD')")
     public ApiResponse<?> classes(@RequestParam(required = false) Long departmentId) {
@@ -146,7 +145,7 @@ public class AcademicController {
     }
 
     @GetMapping("/subject-teacher-assignments")
-    @PreAuthorize("hasAnyRole('PRINCIPAL','HOD')")
+    @PreAuthorize("hasRole('HOD')")
     public ApiResponse<?> listAssignments(
             @RequestParam(required = false) Long teacherId,
             @RequestParam(required = false) Long subjectId) {

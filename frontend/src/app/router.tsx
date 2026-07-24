@@ -46,6 +46,7 @@ import { FeeOfficerWorkspacePage } from "@/pages/fees/FeeOfficerWorkspacePage";
 import { StaffListPage } from "@/pages/staff/StaffListPage";
 import { StaffDetailsPage } from "@/pages/staff/StaffDetailsPage";
 import { CreateStaffPage } from "@/pages/staff/CreateStaffPage";
+import { EditStaffPage } from "@/pages/staff/EditStaffPage";
 import {
   CourseYearFormPage,
   CourseYearListPage,
@@ -215,6 +216,7 @@ export function AppRouter() {
                 <Route path={ROUTES.departments} element={<DepartmentListPage />} />
                 <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
                 <Route path={ROUTES.createStaff} element={<CreateStaffPage />} />
+                <Route path={ROUTES.editStaff} element={<EditStaffPage />} />
                 <Route path={ROUTES.courseYears} element={<CourseYearListPage />} />
                 <Route path={ROUTES.createCourseYear} element={<CourseYearFormPage />} />
                 <Route path="/principal/course-years/:id/edit" element={<CourseYearFormPage />} />

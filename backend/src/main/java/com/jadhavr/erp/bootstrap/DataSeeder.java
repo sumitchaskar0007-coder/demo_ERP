@@ -31,12 +31,14 @@ public class DataSeeder implements CommandLineRunner {
     private final String adminEmail;
     private final String adminPhone;
     private final String adminPassword;
+    private final boolean resetExistingPassword;
 
     public DataSeeder(RoleRepository roles, UserRepository users, PasswordEncoder encoder,
             @Value("${app.super-admin.name}") String adminName,
             @Value("${app.super-admin.email}") String adminEmail,
             @Value("${app.super-admin.phone}") String adminPhone,
-            @Value("${app.super-admin.password}") String adminPassword) {
+            @Value("${app.super-admin.password}") String adminPassword,
+            @Value("${app.bootstrap.reset-existing-password:false}") boolean resetExistingPassword) {
         this.roles = roles;
         this.users = users;
         this.encoder = encoder;
@@ -44,11 +46,14 @@ public class DataSeeder implements CommandLineRunner {
         this.adminEmail = adminEmail;
         this.adminPhone = adminPhone;
         this.adminPassword = adminPassword;
+        this.resetExistingPassword = resetExistingPassword;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
+        seedRoles();
+
         if (adminPassword == null || adminPassword.length() < 12) {
             throw new IllegalStateException(
                     "A bootstrap administrator password of at least 12 characters is required");
@@ -59,13 +64,20 @@ public class DataSeeder implements CommandLineRunner {
             throw new IllegalStateException("Bootstrap administrator name and email are required");
         }
         if (users.existsByEmail(email)) {
+            if (resetExistingPassword) {
+                User admin = users.findByEmail(email).orElseThrow();
+                admin.setPasswordHash(encoder.encode(adminPassword));
+                admin.setMustChangePassword(false);
+                users.save(admin);
+                log.info("Existing administrator password synchronized for local bootstrap");
+                return;
+            }
             log.info("Administrator bootstrap skipped because the account already exists");
             return;
         }
 
         Role role = roles.findByName(RoleName.SUPER_ADMIN)
-                .orElseThrow(() -> new IllegalStateException(
-                        "SUPER_ADMIN role is missing; run Flyway migrations before bootstrap"));
+                .orElseThrow(() -> new IllegalStateException("SUPER_ADMIN role bootstrap failed"));
         User admin = new User();
         admin.setFullName(adminName.trim());
         admin.setEmail(email);
@@ -75,5 +87,18 @@ public class DataSeeder implements CommandLineRunner {
         admin.setRoles(Set.of(role));
         users.save(admin);
         log.info("Administrator bootstrap completed");
+    }
+
+    private void seedRoles() {
+        for (RoleName roleName : RoleName.values()) {
+            if (roles.findByName(roleName).isPresent()) {
+                continue;
+            }
+            Role role = new Role();
+            role.setName(roleName);
+            role.setDescription(roleName.name().replace('_', ' ') + " role");
+            roles.save(role);
+        }
+        log.info("Role bootstrap completed");
     }
 }

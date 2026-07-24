@@ -8,6 +8,7 @@ import com.jadhavr.erp.staff.dto.StaffResponse;
 import com.jadhavr.erp.staff.dto.StaffDetailResponse;
 import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateStaffRequest;
+import com.jadhavr.erp.staff.dto.UpdateStaffAssignmentRequest;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 import com.jadhavr.erp.staff.service.StaffService;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -54,9 +56,9 @@ public class StaffController {
                 ));
     }
 
-    @PostMapping("/{type:hod|class-teacher|subject-teacher}")
+    @PostMapping("/{type:hod|subject-teacher}")
     public ResponseEntity<ApiResponse<StaffResponse>> createAcademicStaff(@PathVariable String type,@Valid @RequestBody CreateAcademicStaffRequest request) {
-        StaffType staffType = switch(type){case "hod" -> StaffType.HOD; case "class-teacher" -> StaffType.CLASS_TEACHER; default -> StaffType.SUBJECT_TEACHER;};
+        StaffType staffType = type.equals("hod") ? StaffType.HOD : StaffType.SUBJECT_TEACHER;
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Academic staff created successfully", staffService.createAcademicStaff(request, staffType)));
     }
 
@@ -87,6 +89,15 @@ public class StaffController {
     public ApiResponse<StaffDetailResponse> getStaffDetails(@PathVariable Long id) {
         return ApiResponse.success(
                 "Staff details retrieved successfully", staffService.getStaffDetails(id));
+    }
+
+    @PutMapping("/{id}/assignment")
+    public ApiResponse<StaffResponse> updateStaffAssignment(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateStaffAssignmentRequest request) {
+        return ApiResponse.success(
+                "Staff roles and departments updated successfully",
+                staffService.updateStaffAssignment(id, request));
     }
 
     @PatchMapping("/{id}/activate")

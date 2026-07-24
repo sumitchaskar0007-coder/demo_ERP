@@ -11,24 +11,19 @@ import { Input } from "@/components/common/Input";
 import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
 import { createStaff } from "@/features/staff/api";
-import type { StaffType } from "@/features/staff/types";
 import { useAuth } from "@/features/auth/authStore";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
 import { createStaffSchema } from "@/lib/validators";
 
 type Values = z.infer<typeof createStaffSchema>;
-const TEACHING_ROLES: StaffType[] = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
-const ROLE_OPTIONS: Array<{ value: StaffType; label: string; description: string }> = [
+type CreatableStaffType = Values["staffTypes"][number];
+const TEACHING_ROLES: CreatableStaffType[] = ["HOD", "TEACHER", "SUBJECT_TEACHER"];
+const ROLE_OPTIONS: Array<{ value: CreatableStaffType; label: string; description: string }> = [
   {
-    value: "SUBJECT_TEACHER",
+    value: "TEACHER",
     label: "Teacher",
-    description: "Teach assigned subjects and view a personal timetable",
-  },
-  {
-    value: "CLASS_TEACHER",
-    label: "Class Teacher",
-    description: "Manage an assigned division and its timetable",
+    description: "Teach assigned subjects; an HOD can later assign a division",
   },
   { value: "HOD", label: "HOD", description: "Lead one academic department" },
   {
@@ -60,7 +55,7 @@ export function CreateStaffPage() {
       fullName: "",
       email: "",
       phone: "",
-      staffTypes: ["SUBJECT_TEACHER"],
+      staffTypes: ["TEACHER"],
       departmentIds: [],
       joiningDate: "",
     },
@@ -88,7 +83,7 @@ export function CreateStaffPage() {
       .catch((error) => toast.error(handleApiError(error).message));
   }, [user?.collegeId]);
 
-  const toggleRole = (role: StaffType) => {
+  const toggleRole = (role: CreatableStaffType) => {
     const next = staffTypes.includes(role)
       ? staffTypes.filter((item) => item !== role)
       : [...staffTypes, role];
@@ -160,7 +155,7 @@ export function CreateStaffPage() {
             <div>
               <h2 className="font-bold">Roles</h2>
               <p className="text-sm text-slate-500">
-                Teacher and Class Teacher can be combined. HOD and operational roles are standalone.
+                Create teachers here. HODs assign the Class Teacher role with a division.
               </p>
             </div>
           </div>

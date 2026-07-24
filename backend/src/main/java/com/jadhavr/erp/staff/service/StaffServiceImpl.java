@@ -26,6 +26,7 @@ import com.jadhavr.erp.staff.dto.StaffResponse;
 import com.jadhavr.erp.staff.dto.StaffDetailResponse;
 import com.jadhavr.erp.staff.dto.CreateAcademicStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateStaffRequest;
+import com.jadhavr.erp.staff.dto.UpdateStaffAssignmentRequest;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
@@ -123,6 +124,10 @@ public class StaffServiceImpl implements StaffService {
         if (collegeId == null) throw new AccessDeniedException("Principal college is required");
 
         Set<StaffType> staffTypes = requestedStaffTypes(request);
+        if (staffTypes.contains(StaffType.CLASS_TEACHER)) {
+            throw new BadRequestException(
+                    "Create the staff member as Teacher; HOD assigns the Class Teacher role with a Division");
+        }
         validateRoleCombination(staffTypes);
         Set<Department> assignedDepartments = resolveDepartments(request, staffTypes, collegeId);
         StaffType staffType = primaryStaffType(request.staffType(), staffTypes);
@@ -146,7 +151,8 @@ public class StaffServiceImpl implements StaffService {
 
     @Override @Transactional
     public StaffResponse createAcademicStaff(CreateAcademicStaffRequest request, StaffType type) {
-        if (type != StaffType.HOD && type != StaffType.CLASS_TEACHER && type != StaffType.SUBJECT_TEACHER) throw new BadRequestException("Invalid academic staff type");
+        if (type == StaffType.CLASS_TEACHER) throw new BadRequestException("Create the staff member as Teacher; HOD assigns the Class Teacher role with a Division");
+        if (type != StaffType.HOD && type != StaffType.SUBJECT_TEACHER) throw new BadRequestException("Invalid academic staff type");
         Department department = departments.findById(request.departmentId()).orElseThrow(() -> new ResourceNotFoundException("Department not found"));
         if (!department.getCollege().getId().equals(request.collegeId()) || department.getStatus() != DepartmentStatus.ACTIVE) throw new BadRequestException("Department must be active and belong to the college");
         if (type == StaffType.HOD && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(department.getId(), type, StaffStatus.ACTIVE)) throw new DuplicateResourceException("Department already has an active HOD");
@@ -227,6 +233,80 @@ public class StaffServiceImpl implements StaffService {
         StaffProfile profile = findStaff(id);
         ensureStaffVisible(profile);
         return mapper.toResponse(profile);
+    }
+
+    @Override
+    @Transactional
+    public StaffResponse updateStaffAssignment(Long id, UpdateStaffAssignmentRequest request) {
+        if (!SecurityUtils.isPrincipal()) {
+            throw new AccessDeniedException("Only Principal can edit staff assignments");
+        }
+        StaffProfile profile = findStaff(id);
+        ensureStaffVisible(profile);
+
+        Set<StaffType> staffTypes = new LinkedHashSet<>(request.staffTypes());
+        if (staffTypes.contains(StaffType.CLASS_TEACHER)) {
+            throw new BadRequestException(
+                    "Class Teacher is managed by the HOD through Division assignment");
+        }
+        validateRoleCombination(staffTypes);
+        Set<Department> assignedDepartments = resolveDepartments(
+                request.departmentIds(), staffTypes, profile.getCollege().getId());
+        Department primaryDepartment = assignedDepartments.stream().findFirst().orElse(null);
+
+        if (staffTypes.contains(StaffType.HOD)) {
+            if (assignedDepartments.size() != 1) {
+                throw new BadRequestException("HOD accounts must have exactly one department");
+            }
+            if (profile.getStatus() == StaffStatus.ACTIVE
+                    && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatusAndIdNot(
+                    primaryDepartment.getId(), StaffType.HOD, StaffStatus.ACTIVE, profile.getId())) {
+                throw new DuplicateResourceException("Department already has an active HOD");
+            }
+        }
+
+        List<Section> classAssignments =
+                sections.findByClassTeacherIdAndStatus(profile.getId(), SectionStatus.ACTIVE);
+        var teachingAssignments =
+                subjectAssignments.findByTeacherIdAndStatus(profile.getId(), AcademicStatus.ACTIVE);
+        boolean teachingRole = staffTypes.stream().anyMatch(DEPARTMENT_REQUIRED_TYPES::contains);
+        if (!teachingRole && (!classAssignments.isEmpty() || !teachingAssignments.isEmpty())) {
+            throw new BadRequestException(
+                    "Remove active class and subject assignments before changing to an operational role");
+        }
+        Set<Long> assignedDepartmentIds = assignedDepartments.stream()
+                .map(Department::getId)
+                .collect(Collectors.toSet());
+        boolean classOutsideScope = classAssignments.stream()
+                .anyMatch(section -> !assignedDepartmentIds.contains(section.getDepartment().getId()));
+        boolean subjectOutsideScope = teachingAssignments.stream()
+                .anyMatch(assignment -> !assignedDepartmentIds.contains(
+                        assignment.getSubject().getDepartment().getId()));
+        if (classOutsideScope || subjectOutsideScope) {
+            throw new BadRequestException(
+                    "A selected department cannot be removed while it has active teaching assignments");
+        }
+
+        Set<RoleName> roleNames = staffTypes.stream()
+                .map(this::roleFor)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (!classAssignments.isEmpty()) roleNames.add(RoleName.CLASS_TEACHER);
+        Set<Role> assignedRoles = roleNames.stream()
+                .map(roleName -> roles.findByName(roleName)
+                        .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName)))
+                .collect(Collectors.toSet());
+
+        User user = profile.getUser();
+        user.setRoles(assignedRoles);
+        user.setSessionVersion(user.getSessionVersion() + 1);
+        users.save(user);
+
+        profile.setStaffType(primaryStaffType(null, staffTypes));
+        profile.setDepartment(null);
+        profile.getDepartments().clear();
+        profile.setDepartments(assignedDepartments);
+        profile.setDepartment(primaryDepartment);
+        return mapper.toResponse(staffProfiles.save(profile));
     }
 
     @Override
@@ -376,6 +456,11 @@ public class StaffServiceImpl implements StaffService {
         if (profile.getCollege().getStatus() != CollegeStatus.ACTIVE) {
             throw new BadRequestException("Cannot activate staff for an inactive college");
         }
+        if (profile.getStaffType() == StaffType.HOD && profile.getDepartment() != null
+                && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatusAndIdNot(
+                profile.getDepartment().getId(), StaffType.HOD, StaffStatus.ACTIVE, profile.getId())) {
+            throw new DuplicateResourceException("Department already has an active HOD");
+        }
         profile.setStatus(StaffStatus.ACTIVE);
         profile.getUser().setStatus(UserStatus.ACTIVE);
         users.save(profile.getUser());
@@ -491,6 +576,13 @@ public class StaffServiceImpl implements StaffService {
         Set<Long> requestedIds = new LinkedHashSet<>();
         if (request.departmentId() != null) requestedIds.add(request.departmentId());
         if (request.departmentIds() != null) requestedIds.addAll(request.departmentIds());
+        return resolveDepartments(requestedIds, staffTypes, collegeId);
+    }
+
+    private Set<Department> resolveDepartments(Set<Long> departmentIds, Set<StaffType> staffTypes,
+                                               Long collegeId) {
+        Set<Long> requestedIds =
+                departmentIds == null ? new LinkedHashSet<>() : new LinkedHashSet<>(departmentIds);
         if (staffTypes.stream().anyMatch(DEPARTMENT_REQUIRED_TYPES::contains) && requestedIds.isEmpty()) {
             throw new BadRequestException("Select at least one department for teaching staff");
         }

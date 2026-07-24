@@ -96,16 +96,63 @@ export const createStudentSectionStaffSchema = z.object({
   joiningDate: z.string().optional().default(""),
 });
 
-const departmentStaffTypes = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
+const departmentStaffTypes = ["HOD", "TEACHER", "SUBJECT_TEACHER"];
 const staffTypeSchema = z.enum([
   "STUDENT_SECTION",
   "FEE_SECTION",
   "HOD",
   "TEACHER",
-  "CLASS_TEACHER",
   "SUBJECT_TEACHER",
   "GENERAL_STAFF",
 ]);
+const validateStaffAssignment = (
+  value: { staffTypes: z.infer<typeof staffTypeSchema>[]; departmentIds: number[] },
+  context: z.RefinementCtx,
+) => {
+  const teaching = value.staffTypes.some((type) => departmentStaffTypes.includes(type));
+  const operational = value.staffTypes.some((type) => !departmentStaffTypes.includes(type));
+  if (teaching && value.departmentIds.length === 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["departmentIds"],
+      message: "Select at least one department",
+    });
+  }
+  if (teaching && operational) {
+    context.addIssue({
+      code: "custom",
+      path: ["staffTypes"],
+      message: "Teaching and operational roles cannot be combined",
+    });
+  }
+  if (operational && value.staffTypes.length > 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["staffTypes"],
+      message: "Select only one operational role",
+    });
+  }
+  if (value.staffTypes.includes("HOD") && value.departmentIds.length !== 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["departmentIds"],
+      message: "HOD must have exactly one department",
+    });
+  }
+  if (value.staffTypes.includes("HOD") && value.staffTypes.length > 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["staffTypes"],
+      message: "HOD must be selected as a standalone role",
+    });
+  }
+};
+export const updateStaffAssignmentSchema = z
+  .object({
+    staffTypes: z.array(staffTypeSchema).min(1, "Select at least one role"),
+    departmentIds: z.array(z.number()).default([]),
+  })
+  .superRefine(validateStaffAssignment);
 export const createStaffSchema = z
   .object({
     fullName: z.string().trim().min(2).max(150),
@@ -115,45 +162,7 @@ export const createStaffSchema = z
     departmentIds: z.array(z.number()).default([]),
     joiningDate: z.string().optional().default(""),
   })
-  .superRefine((value, context) => {
-    const teaching = value.staffTypes.some((type) => departmentStaffTypes.includes(type));
-    const operational = value.staffTypes.some((type) => !departmentStaffTypes.includes(type));
-    if (teaching && value.departmentIds.length === 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["departmentIds"],
-        message: "Select at least one department",
-      });
-    }
-    if (teaching && operational) {
-      context.addIssue({
-        code: "custom",
-        path: ["staffTypes"],
-        message: "Teaching and operational roles cannot be combined",
-      });
-    }
-    if (operational && value.staffTypes.length > 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["staffTypes"],
-        message: "Select only one operational role",
-      });
-    }
-    if (value.staffTypes.includes("HOD") && value.departmentIds.length !== 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["departmentIds"],
-        message: "HOD must have exactly one department",
-      });
-    }
-    if (value.staffTypes.includes("HOD") && value.staffTypes.length > 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["staffTypes"],
-        message: "HOD must be selected as a standalone role",
-      });
-    }
-  });
+  .superRefine(validateStaffAssignment);
 
 export const courseYearSchema = z.object({
   departmentId: z.coerce.number().positive("Department is required"),
