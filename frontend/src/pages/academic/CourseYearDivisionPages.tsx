@@ -803,7 +803,7 @@ export function DivisionDetailsPage() {
   );
 }
 
-function DivisionTimetable({ table }: { table: WeeklyTimetable | null }) {
+export function DivisionTimetable({ table }: { table: WeeklyTimetable | null }) {
   const entries = useMemo(
     () =>
       new Map(
