@@ -5,6 +5,8 @@ import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import com.jadhavr.erp.timetable.repository.WeeklyPeriodRepository;
 import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
+import com.jadhavr.erp.timetable.entity.WeeklyTimetable;
+import com.jadhavr.erp.timetable.entity.WeeklyTimetableEntry;
 import com.jadhavr.erp.user.entity.Role;
 import com.jadhavr.erp.user.entity.RoleName;
 import com.jadhavr.erp.user.entity.User;
@@ -71,5 +73,23 @@ class TeacherTimetableServiceTest {
         assertNull(response.lecture());
         verify(staff).findByUserId(77L);
         verify(entries).findByTeacherId(12L);
+    }
+
+    @Test
+    void submittedTimetableIsHiddenUntilPrincipalApproval() {
+        StaffProfile profile = new StaffProfile();
+        profile.setId(12L);
+        WeeklyTimetable timetable = new WeeklyTimetable();
+        timetable.setStatus(WeeklyTimetable.Status.ACTIVE);
+        timetable.setReviewStatus(WeeklyTimetable.ReviewStatus.SUBMITTED);
+        WeeklyTimetableEntry entry = new WeeklyTimetableEntry();
+        entry.setTimetable(timetable);
+
+        when(staff.findByUserId(77L)).thenReturn(Optional.of(profile));
+        when(entries.findByTeacherId(12L)).thenReturn(List.of(entry));
+
+        var response = service.next();
+
+        assertNull(response.lecture());
     }
 }

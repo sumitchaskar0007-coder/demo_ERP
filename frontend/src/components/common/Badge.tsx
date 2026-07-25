@@ -18,7 +18,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
+        "erp-badge inline-flex min-h-7 max-w-full w-fit items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-[13px] font-bold leading-5 ring-1 ring-inset",
         tones[tone],
       )}
     >

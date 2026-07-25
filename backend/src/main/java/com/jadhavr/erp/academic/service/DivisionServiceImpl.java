@@ -135,12 +135,25 @@ public class DivisionServiceImpl implements DivisionService {
     public DivisionResponse update(Long id, UpdateDivisionRequest request) {
         requirePrincipal();
         Section division = findScoped(id);
+        AcademicClass courseYear = courseYears.findById(request.courseYearId())
+                .orElseThrow(() -> new ResourceNotFoundException("Course Year not found"));
+        scope(courseYear.getCollege().getId());
+        if (courseYear.getStatus() != AcademicStatus.ACTIVE) {
+            throw new BadRequestException("Division requires an active Course Year");
+        }
         String code = normalizeCode(request.code());
-        if (!division.getCode().equalsIgnoreCase(code)
+        boolean courseYearChanged = !division.getAcademicClass().getId().equals(courseYear.getId());
+        boolean departmentChanged = !division.getDepartment().getId().equals(courseYear.getDepartment().getId());
+        if ((courseYearChanged || !division.getCode().equalsIgnoreCase(code))
                 && divisions.existsByAcademicClassIdAndAcademicYearAndCodeIgnoreCase(
-                division.getAcademicClass().getId(), division.getAcademicYear(), code)) {
+                courseYear.getId(), courseYear.getAcademicYear(), code)) {
             throw new DuplicateResourceException("Division code already exists in this Course Year");
         }
+        division.setCollege(courseYear.getCollege());
+        division.setDepartment(courseYear.getDepartment());
+        division.setAcademicClass(courseYear);
+        division.setAcademicYear(courseYear.getAcademicYear());
+        if (departmentChanged) division.setClassTeacher(null);
         division.setName(request.name().trim());
         division.setCode(code);
         division.setCapacity(request.capacity());
@@ -204,6 +217,8 @@ public class DivisionServiceImpl implements DivisionService {
                 .filter(staff -> staff.belongsToDepartment(division.getDepartment().getId()))
                 .filter(staff -> staff.getStatus() == StaffStatus.ACTIVE)
                 .filter(staff -> CLASS_TEACHER_TYPES.contains(staff.getStaffType()))
+                .filter(staff -> divisions.findByClassTeacherIdAndStatus(
+                        staff.getId(), SectionStatus.ACTIVE).isEmpty())
                 .map(staffMapper::toResponse)
                 .toList();
     }

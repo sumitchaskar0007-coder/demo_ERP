@@ -4,20 +4,17 @@ import {
   CalendarDays,
   Check,
   ClipboardCopy,
-  FileDown,
   GripVertical,
   Pencil,
   Plus,
-  Printer,
   Redo2,
-  Search,
   Settings2,
-  Sheet,
   Trash2,
   Undo2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
@@ -33,7 +30,6 @@ import {
   type WeeklyPeriodInput,
   type WeeklyTimetable,
 } from "./api";
-import { exportWeeklyTimetableExcel, exportWeeklyTimetablePdf } from "./weeklyTimetableExport";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { useAuth } from "@/features/auth/authStore";
@@ -49,12 +45,12 @@ const DAY_LABELS: Record<string, string> = {
   SATURDAY: "Saturday",
 };
 const PALETTE = [
-  "bg-blue-50 border-blue-200 text-blue-950 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-100",
-  "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100",
-  "bg-orange-50 border-orange-200 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-100",
-  "bg-violet-50 border-violet-200 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100",
-  "bg-cyan-50 border-cyan-200 text-cyan-950 dark:bg-cyan-950/40 dark:border-cyan-800 dark:text-cyan-100",
-  "bg-rose-50 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-100",
+  "bg-gradient-to-br from-blue-50 to-sky-100/70 border-sky-200 border-l-brand-500 text-slate-800 dark:from-sky-950/40 dark:to-blue-950/30 dark:border-sky-800 dark:text-sky-100",
+  "bg-gradient-to-br from-teal-50 to-cyan-100/60 border-teal-200 border-l-teal-500 text-slate-800 dark:from-teal-950/40 dark:to-cyan-950/30 dark:border-teal-800 dark:text-teal-100",
+  "bg-gradient-to-br from-orange-50 to-amber-100/60 border-orange-200 border-l-orange-400 text-slate-800 dark:from-orange-950/40 dark:to-amber-950/30 dark:border-orange-800 dark:text-orange-100",
+  "bg-gradient-to-br from-cyan-50 to-sky-100/60 border-cyan-200 border-l-cyan-500 text-slate-800 dark:from-cyan-950/40 dark:to-sky-950/30 dark:border-cyan-800 dark:text-cyan-100",
+  "bg-gradient-to-br from-lime-50 to-emerald-100/50 border-lime-200 border-l-lime-500 text-slate-800 dark:from-lime-950/30 dark:to-emerald-950/30 dark:border-lime-800 dark:text-lime-100",
+  "bg-gradient-to-br from-slate-50 to-blue-100/50 border-slate-200 border-l-slate-500 text-slate-800 dark:from-slate-800 dark:to-blue-950/30 dark:border-slate-700 dark:text-slate-100",
 ];
 
 type Editor = {
@@ -103,8 +99,12 @@ const toInput = (entry: WeeklyEntry): WeeklyEntryInput => ({
 });
 
 export function TimetablePage() {
+  const [searchParams] = useSearchParams();
+  const requestedSectionId = searchParams.get("sectionId");
   const { isRole } = useAuth();
   const isSuperAdmin = isRole([ROLES.SUPER_ADMIN]);
+  const isPrincipal = isRole([ROLES.PRINCIPAL]);
+  const isHod = isRole([ROLES.HOD]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [scope, setScope] = useState({ collegeId: "", departmentId: "", courseYearId: "" });
@@ -117,7 +117,6 @@ export function TimetablePage() {
   const [mobileDay, setMobileDay] = useState("MONDAY");
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [query, setQuery] = useState("");
   const [sourceDay, setSourceDay] = useState("MONDAY");
   const [targetDay, setTargetDay] = useState("TUESDAY");
   const [sourceSectionId, setSourceSectionId] = useState("");
@@ -130,18 +129,22 @@ export function TimetablePage() {
       .divisions()
       .then((rows) => {
         setDivisions(rows);
-        if (rows[0] && !isSuperAdmin) {
-          setSectionId(String(rows[0].id));
+        const requestedDivision = rows.find(
+          (division) => String(division.id) === requestedSectionId,
+        );
+        const initialDivision = requestedDivision ?? (!isSuperAdmin ? rows[0] : undefined);
+        if (initialDivision) {
+          setSectionId(String(initialDivision.id));
           setScope({
-            collegeId: String(rows[0].collegeId),
-            departmentId: String(rows[0].departmentId),
-            courseYearId: String(rows[0].courseYearId),
+            collegeId: String(initialDivision.collegeId),
+            departmentId: String(initialDivision.departmentId),
+            courseYearId: String(initialDivision.courseYearId),
           });
         }
       })
       .catch((error) => toast.error(handleApiError(error).message))
       .finally(() => setLoading(false));
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, requestedSectionId]);
   useEffect(() => {
     getActiveColleges()
       .then(setColleges)
@@ -149,21 +152,37 @@ export function TimetablePage() {
   }, []);
 
   useEffect(() => {
+    setTable(null);
+    setTimes([]);
+    setEditor(null);
+    setTimeEditor(false);
+    setSourceSectionId("");
+    setPast([]);
+    setFuture([]);
     if (!sectionId) return;
+
+    let active = true;
+    const requestedId = Number(sectionId);
     setLoading(true);
     weeklyTimetableApi
-      .get(Number(sectionId))
+      .get(requestedId)
       .then((next) => {
+        if (!active || next.sectionId !== requestedId) return;
         setTable(next);
         setTimes(next.periods);
-        setPast([]);
-        setFuture([]);
       })
       .catch((error) => {
+        if (!active) return;
         setTable(null);
         toast.error(handleApiError(error).message);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [sectionId]);
 
   const entryMap = useMemo(
@@ -173,15 +192,11 @@ export function TimetablePage() {
       ),
     [table],
   );
-  const normalizedQuery = query.trim().toLowerCase();
-  const matchesSearch = (entry?: WeeklyEntry) =>
-    !normalizedQuery ||
-    Boolean(
-      entry &&
-        [entry.subject, entry.teacher, entry.room, entry.lectureType, table?.division]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(normalizedQuery)),
-    );
+  const selectedCollegeName =
+    colleges.find((college) => college.id === Number(scope.collegeId))?.name ??
+    table?.college ??
+    "";
+  const matchesSearch = () => true;
 
   const setSavedSoon = () => {
     setSaveState("saved");
@@ -204,6 +219,56 @@ export function TimetablePage() {
       setSaveState("idle");
       toast.error(handleApiError(error).message);
       throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitForReview = async () => {
+    if (!table) return;
+    setSaving(true);
+    try {
+      setTable(await weeklyTimetableApi.submitReview(table.id));
+      toast.success("Timetable submitted to the Principal for approval");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startTimetableUpdate = async () => {
+    if (!table) return;
+    setSaving(true);
+    try {
+      const next = await weeklyTimetableApi.startRevision(table.id);
+      setTable(next);
+      setTimes(next.periods);
+      setPast([]);
+      setFuture([]);
+      toast.success("Update draft created. The approved timetable remains live.");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reviewTimetable = async (action: "APPROVE" | "REQUEST_CHANGES" | "REJECT") => {
+    if (!table) return;
+    const comment =
+      action === "APPROVE"
+        ? undefined
+        : window.prompt(
+            action === "REJECT" ? "Enter rejection reason" : "Describe the required changes",
+          );
+    if (action !== "APPROVE" && !comment?.trim()) return;
+    setSaving(true);
+    try {
+      setTable(await weeklyTimetableApi.review(table.id, action, comment?.trim()));
+      toast.success(action === "APPROVE" ? "Timetable approved" : "Timetable returned to the HOD");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
     } finally {
       setSaving(false);
     }
@@ -381,7 +446,7 @@ export function TimetablePage() {
     );
 
   return (
-    <div className="page-container min-w-0 space-y-6 print:p-0">
+    <div className="timetable-print-page page-container min-w-0 space-y-6 print:p-0">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between print:hidden">
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-600">
@@ -395,78 +460,113 @@ export function TimetablePage() {
               : "View the weekly schedule by college, department, year and division."}
           </p>
         </div>
-        {table?.editable && <div className="flex flex-wrap items-center gap-2">
-          {saveState !== "idle" && (
-            <span
-              className={`inline-flex items-center gap-1 text-xs font-semibold ${saveState === "saved" ? "text-emerald-600" : "text-slate-500"}`}
+        {table?.editable ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {saveState !== "idle" && (
+              <span
+                className={`inline-flex items-center gap-1 text-xs font-semibold ${saveState === "saved" ? "text-emerald-600" : "text-slate-500"}`}
+              >
+                {saveState === "saved" && <Check className="h-3.5 w-3.5" />}
+                {saveState === "saving" ? "Saving…" : "Saved successfully"}
+              </span>
+            )}
+            <Button
+              variant="secondary"
+              disabled={!past.length || saving}
+              onClick={() => void restore(past.at(-1) ?? [], "undo")}
             >
-              {saveState === "saved" && <Check className="h-3.5 w-3.5" />}
-              {saveState === "saving" ? "Saving…" : "Saved successfully"}
-            </span>
-          )}
-          <Button
-            variant="secondary"
-            disabled={!past.length || saving}
-            onClick={() => void restore(past.at(-1) ?? [], "undo")}
-          >
-            <Undo2 className="h-4 w-4" />
-            Undo
+              <Undo2 className="h-4 w-4" />
+              Undo
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!future.length || saving}
+              onClick={() => void restore(future[0], "redo")}
+            >
+              <Redo2 className="h-4 w-4" />
+              Redo
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setTimes(table.periods.map((period) => ({ ...period })));
+                setTimeEditor(true);
+              }}
+            >
+              <Settings2 className="h-4 w-4" />
+              Configure times
+            </Button>
+          </div>
+        ) : isHod && table?.status === "APPROVED" ? (
+          <Button loading={saving} onClick={() => void startTimetableUpdate()}>
+            <Pencil className="h-4 w-4" />
+            Update timetable
           </Button>
-          <Button
-            variant="secondary"
-            disabled={!future.length || saving}
-            onClick={() => void restore(future[0], "redo")}
-          >
-            <Redo2 className="h-4 w-4" />
-            Redo
-          </Button>
-          <Button variant="secondary" onClick={() => setTimeEditor(true)}>
-            <Settings2 className="h-4 w-4" />
-            Configure times
-          </Button>
-        </div>}
+        ) : null}
       </div>
 
       <Card className="p-4 sm:p-5 print:border-0 print:shadow-none">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Select
-            label="College"
-            value={scope.collegeId}
-            onChange={(event) => {
-              setScope({ collegeId: event.target.value, departmentId: "", courseYearId: "" });
-              setSectionId("");
-            }}
-            options={[
-              { label: "Select college", value: "" },
-              ...colleges
-                .filter((college) =>
-                  divisions.some((division) => division.collegeId === college.id),
-                )
-                .map((college) => ({ label: college.name, value: college.id })),
-            ]}
-          />
-          <Select
-            label="Department"
-            disabled={!scope.collegeId}
-            value={scope.departmentId}
-            onChange={(event) => {
-              setScope({ ...scope, departmentId: event.target.value, courseYearId: "" });
-              setSectionId("");
-            }}
-            options={[
-              { label: "Select department", value: "" },
-              ...Array.from(
-                new Map(
-                  divisions
-                    .filter(
-                      (division) =>
-                        !scope.collegeId || division.collegeId === Number(scope.collegeId),
-                    )
-                    .map((division) => [division.departmentId, division.department]),
-                ).entries(),
-              ).map(([value, label]) => ({ value, label })),
-            ]}
-          />
+        <div
+          className={`grid gap-3 md:grid-cols-2 print:hidden ${
+            isHod ? "xl:grid-cols-2" : "xl:grid-cols-4"
+          }`}
+        >
+          {!isHod && (
+            <>
+              {isPrincipal ? (
+                <Input
+                  label="College"
+                  value={selectedCollegeName}
+                  readOnly
+                  aria-readonly="true"
+                  className="cursor-not-allowed bg-slate-50 text-slate-700"
+                />
+              ) : (
+                <Select
+                  label="College"
+                  value={scope.collegeId}
+                  onChange={(event) => {
+                    setScope({
+                      collegeId: event.target.value,
+                      departmentId: "",
+                      courseYearId: "",
+                    });
+                    setSectionId("");
+                  }}
+                  options={[
+                    { label: "Select college", value: "" },
+                    ...colleges
+                      .filter((college) =>
+                        divisions.some((division) => division.collegeId === college.id),
+                      )
+                      .map((college) => ({ label: college.name, value: college.id })),
+                  ]}
+                />
+              )}
+              <Select
+                label="Department"
+                disabled={!scope.collegeId}
+                value={scope.departmentId}
+                onChange={(event) => {
+                  setScope({ ...scope, departmentId: event.target.value, courseYearId: "" });
+                  setSectionId("");
+                }}
+                options={[
+                  { label: "Select department", value: "" },
+                  ...Array.from(
+                    new Map(
+                      divisions
+                        .filter(
+                          (division) =>
+                            !scope.collegeId || division.collegeId === Number(scope.collegeId),
+                        )
+                        .map((division) => [division.departmentId, division.department]),
+                    ).entries(),
+                  ).map(([value, label]) => ({ value, label })),
+                ]}
+              />
+            </>
+          )}
           <Select
             label="Year / Class"
             disabled={!scope.collegeId || !scope.departmentId}
@@ -516,16 +616,19 @@ export function TimetablePage() {
           />
         </div>
         {table && (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 print:mt-0 print:grid-cols-6 print:gap-1">
             {[
+              ["College", table.college],
               ["Department", table.department],
               ["Year", table.year],
               ["Division", table.division],
               ["Class Teacher", table.classTeacher],
               ["Academic Year", table.academicYear],
-              ["Status", table.status],
             ].map(([key, value]) => (
-              <div key={key} className="min-w-0 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+              <div
+                key={key}
+                className="min-w-0 rounded-xl border border-sky-100 bg-sky-50/70 p-3 dark:border-slate-700 dark:bg-slate-800 print:rounded-none print:border print:bg-white print:p-2"
+              >
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                   {key}
                 </p>
@@ -534,49 +637,17 @@ export function TimetablePage() {
                 </p>
               </div>
             ))}
+            {table.reviewComment && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2 lg:col-span-3 xl:col-span-6 print:hidden">
+                <b>Principal review:</b> {table.reviewComment}
+              </div>
+            )}
           </div>
         )}
       </Card>
 
       {table && (
         <>
-          {table.editable && <Card className="space-y-4 p-4 sm:p-5 print:hidden">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-brand-600" />
-                <h2 className="font-semibold">Subjects</h2>
-                <span className="text-xs text-slate-400">Drag into a teaching period</span>
-              </div>
-              <div className="w-full lg:w-80">
-                <Input
-                  aria-label="Search timetable"
-                  placeholder="Search teacher, subject, room…"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  icon={<Search className="h-4 w-4" />}
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {table.subjects.map((subject) => (
-                <button
-                  key={subject.id}
-                  draggable={table.editable}
-                  onDragStart={(event) =>
-                    event.dataTransfer.setData(
-                      "application/json",
-                      JSON.stringify({ type: "subject", subjectId: subject.id }),
-                    )
-                  }
-                  className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition hover:-translate-y-0.5 ${color(subject.id)}`}
-                >
-                  <GripVertical className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{subject.label}</span>
-                </button>
-              ))}
-            </div>
-          </Card>}
-
           {table.editable && (
             <Card className="grid gap-3 p-4 print:hidden xl:grid-cols-[1fr_1fr_auto_auto]">
               <Select
@@ -642,20 +713,69 @@ export function TimetablePage() {
             </Card>
           )}
 
-          <div className="flex flex-wrap justify-end gap-2 print:hidden">
-            <Button variant="secondary" onClick={() => window.print()}>
-              <Printer className="h-4 w-4" />
-              Print
-            </Button>
-            <Button variant="secondary" onClick={() => void exportWeeklyTimetablePdf(table)}>
-              <FileDown className="h-4 w-4" />
-              PDF
-            </Button>
-            <Button variant="secondary" onClick={() => void exportWeeklyTimetableExcel(table)}>
-              <Sheet className="h-4 w-4" />
-              Excel
-            </Button>
-          </div>
+          {table.editable && (
+            <Card className="space-y-4 p-4 sm:p-5 print:hidden">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-brand-600" />
+                <h2 className="font-semibold">Subjects</h2>
+                <span className="text-xs text-slate-400">Drag into a teaching period</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {table.subjects.map((subject) => (
+                  <button
+                    key={subject.id}
+                    draggable={table.editable}
+                    onDragStart={(event) =>
+                      event.dataTransfer.setData(
+                        "application/json",
+                        JSON.stringify({ type: "subject", subjectId: subject.id }),
+                      )
+                    }
+                    className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition hover:-translate-y-0.5 ${color(subject.id)}`}
+                  >
+                    <GripVertical className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{subject.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {((isHod && table.editable) || (isPrincipal && table.status === "SUBMITTED")) && (
+            <div className="flex flex-wrap justify-end gap-2 print:hidden">
+              {isHod && table.editable && (
+                <Button
+                  disabled={saving || !table.entries.length}
+                  onClick={() => void submitForReview()}
+                >
+                  <Check className="h-4 w-4" />
+                  Submit to Principal
+                </Button>
+              )}
+              {isPrincipal && table.status === "SUBMITTED" && (
+                <>
+                  <Button disabled={saving} onClick={() => void reviewTimetable("APPROVE")}>
+                    <Check className="h-4 w-4" />
+                    Approve timetable
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={saving}
+                    onClick={() => void reviewTimetable("REQUEST_CHANGES")}
+                  >
+                    Request changes
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={saving}
+                    onClick={() => void reviewTimetable("REJECT")}
+                  >
+                    Reject
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           <DesktopGrid
             table={table}
@@ -881,6 +1001,21 @@ export function TimetablePage() {
                 setSaving(true);
                 setSaveState("saving");
                 try {
+                  const changedPeriodIds = new Set(
+                    times
+                      .filter((period) => {
+                        const current = table.periods.find((item) => item.id === period.id);
+                        return (
+                          current &&
+                          (current.startTime.slice(0, 5) !== period.startTime.slice(0, 5) ||
+                            current.endTime.slice(0, 5) !== period.endTime.slice(0, 5))
+                        );
+                      })
+                      .map((period) => period.id),
+                  );
+                  const clearedLectures = table.entries.filter((entry) =>
+                    changedPeriodIds.has(entry.periodId),
+                  ).length;
                   const next = await weeklyTimetableApi.updatePeriods(
                     table.id,
                     times.map((period) => ({
@@ -893,7 +1028,11 @@ export function TimetablePage() {
                   setTimes(next.periods);
                   setTimeEditor(false);
                   setSavedSoon();
-                  toast.success("Period times updated");
+                  toast.success(
+                    clearedLectures > 0
+                      ? `Period times updated. ${clearedLectures} lecture assignment${clearedLectures === 1 ? "" : "s"} cleared for reassignment.`
+                      : "Period times updated",
+                  );
                 } catch (error) {
                   setSaveState("idle");
                   toast.error(handleApiError(error).message);
@@ -921,10 +1060,12 @@ type GridProps = {
 
 function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridProps) {
   return (
-    <div className="hidden overflow-x-auto rounded-2xl border bg-white shadow-sm print:block xl:block">
-      <div className="min-w-[1120px]">
-        <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
-          <div className="sticky left-0 z-30 bg-slate-100 p-3 text-left">Period</div>
+    <div className="timetable-print-sheet hidden overflow-x-auto rounded-2xl border bg-white shadow-sm print:block print:overflow-visible print:rounded-none print:shadow-none xl:block">
+      <div className="min-w-[1120px] print:min-w-0">
+        <div className="sticky top-0 z-20 grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-b border-sky-200 bg-gradient-to-r from-brand-50 via-sky-50 to-cyan-50 text-center text-xs font-bold uppercase tracking-wide text-brand-700 print:static print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] print:text-[8px]">
+          <div className="sticky left-0 z-30 bg-gradient-to-r from-brand-50 to-sky-50 p-3 text-left">
+            Period
+          </div>
           {DAYS.map((day) => (
             <div className="border-l p-3" key={day}>
               {DAY_LABELS[day]}
@@ -934,13 +1075,13 @@ function DesktopGrid({ table, entryMap, matchesSearch, onOpen, onDrop }: GridPro
         {table.periods.map((period) => (
           <div
             key={period.id}
-            className={`grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-t ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}
+            className={`grid grid-cols-[150px_repeat(6,minmax(155px,1fr))] border-t print:grid-cols-[28mm_repeat(6,minmax(0,1fr))] ${period.kind !== "TEACHING" ? "bg-orange-50/70" : ""}`}
           >
             <div className="sticky left-0 z-10 flex min-w-0 flex-col justify-center bg-white p-3">
               <PeriodLabel period={period} />
             </div>
             {period.kind !== "TEACHING" ? (
-              <div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.2em] text-amber-700">
+              <div className="col-span-6 flex items-center justify-center border-l border-orange-200 p-4 text-xs font-bold tracking-[.2em] text-orange-700">
                 {period.kind === "SHORT_BREAK" ? "SHORT BREAK" : "LUNCH BREAK"}
               </div>
             ) : (
@@ -980,7 +1121,7 @@ function MobileGrid({
           <button
             key={item}
             onClick={() => setDay(item)}
-            className={`rounded-xl px-2 py-2 text-xs font-semibold ${day === item ? "bg-brand-600 text-white" : "border bg-white text-slate-600"}`}
+            className={`rounded-xl px-2 py-2 text-xs font-semibold transition ${day === item ? "bg-gradient-to-r from-brand-600 to-sky-500 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50"}`}
           >
             {DAY_LABELS[item].slice(0, 3)}
           </button>
@@ -988,9 +1129,9 @@ function MobileGrid({
       </div>
       <Card className="divide-y overflow-hidden">
         {table.periods.map((period) => (
-          <div key={period.id} className={period.kind !== "TEACHING" ? "bg-amber-50" : "p-3"}>
+          <div key={period.id} className={period.kind !== "TEACHING" ? "bg-orange-50" : "p-3"}>
             {period.kind !== "TEACHING" ? (
-              <div className="p-4 text-center text-xs font-bold tracking-widest text-amber-700">
+              <div className="p-4 text-center text-xs font-bold tracking-widest text-orange-700">
                 {period.label} · {displayTime(period.startTime)}–{displayTime(period.endTime)}
               </div>
             ) : (
@@ -1066,18 +1207,18 @@ function Cell({
         void onDrop(day, period, event.dataTransfer.getData("application/json"));
       }}
       onClick={() => onOpen(day, period, entry)}
-      className={`group min-h-24 min-w-0 border-l p-2 text-left transition hover:bg-brand-50/40 disabled:cursor-default ${highlighted ? "opacity-100" : "opacity-25"}`}
+      className={`group min-h-24 min-w-0 rounded-xl border bg-slate-50/60 p-1.5 text-left transition hover:border-brand-200 hover:bg-brand-50/50 disabled:cursor-default xl:rounded-none xl:border-y-0 xl:border-r-0 xl:border-l xl:bg-white xl:p-2 print:min-h-0 print:rounded-none print:border-l print:bg-white print:p-1 ${highlighted ? "opacity-100" : "opacity-25"}`}
     >
       {entry ? (
         <div
-          className={`h-full min-w-0 rounded-xl border p-2.5 shadow-sm transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md ${color(entry.subjectId)}`}
+          className={`h-full min-w-0 rounded-xl border border-l-4 p-3 shadow-sm transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md print:rounded-none print:border-l print:p-1 print:shadow-none ${color(entry.subjectId)}`}
         >
           <div className="flex items-start justify-between gap-1">
             <b className="break-words text-xs leading-5">{entry.subject}</b>
             {editable && <Pencil className="h-3 w-3 shrink-0 opacity-50" />}
           </div>
-          <p className="mt-1 truncate text-[10px] opacity-75">{entry.teacher}</p>
-          <p className="mt-1 text-[10px] font-semibold">
+          <p className="mt-1 break-words text-[11px] leading-4 opacity-75">{entry.teacher}</p>
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide opacity-80">
             {entry.lectureType}
             {entry.room ? ` · ${entry.room}` : ""}
           </p>

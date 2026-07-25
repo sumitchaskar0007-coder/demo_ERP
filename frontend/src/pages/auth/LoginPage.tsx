@@ -1,106 +1,269 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  Check,
+  Clock3,
+  Eye,
+  EyeOff,
+  GraduationCap,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Button } from "@/components/common/Button";
 import { BrandLogo } from "@/components/common/BrandLogo";
+import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { useAuth } from "@/features/auth/authStore";
+import {
+  APP_NAME,
+  ROLES,
+  ROUTES,
+  defaultRouteForRoles,
+  isRouteAllowedForRoles,
+} from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
 import { loginSchema } from "@/lib/validators";
-import { APP_NAME, ROUTES, defaultRouteForRoles, isRouteAllowedForRoles } from "@/lib/constants";
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-const LOGIN_CATEGORY_OPTIONS = [
-  { label: "Admin", value: "admin" },
-  { label: "Principal", value: "principal" },
-  { label: "Teacher", value: "teacher" },
-  { label: "Student", value: "student" },
-  { label: "Accountant", value: "accountant" },
-];
-
-const LOGIN_SLIDES = [
-  { image: "/assets/login/campus.jpg", eyebrow: "Connected campuses", title: "One workspace for every college", description: "Bring admissions, academics, staff, fees and reporting together in one secure ERP." },
-  { image: "/assets/login/classroom.jpg", eyebrow: "Smarter learning", title: "Built for modern education", description: "Give every role the right tools while keeping institutional data protected and organized." },
-  { image: "/assets/login/library.jpg", eyebrow: "Knowledge that grows", title: "Make every decision clearer", description: "Turn daily operations into reliable insights for administrators, teachers and students." },
+const PLATFORM_FEATURES = [
+  {
+    title: "Role-Based Access",
+    description: "Secure dashboards for every role",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Real-Time Operations",
+    description: "Track and manage in real time",
+    icon: Clock3,
+  },
+  {
+    title: "Trusted & Secure",
+    description: "Enterprise-grade data protection",
+    icon: LockKeyhole,
+  },
 ];
 
 export function LoginPage() {
+  const [rememberedEmail] = useState(
+    () => window.localStorage.getItem("erp.rememberedEmail") || "",
+  );
   const [showPassword, setShowPassword] = useState(false);
-  const [loginCategory, setLoginCategory] = useState("admin");
-  const [slide, setSlide] = useState(0);
+  const [rememberMe, setRememberMe] = useState(true);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "admin@erp.com", password: "Admin@12345" },
+    defaultValues: { email: rememberedEmail, password: "" },
   });
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setSlide((current) => (current + 1) % LOGIN_SLIDES.length), 6000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  if (isAuthenticated) return <Navigate to={defaultRouteForRoles(user?.roles)} replace />;
+  if (isAuthenticated)
+    return (
+      <Navigate
+        to={
+          user?.mustChangePassword && !user.roles.includes(ROLES.STUDENT)
+            ? ROUTES.changePassword
+            : defaultRouteForRoles(user?.roles)
+        }
+        replace
+      />
+    );
 
   const onSubmit = async (values: LoginForm) => {
     try {
-      // Login category is visual guidance only. The backend determines access
-      // securely from the authenticated account's assigned roles.
+      if (rememberMe) window.localStorage.setItem("erp.rememberedEmail", values.email);
+      else window.localStorage.removeItem("erp.rememberedEmail");
+
       const authenticatedUser = await login(values);
       toast.success(`Welcome to ${APP_NAME}`);
-      if (authenticatedUser.mustChangePassword) {
+      if (
+        authenticatedUser.mustChangePassword &&
+        !authenticatedUser.roles.includes(ROLES.STUDENT)
+      ) {
         navigate(ROUTES.changePassword, { replace: true });
         return;
       }
       const from = (location.state as { from?: string } | null)?.from;
       const target = defaultRouteForRoles(authenticatedUser.roles);
-      navigate(from && isRouteAllowedForRoles(from, authenticatedUser.roles) ? from : target, { replace: true });
+      navigate(from && isRouteAllowedForRoles(from, authenticatedUser.roles) ? from : target, {
+        replace: true,
+      });
     } catch (error) {
       toast.error(handleApiError(error).message);
     }
   };
 
-  const activeSlide = LOGIN_SLIDES[slide];
-  const changeSlide = (direction: number) => setSlide((current) => (current + direction + LOGIN_SLIDES.length) % LOGIN_SLIDES.length);
-
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-slate-950 px-3 py-3 sm:px-6 sm:py-6 lg:grid lg:place-items-center lg:px-10 lg:py-10">
-      <div className="absolute inset-0">
-        {LOGIN_SLIDES.map((item, index) => <img key={item.image} src={item.image} alt="" className={`absolute inset-0 h-full w-full object-cover transition-all duration-1000 ${index===slide?"scale-100 opacity-100":"scale-105 opacity-0"}`} />)}
-        <div className="absolute inset-0 bg-slate-950/65" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,.28),transparent_32%),radial-gradient(circle_at_85%_80%,rgba(20,184,166,.22),transparent_30%)]" />
-      </div>
+    <main className="min-h-[100dvh] bg-[#eeebff] lg:grid lg:place-items-center lg:p-6">
+      <section className="relative mx-auto grid min-h-[100dvh] w-full max-w-[1536px] overflow-hidden bg-gradient-to-br from-[#35208f] via-[#5b20e8] to-[#35108e] shadow-[0_32px_90px_rgba(54,28,145,.28)] lg:min-h-[calc(100dvh-3rem)] lg:grid-cols-[1.08fr_0.92fr] lg:rounded-[30px] lg:border lg:border-violet-300/30">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div className="absolute -left-48 -top-56 h-[620px] w-[620px] rounded-full border-[100px] border-white/[0.035]" />
+          <div className="absolute -bottom-52 left-[28%] h-[780px] w-[780px] rounded-full border-[110px] border-white/[0.05]" />
+          <div className="absolute right-[44%] top-16 h-24 w-24 rounded-full bg-violet-300/10 blur-sm" />
+          <div className="absolute right-[45%] top-24 h-36 w-52 opacity-20 [background-image:radial-gradient(circle,white_2px,transparent_2px)] [background-size:26px_26px]" />
+        </div>
 
-      <section className="relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-[22px] border border-white/15 bg-white/95 shadow-[0_35px_100px_rgba(2,6,23,.55)] backdrop-blur-xl sm:rounded-[28px] lg:min-h-[680px] lg:grid-cols-[0.88fr_1.12fr]">
-        <aside className="relative min-h-[250px] overflow-hidden bg-gradient-to-br from-blue-700 via-blue-600 to-teal-500 p-5 text-white sm:min-h-[320px] sm:p-10 lg:flex lg:min-h-0 lg:flex-col lg:justify-between lg:p-12">
-          <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(135deg,rgba(255,255,255,.12)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.12)_50%,rgba(255,255,255,.12)_75%,transparent_75%,transparent)] [background-size:18px_18px]" />
-          <div className="absolute -bottom-28 -right-24 h-72 w-72 rounded-full bg-orange-400/50 blur-3xl" />
-          <div className="absolute -left-28 top-1/3 h-64 w-64 rounded-full bg-cyan-300/25 blur-3xl" />
-          <div className="relative"><div className="inline-flex rounded-xl bg-white px-3 py-2 shadow-lg sm:rounded-2xl sm:px-4"><BrandLogo className="w-36 sm:w-44" /></div><span className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] sm:mt-8 sm:text-xs sm:tracking-[.16em]"><GraduationCap className="h-4 w-4" />{activeSlide.eyebrow}</span><h1 className="mt-3 max-w-lg text-2xl font-black leading-tight sm:mt-5 sm:text-4xl lg:text-5xl">{activeSlide.title}</h1><p className="mt-3 max-w-md text-xs leading-5 text-blue-50 sm:mt-4 sm:text-base sm:leading-6">{activeSlide.description}</p></div>
-          <div className="relative mt-8 hidden lg:block"><div className="space-y-3 text-sm">{["Role-based secure access","Real-time college operations","One trusted source of data"].map((item)=><p key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-200" />{item}</p>)}</div><div className="mt-8 flex items-center gap-2">{LOGIN_SLIDES.map((_,index)=><button key={index} onClick={()=>setSlide(index)} aria-label={`Show slide ${index+1}`} className={`h-2 rounded-full transition-all ${index===slide?"w-8 bg-white":"w-2 bg-white/45 hover:bg-white/70"}`} />)}<div className="ml-auto flex gap-2"><button onClick={()=>changeSlide(-1)} className="grid h-9 w-9 place-items-center rounded-full border border-white/25 bg-white/10 hover:bg-white/20" aria-label="Previous slide"><ChevronLeft className="h-4 w-4" /></button><button onClick={()=>changeSlide(1)} className="grid h-9 w-9 place-items-center rounded-full border border-white/25 bg-white/10 hover:bg-white/20" aria-label="Next slide"><ChevronRight className="h-4 w-4" /></button></div></div></div>
+        <aside className="relative z-10 hidden min-h-0 flex-col justify-between p-10 text-white lg:flex xl:p-14 2xl:p-16">
+          <div>
+            <div className="inline-flex rounded-2xl bg-white px-4 py-3 shadow-xl shadow-violet-950/20">
+              <BrandLogo className="w-44 xl:w-48" />
+            </div>
+
+            <span className="mt-10 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.15em] backdrop-blur-sm">
+              <GraduationCap className="h-4 w-4" /> Smarter learning
+            </span>
+
+            <h1 className="mt-7 max-w-xl text-5xl font-black leading-[1.05] tracking-tight 2xl:text-6xl">
+              Empowering Education with <span className="text-violet-200">Smart ERP</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-base leading-7 text-violet-100/90 xl:text-lg">
+              Role-based access, real-time insights, and secure data management—all in one powerful
+              platform.
+            </p>
+
+            <div className="mt-9 grid max-w-lg gap-4">
+              {PLATFORM_FEATURES.map(({ title, description, icon: Icon }) => (
+                <div key={title} className="flex items-center gap-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-violet-100 backdrop-blur-sm">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-bold">{title}</p>
+                    <p className="mt-0.5 text-sm text-violet-100/75">{description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex w-fit items-center gap-4 rounded-2xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 text-white">
+              <UsersRound className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-violet-100">Trusted by</p>
+              <p className="text-lg font-black">500+ Institutions</p>
+            </div>
+          </div>
         </aside>
 
-        <div className="flex items-center bg-white p-5 sm:p-10 lg:p-14">
-          <div className="mx-auto w-full max-w-md">
-            <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-brand-600 sm:text-xs sm:tracking-[.18em]">Secure ERP access</p><h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Welcome back</h2><p className="mt-2 text-xs leading-5 text-slate-500 sm:text-sm sm:leading-6">Select your workspace role and enter your registered credentials.</p></div><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-brand-600 sm:h-12 sm:w-12 sm:rounded-2xl"><ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" /></div></div>
+        <div className="relative z-10 flex min-h-[100dvh] flex-col pb-7 lg:min-h-0 lg:p-6 xl:p-8">
+          <div className="flex h-[320px] shrink-0 flex-col items-center justify-center px-6 pb-16 pt-8 text-center text-white sm:h-[360px] lg:hidden">
+            <div className="rounded-[22px] border border-white/20 bg-white/95 px-4 py-3 shadow-2xl shadow-violet-950/25 backdrop-blur-sm">
+              <BrandLogo className="w-36 sm:w-44" />
+            </div>
+            <h1 className="mt-5 text-[1.9rem] font-black tracking-tight sm:text-3xl">
+              Welcome back!
+            </h1>
+            <p className="mt-1 text-sm text-violet-100 sm:text-lg">Sign in to continue</p>
+          </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2 sm:mt-7 sm:grid-cols-5">{LOGIN_CATEGORY_OPTIONS.map((option)=><button type="button" key={option.value} onClick={()=>setLoginCategory(option.value)} className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs font-semibold transition ${loginCategory===option.value?"border-brand-500 bg-brand-50 text-brand-700 shadow-sm":"border-slate-200 text-slate-500 hover:border-brand-200 hover:bg-slate-50"}`}>{option.label}</button>)}</div>
+          <div className="-mt-12 mx-4 flex flex-none items-start rounded-[30px] border border-white/50 bg-white px-5 py-7 shadow-[0_24px_70px_rgba(27,8,83,.28)] sm:mx-8 sm:px-10 sm:py-10 lg:mx-0 lg:mt-0 lg:flex-1 lg:items-center lg:rounded-[26px] lg:px-10 lg:py-10 lg:shadow-[0_24px_70px_rgba(24,10,79,.22)] xl:px-14 2xl:px-16">
+            <div className="mx-auto w-full max-w-[590px]">
+              <div className="hidden items-start justify-between gap-4 lg:flex">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-600">
+                    Secure ERP access
+                  </p>
+                  <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-950">
+                    Welcome back!
+                  </h2>
+                  <p className="mt-2 text-base text-slate-500">
+                    Sign in to continue to your dashboard
+                  </p>
+                </div>
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-violet-100 bg-violet-50 text-violet-600 shadow-sm">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+              </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
-              <Input label="Email address" type="email" placeholder="Enter your email" icon={<Mail className="h-4 w-4" />} error={errors.email?.message} className="h-12" {...register("email")} />
-              <div className="relative"><Input label="Password" type={showPassword ? "text" : "password"} placeholder="Enter your password" icon={<LockKeyhole className="h-4 w-4" />} error={errors.password?.message} className="h-12 pr-11" {...register("password")} /><button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-[39px] text-slate-400 hover:text-slate-600" aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button></div>
-              <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-xs text-slate-500 sm:text-sm"><input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />Remember me</label><Link to={ROUTES.forgotPassword} className="text-xs font-semibold text-brand-600 hover:text-brand-700 sm:text-sm">Forgot password?</Link></div>
-              <Button type="submit" loading={isSubmitting} className="h-[52px] w-full rounded-2xl text-base">Sign in securely<ArrowRight className="h-4 w-4" /></Button>
-            </form>
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="space-y-4 sm:mt-6 sm:space-y-5 lg:mt-8"
+              >
+                <Input
+                  label="Email address"
+                  type="email"
+                  placeholder="Enter your email"
+                  autoComplete="username"
+                  icon={<Mail className="h-5 w-5" />}
+                  error={errors.email?.message}
+                  className="h-[52px] rounded-xl border-slate-200 pl-11 shadow-sm focus:border-violet-600 focus:ring-violet-100 sm:h-14"
+                  {...register("email")}
+                />
 
-            <div className="mt-6 flex items-center gap-3 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-teal-50 p-4"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-brand-600 shadow-sm"><LockKeyhole className="h-5 w-5" /></div><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-blue-700">Demo Super Admin</p><p className="mt-1 truncate text-sm text-slate-700">admin@erp.com · Admin@12345</p></div></div>
-            <p className="mt-6 text-center text-xs text-slate-400">© 2026 Jadhavr ERP · Secure access for modern education</p>
+                <div className="relative">
+                  <Input
+                    label="Password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    icon={<LockKeyhole className="h-5 w-5" />}
+                    error={errors.password?.message}
+                    className="h-[52px] rounded-xl border-slate-200 pl-11 pr-12 shadow-sm focus:border-violet-600 focus:ring-violet-100 sm:h-14"
+                    {...register("password")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-3 top-[41px] grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-50 hover:text-violet-700 sm:top-[43px]"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-600 sm:gap-2.5 sm:text-sm">
+                    <span
+                      className={`grid h-5 w-5 place-items-center rounded-md border transition ${
+                        rememberMe
+                          ? "border-violet-600 bg-violet-600 text-white"
+                          : "border-slate-300 bg-white"
+                      }`}
+                    >
+                      {rememberMe && <Check className="h-3.5 w-3.5" />}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(event) => setRememberMe(event.target.checked)}
+                      className="sr-only"
+                    />
+                    Remember me
+                  </label>
+                  <Link
+                    to={ROUTES.forgotPassword}
+                    className="whitespace-nowrap text-[13px] font-bold text-violet-600 transition hover:text-violet-800 sm:text-sm"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <Button
+                  type="submit"
+                  loading={isSubmitting}
+                  className="h-[52px] w-full rounded-xl bg-gradient-to-r from-violet-700 via-violet-600 to-fuchsia-600 text-sm shadow-lg shadow-violet-500/25 hover:from-violet-800 hover:to-fuchsia-700 sm:h-14 sm:text-base"
+                >
+                  Sign in securely <ArrowRight className="h-5 w-5" />
+                </Button>
+              </form>
+
+              <p className="mt-6 hidden items-center justify-center gap-2 text-center text-xs text-slate-400 sm:flex">
+                <ShieldCheck className="h-4 w-4" /> © 2026 Jadhavar ERP. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </section>

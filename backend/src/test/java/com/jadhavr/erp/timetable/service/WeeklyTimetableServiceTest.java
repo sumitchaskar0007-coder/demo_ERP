@@ -1,6 +1,7 @@
 package com.jadhavr.erp.timetable.service;
 
 import com.jadhavr.erp.academic.entity.Section;
+import com.jadhavr.erp.academic.entity.StudentSectionEnrollment;
 import com.jadhavr.erp.academic.entity.Subject;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.enums.SubjectStatus;
@@ -8,16 +9,23 @@ import com.jadhavr.erp.academic.repository.SectionRepository;
 import com.jadhavr.erp.academic.repository.SubjectRepository;
 import com.jadhavr.erp.academic.repository.SubjectTeacherAssignmentRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.audit.service.AuditLogService;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.exception.BadRequestException;
+import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.notice.entity.NoticePriority;
+import com.jadhavr.erp.notice.service.NoticeService;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import com.jadhavr.erp.timetable.dto.WeeklyTimetableDtos.SaveEntryRequest;
+import com.jadhavr.erp.timetable.dto.WeeklyTimetableDtos.PeriodItem;
+import com.jadhavr.erp.timetable.dto.WeeklyTimetableDtos.UpdatePeriodsRequest;
 import com.jadhavr.erp.timetable.entity.WeeklyPeriod;
 import com.jadhavr.erp.timetable.entity.WeeklyTimetable;
+import com.jadhavr.erp.timetable.entity.WeeklyTimetableEntry;
 import com.jadhavr.erp.timetable.repository.WeeklyPeriodRepository;
 import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
 import com.jadhavr.erp.timetable.repository.WeeklyTimetableRepository;
@@ -40,12 +48,16 @@ import java.lang.reflect.Field;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,6 +77,10 @@ class WeeklyTimetableServiceTest {
     private StaffProfileRepository staff;
     @Mock
     private SubjectTeacherAssignmentRepository subjectTeacherAssignments;
+    @Mock
+    private AuditLogService audit;
+    @Mock
+    private NoticeService notices;
 
     @InjectMocks
     private WeeklyTimetableService service;
@@ -73,7 +89,7 @@ class WeeklyTimetableServiceTest {
     void setUpSecurityContext() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(userDetails(), null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_PRINCIPAL"))));
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_HOD"))));
     }
 
     @AfterEach
@@ -82,7 +98,7 @@ class WeeklyTimetableServiceTest {
     }
 
     @Test
-    void saveRejectsTeacherNotAssignedToSubject() {
+    void saveRejectsHodEvenWhenAssignedToSubject() {
         College college = new College();
         college.setId(10L);
         Department department = new Department();
@@ -96,10 +112,18 @@ class WeeklyTimetableServiceTest {
         section.setDepartment(department);
         section.setAcademicClass(academicClass);
         section.setAcademicYear("2025-26");
+        StaffProfile editor = new StaffProfile();
+        editor.setId(70L);
+        editor.setCollege(college);
+        editor.setDepartment(department);
+        editor.setStaffType(StaffType.HOD);
+        editor.setStatus(StaffStatus.ACTIVE);
+        section.setClassTeacher(editor);
 
         WeeklyTimetable timetable = new WeeklyTimetable();
         timetable.setCollege(college);
         timetable.setSection(section);
+        timetable.setStatus(WeeklyTimetable.Status.DRAFT);
         setId(timetable, 1L);
 
         WeeklyPeriod period = new WeeklyPeriod();
@@ -118,17 +142,199 @@ class WeeklyTimetableServiceTest {
         teacher.setId(60L);
         teacher.setStatus(StaffStatus.ACTIVE);
         teacher.setDepartment(department);
-        teacher.setStaffType(StaffType.SUBJECT_TEACHER);
+        teacher.setStaffType(StaffType.HOD);
 
         when(tables.findById(1L)).thenReturn(Optional.of(timetable));
         when(periods.findById(2L)).thenReturn(Optional.of(period));
         when(subjects.findById(50L)).thenReturn(Optional.of(subject));
         when(staff.findById(60L)).thenReturn(Optional.of(teacher));
-        when(subjectTeacherAssignments.existsBySubjectIdAndTeacherIdAndStatus(50L, 60L, AcademicStatus.ACTIVE)).thenReturn(false);
-
+        when(staff.findByUserId(99L)).thenReturn(Optional.of(editor));
         SaveEntryRequest request = new SaveEntryRequest(50L, 60L, "A101", "THEORY", "");
 
         assertThrows(BadRequestException.class, () -> service.save(1L, "MONDAY", 2L, request));
+    }
+
+    @Test
+    void submitForReviewCreatesPrincipalNotice() {
+        College college = new College();
+        college.setId(10L);
+        Department department = new Department();
+        department.setId(20L);
+        department.setName("BCA");
+        com.jadhavr.erp.academic.entity.AcademicClass academicClass =
+                new com.jadhavr.erp.academic.entity.AcademicClass();
+        academicClass.setId(30L);
+        academicClass.setName("BCA First Year");
+
+        Section section = new Section();
+        section.setId(40L);
+        section.setCollege(college);
+        section.setDepartment(department);
+        section.setAcademicClass(academicClass);
+        section.setName("Division A");
+        section.setAcademicYear("2026-2027");
+
+        StaffProfile editor = new StaffProfile();
+        editor.setId(70L);
+        editor.setCollege(college);
+        editor.setDepartment(department);
+        editor.setStaffType(StaffType.HOD);
+        editor.setStatus(StaffStatus.ACTIVE);
+
+        WeeklyTimetable timetable = new WeeklyTimetable();
+        timetable.setCollege(college);
+        timetable.setSection(section);
+        timetable.setStatus(WeeklyTimetable.Status.DRAFT);
+        setId(timetable, 1L);
+
+        when(tables.findById(1L)).thenReturn(Optional.of(timetable));
+        when(staff.findByUserId(99L)).thenReturn(Optional.of(editor));
+        when(entries.findByTimetableId(1L))
+                .thenReturn(List.of(new com.jadhavr.erp.timetable.entity.WeeklyTimetableEntry()))
+                .thenReturn(Collections.emptyList());
+        when(subjects.findAll()).thenReturn(Collections.emptyList());
+        when(staff.findByCollegeId(10L)).thenReturn(Collections.emptyList());
+        when(periods.findByTimetableIdOrderByPosition(1L)).thenReturn(Collections.emptyList());
+
+        service.submitForReview(1L);
+
+        assertEquals(WeeklyTimetable.ReviewStatus.SUBMITTED, timetable.getReviewStatus());
+        verify(notices).createWorkflowNotice(
+                eq("Timetable awaiting approval"),
+                contains("BCA First Year · Division A"),
+                eq(NoticePriority.NORMAL),
+                eq(Set.of(RoleName.PRINCIPAL)),
+                same(college),
+                eq("/timetable?sectionId=40"));
+    }
+
+    @Test
+    void approvingUpdateArchivesPreviousLiveTimetable() {
+        setSecurityRole(RoleName.PRINCIPAL);
+        College college = new College();
+        college.setId(10L);
+        college.setName("Jadhavar College");
+        Department department = new Department();
+        department.setId(20L);
+        department.setName("BCA");
+        com.jadhavr.erp.academic.entity.AcademicClass academicClass =
+                new com.jadhavr.erp.academic.entity.AcademicClass();
+        academicClass.setId(30L);
+        academicClass.setName("BCA First Year");
+        Section section = new Section();
+        section.setId(40L);
+        section.setCollege(college);
+        section.setDepartment(department);
+        section.setAcademicClass(academicClass);
+        section.setName("Division A");
+        section.setAcademicYear("2026-2027");
+
+        WeeklyTimetable live = new WeeklyTimetable();
+        live.setCollege(college);
+        live.setSection(section);
+        live.setStatus(WeeklyTimetable.Status.ACTIVE);
+        live.setReviewStatus(WeeklyTimetable.ReviewStatus.APPROVED);
+        setId(live, 1L);
+
+        WeeklyTimetable revision = new WeeklyTimetable();
+        revision.setCollege(college);
+        revision.setSection(section);
+        revision.setStatus(WeeklyTimetable.Status.DRAFT);
+        revision.setReviewStatus(WeeklyTimetable.ReviewStatus.SUBMITTED);
+        setId(revision, 2L);
+
+        when(tables.findById(2L)).thenReturn(Optional.of(revision));
+        when(tables.findFirstBySectionIdAndStatusOrderByIdDesc(
+                40L, WeeklyTimetable.Status.ACTIVE)).thenReturn(Optional.of(live));
+        when(subjects.findAll()).thenReturn(Collections.emptyList());
+        when(staff.findByCollegeId(10L)).thenReturn(Collections.emptyList());
+        when(entries.findByTimetableId(2L)).thenReturn(Collections.emptyList());
+        when(periods.findByTimetableIdOrderByPosition(2L)).thenReturn(Collections.emptyList());
+
+        service.review(2L, new com.jadhavr.erp.timetable.dto.WeeklyTimetableDtos.ReviewRequest(
+                "APPROVE", null));
+
+        assertEquals(WeeklyTimetable.Status.ARCHIVED, live.getStatus());
+        assertEquals(WeeklyTimetable.Status.ACTIVE, revision.getStatus());
+        assertEquals(WeeklyTimetable.ReviewStatus.APPROVED, revision.getReviewStatus());
+        verify(tables).saveAndFlush(live);
+        verify(tables).save(revision);
+    }
+
+    @Test
+    void studentCannotOpenTimetableBeforePrincipalApproval() {
+        setSecurityRole(RoleName.STUDENT);
+        Section section = new Section();
+        section.setId(40L);
+        StudentSectionEnrollment enrollment = new StudentSectionEnrollment();
+        enrollment.setSection(section);
+        enrollment.setStatus(AcademicStatus.ACTIVE);
+        WeeklyTimetable timetable = new WeeklyTimetable();
+        timetable.setSection(section);
+        timetable.setReviewStatus(WeeklyTimetable.ReviewStatus.SUBMITTED);
+        when(tables.findFirstBySectionIdAndStatusOrderByIdDesc(
+                40L, WeeklyTimetable.Status.ACTIVE)).thenReturn(Optional.of(timetable));
+
+        assertThrows(ResourceNotFoundException.class, () -> service.studentTimetable(enrollment));
+    }
+
+    @Test
+    void changingPeriodTimeClearsItsExistingLectureAssignments() {
+        College college = new College();
+        college.setId(10L);
+        Department department = new Department();
+        department.setId(20L);
+        com.jadhavr.erp.academic.entity.AcademicClass academicClass =
+                new com.jadhavr.erp.academic.entity.AcademicClass();
+        academicClass.setId(30L);
+
+        Section section = new Section();
+        section.setId(40L);
+        section.setCollege(college);
+        section.setDepartment(department);
+        section.setAcademicClass(academicClass);
+
+        StaffProfile editor = new StaffProfile();
+        editor.setId(70L);
+        editor.setCollege(college);
+        editor.setDepartment(department);
+        editor.setStaffType(StaffType.HOD);
+        editor.setStatus(StaffStatus.ACTIVE);
+
+        WeeklyTimetable timetable = new WeeklyTimetable();
+        timetable.setCollege(college);
+        timetable.setSection(section);
+        timetable.setStatus(WeeklyTimetable.Status.DRAFT);
+        setId(timetable, 1L);
+
+        WeeklyPeriod period = new WeeklyPeriod();
+        period.setTimetable(timetable);
+        period.setPosition(1);
+        period.setLabel("Period 1");
+        period.setStartTime(LocalTime.of(13, 0));
+        period.setEndTime(LocalTime.of(14, 0));
+        period.setKind(WeeklyPeriod.Kind.TEACHING);
+        setId(period, 2L);
+
+        WeeklyTimetableEntry assignment = new WeeklyTimetableEntry();
+        assignment.setTimetable(timetable);
+        assignment.setPeriod(period);
+
+        when(tables.findById(1L)).thenReturn(Optional.of(timetable));
+        when(staff.findByUserId(99L)).thenReturn(Optional.of(editor));
+        when(periods.findByTimetableIdOrderByPosition(1L)).thenReturn(List.of(period));
+        when(entries.findByPeriodId(2L)).thenReturn(List.of(assignment));
+        when(entries.findByTimetableId(1L)).thenReturn(Collections.emptyList());
+        when(subjects.findAll()).thenReturn(Collections.emptyList());
+        when(staff.findByCollegeId(10L)).thenReturn(Collections.emptyList());
+
+        service.updatePeriods(1L, new UpdatePeriodsRequest(List.of(
+                new PeriodItem(2L, "Period 1", LocalTime.of(14, 0),
+                        LocalTime.of(15, 0), WeeklyPeriod.Kind.TEACHING))));
+
+        verify(entries).deleteAll(List.of(assignment));
+        assertEquals(LocalTime.of(14, 0), period.getStartTime());
+        assertEquals(LocalTime.of(15, 0), period.getEndTime());
     }
 
     private void setId(Object target, Long id) {
@@ -142,6 +348,16 @@ class WeeklyTimetableServiceTest {
     }
 
     private CustomUserDetails userDetails() {
+        return userDetails(RoleName.HOD);
+    }
+
+    private void setSecurityRole(RoleName roleName) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userDetails(roleName), null,
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName.name()))));
+    }
+
+    private CustomUserDetails userDetails(RoleName roleName) {
         User user = new User();
         user.setId(99L);
         user.setEmail("admin@example.com");
@@ -152,7 +368,7 @@ class WeeklyTimetableServiceTest {
         College college = new College();
         college.setId(10L);
         user.setCollege(college);
-        role.setName(RoleName.PRINCIPAL);
+        role.setName(roleName);
         user.setRoles(Set.of(role));
         return new CustomUserDetails(user);
     }

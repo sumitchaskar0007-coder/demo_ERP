@@ -8,6 +8,7 @@ import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
+import { cn } from "@/lib/utils";
 import {
   teacherTimetableApi,
   type TeacherDay,
@@ -203,10 +204,14 @@ function WeeklyGrid({
             {DAYS.map((day) => (
               <div
                 key={day}
-                className={`border-l p-3 ${day === table.currentDay ? "bg-brand-100 text-brand-700 dark:bg-brand-950" : ""}`}
+                className={`border-l p-3 ${day === table.currentDay ? "relative bg-brand-600 text-white shadow-[inset_1px_0_0_rgba(255,255,255,.18),inset_-1px_0_0_rgba(255,255,255,.18)] dark:bg-brand-700" : ""}`}
               >
                 {LABELS[day]}
-                {day === table.currentDay && <span className="ml-1 text-[9px]">TODAY</span>}
+                {day === table.currentDay && (
+                  <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[8px] font-black tracking-wider text-white ring-1 ring-white/30">
+                    TODAY
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -231,6 +236,7 @@ function WeeklyGrid({
                   return (
                     <LectureCell
                       key={day}
+                      day={day}
                       lecture={lecture}
                       highlighted={matches(lecture)}
                       currentDay={table.currentDay}
@@ -269,9 +275,21 @@ function DayView({
   const lectureMap = new Map(data.lectures.map((lecture) => [lecture.periodKey, lecture]));
   return (
     <Card className="divide-y overflow-hidden">
-      <div className="bg-slate-50 px-5 py-4 dark:bg-slate-800">
-        <h2 className="font-bold">{LABELS[data.day]}</h2>
-        <p className="text-xs text-slate-400">
+      <div
+        className={cn(
+          "px-5 py-4",
+          data.day === currentDay ? "bg-brand-600 text-white" : "bg-slate-50 dark:bg-slate-800",
+        )}
+      >
+        <h2 className="font-bold">
+          {LABELS[data.day]}{" "}
+          {data.day === currentDay && (
+            <span className="ml-2 rounded-full bg-white/20 px-2 py-1 text-[9px] font-black tracking-wider ring-1 ring-white/30">
+              TODAY
+            </span>
+          )}
+        </h2>
+        <p className={cn("text-xs", data.day === currentDay ? "text-blue-100" : "text-slate-400")}>
           {data.lectures.length} scheduled lecture{data.lectures.length === 1 ? "" : "s"}
         </p>
       </div>
@@ -308,17 +326,23 @@ function DayView({
 }
 
 function LectureCell({
+  day,
   lecture,
   highlighted,
   currentDay,
 }: {
+  day: string;
   lecture?: TeacherLecture;
   highlighted: boolean;
   currentDay: string;
 }) {
   return (
     <div
-      className={`min-h-24 border-l p-2 ${lecture?.dayOfWeek === currentDay ? "bg-brand-50/30" : ""}`}
+      className={cn(
+        "min-h-24 border-l p-2",
+        day === currentDay &&
+          "border-x border-brand-200 bg-gradient-to-b from-brand-50 via-blue-50/70 to-white dark:border-brand-800 dark:from-brand-950/60 dark:to-slate-900",
+      )}
     >
       <LectureCard lecture={lecture} highlighted={highlighted} currentDay={currentDay} />
     </div>
@@ -342,6 +366,7 @@ function LectureCard({
   const current =
     isToday && nowMinutes >= minutes(lecture.startTime) && nowMinutes < minutes(lecture.endTime);
   const past = isToday && nowMinutes >= minutes(lecture.endTime);
+  const upcoming = isToday && nowMinutes < minutes(lecture.startTime);
   const title = [
     `Subject: ${lecture.subject}`,
     `Department: ${lecture.department}`,
@@ -357,13 +382,38 @@ function LectureCard({
   return (
     <div
       title={title}
-      className={`h-full min-h-20 rounded-xl border p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${COLORS[lecture.subjectId % COLORS.length]} ${past ? "opacity-55" : ""} ${highlighted ? "" : "opacity-20"} ${current ? "ring-2 ring-brand-500 ring-offset-2" : ""}`}
+      className={cn(
+        "h-full min-h-20 rounded-xl border p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md",
+        COLORS[lecture.subjectId % COLORS.length],
+        isToday && "ring-1 ring-brand-300 shadow-md dark:ring-brand-700",
+        past && "saturate-[.75] opacity-80",
+        !highlighted && "opacity-20",
+        current && "ring-2 ring-brand-600 ring-offset-2 shadow-lg",
+      )}
     >
       <div className="flex items-start justify-between gap-2">
         <b className="break-words text-xs leading-5">{lecture.subject}</b>
-        {current && (
-          <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[8px] font-bold text-white">
-            NOW
+        {isToday && (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black tracking-wide",
+              current
+                ? "bg-brand-600 text-white shadow-sm"
+                : upcoming
+                  ? "bg-blue-100 text-brand-700"
+                  : "bg-slate-200/80 text-slate-600",
+            )}
+          >
+            {current ? (
+              <>
+                <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                NOW
+              </>
+            ) : upcoming ? (
+              "UPCOMING"
+            ) : (
+              "COMPLETED"
+            )}
           </span>
         )}
       </div>
@@ -379,8 +429,4 @@ function LectureCard({
   );
 }
 
-export {
-  Stat as TeacherTimetableStat,
-  WeeklyGrid as TeacherWeeklyGrid,
-  DayView as TeacherDayView,
-};
+export { Stat as TeacherTimetableStat, WeeklyGrid as TeacherWeeklyGrid, DayView as TeacherDayView };

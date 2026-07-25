@@ -2,6 +2,8 @@ package com.jadhavr.erp.admission.dto;
 
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
+import com.jadhavr.erp.academic.enums.CourseYearName;
 import com.jadhavr.erp.fee.enums.StudentCategory;
 
 import java.math.BigDecimal;
@@ -19,6 +21,9 @@ public record StudentSectionAdmissionResponse(
         String departmentName,
         String departmentCode,
         String academicYear,
+        Long courseYearId,
+        CourseYearName courseYearName,
+        String courseYearDisplayName,
         StudentCategory studentCategory,
         String fullName,
         String email,
@@ -37,6 +42,27 @@ public record StudentSectionAdmissionResponse(
         String previousClassName,
         BigDecimal previousPercentage,
         boolean photoAvailable,
+        boolean tenthMarksheetAvailable,
+        boolean twelfthMarksheetAvailable,
+        boolean graduationPgCertificateAvailable,
+        boolean leavingCertificateAvailable,
+        boolean migrationCertificateAvailable,
+        boolean gapAffidavitAvailable,
+        boolean casteCertificateAvailable,
+        boolean incomeProofAvailable,
+        boolean nameChangeCertificateAvailable,
+        boolean aadhaarCardAvailable,
+        boolean photoVerified,
+        boolean tenthMarksheetVerified,
+        boolean twelfthMarksheetVerified,
+        boolean leavingCertificateVerified,
+        boolean aadhaarCardVerified,
+        boolean graduationPgCertificateVerified,
+        boolean migrationCertificateVerified,
+        boolean gapAffidavitVerified,
+        boolean casteCertificateVerified,
+        boolean incomeProofVerified,
+        boolean nameChangeCertificateVerified,
         String placeOfBirth,
         String maritalStatus,
         String aadhaarNumber,
@@ -58,6 +84,7 @@ public record StudentSectionAdmissionResponse(
         BigDecimal qualifyingEntranceTotalScore,
         String lastGraduationCollegeName,
         String lastGraduationCollegeAddress,
+        java.util.Set<AdmissionDocumentType> uploadedDocuments,
         LocalDateTime detailsCompletedAt,
         LocalDateTime principalApprovedAt,
         AdmissionStatus status,

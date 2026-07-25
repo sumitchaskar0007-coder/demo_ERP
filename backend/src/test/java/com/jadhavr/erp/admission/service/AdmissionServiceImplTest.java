@@ -1,10 +1,15 @@
 package com.jadhavr.erp.admission.service;
 
 import com.jadhavr.erp.admission.dto.SubmitAdmissionRequest;
+import com.jadhavr.erp.admission.dto.AcademicRecordDto;
+import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
+import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.mapper.AdmissionMapper;
+import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
+import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
@@ -37,12 +42,15 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -60,6 +68,7 @@ class AdmissionServiceImplTest {
     @Mock private RoleRepository roleRepository;
     @Mock private StudentProfileRepository studentProfileRepository;
     @Mock private AdmissionFormRepository admissionFormRepository;
+    @Mock private AdmissionStatusHistoryRepository admissionStatusHistoryRepository;
 
     private BCryptPasswordEncoder passwordEncoder;
     private AdmissionServiceImpl service;
@@ -75,7 +84,9 @@ class AdmissionServiceImplTest {
                 studentProfileRepository,
                 admissionFormRepository,
                 passwordEncoder,
-                new AdmissionMapper()
+                new AdmissionMapper(),
+                new StudentSectionAdmissionMapper(),
+                admissionStatusHistoryRepository
         );
     }
 
@@ -160,7 +171,7 @@ class AdmissionServiceImplTest {
         assertEquals(RoleName.STUDENT, savedUser.getRoles().iterator().next().getName());
         assertNotEquals(result.temporaryPassword(), savedUser.getPasswordHash());
         assertTrue(passwordEncoder.matches(result.temporaryPassword(), savedUser.getPasswordHash()));
-        assertTrue(savedUser.isMustChangePassword());
+        assertFalse(savedUser.isMustChangePassword());
 
         ArgumentCaptor<StudentProfile> profileCaptor = ArgumentCaptor.forClass(StudentProfile.class);
         verify(studentProfileRepository).save(profileCaptor.capture());
@@ -239,10 +250,7 @@ class AdmissionServiceImplTest {
     @Test
     void getMyLatestAdmissionFailsWhenAdmissionNotFound() {
         authenticateStudent(20L);
-        StudentProfile profile = new StudentProfile();
-        profile.setId(30L);
-        when(studentProfileRepository.findByUserId(20L)).thenReturn(Optional.of(profile));
-        when(admissionFormRepository.findTopByStudentIdOrderByCreatedAtDesc(30L))
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
                 .thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.getMyLatestAdmission());
@@ -251,10 +259,8 @@ class AdmissionServiceImplTest {
     @Test
     void getMyLatestAdmissionFailsWhenStudentProfileNotFound() {
         authenticateStudent(20L);
-        when(studentProfileRepository.findByUserId(20L)).thenReturn(Optional.empty());
-
         assertThrows(ResourceNotFoundException.class, () -> service.getMyLatestAdmission());
-        verify(admissionFormRepository, never()).findTopByStudentIdOrderByCreatedAtDesc(any());
+        verify(admissionFormRepository).findTopByStudentUserIdOrderByCreatedAtDesc(20L);
     }
 
     @Test
@@ -283,8 +289,7 @@ class AdmissionServiceImplTest {
         admission.setParentName("Rajesh Patil");
         admission.setParentPhone("9876500001");
         admission.setStatus(AdmissionStatus.SUBMITTED);
-        when(studentProfileRepository.findByUserId(20L)).thenReturn(Optional.of(profile));
-        when(admissionFormRepository.findTopByStudentIdOrderByCreatedAtDesc(30L))
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
                 .thenReturn(Optional.of(admission));
 
         var result = service.getMyLatestAdmission();
@@ -292,6 +297,84 @@ class AdmissionServiceImplTest {
         assertEquals(40L, result.id());
         assertEquals("ADM-ABC001-2026-000001", result.admissionReferenceNumber());
         assertEquals("STU-ABC001-2026-000001", result.admissionNumber());
+    }
+
+    @Test
+    void incompleteAdmissionIsEditableAndKeepsStudentFeaturesLocked() {
+        authenticateStudent(20L);
+        AdmissionForm admission = studentAdmission(AdmissionStatus.SUBMITTED);
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
+                .thenReturn(Optional.of(admission));
+
+        var access = service.getMyAdmissionAccess();
+
+        assertFalse(access.formCompleted());
+        assertTrue(access.editable());
+        assertFalse(access.accessGranted());
+    }
+
+    @Test
+    void rejectedAdmissionCanBeCorrectedAndResubmittedUsingSameRecord() {
+        authenticateStudent(20L);
+        AdmissionForm admission = studentAdmission(AdmissionStatus.STUDENT_SECTION_REJECTED);
+        admission.setDetailsCompletedAt(LocalDateTime.now().minusDays(1));
+        admission.setPhotoStorageName("student-photo.jpg");
+        admission.setRejectionReason("Correct the address");
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
+                .thenReturn(Optional.of(admission));
+        when(admissionFormRepository.save(admission)).thenReturn(admission);
+
+        var result = service.submitMyAdmissionDetails(detailedRequest());
+
+        assertEquals(40L, result.id());
+        assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING, result.status());
+        assertEquals("Updated Pune address", result.addressLine1());
+        assertNull(result.rejectionReason());
+        assertEquals(StudentStatus.ADMISSION_SUBMITTED, admission.getStudent().getStatus());
+        ArgumentCaptor<AdmissionStatusHistory> history =
+                ArgumentCaptor.forClass(AdmissionStatusHistory.class);
+        verify(admissionStatusHistoryRepository).save(history.capture());
+        assertEquals(AdmissionStatus.STUDENT_SECTION_REJECTED, history.getValue().getOldStatus());
+        assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING, history.getValue().getNewStatus());
+    }
+
+    @Test
+    void pendingAdmissionCannotBeEditedByStudent() {
+        authenticateStudent(20L);
+        AdmissionForm admission = studentAdmission(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
+                .thenReturn(Optional.of(admission));
+
+        assertThrows(BadRequestException.class,
+                () -> service.submitMyAdmissionDetails(detailedRequest()));
+        verify(admissionFormRepository, never()).save(any());
+    }
+
+    @Test
+    void admissionFormCannotChangeTheAuthenticatedLoginEmail() {
+        authenticateStudent(20L);
+        AdmissionForm admission = studentAdmission(AdmissionStatus.SUBMITTED);
+        admission.setPhotoStorageName("student-photo.jpg");
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
+                .thenReturn(Optional.of(admission));
+        DetailedAdmissionRequest valid = detailedRequest();
+        DetailedAdmissionRequest changedEmail = new DetailedAdmissionRequest(
+                valid.courseYearId(), valid.fullName(), "attacker@example.com", valid.phone(), valid.dateOfBirth(),
+                valid.gender(), valid.placeOfBirth(), valid.maritalStatus(), valid.aadhaarNumber(),
+                valid.apaarId(), valid.nationality(), valid.religion(), valid.caste(),
+                valid.studentCategory(), valid.parentName(), valid.parentPhone(), valid.parentEmail(),
+                valid.addressLine1(), valid.addressLine2(), valid.city(), valid.pincode(), valid.state(),
+                valid.permanentPhone(), valid.permanentEmail(), valid.correspondenceAddress(),
+                valid.correspondenceCity(), valid.correspondencePincode(), valid.correspondenceState(),
+                valid.correspondencePhone(), valid.correspondenceMobile(), valid.correspondenceEmail(),
+                valid.academicRecords(), valid.qualifyingEntranceSeatNumber(),
+                valid.qualifyingEntranceTotalScore(), valid.lastGraduationCollegeName(),
+                valid.lastGraduationCollegeAddress());
+
+        assertThrows(BadRequestException.class,
+                () -> service.submitMyAdmissionDetails(changedEmail));
+        verify(admissionFormRepository, never()).save(any());
     }
 
     private SubmitAdmissionRequest request() {
@@ -317,6 +400,51 @@ class AdmissionServiceImplTest {
                 "12th Science",
                 new BigDecimal("78.50")
         );
+    }
+
+    private DetailedAdmissionRequest detailedRequest() {
+        return new DetailedAdmissionRequest(
+                1L, "Aarav Rajesh Patil", "aarav.patil@example.com", "9876543210",
+                LocalDate.of(2007, 5, 14), "MALE", "Pune", "UNMARRIED",
+                "123456789012", "APAAR123", "Indian", "Hindu", "Patil",
+                StudentCategory.SC, "Rajesh Patil", "9876500001",
+                "rajesh@example.com", "Updated Pune address", "Near Bus Stand", "Pune",
+                "411001", "Maharashtra", "9876543210", "aarav.patil@example.com",
+                "Updated Pune address", "Pune", "411001", "Maharashtra", null,
+                "9876543210", "aarav.patil@example.com",
+                List.of(new AcademicRecordDto("12TH", "ABC College", "State Board", "2025",
+                        new BigDecimal("100"), new BigDecimal("78.50"), new BigDecimal("78.50"))),
+                "MHT123", new BigDecimal("82.00"), "ABC College", "Pune");
+    }
+
+    private AdmissionForm studentAdmission(AdmissionStatus status) {
+        College college = college(1L, CollegeStatus.ACTIVE);
+        Department department = department(10L, college, DepartmentStatus.ACTIVE);
+        User user = new User();
+        user.setId(20L);
+        user.setEmail("aarav.patil@example.com");
+        user.setFullName("Aarav Rajesh Patil");
+        StudentProfile profile = new StudentProfile();
+        profile.setId(30L);
+        profile.setAdmissionNumber("STU-ABC001-2026-000001");
+        AdmissionForm admission = new AdmissionForm();
+        admission.setId(40L);
+        admission.setAdmissionReferenceNumber("ADM-ABC001-2026-000001");
+        admission.setCollege(college);
+        admission.setDepartment(department);
+        admission.setStudent(profile);
+        admission.setStudentUser(user);
+        admission.setAcademicYear("2026-2027");
+        admission.setStudentCategory(StudentCategory.SC);
+        admission.setFullName(user.getFullName());
+        admission.setEmail(user.getEmail());
+        admission.setPhone("9876543210");
+        admission.setDateOfBirth(LocalDate.of(2007, 5, 14));
+        admission.setGender("MALE");
+        admission.setParentName("Rajesh Patil");
+        admission.setParentPhone("9876500001");
+        admission.setStatus(status);
+        return admission;
     }
 
     private College college(Long id, CollegeStatus status) {

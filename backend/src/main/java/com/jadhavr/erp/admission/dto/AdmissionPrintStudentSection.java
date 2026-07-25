@@ -12,6 +12,23 @@ public record AdmissionPrintStudentSection(
         String addressLine2,
         String city,
         String state,
-        String pincode
+        String pincode,
+        boolean hasPhoto,
+        String placeOfBirth,
+        String maritalStatus,
+        String aadhaarNumber,
+        String apaarId,
+        String nationality,
+        String religion,
+        String caste,
+        String permanentPhone,
+        String permanentEmail,
+        String correspondenceAddress,
+        String correspondenceCity,
+        String correspondencePincode,
+        String correspondenceState,
+        String correspondencePhone,
+        String correspondenceMobile,
+        String correspondenceEmail
 ) {
 }

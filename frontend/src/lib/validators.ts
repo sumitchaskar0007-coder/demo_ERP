@@ -96,72 +96,73 @@ export const createStudentSectionStaffSchema = z.object({
   joiningDate: z.string().optional().default(""),
 });
 
-const departmentStaffTypes = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
+const departmentStaffTypes = ["HOD", "TEACHER", "SUBJECT_TEACHER"];
 const staffTypeSchema = z.enum([
   "STUDENT_SECTION",
   "FEE_SECTION",
   "HOD",
   "TEACHER",
-  "CLASS_TEACHER",
   "SUBJECT_TEACHER",
   "GENERAL_STAFF",
 ]);
+const validateStaffAssignment = (
+  value: { staffTypes: z.infer<typeof staffTypeSchema>[]; departmentIds: number[] },
+  context: z.RefinementCtx,
+) => {
+  const teaching = value.staffTypes.some((type) => departmentStaffTypes.includes(type));
+  const operational = value.staffTypes.some((type) => !departmentStaffTypes.includes(type));
+  if (teaching && value.departmentIds.length === 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["departmentIds"],
+      message: "Select at least one department",
+    });
+  }
+  if (teaching && operational) {
+    context.addIssue({
+      code: "custom",
+      path: ["staffTypes"],
+      message: "Teaching and operational roles cannot be combined",
+    });
+  }
+  if (operational && value.staffTypes.length > 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["staffTypes"],
+      message: "Select only one operational role",
+    });
+  }
+  if (value.staffTypes.includes("HOD") && value.departmentIds.length !== 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["departmentIds"],
+      message: "HOD must have exactly one department",
+    });
+  }
+  if (value.staffTypes.includes("HOD") && value.staffTypes.length > 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["staffTypes"],
+      message: "HOD must be selected as a standalone role",
+    });
+  }
+};
+export const updateStaffAssignmentSchema = z
+  .object({
+    staffTypes: z.array(staffTypeSchema).min(1, "Select at least one role"),
+    departmentIds: z.array(z.number()).default([]),
+  })
+  .superRefine(validateStaffAssignment);
 export const createStaffSchema = z
   .object({
     fullName: z.string().trim().min(2).max(150),
     email: z.string().email("Enter a valid email").max(150),
-    phone: z.string().max(20).optional().default(""),
-    password: z
-      .string()
-      .min(8)
-      .max(72)
-      .regex(/[a-z]/, "Add a lowercase letter")
-      .regex(/[A-Z]/, "Add an uppercase letter")
-      .regex(/\d/, "Add a number")
-      .regex(/[^A-Za-z0-9]/, "Add a special character"),
+    phone: z.string().trim().min(1, "Phone number is required").max(20),
     staffTypes: z.array(staffTypeSchema).min(1, "Select at least one role"),
     departmentIds: z.array(z.number()).default([]),
     joiningDate: z.string().optional().default(""),
   })
-  .superRefine((value, context) => {
-    const teaching = value.staffTypes.some((type) => departmentStaffTypes.includes(type));
-    const operational = value.staffTypes.some((type) => !departmentStaffTypes.includes(type));
-    if (teaching && value.departmentIds.length === 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["departmentIds"],
-        message: "Select at least one department",
-      });
-    }
-    if (teaching && operational) {
-      context.addIssue({
-        code: "custom",
-        path: ["staffTypes"],
-        message: "Teaching and operational roles cannot be combined",
-      });
-    }
-    if (operational && value.staffTypes.length > 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["staffTypes"],
-        message: "Select only one operational role",
-      });
-    }
-    if (value.staffTypes.includes("HOD") && value.departmentIds.length !== 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["departmentIds"],
-        message: "HOD must have exactly one department",
-      });
-    }
-    if (value.staffTypes.includes("HOD") && value.staffTypes.length > 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["staffTypes"],
-        message: "HOD must be selected as a standalone role",
-      });
-    }
-  });
+  .superRefine(validateStaffAssignment);
 
 export const courseYearSchema = z.object({
   departmentId: z.coerce.number().positive("Department is required"),
@@ -180,6 +181,22 @@ export const divisionSchema = z.object({
 
 export const approveAdmissionSchema = z.object({
   studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
+  photoVerified: z.boolean().refine(Boolean, "Verify the passport photo"),
+  tenthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 10th marksheet"),
+  twelfthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 12th marksheet"),
+  provisionalCertificateVerified: z.boolean().refine(Boolean, "Verify the provisional certificate"),
+  leavingCertificateVerified: z.boolean().refine(Boolean, "Verify the leaving certificate"),
+  nationalityCertificateVerified: z.boolean().refine(Boolean, "Verify the nationality certificate"),
+  domicileCertificateVerified: z.boolean().refine(Boolean, "Verify the domicile certificate"),
+  aadhaarCardVerified: z.boolean().refine(Boolean, "Verify the Aadhaar card"),
+  // Disabled checkboxes are omitted by the browser. Missing optional documents
+  // therefore resolve to false instead of blocking the entire approval form.
+  graduationPgCertificateVerified: z.boolean().optional().default(false),
+  migrationCertificateVerified: z.boolean().optional().default(false),
+  gapAffidavitVerified: z.boolean().optional().default(false),
+  casteCertificateVerified: z.boolean().optional().default(false),
+  incomeProofVerified: z.boolean().optional().default(false),
+  nameChangeCertificateVerified: z.boolean().optional().default(false),
   remarks: z.string().max(500).optional().default(""),
 });
 

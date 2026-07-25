@@ -17,16 +17,19 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     Optional<StudentProfile> findByAdmissionNumber(String admissionNumber);
     boolean existsByAdmissionNumber(String admissionNumber);
     boolean existsByRollNumber(String rollNumber);
+    boolean existsByPrnIgnoreCaseAndIdNot(String prn, Long id);
     boolean existsByEmailAndCollegeId(String email, Long collegeId);
     List<StudentProfile> findByCollegeId(Long collegeId);
     List<StudentProfile> findByDepartmentId(Long departmentId);
+    long countByCollegeId(Long collegeId);
+    long countByDepartmentId(Long departmentId);
 
     @Query("""
-            select new com.jadhavr.erp.fee.dto.CollegeCountPoint(c.name, count(s.id))
-            from College c
-            left join StudentProfile s on s.college = c
-            group by c.id, c.name
-            order by c.name
+            select new com.jadhavr.erp.fee.dto.CollegeCountPoint(s.college.name, count(s.id))
+            from StudentProfile s
+            where s.status = com.jadhavr.erp.student.enums.StudentStatus.ACTIVE
+            group by s.college.id, s.college.name
+            order by s.college.name
             """)
     List<CollegeCountPoint> countStudentsByCollege();
 }

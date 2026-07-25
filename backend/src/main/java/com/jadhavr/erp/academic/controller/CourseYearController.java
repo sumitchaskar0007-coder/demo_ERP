@@ -4,6 +4,7 @@ import com.jadhavr.erp.academic.dto.CreateCourseYearRequest;
 import com.jadhavr.erp.academic.dto.CourseYearResponse;
 import com.jadhavr.erp.academic.dto.UpdateCourseYearRequest;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
+import com.jadhavr.erp.academic.enums.CourseYearName;
 import com.jadhavr.erp.academic.service.CourseYearService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
@@ -32,13 +33,14 @@ public class CourseYearController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) String academicYear,
+            @RequestParam(required = false) CourseYearName yearName,
             @RequestParam(required = false) AcademicStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
         return ApiResponse.success("Course Years retrieved", service.search(
-                keyword, departmentId, academicYear, status, page, size, sortBy, sortDir));
+                keyword, departmentId, academicYear, yearName, status, page, size, sortBy, sortDir));
     }
 
     @GetMapping("/{id}")

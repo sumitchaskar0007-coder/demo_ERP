@@ -1,6 +1,7 @@
 package com.jadhavr.erp.admission.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record AdmissionPrintAcademicSection(
         String academicYear,
@@ -8,6 +9,11 @@ public record AdmissionPrintAcademicSection(
         String departmentCode,
         String previousSchoolName,
         String previousClassName,
-        BigDecimal previousPercentage
+        BigDecimal previousPercentage,
+        List<AcademicRecordDto> academicRecords,
+        String qualifyingEntranceSeatNumber,
+        BigDecimal qualifyingEntranceTotalScore,
+        String lastGraduationCollegeName,
+        String lastGraduationCollegeAddress
 ) {
 }

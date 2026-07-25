@@ -1,0 +1,15 @@
+.git
+.idea
+.vscode
+.env
+.env.*
+!.env.example
+target
+uploads
+.mvn
+mvnw
+mvnw.cmd
+*.log
+*.pem
+*.key
+Dockerfile*

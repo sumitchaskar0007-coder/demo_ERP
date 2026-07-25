@@ -1,6 +1,7 @@
 package com.jadhavr.erp.fee.service;
 
 import com.jadhavr.erp.admission.entity.AdmissionForm;
+import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
@@ -9,6 +10,7 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.fee.dto.VerifyPaymentRequest;
 import com.jadhavr.erp.fee.entity.FeePayment;
 import com.jadhavr.erp.fee.entity.FeeStructure;
@@ -60,13 +62,14 @@ class FeeServiceImplTest {
     @Mock private UserRepository users;
     @Mock private AdmissionFormRepository admissions;
     @Mock private AdmissionStatusHistoryRepository histories;
+    @Mock private EmailNotificationService emailNotifications;
 
     private FeeServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new FeeServiceImpl(structures, accounts, payments, transactions,
-                colleges, departments, users, admissions, histories);
+                colleges, departments, users, admissions, histories, emailNotifications);
         authenticateSuperAdmin();
     }
 
@@ -132,6 +135,61 @@ class FeeServiceImplTest {
         verify(accounts, never()).findByIdForUpdate(any());
     }
 
+    @Test
+    void laterPaymentDoesNotReopenPrincipalApprovedAdmission() {
+        AdmissionForm admission = admission(StudentCategory.OPEN);
+        admission.setStatus(AdmissionStatus.PRINCIPAL_APPROVED);
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        account.setAdmissionForm(admission);
+        account.setTotalFee(new BigDecimal("1000.00"));
+        account.setPaidAmount(new BigDecimal("600.00"));
+        account.setRemainingAmount(new BigDecimal("400.00"));
+        account.setMinimumAmountForAdmission(new BigDecimal("200.00"));
+
+        FeePayment payment = payment(account, new BigDecimal("100.00"), PaymentStatus.PENDING);
+        payment.setStudent(admission.getStudent());
+        payment.setStudentUser(admission.getStudentUser());
+        payment.setDepartment(admission.getDepartment());
+        User officer = new User();
+        officer.setId(99L);
+        officer.setFullName("Fee Officer");
+
+        when(payments.findByIdForUpdate(30L)).thenReturn(Optional.of(payment));
+        when(accounts.findByIdForUpdate(20L)).thenReturn(Optional.of(account));
+        when(transactions.existsByFeePaymentId(30L)).thenReturn(false);
+        when(users.findById(99L)).thenReturn(Optional.of(officer));
+        when(payments.save(payment)).thenReturn(payment);
+
+        service.verify(30L, new VerifyPaymentRequest("later installment"));
+
+        assertEquals(AdmissionStatus.PRINCIPAL_APPROVED, admission.getStatus());
+        verify(admissions, never()).save(any());
+    }
+
+    @Test
+    void bulkReminderTargetsEveryPendingAccountInOfficerCollege() {
+        authenticateFeeOfficer();
+        User studentUser = new User();
+        studentUser.setId(3L);
+        studentUser.setFullName("Pending Student");
+        studentUser.setEmail("student@example.com");
+        StudentProfile student = new StudentProfile();
+        student.setAdmissionNumber("STU-001");
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        account.setStudentUser(studentUser);
+        account.setStudent(student);
+        account.setRemainingAmount(new BigDecimal("400.00"));
+        when(accounts.findByCollegeIdAndRemainingAmountGreaterThan(1L, BigDecimal.ZERO))
+                .thenReturn(List.of(account));
+
+        assertEquals(1, service.sendPendingFeeReminders());
+
+        verify(emailNotifications).queueFeePaymentReminder(
+                studentUser, 20L, "STU-001", new BigDecimal("400.00"));
+    }
+
     private AdmissionForm admission(StudentCategory category) {
         College college = college();
         Department department = new Department();
@@ -177,6 +235,22 @@ class FeeServiceImplTest {
         user.setEmail("admin@example.com");
         user.setPasswordHash("hash");
         user.setStatus(UserStatus.ACTIVE);
+        user.setRoles(Set.of(role));
+        CustomUserDetails details = new CustomUserDetails(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities()));
+    }
+
+    private void authenticateFeeOfficer() {
+        Role role = new Role();
+        role.setName(RoleName.FEE_SECTION);
+        User user = new User();
+        user.setId(98L);
+        user.setFullName("Fee Officer");
+        user.setEmail("fees@example.com");
+        user.setPasswordHash("hash");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setCollege(college());
         user.setRoles(Set.of(role));
         CustomUserDetails details = new CustomUserDetails(user);
         SecurityContextHolder.getContext().setAuthentication(

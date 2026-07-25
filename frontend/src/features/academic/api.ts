@@ -1,10 +1,10 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
+import type { WeeklyTimetable } from "@/features/academics/api";
 import type {
   AcademicClass,
   CourseYear,
   Division,
-  FinalAdmission,
   Section,
   Subject,
   SubjectTeacherAssignment,
@@ -43,14 +43,6 @@ export const assignDivisionClassTeacher = (id: number, staffProfileId: number) =
   patch<Division>(`/api/principal/divisions/${id}/assign-class-teacher`, { staffProfileId });
 export const removeDivisionClassTeacher = (id: number) =>
   patch<Division>(`/api/principal/divisions/${id}/remove-class-teacher`);
-export const getFinalAdmissionQueue = (params?: object) =>
-  get<FinalAdmission[]>("/api/principal/final-admissions/review-ready", params);
-export const getFinalAdmissionDetail = (id: number) =>
-  get<FinalAdmission>(`/api/principal/final-admissions/${id}`);
-export const approveFinalAdmission = (id: number, data: object) =>
-  patch<FinalAdmission>(`/api/principal/final-admissions/${id}/approve`, data);
-export const rejectFinalAdmission = (id: number, data: object) =>
-  patch<FinalAdmission>(`/api/principal/final-admissions/${id}/reject`, data);
 export const createAcademicClass = (data: object) =>
   post<AcademicClass>("/api/academic/classes", data);
 export const searchAcademicClasses = (params?: object) =>
@@ -89,7 +81,7 @@ export const markAttendance = (id: number, data: object) =>
   patch(`/api/academic/attendance/sessions/${id}/mark`, data);
 export const submitAttendance = (id: number) =>
   patch(`/api/academic/attendance/sessions/${id}/submit`);
-export const getMyStudentTimetable = () => get<TimetableEntry[]>("/api/student/academic/timetable");
+export const getMyStudentTimetable = () => get<WeeklyTimetable>("/api/student/academic/timetable");
 export const getMyStudentAttendanceSummary = () =>
   get<Record<string, number>>("/api/student/academic/attendance/summary");
 export type StudentRosterItem = {

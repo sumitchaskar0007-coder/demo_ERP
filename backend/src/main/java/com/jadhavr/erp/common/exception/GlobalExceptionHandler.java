@@ -19,9 +19,13 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.util.UUID;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException exception) {
@@ -114,12 +118,16 @@ public class GlobalExceptionHandler {
     // }
 
     @ExceptionHandler(Exception.class)
-public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
-
-    System.err.println("===== UNEXPECTED EXCEPTION =====");
-    exception.printStackTrace();
-
-    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(new ErrorResponse("An unexpected error occurred"));
-}
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
+        String correlationId = request.getHeader("X-Request-ID");
+        if (correlationId == null || correlationId.isBlank() || correlationId.length() > 100) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        log.error("Unhandled request failure correlationId={} method={} path={}",
+                correlationId, request.getMethod(), request.getRequestURI(), exception);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .header("X-Request-ID", correlationId)
+                .body(new ErrorResponse(false, "An unexpected error occurred", LocalDateTime.now(),
+                        Map.of("correlationId", correlationId)));
+    }
 }

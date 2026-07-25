@@ -1,5 +1,15 @@
-import { Building2, CalendarDays, Mail, Phone, Search } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  Mail,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge, StatusBadge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -14,7 +24,7 @@ import { useAuth } from "@/features/auth/authStore";
 import { getActiveColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { handleApiError } from "@/lib/handleApiError";
-import { PAGE_SIZE, ROLES, STAFF_TYPE_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
+import { PAGE_SIZE, ROLES, ROUTES, STAFF_TYPE_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { initials } from "@/lib/utils";
 import type { PageResponse } from "@/types/api";
 import * as api from "@/features/staff/api";
@@ -30,6 +40,7 @@ const emptyPage: PageResponse<StaffResponse> = {
 };
 
 export function StaffListPage() {
+  const navigate = useNavigate();
   const { user, isRole } = useAuth();
   const admin = isRole([ROLES.SUPER_ADMIN]);
   const [result, setResult] = useState(emptyPage);
@@ -88,9 +99,17 @@ export function StaffListPage() {
   };
   return (
     <div className="page-container">
-      <div>
-        <h1 className="page-title">Staff</h1>
-        <p className="page-subtitle">Manage all staff roles without deleting records.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="page-title">Staff</h1>
+          <p className="page-subtitle">Manage all staff roles without deleting records.</p>
+        </div>
+        {!admin && (
+          <Button onClick={() => navigate(ROUTES.createStaff)}>
+            <Plus className="h-4 w-4" />
+            Create Staff
+          </Button>
+        )}
       </div>
       <Card className="mt-6 overflow-hidden">
         <div
@@ -137,19 +156,53 @@ export function StaffListPage() {
             }}
             aria-label="Status"
           />
-
         </div>
         {loading ? (
           <Loader label="Loading staff..." />
         ) : result.content.length ? (
           <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full table-fixed text-left">
-                <thead><tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="w-[26%] px-5 py-4">Staff Member</th><th className="w-[21%] px-5 py-4">Contact</th><th className="w-[24%] px-5 py-4">Assignment</th><th className="w-[11%] px-5 py-4">Status</th><th className="w-[11%] px-5 py-4">Joined</th><th className="w-[7%] px-5 py-4 text-right">Action</th></tr></thead>
-                <tbody className="divide-y divide-slate-100">{result.content.map((row) => <StaffTableRow key={row.id} row={row} admin={admin} onToggle={setConfirming} />)}</tbody>
+            <div className="erp-table-scroll hidden lg:block">
+              <table className="erp-table table-fixed">
+                <thead>
+                  <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className={`${admin ? "w-[29%]" : "w-[22%]"} px-5 py-4`}>
+                      Staff Member
+                    </th>
+                    <th className={`${admin ? "w-[21%]" : "w-[18%]"} px-5 py-4`}>Contact</th>
+                    <th className={`${admin ? "w-[27%]" : "w-[22%]"} px-5 py-4`}>
+                      Assignment
+                    </th>
+                    <th className={`${admin ? "w-[11%]" : "w-[10%]"} px-5 py-4`}>Status</th>
+                    <th className={`${admin ? "w-[12%]" : "w-[10%]"} px-5 py-4`}>Joined</th>
+                    {!admin && <th className="w-[18%] px-5 py-4 text-right">Action</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {result.content.map((row) => (
+                    <StaffTableRow
+                      key={row.id}
+                      row={row}
+                      admin={admin}
+                      onOpen={() => navigate(`/staff/${row.id}`)}
+                      onEdit={() => navigate(`/staff/${row.id}/edit`)}
+                      onToggle={setConfirming}
+                    />
+                  ))}
+                </tbody>
               </table>
             </div>
-            <div className="grid gap-4 p-4 sm:grid-cols-2 lg:hidden">{result.content.map((row) => <StaffCard key={row.id} row={row} admin={admin} onToggle={setConfirming} />)}</div>
+            <div className="grid gap-4 p-4 sm:grid-cols-2 lg:hidden">
+              {result.content.map((row) => (
+                <StaffCard
+                  key={row.id}
+                  row={row}
+                  admin={admin}
+                  onOpen={() => navigate(`/staff/${row.id}`)}
+                  onEdit={() => navigate(`/staff/${row.id}/edit`)}
+                  onToggle={setConfirming}
+                />
+              ))}
+            </div>
             <div className="border-t p-4">
               <Pagination
                 page={result.page}
@@ -162,7 +215,11 @@ export function StaffListPage() {
         ) : (
           <EmptyState
             title="No staff found"
-            description="Create staff to begin assigning ERP responsibilities."
+            description={
+              admin
+                ? "No staff records match the selected filters."
+                : "Create staff to begin assigning ERP responsibilities."
+            }
           />
         )}
       </Card>
@@ -182,11 +239,19 @@ export function StaffListPage() {
 
 function joiningDate(value?: string | null) {
   if (!value) return "Not provided";
-  return new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function StaffAvatar({ name }: { name: string }) {
-  return <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">{initials(name)}</div>;
+  return (
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
+      {initials(name)}
+    </div>
+  );
 }
 
 function departmentLabels(row: StaffResponse) {
@@ -195,10 +260,201 @@ function departmentLabels(row: StaffResponse) {
     : row.departmentName || "All departments";
 }
 
-function StaffTableRow({ row, admin, onToggle }: { row: StaffResponse; admin: boolean; onToggle: (row: StaffResponse) => void }) {
-  return <tr className="align-top transition hover:bg-slate-50/70"><td className="px-5 py-4"><div className="flex min-w-0 items-center gap-3"><StaffAvatar name={row.fullName} /><div className="min-w-0"><p className="truncate font-semibold text-slate-900">{row.fullName}</p><p className="mt-0.5 truncate text-xs text-slate-400">{row.employeeCode}</p></div></div></td><td className="px-5 py-4"><a className="block truncate text-sm text-slate-700 hover:text-brand-600" href={`mailto:${row.email}`}>{row.email}</a><p className="mt-1 text-xs text-slate-400">{row.phone || "No phone number"}</p></td><td className="px-5 py-4"><div className="flex flex-wrap gap-1.5"><Badge>{row.staffType.replaceAll("_", " ")}</Badge>{row.roles.filter((role) => role !== row.staffType).slice(0, 1).map((role) => <Badge key={role} tone="info">{role.replaceAll("_", " ")}</Badge>)}</div><p className="mt-2 truncate text-xs text-slate-500" title={departmentLabels(row)}>{departmentLabels(row)}</p></td><td className="px-5 py-4"><StatusBadge status={row.status} /></td><td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td><td className="px-5 py-4 text-right">{admin ? <span className="whitespace-nowrap text-xs text-slate-400">View only</span> : <Button className="whitespace-nowrap" variant={row.status === "ACTIVE" ? "danger" : "secondary"} onClick={() => onToggle(row)}>{row.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>}</td></tr>;
+function StaffTableRow({
+  row,
+  admin,
+  onOpen,
+  onEdit,
+  onToggle,
+}: {
+  row: StaffResponse;
+  admin: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
+  onToggle: (row: StaffResponse) => void;
+}) {
+  return (
+    <tr
+      className="cursor-pointer align-top transition hover:bg-slate-50/70"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onOpen();
+      }}
+      tabIndex={0}
+      aria-label={`View ${row.fullName}'s staff details`}
+    >
+      <td className="px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <StaffAvatar name={row.fullName} />
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-slate-900">{row.fullName}</p>
+            <p className="mt-0.5 truncate text-xs text-slate-400">{row.employeeCode}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-5 py-4">
+        <a
+          className="block truncate text-sm text-slate-700 hover:text-brand-600"
+          href={`mailto:${row.email}`}
+        >
+          {row.email}
+        </a>
+        <p className="mt-1 text-xs text-slate-400">{row.phone || "No phone number"}</p>
+      </td>
+      <td className="px-5 py-4">
+        <div className="flex flex-wrap gap-1.5">
+          <Badge>{row.staffType.replaceAll("_", " ")}</Badge>
+          {row.roles
+            .filter((role) => role !== row.staffType)
+            .slice(0, 1)
+            .map((role) => (
+              <Badge key={role} tone="info">
+                {role.replaceAll("_", " ")}
+              </Badge>
+            ))}
+        </div>
+        <p className="mt-2 truncate text-xs text-slate-500" title={departmentLabels(row)}>
+          {departmentLabels(row)}
+        </p>
+      </td>
+      <td className="px-5 py-4">
+        <StatusBadge status={row.status} />
+      </td>
+      <td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td>
+      {!admin && (
+        <td className="px-5 py-4 text-right">
+          <div className="flex justify-end gap-2">
+            <Button
+              className="whitespace-nowrap"
+              variant="secondary"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <Button
+              className="whitespace-nowrap"
+              variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle(row);
+              }}
+            >
+              {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+            </Button>
+          </div>
+        </td>
+      )}
+    </tr>
+  );
 }
 
-function StaffCard({ row, admin, onToggle }: { row: StaffResponse; admin: boolean; onToggle: (row: StaffResponse) => void }) {
-  return <article className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><div className="flex items-start gap-3"><StaffAvatar name={row.fullName} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate font-bold text-slate-900">{row.fullName}</h2><p className="truncate text-xs text-slate-400">{row.employeeCode}</p></div><StatusBadge status={row.status} /></div></div></div><div className="mt-4 flex flex-wrap gap-2"><Badge>{row.staffType.replaceAll("_", " ")}</Badge>{row.roles.filter((role) => role !== row.staffType).slice(0, 2).map((role) => <Badge key={role} tone="info">{role.replaceAll("_", " ")}</Badge>)}</div><div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600"><a href={`mailto:${row.email}`} className="flex min-w-0 items-center gap-2 hover:text-brand-600"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{row.email}</span></a><p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 shrink-0" />{row.phone || "No phone number"}</p><p className="flex items-start gap-2"><Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{departmentLabels(row)}</span></p><p className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 shrink-0" />Joined {joiningDate(row.joiningDate)}</p></div>{!admin && <Button className="mt-4 w-full" variant={row.status === "ACTIVE" ? "danger" : "secondary"} onClick={() => onToggle(row)}>{row.status === "ACTIVE" ? "Deactivate Staff" : "Activate Staff"}</Button>}</article>;
+function StaffCard({
+  row,
+  admin,
+  onOpen,
+  onEdit,
+  onToggle,
+}: {
+  row: StaffResponse;
+  admin: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
+  onToggle: (row: StaffResponse) => void;
+}) {
+  return (
+    <article
+      className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onOpen();
+      }}
+      tabIndex={0}
+      aria-label={`View ${row.fullName}'s staff details`}
+    >
+      <div className="flex items-start gap-3">
+        <StaffAvatar name={row.fullName} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="truncate font-bold text-slate-900">{row.fullName}</h2>
+              <p className="truncate text-xs text-slate-400">{row.employeeCode}</p>
+            </div>
+            <StatusBadge status={row.status} />
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Badge>{row.staffType.replaceAll("_", " ")}</Badge>
+        {row.roles
+          .filter((role) => role !== row.staffType)
+          .slice(0, 2)
+          .map((role) => (
+            <Badge key={role} tone="info">
+              {role.replaceAll("_", " ")}
+            </Badge>
+          ))}
+      </div>
+      <div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+        <a
+          href={`mailto:${row.email}`}
+          className="flex min-w-0 items-center gap-2 hover:text-brand-600"
+        >
+          <Mail className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{row.email}</span>
+        </a>
+        <p className="flex items-center gap-2">
+          <Phone className="h-3.5 w-3.5 shrink-0" />
+          {row.phone || "No phone number"}
+        </p>
+        <p className="flex items-start gap-2">
+          <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{departmentLabels(row)}</span>
+        </p>
+        <p className="flex items-center gap-2">
+          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+          Joined {joiningDate(row.joiningDate)}
+        </p>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Button
+          className="flex-1"
+          variant="secondary"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        >
+          View details
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        {!admin && (
+          <>
+            <Button
+              variant="secondary"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+            <Button
+              variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle(row);
+              }}
+            >
+              {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+            </Button>
+          </>
+        )}
+      </div>
+    </article>
+  );
 }

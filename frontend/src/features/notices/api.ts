@@ -6,6 +6,9 @@ export async function getNoticeInbox() {
   const { data } = await apiClient.get<ApiResponse<Notice[]>>("/api/notices/inbox");
   return data.data;
 }
+export async function markNoticeInboxSeen() {
+  await apiClient.post("/api/notices/inbox/seen");
+}
 export async function getSentNotices() {
   const { data } = await apiClient.get<ApiResponse<Notice[]>>("/api/notices/sent");
   return data.data;
@@ -16,4 +19,7 @@ export async function sendNotice(request: CreateNoticeRequest) {
 }
 export async function deleteNotice(id: number) {
   await apiClient.delete(`/api/notices/${id}`);
+}
+export async function acknowledgeNotice(id: number) {
+  await apiClient.post(`/api/notices/${id}/acknowledge`);
 }

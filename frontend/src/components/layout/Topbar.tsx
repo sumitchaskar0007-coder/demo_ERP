@@ -1,17 +1,34 @@
-import { Bell, CalendarDays, ChevronDown, LogOut, Menu, UserRound } from "lucide-react";
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  Bell,
+  CalendarDays,
+  ChevronDown,
+  LockKeyhole,
+  LogOut,
+  Menu,
+  UserRound,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/authStore";
 import { API_BASE_URL } from "@/lib/apiClient";
 import { ROUTES } from "@/lib/constants";
 import { initials } from "@/lib/utils";
 
-export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unreadNotices?: number }) {
+export function Topbar({
+  onMenu,
+  unreadNotices = 0,
+}: {
+  onMenu: () => void;
+  unreadNotices?: number;
+}) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const menuRef = useRef<HTMLDivElement>(null);
   const primaryRole = user?.roles[0]?.replaceAll("_", " ") || "User";
+  const mobileTitle = getMobilePageTitle(location.pathname);
   const year = new Date().getFullYear();
   const profileImage = user?.profileImageUrl?.startsWith("/")
     ? `${API_BASE_URL}${user.profileImageUrl}`
@@ -27,28 +44,143 @@ export function Topbar({ onMenu, unreadNotices = 0 }: { onMenu: () => void; unre
       navigate(ROUTES.login, { replace: true });
     }
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const closeMenu = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 border-b border-slate-200/80 bg-white/95 px-3 shadow-sm backdrop-blur sm:px-6 lg:sticky lg:h-20 lg:gap-4 lg:px-8 lg:shadow-none">
-      <button onClick={onMenu} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><Menu className="h-6 w-6" /></button>
-      <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        <div className="hidden h-11 items-center gap-2 rounded-xl border bg-white px-3 text-xs font-semibold text-slate-600 xl:flex"><CalendarDays className="h-4 w-4 text-brand-600" />Academic Year: {year} / {year + 1}</div>
-        <Link to={ROUTES.notices} className="relative rounded-xl border bg-white p-2.5 text-slate-500 hover:bg-slate-50" aria-label={`Notifications${unreadNotices ? `, ${unreadNotices} unread` : ""}`}>
-          <Bell className="h-5 w-5" />{unreadNotices > 0 && <span className="absolute -right-1.5 -top-1.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">{unreadNotices > 99 ? "99+" : unreadNotices}</span>}
+    <header className="fixed inset-x-0 top-0 z-40 flex h-16 min-w-0 items-center gap-2 border-b border-slate-200/80 bg-white/95 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-6 lg:sticky lg:h-20 lg:gap-4 lg:px-8 lg:shadow-none">
+      <button
+        onClick={onMenu}
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 lg:hidden"
+        aria-label="Open navigation"
+      >
+        <Menu className="h-6 w-6" />
+      </button>
+      <div className="min-w-0 flex-1 lg:hidden">
+        <p className="truncate text-sm font-bold leading-5 text-slate-900">{mobileTitle}</p>
+        <p className="hidden truncate text-[11px] leading-4 text-slate-500 min-[390px]:block">
+          Jadhavar ERP
+        </p>
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
+        <div className="hidden h-11 items-center gap-2 rounded-xl border bg-white px-3 text-xs font-semibold text-slate-600 xl:flex">
+          <CalendarDays className="h-4 w-4 text-brand-600" />
+          Academic Year: {year} / {year + 1}
+        </div>
+        <Link
+          to={ROUTES.notices}
+          className="relative rounded-xl border bg-white p-2.5 text-slate-500 hover:bg-slate-50"
+          aria-label={`Notifications${unreadNotices ? `, ${unreadNotices} unread` : ""}`}
+        >
+          <Bell className="h-5 w-5" />
+          {unreadNotices > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+              {unreadNotices > 99 ? "99+" : unreadNotices}
+            </span>
+          )}
         </Link>
-        <div className="relative">
-          <button onClick={() => setOpen((value) => !value)} className="flex items-center gap-3 rounded-xl border bg-white p-1.5 pr-3 hover:bg-slate-50">
-            {profileImage ? <img src={profileImage} alt={user?.fullName || "Profile"} className="h-10 w-10 rounded-lg object-cover" /> : <div className="grid h-10 w-10 place-items-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">{initials(user?.fullName || "User")}</div>}
-            <div className="hidden text-left sm:block"><p className="max-w-36 truncate text-sm font-semibold">{user?.fullName}</p><p className="text-xs capitalize text-slate-400">{primaryRole.toLowerCase()}</p></div>
+        <div ref={menuRef} className="relative">
+          <button
+            onClick={() => setOpen((value) => !value)}
+            className="flex min-h-11 items-center gap-3 rounded-xl border bg-white p-1 pr-1 hover:bg-slate-50 sm:p-1.5 sm:pr-3"
+            aria-label="Open profile menu"
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            {profileImage ? (
+              <img
+                src={profileImage}
+                alt={user?.fullName || "Profile"}
+                className="h-9 w-9 rounded-lg object-cover sm:h-10 sm:w-10"
+              />
+            ) : (
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700 sm:h-10 sm:w-10">
+                {initials(user?.fullName || "User")}
+              </div>
+            )}
+            <div className="hidden text-left sm:block">
+              <p className="max-w-36 truncate text-sm font-semibold">{user?.fullName}</p>
+              <p className="text-xs capitalize text-slate-400">{primaryRole.toLowerCase()}</p>
+            </div>
             <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
           </button>
           {open && (
-            <div className="absolute right-0 mt-2 w-52 rounded-xl border bg-white p-1.5 shadow-xl">
-              <Link to={ROUTES.profile} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm hover:bg-slate-50"><UserRound className="h-4 w-4" />Profile</Link>
-              <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" />Logout</button>
+            <div
+              className="absolute right-0 mt-2 w-[min(13rem,calc(100vw-1.5rem))] rounded-xl border bg-white p-1.5 shadow-xl"
+              role="menu"
+            >
+              <Link
+                to={ROUTES.profile}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm hover:bg-slate-50"
+                role="menuitem"
+              >
+                <UserRound className="h-4 w-4" />
+                Profile
+              </Link>
+              <Link
+                to={ROUTES.accountChangePassword}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm hover:bg-slate-50"
+                role="menuitem"
+              >
+                <LockKeyhole className="h-4 w-4" />
+                Security
+              </Link>
+              <div className="my-1 border-t border-slate-100" />
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                role="menuitem"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
             </div>
           )}
         </div>
       </div>
     </header>
   );
+}
+
+function getMobilePageTitle(pathname: string) {
+  const exactTitles: Record<string, string> = {
+    "/dashboard": "Dashboard",
+    "/profile": "My Profile",
+    "/account": "Account",
+    "/notices": "Notice Board",
+    "/staff": "Staff",
+    "/students": "Students",
+    "/colleges": "Colleges",
+    "/principals": "Principals",
+    "/departments": "Departments",
+    "/attendance": "Attendance",
+    "/timetable": "Timetable",
+  };
+  if (exactTitles[pathname]) return exactTitles[pathname];
+
+  const segment = pathname
+    .split("/")
+    .filter(Boolean)
+    .filter((part) => !/^\d+$/.test(part))
+    .at(-1);
+  if (!segment) return "Dashboard";
+  if (segment === "create") return "Create Record";
+  if (segment === "edit") return "Edit Record";
+  return segment.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

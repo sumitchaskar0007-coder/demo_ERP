@@ -9,6 +9,7 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,9 +30,12 @@ public class CollegeServiceImpl implements CollegeService {
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "id", "name", "code", "city", "state", "status", "createdAt", "updatedAt");
     private final CollegeRepository collegeRepository;
+    private final CollegeImageStorageService imageStorage;
 
-    public CollegeServiceImpl(CollegeRepository collegeRepository) {
+    public CollegeServiceImpl(CollegeRepository collegeRepository,
+            CollegeImageStorageService imageStorage) {
         this.collegeRepository = collegeRepository;
+        this.imageStorage = imageStorage;
     }
 
     @Override
@@ -46,7 +50,10 @@ public class CollegeServiceImpl implements CollegeService {
         college.setCode(normalizedCode);
         college.setStatus(CollegeStatus.ACTIVE);
         applyCreateFields(college, request);
-        return toResponse(collegeRepository.save(college));
+        College saved = collegeRepository.saveAndFlush(college);
+        saved.setLogoUrl(imageStorage.claim(request.logoUrl(), saved.getId(), "logo", null));
+        saved.setQrCodeUrl(imageStorage.claim(request.qrCodeUrl(), saved.getId(), "qr-code", null));
+        return toResponse(collegeRepository.saveAndFlush(saved));
     }
 
     @Override
@@ -81,9 +88,11 @@ public class CollegeServiceImpl implements CollegeService {
         college.setPincode(request.pincode());
         college.setContactEmail(request.contactEmail());
         college.setContactPhone(request.contactPhone());
-        college.setLogoUrl(request.logoUrl());
-        college.setQrCodeUrl(request.qrCodeUrl());
-        return toResponse(collegeRepository.save(college));
+        college.setLogoUrl(imageStorage.claim(request.logoUrl(), college.getId(),
+                "logo", college.getLogoUrl()));
+        college.setQrCodeUrl(imageStorage.claim(request.qrCodeUrl(), college.getId(),
+                "qr-code", college.getQrCodeUrl()));
+        return toResponse(collegeRepository.saveAndFlush(college));
     }
 
     @Override
@@ -103,6 +112,7 @@ public class CollegeServiceImpl implements CollegeService {
     }
 
     @Override
+    @Cacheable(cacheNames = "activeColleges", key = "'all'", sync = true)
     public List<CollegeResponse> getActiveColleges() {
         return collegeRepository.findByStatus(CollegeStatus.ACTIVE).stream()
                 .map(this::toResponse)
@@ -176,8 +186,6 @@ public class CollegeServiceImpl implements CollegeService {
         college.setPincode(request.pincode());
         college.setContactEmail(request.contactEmail());
         college.setContactPhone(request.contactPhone());
-        college.setLogoUrl(request.logoUrl());
-        college.setQrCodeUrl(request.qrCodeUrl());
     }
 
     private CollegeResponse toResponse(College college) {
@@ -191,8 +199,8 @@ public class CollegeServiceImpl implements CollegeService {
                 college.getPincode(),
                 college.getContactEmail(),
                 college.getContactPhone(),
-                college.getLogoUrl(),
-                college.getQrCodeUrl(),
+                college.getLogoUrl() == null ? null : imageStorage.responseUrl(college.getId(), "logo"),
+                college.getQrCodeUrl() == null ? null : imageStorage.responseUrl(college.getId(), "qr-code"),
                 college.getStatus(),
                 college.getCreatedAt(),
                 college.getUpdatedAt()

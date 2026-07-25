@@ -5,8 +5,9 @@ import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
+import { localDateString } from "@/lib/date";
 const statuses = ["PRESENT", "ABSENT", "LATE", "EXCUSED", "HALF_DAY", "LEAVE"];
-const today = new Date().toISOString().slice(0, 10);
+const today = localDateString();
 export function AttendancePage() {
   const [from, setFrom] = useState(today),
     [to, setTo] = useState(today),

@@ -97,19 +97,6 @@ export interface TimetableEntry {
   roomNumber?: string;
   status: AcademicStatus;
 }
-export interface FinalAdmission {
-  id: number;
-  admissionReferenceNumber: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  academicYear: string;
-  collegeId: number;
-  collegeName: string;
-  departmentId: number;
-  departmentName: string;
-  status: string;
-}
 export interface SubjectTeacherAssignment {
   id: number;
   subjectId: number;

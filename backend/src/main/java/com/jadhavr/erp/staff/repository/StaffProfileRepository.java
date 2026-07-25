@@ -3,7 +3,12 @@ package com.jadhavr.erp.staff.repository;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import com.jadhavr.erp.user.entity.RoleName;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,5 +18,16 @@ public interface StaffProfileRepository extends JpaRepository<StaffProfile, Long
     Optional<StaffProfile> findByEmployeeCode(String employeeCode);
     boolean existsByEmployeeCode(String employeeCode);
     List<StaffProfile> findByCollegeId(Long collegeId);
+    long countByCollegeId(Long collegeId);
+    @Query("select count(distinct s.id) from StaffProfile s join s.user u join u.roles r "
+            + "where s.college.id = :collegeId and r.name in :roleNames")
+    long countTeachingStaffByCollegeId(
+            @Param("collegeId") Long collegeId,
+            @Param("roleNames") Collection<RoleName> roleNames);
     boolean existsByDepartmentIdAndStaffTypeAndStatus(Long departmentId, com.jadhavr.erp.staff.enums.StaffType type, com.jadhavr.erp.staff.enums.StaffStatus status);
+    boolean existsByDepartmentIdAndStaffTypeAndStatusAndIdNot(
+            Long departmentId,
+            com.jadhavr.erp.staff.enums.StaffType type,
+            com.jadhavr.erp.staff.enums.StaffStatus status,
+            Long id);
 }

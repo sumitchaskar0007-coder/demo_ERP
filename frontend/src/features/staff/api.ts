@@ -5,8 +5,10 @@ import type {
   CreateStudentSectionStaffRequest,
   CreateStaffRequest,
   StaffResponse,
+  StaffDetailResponse,
   StaffStatus,
   StaffType,
+  UpdateStaffAssignmentRequest,
 } from "./types";
 
 export async function createStaff(values: CreateStaffRequest) {
@@ -61,6 +63,19 @@ export async function searchAdminStaff(params: {
 }
 export async function getStaffById(id: number) {
   const { data } = await apiClient.get<ApiResponse<StaffResponse>>(`/api/principal/staff/${id}`);
+  return data.data;
+}
+export async function getStaffDetails(id: number) {
+  const { data } = await apiClient.get<ApiResponse<StaffDetailResponse>>(
+    `/api/principal/staff/${id}/details`,
+  );
+  return data.data;
+}
+export async function updateStaffAssignment(id: number, values: UpdateStaffAssignmentRequest) {
+  const { data } = await apiClient.put<ApiResponse<StaffResponse>>(
+    `/api/principal/staff/${id}/assignment`,
+    values,
+  );
   return data.data;
 }
 export async function activateStaff(id: number) {

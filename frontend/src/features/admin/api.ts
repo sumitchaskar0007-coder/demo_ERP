@@ -42,13 +42,17 @@ export interface AdminAnalytics {
   summary: AdminSummary;
   collegeWiseStudents: { label: string; value: number }[];
   collegeWiseFeeCollection: { label: string; value: number }[];
+  feeCollectionTrend: { label: string; value: number }[];
+  departmentWiseStudents: { label: string; value: number }[];
   admissionStatusDistribution: Record<string, number>;
   pendingFees: Row[];
 }
-const get = <T>(url: string, params?: object) =>
-  apiClient.get<ApiResponse<T>>(url, { params }).then((r) => r.data.data);
-export const getAdminAnalytics = (params?: object) =>
-  get<AdminAnalytics>("/api/super-admin/analytics", params);
+const get = <T>(url: string, params?: object, signal?: AbortSignal) =>
+  apiClient.get<ApiResponse<T>>(url, { params, signal }).then((r) => r.data.data);
+export const getAdminAnalytics = (params?: object, signal?: AbortSignal) =>
+  get<AdminAnalytics>("/api/super-admin/analytics", params, signal);
+export const getPrincipalAnalytics = (params?: object, signal?: AbortSignal) =>
+  get<AdminAnalytics>("/api/principal/analytics", params, signal);
 
 export interface LectureLoadRow {
   staffId: number;
@@ -63,14 +67,30 @@ export interface LectureLoadRow {
   theoryLectures: number;
   practicalLectures: number;
 }
-export const getLectureLoad = (params?: object) =>
-  get<LectureLoadRow[]>("/api/super-admin/lecture-load", params);
-export const getStaffTimetable = (staffId: number) =>
-  get<TeacherTimetable>(`/api/super-admin/lecture-load/${staffId}/timetable`);
+export interface AdminCourseYearOption {
+  id: number;
+  collegeId: number;
+  departmentId: number;
+  displayName: string;
+  yearName: string;
+}
+export const getLectureLoad = (params?: object, signal?: AbortSignal) =>
+  get<LectureLoadRow[]>("/api/super-admin/lecture-load", params, signal);
+export const getStaffTimetable = (staffId: number, signal?: AbortSignal) =>
+  get<TeacherTimetable>(`/api/super-admin/lecture-load/${staffId}/timetable`, undefined, signal);
+export const getCourseYearOptions = (collegeId: number, departmentId: number) =>
+  get<AdminCourseYearOption[]>("/api/super-admin/academic-options/course-years", {
+    collegeId,
+    departmentId,
+  });
 export const getCollections = (params?: object) =>
   get<PageResponse<FeeCollectionRow>>("/api/super-admin/fees/collections", params);
 export const getPendingFees = (params?: object) =>
   get<PageResponse<PendingFeeRow>>("/api/super-admin/fees/pending", params);
+export const getPrincipalCollections = (params?: object) =>
+  get<PageResponse<FeeCollectionRow>>("/api/principal/fees/collections", params);
+export const getPrincipalPendingFees = (params?: object) =>
+  get<PageResponse<PendingFeeRow>>("/api/principal/fees/pending", params);
 export const getCollectionSummary = () =>
   get<Record<string, number>>("/api/super-admin/fees/collection-summary");
 export const getPendingSummary = () =>

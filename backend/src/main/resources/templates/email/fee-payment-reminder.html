@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#172033">
+  <h2>Jadhavar ERP</h2>
+  <p>Hello <span th:text="${name}"></span>,</p>
+  <p>This is a reminder that fees are pending for admission number <strong th:text="${admissionNumber}"></strong>.</p>
+  <p>Remaining amount: <strong>₹<span th:text="${remainingAmount}"></span></strong></p>
+  <p><a th:href="${url}">View fee details</a></p>
+  <p>If you have already paid, please submit your payment details in the portal.</p>
+</body>
+</html>

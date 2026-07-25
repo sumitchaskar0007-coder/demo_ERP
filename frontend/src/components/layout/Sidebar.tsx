@@ -8,18 +8,19 @@ import {
   GraduationCap,
   LayoutDashboard,
   LibraryBig,
-  UserPlus,
   Users,
   UserRound,
   WalletCards,
   FileText,
-  Printer,
   Bell,
   CheckCircle2,
+  BookOpen,
+  Clock3,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/common/BrandLogo";
 import { useAuth } from "@/features/auth/authStore";
+import { useStudentAcademicAccess } from "@/features/academics/StudentAcademicAccessContext";
 import { ROLES, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -30,87 +31,101 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
-const futureItems = [
-  { label: "Fees", icon: CreditCard },
-  { label: "Attendance", icon: CalendarDays },
-  { label: "Timetable", icon: WalletCards },
-  { label: "Analytics", icon: BarChart3 },
-];
-
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
+  const location = useLocation();
   const { isRole } = useAuth();
+  const { divisionAllocated } = useStudentAcademicAccess();
   const isAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
   const isStudentSection = isRole([ROLES.STUDENT_SECTION]);
   const isFeeSection = isRole([ROLES.FEE_SECTION]);
   const isStudent = isRole([ROLES.STUDENT]);
   const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
+  const isHod = isRole([ROLES.HOD]);
   const isTeacher = isRole([ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
   const isClassTeacher = isRole([ROLES.CLASS_TEACHER]);
   const nav = isAdmin
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
         { label: "Colleges", to: ROUTES.colleges, icon: Building2 },
-        { label: "Principals", to: ROUTES.principals, icon: UserPlus },
-        { label: "Staff", to: ROUTES.staff, icon: Users },
-        { label: "Students", to: ROUTES.students, icon: GraduationCap },
-        { label: "Fee Setup", to: ROUTES.adminFeeSetup, icon: CreditCard },
-        { label: "Fee Collection", to: ROUTES.adminFeeCollection, icon: WalletCards },
-        { label: "Pending Fees", to: ROUTES.adminPendingFees, icon: CreditCard },
-        { label: "Analytics", to: ROUTES.adminAnalytics, icon: BarChart3 },
+        { label: "User Management", to: ROUTES.adminPeople, icon: Users },
+        { label: "Fees", to: ROUTES.adminFees, icon: WalletCards },
+        { label: "Analytics", to: ROUTES.adminInsights, icon: BarChart3 },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
-        { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
-        { label: "Staff Lecture Load", to: ROUTES.adminLectureLoad, icon: BarChart3 },
-        { label: "Account", to: ROUTES.account, icon: UserRound },
+        { label: "Administration", to: ROUTES.adminAdministration, icon: FileText },
       ]
     : isPrincipal
       ? [
           { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
-          { label: "Departments", to: ROUTES.departments, icon: LibraryBig },
-          { label: "Course Years", to: ROUTES.courseYears, icon: GraduationCap },
-          { label: "Divisions", to: ROUTES.divisions, icon: Users },
+          { label: "Students", to: ROUTES.students, icon: GraduationCap },
           { label: "Staff", to: ROUTES.staff, icon: Users },
-          { label: "Create Staff", to: ROUTES.createStaff, icon: UserPlus },
-          { label: "Class Teacher Assignment", to: ROUTES.divisions, icon: UserRound },
-          { label: "Fee Structures", to: ROUTES.feeStructures, icon: CreditCard },
-          { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: WalletCards },
-          { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
           {
-            label: "Student Section Admissions",
+            label: "Admissions",
             to: ROUTES.studentSectionAdmissions,
             icon: GraduationCap,
           },
-          { label: "Principal Review Queue", to: ROUTES.principalReviewReady, icon: FileText },
-          { label: "Final Admissions", to: ROUTES.finalAdmissions, icon: FileText },
-          { label: "Academic", to: ROUTES.academicClasses, icon: GraduationCap },
-          { label: "Subjects", to: ROUTES.academicSubjects, icon: LibraryBig },
-          { label: "Subject Teachers", to: ROUTES.subjectTeacherAssignments, icon: Users },
-          { label: "Weekly Timetable", to: ROUTES.timetable, icon: CalendarDays },
-          { label: "Attendance Reports", to: ROUTES.attendanceReport, icon: BarChart3 },
-          { label: "Allocate Students", to: ROUTES.studentAllocation, icon: Users },
-          { label: "Reports", to: ROUTES.admissionReport, icon: BarChart3 },
-          { label: "Audit Logs", to: ROUTES.auditLogs, icon: FileText },
+          { label: "Academics", to: ROUTES.principalAcademics, icon: LibraryBig },
+          { label: "Fees", to: ROUTES.principalFees, icon: WalletCards },
+          { label: "Reports & Analytics", to: ROUTES.principalReports, icon: BarChart3 },
           { label: "Notices", to: ROUTES.notices, icon: Bell },
-          { label: "Account", to: ROUTES.account, icon: UserRound },
-          { label: "Profile", to: ROUTES.profile, icon: UserRound },
+          {
+            label: "Administration",
+            to: ROUTES.principalAdministration,
+            icon: FileText,
+          },
         ]
       : isStudentSection
         ? [
             { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
-            { label: "Admissions", to: ROUTES.studentSectionAdmissions, icon: GraduationCap },
+            {
+              label: "Admission Records",
+              to: ROUTES.studentSectionAdmissions,
+              icon: GraduationCap,
+            },
             { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
+            { label: "Documents", to: ROUTES.studentSectionDocuments, icon: FileText },
             { label: "Notices", to: ROUTES.notices, icon: Bell },
-            { label: "Account", to: ROUTES.account, icon: UserRound },
             { label: "Profile", to: ROUTES.profile, icon: UserRound },
           ]
         : isFeeSection
           ? [
-              { label: "Fee Dashboard", to: ROUTES.feeSectionDashboard, icon: LayoutDashboard },
-              { label: "Fee Accounts", to: ROUTES.feeAccounts, icon: WalletCards },
-              { label: "Payments", to: ROUTES.feePayments, icon: CreditCard },
-              { label: "Fee Report", to: ROUTES.feeReport, icon: BarChart3 },
+              { label: "Dashboard", to: ROUTES.feeOfficerWorkspace, icon: LayoutDashboard },
+              {
+                label: "Fee Accounts",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=accounts`,
+                icon: WalletCards,
+              },
+              {
+                label: "Pending Verifications",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=pending`,
+                icon: Clock3,
+              },
+              {
+                label: "Verified Payments",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=verified`,
+                icon: CheckCircle2,
+              },
+              {
+                label: "Rejected Payments",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=rejected`,
+                icon: FileText,
+              },
+              {
+                label: "Payment History",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=history`,
+                icon: CreditCard,
+              },
+              {
+                label: "Pending Dues",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=dues`,
+                icon: WalletCards,
+              },
+              {
+                label: "Fee Reports",
+                to: `${ROUTES.feeOfficerWorkspace}?tab=reports`,
+                icon: BarChart3,
+              },
               { label: "Notices", to: ROUTES.notices, icon: Bell },
-              { label: "Account", to: ROUTES.account, icon: UserRound },
               { label: "Profile", to: ROUTES.profile, icon: UserRound },
             ]
           : isStudent
@@ -118,22 +133,113 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                 { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
                 { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
                 { label: "My Fees", to: ROUTES.studentFees, icon: WalletCards },
-                { label: "My Payments", to: ROUTES.studentPayments, icon: CreditCard },
-                { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
-                { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
-                { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
-                { label: "Notices", to: ROUTES.notices, icon: Bell },
-                { label: "Account", to: ROUTES.account, icon: UserRound },
+                ...(divisionAllocated
+                  ? [
+                      { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
+                      { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
+                      { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
+                      { label: "Notices", to: ROUTES.notices, icon: Bell },
+                    ]
+                  : []),
                 { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
               ]
             : isOtherStaff
               ? [
-                  { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+                  ...(!isHod
+                    ? [
+                        {
+                          label: "Dashboard",
+                          to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard,
+                          icon: LayoutDashboard,
+                        },
+                      ]
+                    : []),
+                  ...(isHod
+                    ? [
+                        { label: "HOD Overview", to: ROUTES.hodWorkspace, icon: LayoutDashboard },
+                        {
+                          label: "Student Allocation",
+                          to: `${ROUTES.hodWorkspace}?tab=students`,
+                          icon: Users,
+                        },
+                        {
+                          label: "Teaching Assignments",
+                          to: ROUTES.subjectTeacherAssignments,
+                          icon: Users,
+                        },
+                        {
+                          label: "Class Teachers",
+                          to: `${ROUTES.hodWorkspace}?tab=class-teachers`,
+                          icon: UserRound,
+                        },
+                        {
+                          label: "Workload",
+                          to: `${ROUTES.hodWorkspace}?tab=workload`,
+                          icon: BarChart3,
+                        },
+                        {
+                          label: "Manage Timetable",
+                          to: ROUTES.timetable,
+                          icon: CalendarDays,
+                        },
+                      ]
+                    : []),
                   ...(isClassTeacher
-                    ? [{ label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap }]
+                    ? [
+                        {
+                          label: "My Class",
+                          to: `${ROUTES.teacherWorkspace}?tab=class`,
+                          icon: GraduationCap,
+                        },
+                        {
+                          label: "PRN & Roll Numbers",
+                          to: `${ROUTES.teacherWorkspace}?tab=identifiers`,
+                          icon: FileText,
+                        },
+                      ]
                     : []),
                   ...(isTeacher
                     ? [
+                        {
+                          label: "Student Directory",
+                          to: `${ROUTES.teacherWorkspace}?tab=students`,
+                          icon: Users,
+                        },
+                        {
+                          label: "Attendance Analytics",
+                          to: `${ROUTES.teacherWorkspace}?tab=attendance`,
+                          icon: BarChart3,
+                        },
+                        {
+                          label: "Needs Attention",
+                          to: `${ROUTES.teacherWorkspace}?tab=attention`,
+                          icon: Bell,
+                        },
+                        {
+                          label: "Subject Coverage",
+                          to: `${ROUTES.teacherWorkspace}?tab=coverage`,
+                          icon: BookOpen,
+                        },
+                        {
+                          label: "Workload",
+                          to: `${ROUTES.teacherWorkspace}?tab=workload`,
+                          icon: BarChart3,
+                        },
+                        {
+                          label: "Today's Schedule",
+                          to: `${ROUTES.teacherWorkspace}?tab=schedule`,
+                          icon: CalendarDays,
+                        },
+                        {
+                          label: "Notices",
+                          to: `${ROUTES.teacherWorkspace}?tab=notices`,
+                          icon: Bell,
+                        },
+                        {
+                          label: "Notifications",
+                          to: `${ROUTES.teacherWorkspace}?tab=notifications`,
+                          icon: Bell,
+                        },
                         { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
                         {
                           label: "Take Attendance",
@@ -141,9 +247,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                           icon: CheckCircle2,
                         },
                       ]
-                    : []),
-                  ...(isClassTeacher
-                    ? [{ label: "Manage Timetable", to: ROUTES.timetable, icon: CalendarDays }]
                     : []),
                   ...(isClassTeacher || isRole([ROLES.HOD])
                     ? [
@@ -154,10 +257,12 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                         },
                       ]
                     : []),
-                  { label: "Notices", to: ROUTES.notices, icon: Bell },
+                  ...(!isTeacher ? [{ label: "Notices", to: ROUTES.notices, icon: Bell }] : []),
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
                 ]
               : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
+  const visibleNav = nav;
+  const roleFuture: Array<{ label: string; icon: typeof FileText }> = [];
   const sectionLabel = isAdmin
     ? "Admin"
     : isPrincipal
@@ -171,20 +276,66 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
             : isOtherStaff
               ? "Staff"
               : "Menu";
-  const roleFuture = isStudentSection
-    ? [
-        { label: "Fee Verification", icon: CreditCard },
-        { label: "Documents", icon: FileText },
-        { label: "Reports", icon: BarChart3 },
-      ]
-    : isStudent
-      ? [
-          { label: "Fee Payment", icon: CreditCard },
-          { label: "Attendance", icon: CalendarDays },
-          { label: "Timetable", icon: WalletCards },
-          { label: "Results", icon: Printer },
-        ]
-      : futureItems;
+  const isCurrentLink = (to: string, routerActive: boolean) => {
+    const [targetPath, targetQuery = ""] = to.split("?");
+    const currentParams = new URLSearchParams(location.search);
+    if (targetQuery) {
+      if (location.pathname !== targetPath) return false;
+      const targetParams = new URLSearchParams(targetQuery);
+      return [...targetParams.entries()].every(([key, value]) => currentParams.get(key) === value);
+    }
+    if (location.pathname === targetPath && currentParams.has("tab")) {
+      return currentParams.get("tab") === "overview";
+    }
+    if (isPrincipal) {
+      const principalGroups: Record<string, boolean> = {
+        [ROUTES.studentSectionAdmissions]:
+          location.pathname.startsWith("/student-section/admissions") ||
+          location.pathname.startsWith("/principal/admissions"),
+        [ROUTES.principalAcademics]:
+          location.pathname.startsWith("/departments") ||
+          location.pathname.startsWith("/principal/course-years") ||
+          location.pathname.startsWith("/principal/divisions") ||
+          location.pathname.startsWith("/academic/subjects") ||
+          location.pathname === ROUTES.timetable,
+        [ROUTES.principalFees]:
+          location.pathname.startsWith("/fee-structures") ||
+          location.pathname.startsWith("/principal/fee-"),
+        [ROUTES.attendanceReport]: location.pathname === ROUTES.attendanceReport,
+        [ROUTES.principalReports]:
+          location.pathname === ROUTES.principalAnalytics ||
+          location.pathname.startsWith("/reports/"),
+        [ROUTES.principalAdministration]:
+          location.pathname === ROUTES.auditLogs ||
+          location.pathname === ROUTES.account ||
+          location.pathname === ROUTES.accountChangePassword ||
+          location.pathname === ROUTES.profile,
+      };
+      if (principalGroups[to]) return true;
+    }
+    if (isAdmin) {
+      const adminGroups: Record<string, boolean> = {
+        [ROUTES.adminPeople]:
+          location.pathname.startsWith("/principals") ||
+          location.pathname.startsWith("/users/") ||
+          location.pathname.startsWith("/staff") ||
+          location.pathname.startsWith("/students"),
+        [ROUTES.adminFees]:
+          location.pathname === ROUTES.adminFeeSetup ||
+          location.pathname === ROUTES.adminFeeCollection ||
+          location.pathname === ROUTES.adminPendingFees,
+        [ROUTES.adminInsights]:
+          location.pathname === ROUTES.adminAnalytics ||
+          location.pathname === ROUTES.adminLectureLoad,
+        [ROUTES.adminAdministration]:
+          location.pathname === ROUTES.account ||
+          location.pathname === ROUTES.accountChangePassword ||
+          location.pathname === ROUTES.profile,
+      };
+      if (adminGroups[to]) return true;
+    }
+    return routerActive;
+  };
 
   return (
     <aside
@@ -211,60 +362,65 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
           {sectionLabel}
         </p>
         <nav className="space-y-1">
-          {nav.map(({ label, to, icon: Icon }) => (
+          {visibleNav.map(({ label, to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               onClick={onNavigate}
               title={collapsed && !mobile ? label : undefined}
-              className={({ isActive }) =>
-                cn(
+              className={({ isActive }) => {
+                const active = isCurrentLink(to, isActive);
+                return cn(
                   "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition",
-                  isActive
+                  active
                     ? "bg-brand-50 text-brand-700 before:absolute before:-left-3 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-600"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                   collapsed && !mobile && "justify-center",
-                )
-              }
+                );
+              }}
             >
               <Icon className="h-5 w-5 shrink-0" />
               {(!collapsed || mobile) && <span>{label}</span>}
             </NavLink>
           ))}
         </nav>
-        <div className="my-5 border-t" />
-        <p
-          className={cn(
-            "mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400",
-            collapsed && !mobile && "sr-only",
-          )}
-        >
-          Future modules
-        </p>
-        <div className="space-y-1">
-          {roleFuture
-            .filter((item) => isAdmin || item.label !== "Analytics")
-            .map(({ label, icon: Icon }) => (
-              <div
-                key={label}
-                title={`${label} — coming soon`}
-                className={cn(
-                  "flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm text-slate-400",
-                  collapsed && !mobile && "justify-center",
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {(!collapsed || mobile) && (
-                  <>
-                    <span className="flex-1">{label}</span>
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase">
-                      Soon
-                    </span>
-                  </>
-                )}
-              </div>
-            ))}
-        </div>
+        {roleFuture.length > 0 && (
+          <div>
+            <div className="my-5 border-t" />
+            <p
+              className={cn(
+                "mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400",
+                collapsed && !mobile && "sr-only",
+              )}
+            >
+              Future modules
+            </p>
+            <div className="space-y-1">
+              {roleFuture
+                .filter((item) => isAdmin || item.label !== "Analytics")
+                .map(({ label, icon: Icon }) => (
+                  <div
+                    key={label}
+                    title={`${label} — coming soon`}
+                    className={cn(
+                      "flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm text-slate-400",
+                      collapsed && !mobile && "justify-center",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {(!collapsed || mobile) && (
+                      <>
+                        <span className="flex-1">{label}</span>
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase">
+                          Soon
+                        </span>
+                      </>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
       {!mobile && (
         <button

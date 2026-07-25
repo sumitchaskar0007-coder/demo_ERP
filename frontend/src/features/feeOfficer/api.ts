@@ -1,0 +1,147 @@
+import { apiClient } from "@/lib/apiClient";
+import type { ApiResponse } from "@/types/api";
+export type MoneyPoint = { label: string; value: number };
+export type Summary = {
+  totalFeeAccounts: number;
+  pendingVerifications: number;
+  verifiedPayments: number;
+  rejectedPayments: number;
+  todayCollections: number;
+  monthCollection: number;
+  pendingAmount: number;
+  todayPendingRequests: number;
+  fullyPaid: number;
+  partiallyPaid: number;
+  averageVerificationMinutes: number;
+};
+export type Account = {
+  id: number;
+  studentId: number;
+  student: string;
+  prn: string;
+  department: string;
+  academicYear: string;
+  course: string;
+  division?: string | null;
+  feeStructure: string;
+  totalFee: number;
+  paid: number;
+  pending: number;
+  status: string;
+  dueDate: string;
+  lastPayment?: string | null;
+};
+export type AccountPage = {
+  content: Account[];
+  totalElements: number;
+  page: number;
+  totalPages: number;
+};
+export type Payment = {
+  id: number;
+  accountId: number;
+  studentId: number;
+  receiptNumber?: string | null;
+  student: string;
+  prn: string;
+  department: string;
+  course: string;
+  division?: string | null;
+  amount: number;
+  paymentMode: string;
+  transactionId: string;
+  paymentDate: string;
+  proofUrl: string;
+  remarks?: string | null;
+  status: string;
+  submittedAt: string;
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectionReason?: string | null;
+  remainingFee: number;
+  previousPayments: number;
+  currentInstallment: number;
+  duplicateDetected: boolean;
+  amountMismatch: boolean;
+};
+export type Due = {
+  accountId: number;
+  studentId: number;
+  student: string;
+  prn: string;
+  department: string;
+  totalFee: number;
+  paid: number;
+  pending: number;
+  dueDate: string;
+  lastPayment?: string | null;
+  urgency: string;
+};
+export type Transaction = {
+  id: number;
+  feeAccountId: number;
+  paymentId?: number | null;
+  transactionType: string;
+  amount: number;
+  previousPaidAmount?: number | null;
+  newPaidAmount?: number | null;
+  previousRemainingAmount?: number | null;
+  newRemainingAmount?: number | null;
+  remarks?: string | null;
+  performedByName?: string | null;
+  createdAt: string;
+};
+export type Installment = { number: number; amount: number; dueDate: string; status: string };
+export type AccountDetail = {
+  account: Account;
+  payments: Payment[];
+  transactions: Transaction[];
+  installments: Installment[];
+  receiptNumbers: string[];
+};
+export type FilterOption = { id: number; label: string };
+export type Workspace = {
+  summary: Summary;
+  accounts: AccountPage;
+  pending: Payment[];
+  verified: Payment[];
+  rejected: Payment[];
+  history: Payment[];
+  dues: Due[];
+  dailyCollection: MoneyPoint[];
+  monthlyCollection: MoneyPoint[];
+  departmentCollection: MoneyPoint[];
+  pendingVsCollected: MoneyPoint[];
+  recentApprovals: Payment[];
+  recentRejections: Payment[];
+  largePayments: Payment[];
+  studentsWithPendingDues: Due[];
+  departments: FilterOption[];
+  courseYears: FilterOption[];
+  academicYears: string[];
+};
+const unwrap = <T>(p: Promise<{ data: ApiResponse<T> }>) => p.then((r) => r.data.data);
+export const workspace = (params?: object) =>
+  unwrap<Workspace>(apiClient.get("/api/fee-section/workspace", { params }));
+export const account = (id: number) =>
+  unwrap<AccountDetail>(apiClient.get(`/api/fee-section/workspace/accounts/${id}`));
+export const sendPendingFeeReminders = () =>
+  unwrap<number>(apiClient.post("/api/fee-section/fee-accounts/send-reminders"));
+export const paymentProof = async (id: number) => {
+  const response = await apiClient.get<Blob>(`/api/fee-section/payments/${id}/proof`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+export const verify = (id: number, remarks = "") =>
+  unwrap(apiClient.patch(`/api/fee-section/payments/${id}/verify`, { remarks }));
+export const reject = (id: number, rejectionReason: string) =>
+  unwrap(apiClient.patch(`/api/fee-section/payments/${id}/reject`, { rejectionReason }));
+export const resubmit = (id: number, rejectionReason: string) =>
+  unwrap(
+    apiClient.patch(`/api/fee-section/payments/${id}/request-resubmission`, { rejectionReason }),
+  );
+export const reopen = (id: number) =>
+  unwrap(apiClient.patch(`/api/fee-section/payments/${id}/reopen`));

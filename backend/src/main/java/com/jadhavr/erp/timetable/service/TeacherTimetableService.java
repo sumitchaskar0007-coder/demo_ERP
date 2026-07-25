@@ -103,6 +103,7 @@ public class TeacherTimetableService {
     private List<WeeklyTimetableEntry> teacherEntries(StaffProfile teacher) {
         return entries.findByTeacherId(teacher.getId()).stream()
                 .filter(entry -> entry.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
+                .filter(entry -> entry.getTimetable().getReviewStatus() == WeeklyTimetable.ReviewStatus.APPROVED)
                 .sorted(Comparator.comparing(WeeklyTimetableEntry::getDayOfWeek)
                         .thenComparing(entry -> entry.getPeriod().getStartTime()))
                 .toList();

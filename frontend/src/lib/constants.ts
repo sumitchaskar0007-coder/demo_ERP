@@ -1,4 +1,5 @@
-export const APP_NAME = "Jadhavr ERP";
+export const APP_NAME = "Jadhavar ERP";
+export const DASHBOARD_NAVIGATION_VISIBILITY_EVENT = "dashboard-navigation:visibility";
 
 export const ROUTES = {
   login: "/login",
@@ -8,6 +9,8 @@ export const ROUTES = {
   emailNotifications: "/admin/email-notifications",
   changePassword: "/change-password",
   dashboard: "/dashboard",
+  hodWorkspace: "/hod",
+  teacherWorkspace: "/teacher/workspace",
   account: "/account",
   accountChangePassword: "/account/change-password",
   auditLogs: "/audit-logs",
@@ -26,6 +29,17 @@ export const ROUTES = {
   adminFeeCollection: "/admin/fee-collection",
   adminPendingFees: "/admin/pending-fees",
   adminAnalytics: "/admin/analytics",
+  adminPeople: "/admin/people",
+  adminFees: "/admin/fees",
+  adminInsights: "/admin/insights",
+  adminAdministration: "/admin/administration",
+  principalFeeCollection: "/principal/fee-collection",
+  principalPendingFees: "/principal/pending-fees",
+  principalAnalytics: "/principal/analytics",
+  principalAcademics: "/principal/academics",
+  principalFees: "/principal/fees",
+  principalReports: "/principal/reports",
+  principalAdministration: "/principal/administration",
   adminLectureLoad: "/admin/lecture-load",
   publicAdmission: "/admission/:collegeCode",
   publicAdmissionSuccess: "/admission/:collegeCode/success",
@@ -34,11 +48,13 @@ export const ROUTES = {
   studentAdmission: "/student/admission",
   studentSectionDashboard: "/student-section/dashboard",
   studentSectionAdmissions: "/student-section/admissions",
+  studentSectionDocuments: "/student-section/documents",
   staff: "/staff",
   students: "/students",
   createStudentSectionStaff: "/staff/student-section/create",
   createFeeSectionStaff: "/staff/fee-section/create",
   createStaff: "/principal/staff/create",
+  editStaff: "/staff/:id/edit",
   courseYears: "/principal/course-years",
   createCourseYear: "/principal/course-years/create",
   divisions: "/principal/divisions",
@@ -47,6 +63,7 @@ export const ROUTES = {
   studentFees: "/student/fees",
   studentPayments: "/student/fees/payments",
   feeSectionDashboard: "/fee-section/dashboard",
+  feeOfficerWorkspace: "/fee-section/workspace",
   feeAccounts: "/fee-section/fee-accounts",
   feePayments: "/fee-section/payments",
   principalReviewReady: "/principal/admissions/review-ready",
@@ -63,7 +80,6 @@ export const ROUTES = {
   studentClass: "/student/academic/class",
   studentAllocation: "/academic/student-allocation",
   classTeacherClass: "/academic/class-teacher/my-class",
-  classTeacherTimetable: "/academic/class-teacher/timetable",
   teacherTimetable: "/teacher/timetable",
   teacherAttendance: "/teacher/attendance",
   notices: "/notices",
@@ -97,10 +113,10 @@ export function defaultRouteForRoles(roles: string[] = []) {
   )
     return ROUTES.dashboard;
   if (roles.includes(ROLES.STUDENT_SECTION)) return ROUTES.studentSectionDashboard;
-  if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeSectionDashboard;
-  if (roles.includes(ROLES.HOD)) return ROUTES.studentAllocation;
+  if (roles.includes(ROLES.FEE_SECTION)) return ROUTES.feeOfficerWorkspace;
+  if (roles.includes(ROLES.HOD)) return ROUTES.hodWorkspace;
   if (roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER))
-    return ROUTES.dashboard;
+    return ROUTES.teacherWorkspace;
   if (roles.includes(ROLES.STUDENT)) return ROUTES.studentDashboard;
   return ROUTES.dashboard;
 }
@@ -114,8 +130,8 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
       path.startsWith("/colleges") ||
       path.startsWith("/principals") ||
       path === ROUTES.staff ||
+      path.startsWith("/staff/") ||
       path === ROUTES.students ||
-      path === ROUTES.timetable ||
       path.startsWith("/admin/")
     );
   }
@@ -146,14 +162,17 @@ export function isRouteAllowedForRoles(path: string, roles: string[] = []) {
     )
   )
     return (
-      path.startsWith("/academic") ||
+      (roles.includes(ROLES.HOD) && path.startsWith("/academic")) ||
+      (roles.includes(ROLES.CLASS_TEACHER) && path === ROUTES.classTeacherClass) ||
+      (roles.includes(ROLES.HOD) && path.startsWith("/hod")) ||
       ((roles.includes(ROLES.CLASS_TEACHER) || roles.includes(ROLES.SUBJECT_TEACHER)) &&
-        (path === ROUTES.teacherTimetable || path === ROUTES.teacherAttendance)) ||
+        (path.startsWith("/teacher/") ||
+          path === ROUTES.teacherTimetable ||
+          path === ROUTES.teacherAttendance)) ||
       ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&
         path === ROUTES.attendanceReport) ||
-      ((roles.includes(ROLES.HOD) || roles.includes(ROLES.CLASS_TEACHER)) &&
-        path === ROUTES.timetable) ||
-      path === ROUTES.dashboard ||
+      (roles.includes(ROLES.HOD) && path === ROUTES.timetable) ||
+      (!roles.includes(ROLES.HOD) && path === ROUTES.dashboard) ||
       path === ROUTES.notices ||
       path === ROUTES.profile
     );

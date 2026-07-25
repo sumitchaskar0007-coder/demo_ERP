@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BookOpen, Filter, Plus } from "lucide-react";
+import { BookOpen, CalendarDays, Filter, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -10,15 +10,36 @@ import { Loader } from "@/components/common/Loader";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/academic/api";
+import { useAuth } from "@/features/auth/authStore";
 import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
-import type {
-  AcademicClass,
-  FinalAdmission,
-  Section,
-  Subject,
-  TimetableEntry,
-} from "@/features/academic/types";
+import type { AcademicClass, Section, Subject } from "@/features/academic/types";
+import type { WeeklyTimetable } from "@/features/academics/api";
+
+const preferredDepartments = (rows: Department[], classes: AcademicClass[]) => {
+  const classCounts = new Map<number, number>();
+  classes.forEach((item) => {
+    classCounts.set(item.department.id, (classCounts.get(item.department.id) ?? 0) + 1);
+  });
+  const preferred = new Map<string, Department>();
+  rows.forEach((row) => {
+    const key = `${row.collegeId}:${row.code.trim().toUpperCase()}`;
+    const current = preferred.get(key);
+    const rowCount = classCounts.get(row.id) ?? 0;
+    const currentCount = current ? (classCounts.get(current.id) ?? 0) : -1;
+    if (!current || rowCount > currentCount || (rowCount === currentCount && row.id > current.id)) {
+      preferred.set(key, row);
+    }
+  });
+  return [...preferred.values()];
+};
+
+const uniqueAcademicClasses = (rows: AcademicClass[]) => [
+  ...new Map(
+    rows.map((row) => [`${row.department.id}:${row.academicYear}:${row.yearName}`, row]),
+  ).values(),
+];
+
 function Shell({
   title,
   subtitle,
@@ -32,87 +53,14 @@ function Shell({
     <div className="page-container">
       <h1 className="page-title">{title}</h1>
       <p className="page-subtitle">{subtitle}</p>
-      <Card className="mt-6 p-5">{children}</Card>
+      <Card className="mt-6 p-4 sm:p-5">{children}</Card>
     </div>
-  );
-}
-export function FinalAdmissionsPage() {
-  const [rows, setRows] = useState<FinalAdmission[]>([]),
-    [loading, setLoading] = useState(true);
-  const load = () =>
-    api
-      .getFinalAdmissionQueue()
-      .then(setRows)
-      .catch((e) => toast.error(handleApiError(e).message))
-      .finally(() => setLoading(false));
-  useEffect(() => {
-    void load();
-  }, []);
-  const act = async (id: number, approve: boolean) => {
-    const text = window.prompt(approve ? "Approval remarks (optional)" : "Rejection reason");
-    if (!approve && (!text || text.length < 5)) return;
-    try {
-      if (approve) {
-        await api.approveFinalAdmission(id, { remarks: text });
-      } else {
-        await api.rejectFinalAdmission(id, { rejectionReason: text });
-      }
-      toast.success(approve ? "Admission approved" : "Admission rejected");
-      load();
-    } catch (e) {
-      toast.error(handleApiError(e).message);
-    }
-  };
-  return (
-    <Shell
-      title="Principal Final Admissions"
-      subtitle="Approve fee-verified students and activate their academic profile."
-    >
-      {loading ? (
-        <Loader />
-      ) : rows.length ? (
-        <div className="responsive-table">
-          <table>
-            <thead>
-              <tr className="text-left text-slate-500">
-                <th className="p-3">Student</th>
-                <th>Department</th>
-                <th>Year</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr className="border-t" key={r.id}>
-                  <td className="p-3">
-                    <b>{r.fullName}</b>
-                    <div>{r.admissionReferenceNumber}</div>
-                  </td>
-                  <td>{r.departmentName}</td>
-                  <td>{r.academicYear}</td>
-                  <td className="space-x-2">
-                    <Button onClick={() => act(r.id, true)}>Approve</Button>
-                    <Button variant="danger" onClick={() => act(r.id, false)}>
-                      Reject
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <EmptyState
-          title="No admissions ready"
-          description="Fee-verified admissions will appear here."
-        />
-      )}
-    </Shell>
   );
 }
 type Kind = "classes" | "sections" | "subjects";
 export function AcademicListPage({ kind }: { kind: Kind }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [rows, setRows] = useState<(AcademicClass | Section | Subject)[]>([]),
     [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -122,10 +70,17 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
 
   useEffect(() => {
     if (kind !== "subjects") return;
-    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
-      .then((r) => setDepartments(r.content))
+    if (!user?.collegeId) {
+      setDepartments([]);
+      return;
+    }
+    Promise.all([
+      searchDepartments({ collegeId: user.collegeId, status: "ACTIVE", page: 0, size: 100 }),
+      api.searchAcademicClasses(),
+    ])
+      .then(([result, classes]) => setDepartments(preferredDepartments(result.content, classes)))
       .catch((e) => toast.error(handleApiError(e).message));
-  }, [kind]);
+  }, [kind, user?.collegeId]);
 
   const loadYearOptions = async (departmentId: string) => {
     if (!departmentId) {
@@ -176,10 +131,15 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
               </div>
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold sm:text-xl">Subject catalogue</h2>
-                <p className="mt-1 text-sm text-white/80">Organise subjects by department and course year.</p>
+                <p className="mt-1 text-sm text-white/80">
+                  Organise subjects by department and course year.
+                </p>
               </div>
             </div>
-            <Button className="w-full shrink-0 bg-white text-brand-700 hover:bg-brand-50 sm:w-auto" onClick={() => navigate("/academic/subjects/create")}>
+            <Button
+              className="w-full shrink-0 bg-white text-brand-700 hover:bg-brand-50 sm:w-auto"
+              onClick={() => navigate("/academic/subjects/create")}
+            >
               <Plus className="h-4 w-4" /> Create subject
             </Button>
           </div>
@@ -194,7 +154,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                 onChange={(e) => handleDeptChange(e.target.value)}
                 options={[
                   { label: "All departments", value: "" },
-                  ...departments.map((d) => ({ label: `${d.code} - ${d.name}`, value: String(d.id) })),
+                  ...departments.map((d) => ({
+                    label: `${d.code} - ${d.name}`,
+                    value: String(d.id),
+                  })),
                 ]}
               />
               <Select
@@ -203,7 +166,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                 onChange={(e) => setYearFilter(e.target.value)}
                 disabled={!deptFilter}
                 options={[
-                  { label: deptFilter ? "All course years" : "Select a department first", value: "" },
+                  {
+                    label: deptFilter ? "All course years" : "Select a department first",
+                    value: "",
+                  },
                   ...yearOptions.map((y) => ({ label: y.replaceAll("_", " "), value: y })),
                 ]}
               />
@@ -212,7 +178,9 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
         </div>
       ) : (
         <div className="mb-4">
-          <Button onClick={() => navigate(`/academic/${kind}/create`)}><Plus className="h-4 w-4" /> Create new</Button>
+          <Button onClick={() => navigate(`/academic/${kind}/create`)}>
+            <Plus className="h-4 w-4" /> Create new
+          </Button>
         </div>
       )}
       {loading ? (
@@ -220,7 +188,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
       ) : rows.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
-            <div key={r.id} className="min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-brand-200 hover:shadow-sm">
+            <div
+              key={r.id}
+              className="min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-brand-200 hover:shadow-sm"
+            >
               <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <b className="block break-words text-slate-900">{r.name}</b>
@@ -234,18 +205,26 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                   </p>
                 </div>
                 {kind === "subjects" && (
-                  <div className="flex w-full gap-2 sm:w-auto">
-                    <Button className="h-9 flex-1 px-3 text-xs sm:flex-none" onClick={() => navigate(`/academic/subjects/${r.id}/edit`)}>
+                  <div className="table-action-group sm:w-auto">
+                    <Button
+                      className="h-9 flex-1 px-3 text-xs sm:flex-none"
+                      onClick={() => navigate(`/academic/subjects/${r.id}/edit`)}
+                    >
                       Edit
                     </Button>
                     <Button
                       className="h-9 flex-1 px-3 text-xs sm:flex-none"
                       variant="danger"
                       onClick={async () => {
-                        if (!confirm("Delete this subject?")) return;
+                        if (
+                          !confirm(
+                            "Remove this subject? Existing timetable and attendance history will be preserved.",
+                          )
+                        )
+                          return;
                         try {
                           await api.deleteSubject(r.id);
-                          toast.success("Subject deleted");
+                          toast.success("Subject removed");
                           load();
                         } catch (e) {
                           toast.error(handleApiError(e).message);
@@ -263,8 +242,18 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
       ) : (
         <EmptyState
           title={`No ${kind} found`}
-          description={kind === "subjects" ? "Create a subject or adjust the department and course-year filters." : "Create the first record to begin."}
-          action={kind === "subjects" ? <Button onClick={() => navigate("/academic/subjects/create")}><Plus className="h-4 w-4" /> Create subject</Button> : undefined}
+          description={
+            kind === "subjects"
+              ? "Create a subject or adjust the department and course-year filters."
+              : "Create the first record to begin."
+          }
+          action={
+            kind === "subjects" ? (
+              <Button onClick={() => navigate("/academic/subjects/create")}>
+                <Plus className="h-4 w-4" /> Create subject
+              </Button>
+            ) : undefined
+          }
         />
       )}
     </Shell>
@@ -272,6 +261,7 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
 }
 export function AcademicCreatePage({ kind }: { kind: Kind }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [v, setV] = useState<Record<string, string>>({ academicYear: "2026-27" });
   const [departments, setDepartments] = useState<Department[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
@@ -286,10 +276,17 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
 
   useEffect(() => {
     if (kind !== "subjects") return;
-    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
-      .then((result) => setDepartments(result.content))
+    if (!user?.collegeId) {
+      setDepartments([]);
+      return;
+    }
+    Promise.all([
+      searchDepartments({ collegeId: user.collegeId, status: "ACTIVE", page: 0, size: 100 }),
+      api.searchAcademicClasses(),
+    ])
+      .then(([result, classes]) => setDepartments(preferredDepartments(result.content, classes)))
       .catch((error) => toast.error(handleApiError(error).message));
-  }, [kind]);
+  }, [kind, user?.collegeId]);
 
   const loadAcademicClasses = async (departmentId: string) => {
     if (!departmentId) {
@@ -298,7 +295,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
     }
     try {
       const items = await api.searchAcademicClasses({ departmentId: Number(departmentId) });
-      setAcademicClasses(items);
+      setAcademicClasses(uniqueAcademicClasses(items.filter((item) => item.status === "ACTIVE")));
     } catch (error) {
       setAcademicClasses([]);
       toast.error(handleApiError(error).message);
@@ -436,7 +433,8 @@ export function SubjectEditPage() {
 
   useEffect(() => {
     if (!id) return;
-    api.searchSubjects()
+    api
+      .searchSubjects()
       .then((rows) => {
         const sub = rows.find((s) => s.id === Number(id));
         if (sub) {
@@ -468,14 +466,31 @@ export function SubjectEditPage() {
     }
   };
 
-  if (loading) return <Shell title="Edit Subject" subtitle="Loading..."><Loader /></Shell>;
+  if (loading)
+    return (
+      <Shell title="Edit Subject" subtitle="Loading...">
+        <Loader />
+      </Shell>
+    );
 
   return (
     <Shell title="Edit Subject" subtitle="Update subject details.">
       <div className="grid gap-4 md:grid-cols-2">
-        <Input label="Name" value={v.name || ""} onChange={(e) => setV({ ...v, name: e.target.value })} />
-        <Input label="Code" value={v.code || ""} onChange={(e) => setV({ ...v, code: e.target.value })} />
-        <Input label="Credits" value={v.credits || ""} onChange={(e) => setV({ ...v, credits: e.target.value })} />
+        <Input
+          label="Name"
+          value={v.name || ""}
+          onChange={(e) => setV({ ...v, name: e.target.value })}
+        />
+        <Input
+          label="Code"
+          value={v.code || ""}
+          onChange={(e) => setV({ ...v, code: e.target.value })}
+        />
+        <Input
+          label="Credits"
+          value={v.credits || ""}
+          onChange={(e) => setV({ ...v, credits: e.target.value })}
+        />
         <Select
           label="Subject Type"
           value={v.subjectType || ""}
@@ -487,31 +502,164 @@ export function SubjectEditPage() {
             { label: "Other (Soft Skill etc.)", value: "OTHER" },
           ]}
         />
-        <Input label="Description" value={v.description || ""} onChange={(e) => setV({ ...v, description: e.target.value })} />
+        <Input
+          label="Description"
+          value={v.description || ""}
+          onChange={(e) => setV({ ...v, description: e.target.value })}
+        />
       </div>
-      <Button className="mt-5" onClick={save}>Update</Button>
+      <Button className="mt-5" onClick={save}>
+        Update
+      </Button>
     </Shell>
   );
 }
 
 export function StudentAcademicPage({ attendance = false }: { attendance?: boolean }) {
-  const [data, setData] = useState<TimetableEntry[] | Record<string, number> | null>(null);
+  const [data, setData] = useState<Record<string, number> | null>(null);
   useEffect(() => {
-    (attendance ? api.getMyStudentAttendanceSummary() : api.getMyStudentTimetable())
+    if (!attendance) return;
+    api
+      .getMyStudentAttendanceSummary()
       .then(setData)
       .catch((e) => toast.error(handleApiError(e).message));
   }, [attendance]);
+  if (!attendance) return <StudentWeeklyTimetable />;
   return (
-    <Shell
-      title={attendance ? "My Attendance" : "My Timetable"}
-      subtitle="Your current academic section information."
-    >
+    <Shell title="My Attendance" subtitle="Your current academic section information.">
       {!data ? (
         <Loader />
       ) : (
         <pre className="overflow-auto rounded-xl bg-slate-50 p-4 text-sm">
           {JSON.stringify(data, null, 2)}
         </pre>
+      )}
+    </Shell>
+  );
+}
+
+const STUDENT_TIMETABLE_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+const STUDENT_TIMETABLE_COLORS = [
+  "border-blue-200 bg-blue-50 text-blue-950",
+  "border-emerald-200 bg-emerald-50 text-emerald-950",
+  "border-orange-200 bg-orange-50 text-orange-950",
+  "border-violet-200 bg-violet-50 text-violet-950",
+  "border-cyan-200 bg-cyan-50 text-cyan-950",
+];
+
+function StudentWeeklyTimetable() {
+  const [table, setTable] = useState<WeeklyTimetable | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api
+      .getMyStudentTimetable()
+      .then(setTable)
+      .catch((e) => setError(handleApiError(e).message))
+      .finally(() => setLoading(false));
+  }, []);
+  const entries = useMemo(
+    () =>
+      new Map(
+        (table?.entries ?? []).map((entry) => [`${entry.dayOfWeek}:${entry.periodId}`, entry]),
+      ),
+    [table],
+  );
+  return (
+    <Shell title="My Timetable" subtitle="Your weekly timetable for the allocated division.">
+      {loading ? (
+        <Loader />
+      ) : error || !table ? (
+        <EmptyState
+          title="Timetable not available"
+          description={error || "A timetable has not been created for your division yet."}
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-blue-600 text-white">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900">
+                  {table.year} - Division {table.division}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {table.department} | {table.academicYear}
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700">
+              Class teacher: {table.classTeacher}
+            </span>
+          </div>
+          {!table.periods.length ? (
+            <EmptyState
+              title="No timetable configured"
+              description="Periods have not been configured yet."
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
+              <div className="min-w-[1080px]">
+                <div className="grid grid-cols-[145px_repeat(6,minmax(150px,1fr))] bg-slate-100 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <div className="p-3 text-left">Period</div>
+                  {STUDENT_TIMETABLE_DAYS.map((day) => (
+                    <div className="border-l p-3" key={day}>
+                      {day.slice(0, 3)}
+                    </div>
+                  ))}
+                </div>
+                {table.periods.map((period) => (
+                  <div
+                    key={period.id}
+                    className={`grid grid-cols-[145px_repeat(6,minmax(150px,1fr))] border-t ${period.kind !== "TEACHING" ? "bg-amber-50/70" : ""}`}
+                  >
+                    <div
+                      className={`p-3 ${period.kind !== "TEACHING" ? "bg-amber-50" : "bg-white"}`}
+                    >
+                      <b className="text-sm text-slate-800">{period.label}</b>
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        {period.startTime.slice(0, 5)}-{period.endTime.slice(0, 5)}
+                      </p>
+                    </div>
+                    {period.kind !== "TEACHING" ? (
+                      <div className="col-span-6 flex items-center justify-center border-l p-4 text-xs font-bold tracking-[.18em] text-amber-700">
+                        {period.label.toUpperCase()}
+                      </div>
+                    ) : (
+                      STUDENT_TIMETABLE_DAYS.map((day) => {
+                        const entry = entries.get(`${day}:${period.id}`);
+                        return (
+                          <div className="min-h-24 border-l p-2" key={day}>
+                            {entry ? (
+                              <div
+                                className={`h-full rounded-xl border p-2.5 shadow-sm ${STUDENT_TIMETABLE_COLORS[entry.subjectId % STUDENT_TIMETABLE_COLORS.length]}`}
+                              >
+                                <b className="text-xs leading-5">{entry.subject}</b>
+                                <p className="mt-1 truncate text-[10px] opacity-75">
+                                  {entry.teacher}
+                                </p>
+                                <p className="mt-1 text-[10px] font-semibold">
+                                  {entry.lectureType}
+                                  {entry.room ? ` - ${entry.room}` : ""}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="grid h-full place-items-center text-xs text-slate-300">
+                                -
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </Shell>
   );

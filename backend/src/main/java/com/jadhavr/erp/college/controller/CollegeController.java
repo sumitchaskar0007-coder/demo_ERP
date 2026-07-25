@@ -5,6 +5,7 @@ import com.jadhavr.erp.college.dto.CreateCollegeRequest;
 import com.jadhavr.erp.college.dto.UpdateCollegeRequest;
 import com.jadhavr.erp.college.service.CollegeService;
 import com.jadhavr.erp.college.service.CollegeImageStorageService;
+import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.common.dto.PageResponse;
@@ -31,17 +32,49 @@ public class CollegeController {
 
     private final CollegeService collegeService;
     private final CollegeImageStorageService imageStorage;
+    private final CollegeRepository colleges;
 
-    public CollegeController(CollegeService collegeService, CollegeImageStorageService imageStorage) {
+    public CollegeController(CollegeService collegeService, CollegeImageStorageService imageStorage,
+            CollegeRepository colleges) {
         this.collegeService = collegeService;
         this.imageStorage = imageStorage;
+        this.colleges = colleges;
     }
 
     @PostMapping("/images/{kind}")
     public ApiResponse<Map<String, String>> uploadImage(@PathVariable String kind,
             @RequestParam("file") MultipartFile file) {
         return ApiResponse.success("College image uploaded successfully",
-                Map.of("url", imageStorage.store(file, kind)));
+                Map.of("url", imageStorage.storePending(file, kind)));
+    }
+
+    @GetMapping("/images/pending/{kind}/{filename:.+}")
+    public ResponseEntity<org.springframework.core.io.Resource> pendingImage(
+            @PathVariable String kind, @PathVariable String filename) {
+        int separator = filename.lastIndexOf('.');
+        if (separator < 1) return ResponseEntity.badRequest().build();
+        var image = imageStorage.loadPending(kind, filename.substring(0, separator),
+                filename.substring(separator + 1));
+        return imageResponse(image);
+    }
+
+    @GetMapping("/{id}/images/{kind}")
+    public ResponseEntity<org.springframework.core.io.Resource> image(
+            @PathVariable Long id, @PathVariable String kind) {
+        var college = colleges.findById(id).orElseThrow(() ->
+                new com.jadhavr.erp.common.exception.ResourceNotFoundException("College not found"));
+        String key = "logo".equals(kind) ? college.getLogoUrl()
+                : "qr-code".equals(kind) ? college.getQrCodeUrl() : null;
+        if (key == null) return ResponseEntity.notFound().build();
+        return imageResponse(imageStorage.load(key));
+    }
+
+    private ResponseEntity<org.springframework.core.io.Resource> imageResponse(
+            CollegeImageStorageService.ImageResource image) {
+        return ResponseEntity.ok()
+                .contentType(image.mediaType())
+                .header("Content-Disposition", "inline; filename=\"college-image\"")
+                .body(image.resource());
     }
 
     @PostMapping

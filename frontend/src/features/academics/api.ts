@@ -116,12 +116,14 @@ export interface WeeklyEntry {
 export interface WeeklyTimetable {
   id: number;
   sectionId: number;
+  college: string;
   department: string;
   year: string;
   division: string;
   classTeacher: string;
   academicYear: string;
   status: string;
+  reviewComment?: string | null;
   editable: boolean;
   periods: WeeklyPeriod[];
   entries: WeeklyEntry[];
@@ -152,6 +154,8 @@ export const weeklyTimetableApi = {
     unwrap<WeeklyDivision[]>(await apiClient.get("/api/weekly-timetables/divisions")),
   get: async (sectionId: number) =>
     unwrap<WeeklyTimetable>(await apiClient.get(`/api/weekly-timetables/sections/${sectionId}`)),
+  startRevision: async (id: number) =>
+    unwrap<WeeklyTimetable>(await apiClient.post(`/api/weekly-timetables/${id}/revision`)),
   save: async (id: number, day: string, periodId: number, body: Record<string, unknown>) =>
     unwrap<WeeklyEntry>(
       await apiClient.put(`/api/weekly-timetables/${id}/entries/${day}/${periodId}`, body),
@@ -185,6 +189,12 @@ export const weeklyTimetableApi = {
     unwrap<WeeklyTimetable>(
       await apiClient.put(`/api/weekly-timetables/${id}/periods`, { periods }),
     ),
+  submitReview: async (id: number) =>
+    unwrap<WeeklyTimetable>(await apiClient.post(`/api/weekly-timetables/${id}/submit-review`)),
+  review: async (id: number, action: string, comment?: string) =>
+    unwrap<WeeklyTimetable>(
+      await apiClient.post(`/api/weekly-timetables/${id}/review`, { action, comment }),
+    ),
 };
 export const attendanceApi = {
   sessions: async (from: string, to: string) =>
@@ -198,4 +208,19 @@ export const attendanceApi = {
   report: async (studentId: number, from: string, to: string) =>
     (await apiClient.get(`/api/attendance/reports/students/${studentId}`, { params: { from, to } }))
       .data,
+};
+
+export interface StudentAcademicAccess {
+  divisionAllocated: boolean;
+  courseYearId?: number | null;
+  courseYear?: string | null;
+  divisionId?: number | null;
+  division?: string | null;
+  academicYear?: string | null;
+  rollNumber?: string | null;
+}
+
+export const studentAcademicApi = {
+  accessState: async () =>
+    unwrap<StudentAcademicAccess>(await apiClient.get("/api/student/academic/access-state")),
 };

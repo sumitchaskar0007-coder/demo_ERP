@@ -31,7 +31,21 @@ public final class WeeklyAttendanceDtos {
             List<MonthSummary> monthly, List<StudentHistoryRow> history) {}
     public record StudentHistoryRow(LocalDate date, String time, String subject, String teacher,
             String status, String remarks) {}
+    public record TrendPoint(LocalDate date, int total, int attended, double percentage,
+            int lectures, int scheduledLectures, double averagePresent, double averageStudents) {}
+    public record OperationalSummary(Long id, String name, int lectures, int submitted, int pending) {}
+    public record StudentAnalyticsRow(Long studentId, String admissionNumber, String rollNumber,
+            String studentName, String gender, String photoUrl, String guardianName, String mobile,
+            Long departmentId, String department, String academicYear, String year,
+            Long divisionId, String division, String classTeacher, int total, long present,
+            long absent, long late, long leave, double percentage, String indicator,
+            List<SubjectSummary> subjects, List<MonthSummary> monthly, List<StudentHistoryRow> history) {}
     public record ReportResponse(LocalDate from, LocalDate to, int sessions, int totalMarks,
             long present, long absent, long late, long leave, double percentage,
-            List<SessionSummary> rows, List<SubjectSummary> subjects, List<MonthSummary> monthly) {}
+            int totalStudents, int uniquePresentToday, int uniqueAbsentToday,
+            int todayLectures, int submittedToday, int pendingToday, int departments,
+            int divisions, int below75, int below50, List<TrendPoint> trend,
+            List<OperationalSummary> departmentOperations, List<OperationalSummary> divisionOperations,
+            List<OperationalSummary> teacherOperations, List<StudentAnalyticsRow> students, List<SessionSummary> rows,
+            List<SubjectSummary> subjects, List<MonthSummary> monthly) {}
 }

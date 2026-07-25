@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LectureCard } from "./LectureCard";
@@ -22,14 +29,14 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
   } | null>(null);
   const [activeEntry, setActiveEntry] = useState<TimetableEntry | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const getEntry = (day: string, period: number) =>
     entries.find((e) => e.dayOfWeek === day && e.periodNumber === period);
 
-  const handleDragStart = (event: { active: { data: { current?: { entry?: TimetableEntry } } } }) => {
+  const handleDragStart = (event: {
+    active: { data: { current?: { entry?: TimetableEntry } } };
+  }) => {
     const entry = event.active.data.current?.entry;
     if (entry) setActiveEntry(entry);
   };
@@ -57,13 +64,13 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
         <table className="w-full min-w-[800px] border-collapse text-xs">
           <thead>
             <tr>
-              <th className="w-24 border border-slate-200 bg-slate-50 px-2 py-2 text-left text-xs font-semibold text-slate-600">
+              <th className="w-24 border border-sky-200 bg-gradient-to-r from-brand-50 to-sky-50 px-2 py-2 text-left text-xs font-bold text-brand-700">
                 Time
               </th>
               {DAYS.map((day) => (
                 <th
                   key={day}
-                  className="border border-slate-200 bg-slate-50 px-2 py-2 text-center text-xs font-semibold text-slate-600"
+                  className="border border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 px-2 py-2 text-center text-xs font-bold text-brand-700"
                 >
                   {DAY_LABELS[day]}
                 </th>
@@ -73,7 +80,7 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
           <tbody>
             {DEFAULT_PERIODS.map((period) => (
               <tr key={period.number}>
-                <td className="whitespace-nowrap border border-slate-200 bg-slate-50 px-2 py-1">
+                <td className="whitespace-nowrap border border-slate-200 bg-slate-50/70 px-2 py-1">
                   <p className="font-medium text-slate-700">{period.label}</p>
                   <p className="text-[10px] text-slate-400">
                     {period.start} – {period.end}
@@ -84,7 +91,7 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
                     return (
                       <td
                         key={`${day}-${period.number}`}
-                        className="border border-slate-200 bg-slate-50 px-1 py-1 text-center text-xs text-slate-400"
+                        className="border border-orange-200 bg-orange-50 px-1 py-1 text-center text-xs font-semibold text-orange-700"
                       >
                         {period.label}
                       </td>
@@ -98,9 +105,9 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
                   const isHighlighted =
                     highlightLower &&
                     entry &&
-                    ((entry.subject?.toLowerCase().includes(highlightLower)) ||
-                      (entry.teacher?.toLowerCase().includes(highlightLower)) ||
-                      (entry.room?.toLowerCase().includes(highlightLower)));
+                    (entry.subject?.toLowerCase().includes(highlightLower) ||
+                      entry.teacher?.toLowerCase().includes(highlightLower) ||
+                      entry.room?.toLowerCase().includes(highlightLower));
 
                   return (
                     <td
@@ -153,7 +160,12 @@ export function WeekGrid({ timetableId, entries, onSaved, searchHighlight }: Pro
       <DragOverlay>
         {activeEntry && (
           <div className="w-48 opacity-90">
-            <LectureCard entry={activeEntry} isDroppable={false} onEdit={() => {}} onDelete={() => {}} />
+            <LectureCard
+              entry={activeEntry}
+              isDroppable={false}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
           </div>
         )}
       </DragOverlay>

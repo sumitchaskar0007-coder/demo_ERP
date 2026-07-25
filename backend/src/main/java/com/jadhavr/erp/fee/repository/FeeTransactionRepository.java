@@ -9,4 +9,6 @@ public interface FeeTransactionRepository extends JpaRepository<FeeTransaction, 
     List<FeeTransaction> findByStudentFeeAccountIdOrderByCreatedAtDesc(Long id);
 
     boolean existsByFeePaymentId(Long paymentId);
+    java.util.Optional<FeeTransaction> findByFeePaymentId(Long paymentId);
+    List<FeeTransaction> findByStudentFeeAccountCollegeId(Long collegeId);
 }

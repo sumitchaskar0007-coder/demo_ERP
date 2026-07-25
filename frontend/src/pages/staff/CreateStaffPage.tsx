@@ -11,23 +11,19 @@ import { Input } from "@/components/common/Input";
 import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
 import { createStaff } from "@/features/staff/api";
-import type { StaffType } from "@/features/staff/types";
+import { useAuth } from "@/features/auth/authStore";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
 import { createStaffSchema } from "@/lib/validators";
 
 type Values = z.infer<typeof createStaffSchema>;
-const TEACHING_ROLES: StaffType[] = ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"];
-const ROLE_OPTIONS: Array<{ value: StaffType; label: string; description: string }> = [
+type CreatableStaffType = Values["staffTypes"][number];
+const TEACHING_ROLES: CreatableStaffType[] = ["HOD", "TEACHER", "SUBJECT_TEACHER"];
+const ROLE_OPTIONS: Array<{ value: CreatableStaffType; label: string; description: string }> = [
   {
-    value: "SUBJECT_TEACHER",
+    value: "TEACHER",
     label: "Teacher",
-    description: "Teach assigned subjects and view a personal timetable",
-  },
-  {
-    value: "CLASS_TEACHER",
-    label: "Class Teacher",
-    description: "Manage an assigned division and its timetable",
+    description: "Teach assigned subjects; an HOD can later assign a division",
   },
   { value: "HOD", label: "HOD", description: "Lead one academic department" },
   {
@@ -45,6 +41,7 @@ const ROLE_OPTIONS: Array<{ value: StaffType; label: string; description: string
 
 export function CreateStaffPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [departments, setDepartments] = useState<Department[]>([]);
   const {
     register,
@@ -58,8 +55,7 @@ export function CreateStaffPage() {
       fullName: "",
       email: "",
       phone: "",
-      password: "",
-      staffTypes: ["SUBJECT_TEACHER"],
+      staffTypes: ["TEACHER"],
       departmentIds: [],
       joiningDate: "",
     },
@@ -69,12 +65,25 @@ export function CreateStaffPage() {
   const showDepartments = staffTypes.some((type) => TEACHING_ROLES.includes(type));
 
   useEffect(() => {
-    searchDepartments({ status: "ACTIVE", page: 0, size: 100 })
-      .then((page) => setDepartments(page.content))
+    if (!user?.collegeId) {
+      setDepartments([]);
+      return;
+    }
+    searchDepartments({ collegeId: user.collegeId, status: "ACTIVE", page: 0, size: 100 })
+      .then((page) =>
+        setDepartments([
+          ...new Map(
+            page.content.map((department) => [
+              `${department.collegeId}:${department.code.trim().toUpperCase()}`,
+              department,
+            ]),
+          ).values(),
+        ]),
+      )
       .catch((error) => toast.error(handleApiError(error).message));
-  }, []);
+  }, [user?.collegeId]);
 
-  const toggleRole = (role: StaffType) => {
+  const toggleRole = (role: CreatableStaffType) => {
     const next = staffTypes.includes(role)
       ? staffTypes.filter((item) => item !== role)
       : [...staffTypes, role];
@@ -101,7 +110,7 @@ export function CreateStaffPage() {
         staffType: values.staffTypes[0],
         departmentId: values.departmentIds[0],
       });
-      toast.success("Staff account created with all selected roles and departments");
+      toast.success("Staff account created. The first password is the phone number.");
       navigate(ROUTES.staff);
     } catch (error) {
       toast.error(handleApiError(error).message);
@@ -118,12 +127,13 @@ export function CreateStaffPage() {
         <Card className="grid gap-4 p-6 md:grid-cols-2">
           <Input label="Full Name" error={errors.fullName?.message} {...register("fullName")} />
           <Input label="Email" type="email" error={errors.email?.message} {...register("email")} />
-          <Input label="Phone (optional)" error={errors.phone?.message} {...register("phone")} />
           <Input
-            label="Password"
-            type="password"
-            error={errors.password?.message}
-            {...register("password")}
+            label="Phone Number"
+            type="tel"
+            autoComplete="tel"
+            placeholder="Used as the temporary password"
+            error={errors.phone?.message}
+            {...register("phone")}
           />
           <Input
             label="Joining Date"
@@ -131,6 +141,10 @@ export function CreateStaffPage() {
             error={errors.joiningDate?.message}
             {...register("joiningDate")}
           />
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 md:col-span-2">
+            The phone number is the staff member&apos;s temporary password. They must create a new
+            password immediately after their first login.
+          </div>
         </Card>
 
         <Card className="p-6">
@@ -141,7 +155,7 @@ export function CreateStaffPage() {
             <div>
               <h2 className="font-bold">Roles</h2>
               <p className="text-sm text-slate-500">
-                Teacher and Class Teacher can be combined. HOD and operational roles are standalone.
+                Create teachers here. HODs assign the Class Teacher role with a division.
               </p>
             </div>
           </div>

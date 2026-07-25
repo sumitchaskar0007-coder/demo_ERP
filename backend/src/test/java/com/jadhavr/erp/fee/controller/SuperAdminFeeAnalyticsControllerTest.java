@@ -1,6 +1,7 @@
 package com.jadhavr.erp.fee.controller;
 
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
+import com.jadhavr.erp.analytics.repository.AdminAnalyticsReadRepository;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.fee.dto.FeeCollectionRow;
@@ -22,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -43,13 +45,14 @@ class SuperAdminFeeAnalyticsControllerTest {
     @Mock private StudentProfileRepository students;
     @Mock private AdmissionFormRepository admissions;
     @Mock private StudentSectionEnrollmentRepository enrollments;
+    @Mock private AdminAnalyticsReadRepository analyticsRead;
 
     private SuperAdminFeeAnalyticsController controller;
 
     @BeforeEach
     void setUp() {
         controller = new SuperAdminFeeAnalyticsController(
-                accounts, payments, colleges, users, staff, students, admissions, enrollments);
+                accounts, payments, colleges, users, staff, students, admissions, enrollments, analyticsRead);
     }
 
     @Test
@@ -72,21 +75,19 @@ class SuperAdminFeeAnalyticsControllerTest {
 
     @Test
     void analyticsReturnsFilteredShape() {
-        when(accounts.sumPaidAmount()).thenReturn(new BigDecimal("1500.00"));
-        when(accounts.sumRemainingAmount()).thenReturn(new BigDecimal("500.00"));
-        when(enrollments.findAll()).thenReturn(List.of());
-        when(admissions.findAll()).thenReturn(List.of());
-        when(students.findAll()).thenReturn(List.of());
-        when(accounts.findAll()).thenReturn(List.of());
-        when(staff.findAll()).thenReturn(List.of());
-        when(accounts.findPendingFees(
-                isNull(), isNull(), isNull(), isNull(), eq(""), isNull(), isNull(), any(Pageable.class)))
-                .thenReturn(new PageImpl<PendingFeeRow>(List.of()));
+        when(analyticsRead.read(null, null, null, null)).thenReturn(Map.of(
+                "summary", Map.of("totalFeeCollection", BigDecimal.ZERO),
+                "collegeWiseStudents", List.of(),
+                "collegeWiseFeeCollection", List.of(),
+                "admissionStatusDistribution", Map.of(),
+                "pendingFees", List.of()));
 
         var response = controller.analytics(null, null, null, null);
 
         assertEquals(BigDecimal.ZERO,
                 ((java.util.Map<?, ?>) response.data().get("summary")).get("totalFeeCollection"));
+        verify(analyticsRead).read(null, null, null, null);
+        verify(accounts, never()).findAll();
         verify(payments, never()).findAll();
         verify(colleges, never()).findAll();
         verify(users, never()).findAll();

@@ -19,6 +19,15 @@ public class SecurityAuditEvent {
     @Column(length = 300) private String details;
     @Column(name = "created_at", nullable = false, updatable = false) private LocalDateTime createdAt;
     @PrePersist void create() { if (createdAt == null) createdAt = LocalDateTime.now(); }
+    public Long getId() { return id; }
+    public Long getUserId() { return userId; }
+    public Long getInstitutionId() { return institutionId; }
+    public String getEventType() { return eventType; }
+    public boolean isSuccess() { return success; }
+    public String getIpAddress() { return ipAddress; }
+    public String getUserAgent() { return userAgent; }
+    public String getDetails() { return details; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
     public void setUserId(Long value) { userId = value; } public void setInstitutionId(Long value) { institutionId = value; }
     public void setEventType(String value) { eventType = value; } public void setSuccess(boolean value) { success = value; }
     public void setIpAddress(String value) { ipAddress = value; } public void setUserAgent(String value) { userAgent = value; }

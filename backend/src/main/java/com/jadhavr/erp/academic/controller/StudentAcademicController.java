@@ -1,3 +1,79 @@
 package com.jadhavr.erp.academic.controller;
-import com.jadhavr.erp.academic.enums.AcademicStatus; import com.jadhavr.erp.academic.repository.StudentSectionEnrollmentRepository; import com.jadhavr.erp.academic.service.AcademicService; import com.jadhavr.erp.auth.security.SecurityUtils; import com.jadhavr.erp.common.api.ApiResponse; import com.jadhavr.erp.common.exception.ResourceNotFoundException; import com.jadhavr.erp.student.repository.StudentProfileRepository; import org.springframework.web.bind.annotation.*;
-@RestController @RequestMapping("/api/student/academic") public class StudentAcademicController { private final StudentProfileRepository students;private final StudentSectionEnrollmentRepository enrollments;private final AcademicService service;public StudentAcademicController(StudentProfileRepository s,StudentSectionEnrollmentRepository e,AcademicService a){students=s;enrollments=e;service=a;} private com.jadhavr.erp.student.entity.StudentProfile me(){return students.findByUserId(SecurityUtils.requireCurrentUser().getId()).orElseThrow(()->new ResourceNotFoundException("Student profile not found"));} @GetMapping("/timetable") public ApiResponse<?> timetable(){var e=enrollments.findFirstByStudentAndStatus(me(),AcademicStatus.ACTIVE).orElseThrow(()->new ResourceNotFoundException("Student is not assigned to a section"));return ApiResponse.success("My timetable",service.timetable(e.getSection().getId()));} @GetMapping({"/attendance","/attendance/summary"}) public ApiResponse<?> attendance(){return ApiResponse.success("My attendance",service.attendanceSummary(me().getId()));} @GetMapping("/class") public ApiResponse<?> studentClass(){return ApiResponse.success("My class",service.studentClass());}}
+
+import com.jadhavr.erp.academic.dto.StudentAcademicAccessResponse;
+import com.jadhavr.erp.academic.entity.StudentSectionEnrollment;
+import com.jadhavr.erp.academic.enums.AcademicStatus;
+import com.jadhavr.erp.academic.repository.StudentSectionEnrollmentRepository;
+import com.jadhavr.erp.academic.service.AcademicService;
+import com.jadhavr.erp.auth.security.SecurityUtils;
+import com.jadhavr.erp.common.api.ApiResponse;
+import com.jadhavr.erp.common.exception.ResourceNotFoundException;
+import com.jadhavr.erp.student.entity.StudentProfile;
+import com.jadhavr.erp.student.repository.StudentProfileRepository;
+import com.jadhavr.erp.timetable.service.WeeklyTimetableService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/student/academic")
+public class StudentAcademicController {
+    private final StudentProfileRepository students;
+    private final StudentSectionEnrollmentRepository enrollments;
+    private final AcademicService service;
+    private final WeeklyTimetableService weeklyTimetables;
+
+    public StudentAcademicController(
+            StudentProfileRepository students,
+            StudentSectionEnrollmentRepository enrollments,
+            AcademicService service,
+            WeeklyTimetableService weeklyTimetables) {
+        this.students = students;
+        this.enrollments = enrollments;
+        this.service = service;
+        this.weeklyTimetables = weeklyTimetables;
+    }
+
+    @GetMapping("/access-state")
+    public ApiResponse<StudentAcademicAccessResponse> accessState() {
+        StudentAcademicAccessResponse access = enrollments
+                .findFirstByStudentAndStatus(me(), AcademicStatus.ACTIVE)
+                .map(this::toAccessResponse)
+                .orElseGet(StudentAcademicAccessResponse::notAllocated);
+        return ApiResponse.success("Student academic access retrieved", access);
+    }
+
+    @GetMapping("/timetable")
+    public ApiResponse<?> timetable() {
+        StudentSectionEnrollment enrollment = enrollments
+                .findFirstByStudentAndStatus(me(), AcademicStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException("Student is not assigned to a division"));
+        return ApiResponse.success("My timetable", weeklyTimetables.studentTimetable(enrollment));
+    }
+
+    @GetMapping({"/attendance", "/attendance/summary"})
+    public ApiResponse<?> attendance() {
+        return ApiResponse.success("My attendance", service.attendanceSummary(me().getId()));
+    }
+
+    @GetMapping("/class")
+    public ApiResponse<?> studentClass() {
+        return ApiResponse.success("My class", service.studentClass());
+    }
+
+    private StudentAcademicAccessResponse toAccessResponse(StudentSectionEnrollment enrollment) {
+        return new StudentAcademicAccessResponse(
+                true,
+                enrollment.getAcademicClass().getId(),
+                enrollment.getAcademicClass().getName(),
+                enrollment.getSection().getId(),
+                enrollment.getSection().getName(),
+                enrollment.getAcademicYear(),
+                enrollment.getRollNumber());
+    }
+
+    private StudentProfile me() {
+        return students.findByUserId(SecurityUtils.requireCurrentUser().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Student profile not found"));
+    }
+}

@@ -120,13 +120,13 @@ export function DepartmentListPage() {
       key: "name",
       header: "Department",
       render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
             <LibraryBig className="h-5 w-5" />
           </div>
-          <div>
-            <p className="font-semibold text-slate-900">{row.name}</p>
-            <p className="text-xs text-slate-400">{row.code}</p>
+          <div className="min-w-0">
+            <p className="break-words font-semibold leading-5 text-slate-900">{row.name}</p>
+            <p className="mt-1 text-xs font-medium text-slate-400">{row.code}</p>
           </div>
         </div>
       ),
@@ -166,7 +166,7 @@ export function DepartmentListPage() {
   ];
   return (
     <div className="page-container">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div className="page-header">
         <div>
           <h1 className="page-title">Departments</h1>
           <p className="page-subtitle">
@@ -175,19 +175,21 @@ export function DepartmentListPage() {
               : `Manage departments for ${user.collegeName}.`}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Add department
-        </Button>
+        <div className="page-header__actions">
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Add department
+          </Button>
+        </div>
       </div>
-      <Card className="mt-6">
+      <Card className="mt-6 overflow-hidden">
         <div
-          className={`grid gap-3 border-b p-4 ${admin ? "md:grid-cols-[1fr_220px_200px]" : "sm:grid-cols-[1fr_220px]"}`}
+          className={`filter-grid ${admin ? "md:grid-cols-[minmax(0,1fr)_220px_200px]" : "sm:grid-cols-[minmax(0,1fr)_220px]"}`}
         >
           <Input
             placeholder="Search department or college…"

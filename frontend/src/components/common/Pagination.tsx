@@ -23,11 +23,17 @@ export function Pagination({
       <p className="text-sm text-slate-500">
         {totalElements} results · Page {page + 1} of {totalPages}
       </p>
-      <div className="flex gap-2">
-        <Button variant="secondary" disabled={page === 0} onClick={() => onChange(page - 1)}>
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+        <Button
+          className="w-full sm:w-auto"
+          variant="secondary"
+          disabled={page === 0}
+          onClick={() => onChange(page - 1)}
+        >
           <ChevronLeft className="h-4 w-4" /> Previous
         </Button>
         <Button
+          className="w-full sm:w-auto"
           variant="secondary"
           disabled={page + 1 >= totalPages}
           onClick={() => onChange(page + 1)}

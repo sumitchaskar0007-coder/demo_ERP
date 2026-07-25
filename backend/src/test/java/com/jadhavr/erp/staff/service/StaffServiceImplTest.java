@@ -8,6 +8,12 @@ import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateStaffRequest;
+import com.jadhavr.erp.staff.dto.StaffResponse;
+import com.jadhavr.erp.staff.dto.UpdateStaffAssignmentRequest;
+import com.jadhavr.erp.academic.repository.SectionRepository;
+import com.jadhavr.erp.academic.repository.SubjectTeacherAssignmentRepository;
+import com.jadhavr.erp.attendance.repository.WeeklyAttendanceRecordRepository;
+import com.jadhavr.erp.attendance.repository.WeeklyAttendanceSessionRepository;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
@@ -36,6 +42,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -46,6 +53,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,6 +63,10 @@ class StaffServiceImplTest {
     @Mock private RoleRepository roles;
     @Mock private CollegeRepository colleges;
     @Mock private DepartmentRepository departments;
+    @Mock private SectionRepository sections;
+    @Mock private SubjectTeacherAssignmentRepository subjectAssignments;
+    @Mock private WeeklyAttendanceSessionRepository attendanceSessions;
+    @Mock private WeeklyAttendanceRecordRepository attendanceRecords;
 
     private BCryptPasswordEncoder passwordEncoder;
     private StaffServiceImpl service;
@@ -65,6 +77,8 @@ class StaffServiceImplTest {
         service = new StaffServiceImpl(
                 staffProfiles, users, roles, colleges, passwordEncoder, new StaffMapper());
         service.setDepartments(departments);
+        service.setStaffDetailRepositories(
+                sections, subjectAssignments, attendanceSessions, attendanceRecords);
     }
 
     @AfterEach
@@ -162,7 +176,46 @@ class StaffServiceImplTest {
     }
 
     @Test
-    void unifiedFormCreatesTeacherWithDepartmentAndEncodedPassword() {
+    void principalCanUpdateStaffRoleAndClearDepartmentsForOperationalStaff() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        StaffProfile profile = staffProfile();
+        profile.setDepartment(department(5L, 1L));
+        profile.setDepartments(Set.of(profile.getDepartment()));
+        when(staffProfiles.findById(20L)).thenReturn(Optional.of(profile));
+        when(sections.findByClassTeacherIdAndStatus(any(), any())).thenReturn(List.of());
+        when(subjectAssignments.findByTeacherIdAndStatus(any(), any())).thenReturn(List.of());
+        when(roles.findByName(RoleName.FEE_SECTION))
+                .thenReturn(Optional.of(role(RoleName.FEE_SECTION)));
+        when(users.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(staffProfiles.save(profile)).thenReturn(profile);
+
+        StaffResponse result = service.updateStaffAssignment(
+                20L,
+                new UpdateStaffAssignmentRequest(Set.of(StaffType.FEE_SECTION), Set.of()));
+
+        assertEquals(StaffType.FEE_SECTION, result.staffType());
+        assertTrue(result.departmentIds().isEmpty());
+        assertEquals(Set.of("FEE_SECTION"), result.roles());
+        assertEquals(1L, profile.getUser().getSessionVersion());
+    }
+
+    @Test
+    void principalCannotUpdateStaffFromAnotherCollege() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        StaffProfile profile = staffProfile();
+        profile.setCollege(college(99L, CollegeStatus.ACTIVE));
+        when(staffProfiles.findById(20L)).thenReturn(Optional.of(profile));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.updateStaffAssignment(
+                        20L,
+                        new UpdateStaffAssignmentRequest(
+                                Set.of(StaffType.GENERAL_STAFF), Set.of())));
+    }
+
+    @Test
+    void unifiedFormUsesPhoneAsTemporaryPasswordAndRequiresChange() {
         authenticate(2L, 1L, RoleName.PRINCIPAL);
         Department department = department(5L, 1L);
         when(departments.findById(5L)).thenReturn(Optional.of(department));
@@ -174,29 +227,22 @@ class StaffServiceImplTest {
         assertEquals(5L, result.departmentId());
         ArgumentCaptor<User> user = ArgumentCaptor.forClass(User.class);
         verify(users).save(user.capture());
-        assertTrue(passwordEncoder.matches("Teacher@123", user.getValue().getPasswordHash()));
+        assertTrue(passwordEncoder.matches("9876543210", user.getValue().getPasswordHash()));
+        assertTrue(user.getValue().isMustChangePassword());
     }
 
     @Test
-    void unifiedFormCreatesTeacherWithMultipleRolesAndDepartments() {
+    void unifiedFormRejectsDirectClassTeacherCreation() {
         authenticate(2L, 1L, RoleName.PRINCIPAL);
-        Department bca = department(5L, 1L);
-        Department bba = department(6L, 1L);
-        bba.setName("BBA"); bba.setCode("BBA");
-        when(departments.findById(5L)).thenReturn(Optional.of(bca));
-        when(departments.findById(6L)).thenReturn(Optional.of(bba));
-        stubUnifiedCreation(RoleName.SUBJECT_TEACHER);
-        when(roles.findByName(RoleName.CLASS_TEACHER))
-                .thenReturn(Optional.of(role(RoleName.CLASS_TEACHER)));
         CreateStaffRequest request = new CreateStaffRequest("Multi Teacher", "multi@example.com",
-                "9876543210", "Teacher@123", 5L, StaffType.SUBJECT_TEACHER,
+                "9876543210", 5L, StaffType.SUBJECT_TEACHER,
                 Set.of(5L, 6L), Set.of(StaffType.SUBJECT_TEACHER, StaffType.CLASS_TEACHER),
                 LocalDate.of(2026, 7, 10));
 
-        var result = service.createStaff(request);
-
-        assertEquals(Set.of(RoleName.SUBJECT_TEACHER.name(), RoleName.CLASS_TEACHER.name()), result.roles());
-        assertEquals(Set.of(5L, 6L), Set.copyOf(result.departmentIds()));
+        BadRequestException error = assertThrows(
+                BadRequestException.class, () -> service.createStaff(request));
+        assertTrue(error.getMessage().contains("Create the staff member as Teacher"));
+        verifyNoInteractions(departments);
     }
 
     @Test
@@ -251,7 +297,7 @@ class StaffServiceImplTest {
     }
 
     private CreateStaffRequest unified(StaffType type, Long departmentId, String email) {
-        return new CreateStaffRequest("Mr. Kale", email, "9876543210", "Teacher@123",
+        return new CreateStaffRequest("Mr. Kale", email, "9876543210",
                 departmentId, type, null, null, LocalDate.of(2026, 7, 10));
     }
 

@@ -1,6 +1,6 @@
-# Jadhavr ERP Frontend
+# Jadhavar ERP Frontend
 
-Production-oriented React administration portal for the Jadhavr College ERP backend.
+Production-oriented React administration portal for the Jadhavar College ERP backend.
 
 ## Technology
 
@@ -56,14 +56,10 @@ npm run lint
 npm run build
 ```
 
-## Default login
+## Initial administrator
 
-```text
-Email: admin@erp.com
-Password: Admin@12345
-```
-
-These credentials are only for localhost development.
+Create the first administrator with the explicit backend bootstrap command. No default login
+credentials are included in the frontend or source control.
 
 ## Routes
 
@@ -136,7 +132,7 @@ Testing workflow:
 
 1. Start backend: `mvn spring-boot:run`
 2. Start frontend: `npm run dev`
-3. Login Super Admin: `admin@erp.com` / `Admin@12345`
+3. Log in with the administrator credentials supplied to the one-time bootstrap command.
 4. Create a college and department if needed.
 5. Create a Principal if needed.
 6. Login Principal and create Student Section staff.

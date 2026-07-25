@@ -1,0 +1,14 @@
+ALTER TABLE admission_status_history DROP CONSTRAINT IF EXISTS admission_status_history_old_status_check;
+ALTER TABLE admission_status_history DROP CONSTRAINT IF EXISTS admission_status_history_new_status_check;
+
+ALTER TABLE admission_status_history ADD CONSTRAINT admission_status_history_old_status_check CHECK (old_status IN (
+    'STUDENT_DETAILS_PENDING', 'SUBMITTED', 'STUDENT_SECTION_REVIEW_PENDING',
+    'STUDENT_SECTION_APPROVED', 'STUDENT_SECTION_REJECTED', 'PRINCIPAL_REVIEW_PENDING',
+    'PRINCIPAL_APPROVED', 'PRINCIPAL_REJECTED', 'CANCELLED'
+));
+
+ALTER TABLE admission_status_history ADD CONSTRAINT admission_status_history_new_status_check CHECK (new_status IN (
+    'STUDENT_DETAILS_PENDING', 'SUBMITTED', 'STUDENT_SECTION_REVIEW_PENDING',
+    'STUDENT_SECTION_APPROVED', 'STUDENT_SECTION_REJECTED', 'PRINCIPAL_REVIEW_PENDING',
+    'PRINCIPAL_APPROVED', 'PRINCIPAL_REJECTED', 'CANCELLED'
+));

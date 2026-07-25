@@ -10,18 +10,19 @@ import {
   Hash,
   IndianRupee,
   List,
+  QrCode,
   Search,
   UserRound,
   Users,
   WalletCards,
 } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -36,24 +37,22 @@ import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
+import { Modal } from "@/components/common/Modal";
+import { PaymentQrManager } from "@/components/colleges/PaymentQrManager";
 import { Select } from "@/components/common/Select";
 import { Pagination } from "@/components/common/Pagination";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
 import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/admin/api";
-import { getActiveColleges } from "@/features/colleges/api";
+import { getActiveColleges, getAllColleges } from "@/features/colleges/api";
 import type { College } from "@/features/colleges/types";
 import { getActiveDepartmentsForAdmin } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
 import type { FeeStructureResponse } from "@/features/fees/types";
 import type { PageResponse } from "@/types/api";
 import { weeklyTimetableApi, type WeeklyDivision } from "@/features/academics/api";
-import type {
-  TeacherDay,
-  TeacherLecture,
-  TeacherTimetable,
-} from "@/features/teacherTimetable/api";
+import type { TeacherDay, TeacherLecture, TeacherTimetable } from "@/features/teacherTimetable/api";
 import {
   TeacherDayView,
   TeacherTimetableStat,
@@ -63,69 +62,112 @@ const categories = ["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"].ma
   label: v,
   value: v,
 }));
-export function AdminDashboardPage() {
+export function AdminDashboardPage({ principal = false }: { principal?: boolean }) {
   const { user } = useAuth();
   const [d, setD] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
   const [collegeId, setCollegeId] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     setD(null);
-    api
-      .getAdminAnalytics({ collegeId: collegeId || undefined })
+    api[principal ? "getPrincipalAnalytics" : "getAdminAnalytics"](
+      principal ? {} : { collegeId: collegeId || undefined },
+      controller.signal,
+    )
       .then(setD)
-      .catch((error) => toast.error(handleApiError(error).message));
-  }, [collegeId]);
+      .catch((error) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(error).message);
+      });
+    return () => controller.abort();
+  }, [collegeId, principal]);
   useEffect(() => {
+    if (principal) return;
     getActiveColleges()
       .then(setColleges)
       .catch(() => setColleges([]));
-  }, []);
+  }, [principal]);
 
-  if (!d) return <Loader label="Preparing Super Admin dashboard..." />;
+  if (!d)
+    return <Loader label={`Preparing ${principal ? "Principal" : "Super Admin"} dashboard...`} />;
 
-  const organizationMetrics = [
-    {
-      key: "totalStaff",
-      label: "Total Staff",
-      value: d.summary.totalStaff,
-      icon: Users,
-      color: "bg-blue-50 text-blue-600",
-      accent: "bg-blue-500",
-    },
-    {
-      key: "totalPrincipals",
-      label: "Total Principals",
-      value: d.summary.totalPrincipals,
-      icon: UserRound,
-      color: "bg-violet-50 text-violet-600",
-      accent: "bg-violet-500",
-    },
-    {
-      key: "totalColleges",
-      label: "Total Colleges",
-      value: d.summary.totalColleges,
-      icon: Building2,
-      color: "bg-amber-50 text-amber-600",
-      accent: "bg-amber-500",
-    },
-    {
-      key: "activeColleges",
-      label: "Active Colleges",
-      value: d.summary.activeColleges,
-      icon: CheckCircle2,
-      color: "bg-emerald-50 text-emerald-600",
-      accent: "bg-emerald-500",
-    },
-    {
-      key: "totalStudents",
-      label: "Total Students",
-      value: d.summary.totalStudents,
-      icon: GraduationCap,
-      color: "bg-cyan-50 text-cyan-600",
-      accent: "bg-cyan-500",
-    },
-  ];
+  const organizationMetrics = principal
+    ? [
+        {
+          key: "totalStaff",
+          label: "College Staff",
+          value: d.summary.totalStaff,
+          icon: Users,
+          color: "bg-blue-50 text-blue-600",
+          accent: "bg-blue-500",
+        },
+        {
+          key: "totalStudents",
+          label: "College Students",
+          value: d.summary.totalStudents,
+          icon: GraduationCap,
+          color: "bg-cyan-50 text-cyan-600",
+          accent: "bg-cyan-500",
+        },
+        {
+          key: "totalFeeCollection",
+          label: "Fees Collected",
+          value: `₹${d.summary.totalFeeCollection.toLocaleString("en-IN")}`,
+          icon: WalletCards,
+          color: "bg-emerald-50 text-emerald-600",
+          accent: "bg-emerald-500",
+        },
+        {
+          key: "pendingFee",
+          label: "Pending Fees",
+          value: `₹${d.summary.pendingFee.toLocaleString("en-IN")}`,
+          icon: Activity,
+          color: "bg-orange-50 text-orange-600",
+          accent: "bg-orange-500",
+        },
+      ]
+    : [
+        {
+          key: "totalStaff",
+          label: "Total Staff",
+          value: d.summary.totalStaff,
+          icon: Users,
+          color: "bg-blue-50 text-blue-600",
+          accent: "bg-blue-500",
+        },
+        {
+          key: "totalPrincipals",
+          label: "Total Principals",
+          value: d.summary.totalPrincipals,
+          icon: UserRound,
+          color: "bg-violet-50 text-violet-600",
+          accent: "bg-violet-500",
+        },
+        {
+          key: "totalColleges",
+          label: "Total Colleges",
+          value: d.summary.totalColleges,
+          icon: Building2,
+          color: "bg-amber-50 text-amber-600",
+          accent: "bg-amber-500",
+        },
+        {
+          key: "activeColleges",
+          label: "Active Colleges",
+          value: d.summary.activeColleges,
+          icon: CheckCircle2,
+          color: "bg-emerald-50 text-emerald-600",
+          accent: "bg-emerald-500",
+        },
+        {
+          key: "totalStudents",
+          label: "Total Students",
+          value: d.summary.totalStudents,
+          icon: GraduationCap,
+          color: "bg-cyan-50 text-cyan-600",
+          accent: "bg-cyan-500",
+        },
+      ];
   const feeTotal = d.summary.totalFeeCollection + d.summary.pendingFee;
   const collectionRate =
     feeTotal > 0 ? Math.round((d.summary.totalFeeCollection / feeTotal) * 100) : 0;
@@ -134,23 +176,33 @@ export function AdminDashboardPage() {
     <div className="page-container pb-10">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-semibold text-slate-400">
-            Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Super Admin
+          {principal && (
+            <p className="text-xs font-semibold text-slate-400">
+              Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Principal
+            </p>
+          )}
+          <h1 className={`${principal ? "mt-2 " : ""}text-2xl font-bold`}>
+            {principal ? "Principal" : "Super Admin"} Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {principal
+              ? "College academics, students, and finance overview."
+              : "Global college, student, and fee overview."}
           </p>
-          <h1 className="mt-2 text-2xl font-bold">Super Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">Global college, student, and fee overview.</p>
         </div>
-        <div className="w-full sm:w-72">
-          <Select
-            aria-label="Dashboard college"
-            options={[
-              { label: "All colleges", value: "" },
-              ...colleges.map((c) => ({ label: c.name, value: c.id })),
-            ]}
-            value={collegeId}
-            onChange={(event) => setCollegeId(event.target.value)}
-          />
-        </div>
+        {!principal && (
+          <div className="w-full sm:w-72">
+            <Select
+              aria-label="Dashboard college"
+              options={[
+                { label: "All colleges", value: "" },
+                ...colleges.map((c) => ({ label: c.name, value: c.id })),
+              ]}
+              value={collegeId}
+              onChange={(event) => setCollegeId(event.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <section className="erp-welcome-banner px-7 py-7 sm:px-9">
@@ -158,7 +210,9 @@ export function AdminDashboardPage() {
         <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-blue-100">Jadhavr ERP Administration</p>
+            <p className="text-sm text-blue-100">
+              {principal ? user?.collegeName : "Jadhavar ERP Administration"}
+            </p>
             <h2 className="mt-2 text-3xl font-bold">
               Welcome back, {user?.fullName?.split(" ")[0] || "Admin"}
             </h2>
@@ -166,21 +220,16 @@ export function AdminDashboardPage() {
               Have a productive day managing your education workspace.
             </p>
           </div>
-          <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-right backdrop-blur sm:block">
-            <p className="text-xs text-blue-200">Account status</p>
-            <p className="mt-1 font-bold">{user?.status}</p>
-          </div>
         </div>
       </section>
 
       <section className="mt-6">
         <div className="mb-4">
           <h2 className="text-lg font-bold">Organization Overview</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Live people and institution counts from the database
-          </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div
+          className={`grid gap-4 sm:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}
+        >
           {organizationMetrics.map(({ key, label, value, icon: Icon, color, accent }) => (
             <Card className="relative overflow-hidden p-5" key={key}>
               <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
@@ -249,26 +298,48 @@ export function AdminDashboardPage() {
             <p className="mt-1 text-xs text-slate-500">Frequently used administration tools</p>
           </div>
           <div className="space-y-2 p-4">
-            {[
-              {
-                label: "Create College",
-                detail: "Add a new college workspace",
-                to: "/colleges/create",
-                icon: Building2,
-              },
-              {
-                label: "Create Principal",
-                detail: "Add a principal account",
-                to: "/principals/create",
-                icon: Users,
-              },
-              {
-                label: "Set up Fees",
-                detail: "Configure college fee structures",
-                to: ROUTES.adminFeeSetup,
-                icon: WalletCards,
-              },
-            ].map(({ label, detail, to, icon: Icon }) => (
+            {(principal
+              ? [
+                  {
+                    label: "Departments",
+                    detail: "Manage college departments",
+                    to: ROUTES.departments,
+                    icon: Building2,
+                  },
+                  {
+                    label: "Fee Structures",
+                    detail: "Configure college fee structures",
+                    to: ROUTES.feeStructures,
+                    icon: WalletCards,
+                  },
+                  {
+                    label: "Pending Fees",
+                    detail: "Review outstanding student balances",
+                    to: ROUTES.principalPendingFees,
+                    icon: Activity,
+                  },
+                ]
+              : [
+                  {
+                    label: "Create College",
+                    detail: "Add a new college workspace",
+                    to: "/colleges/create",
+                    icon: Building2,
+                  },
+                  {
+                    label: "Create Principal",
+                    detail: "Add a principal account",
+                    to: "/principals/create",
+                    icon: Users,
+                  },
+                  {
+                    label: "Set up Fees",
+                    detail: "Configure college fee structures",
+                    to: ROUTES.adminFeeSetup,
+                    icon: WalletCards,
+                  },
+                ]
+            ).map(({ label, detail, to, icon: Icon }) => (
               <Link
                 key={label}
                 to={to}
@@ -288,22 +359,37 @@ export function AdminDashboardPage() {
         </Card>
       </div>
 
-      <DashboardAnalytics analytics={d} />
+      <DashboardAnalytics analytics={d} principal={principal} />
     </div>
   );
 }
-function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
-  const admissions = Object.entries(analytics.admissionStatusDistribution).map(
-    ([label, value]) => ({
-      label: label.replaceAll("_", " "),
+function DashboardAnalytics({
+  analytics,
+  principal = false,
+}: {
+  analytics: api.AdminAnalytics;
+  principal?: boolean;
+}) {
+  const chartColors = ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#f43f5e"];
+  const feeCollection = analytics.collegeWiseFeeCollection
+    .map((item) => ({ ...item, value: Number(item.value) || 0 }))
+    .filter((item) => item.value > 0);
+  const feeCollectionTrend = analytics.feeCollectionTrend
+    .map((item) => ({ ...item, value: Number(item.value) || 0 }))
+    .filter((item) => item.value > 0);
+  const admissions = Object.entries(analytics.admissionStatusDistribution)
+    .map(([label, value], index) => ({
+      label: label
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (letter) => letter.toUpperCase()),
       value: Number(value) || 0,
-    }),
-  );
-  const academics = analytics.collegeWiseStudents.map((item, index) => ({
-    ...item,
-    value: Number(item.value) || 0,
-    color: ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#f43f5e"][index % 5],
-  }));
+      color: chartColors[index % chartColors.length],
+    }))
+    .filter((item) => item.value > 0);
+  const academics = (principal ? analytics.departmentWiseStudents : analytics.collegeWiseStudents)
+    .map((item) => ({ ...item, value: Number(item.value) || 0 }))
+    .filter((item) => item.value > 0);
   const staffCards = [
     {
       label: "Total Staff",
@@ -330,148 +416,293 @@ function DashboardAnalytics({ analytics }: { analytics: api.AdminAnalytics }) {
       tone: "bg-emerald-50 text-emerald-600",
     },
   ];
-  const payroll = [
-    { label: "Processed", value: 0 },
-    { label: "Pending", value: 0 },
-    { label: "On Hold", value: 0 },
+  const feeBalance = [
+    {
+      label: "Collected",
+      value: Number(analytics.summary.totalFeeCollection) || 0,
+      color: "#10b981",
+    },
+    { label: "Pending", value: Number(analytics.summary.pendingFee) || 0, color: "#f59e0b" },
   ];
 
   return (
     <section className="mt-6 space-y-6">
       <div className="grid gap-6 xl:grid-cols-2">
-        <AnalyticsCard title="Fee Collection" subtitle="College-wise collection trend">
-          {analytics.collegeWiseFeeCollection.some((item) => Number(item.value) > 0) ? (
+        <AnalyticsCard
+          title={principal ? "College Fee Collection Trend" : "Fee Collection"}
+          subtitle={
+            principal
+              ? "Monthly verified collections for your college"
+              : "College-wise verified collection"
+          }
+          contentClassName="h-[380px]"
+        >
+          {principal && feeCollectionTrend.length ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={analytics.collegeWiseFeeCollection}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              <AreaChart
+                data={feeCollectionTrend}
+                margin={{ top: 16, right: 16, left: 4, bottom: 4 }}
               >
-                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip formatter={(value) => `₹${Number(value ?? 0).toLocaleString("en-IN")}`} />
-                <Line
+                <defs>
+                  <linearGradient id="principalFeeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `₹${Number(value).toLocaleString("en-IN")}`}
+                  width={82}
+                />
+                <Tooltip
+                  formatter={(value) => [
+                    `₹${Number(value ?? 0).toLocaleString("en-IN")}`,
+                    "Collected",
+                  ]}
+                  contentStyle={{ borderRadius: 14, borderColor: "#dbeafe" }}
+                />
+                <Area
                   type="monotone"
                   dataKey="value"
                   stroke="#2563eb"
                   strokeWidth={3}
-                  dot={{ r: 4, fill: "#2563eb" }}
-                  activeDot={{ r: 6 }}
+                  fill="url(#principalFeeGradient)"
+                  activeDot={{ r: 6, fill: "#2563eb", stroke: "white", strokeWidth: 3 }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
+          ) : !principal && feeCollection.length ? (
+            <CollegeBarList
+              items={feeCollection}
+              barClassName="bg-blue-600"
+              valueLabel="Collection"
+              currency
+            />
           ) : (
             <ChartEmpty message="No verified fee collections yet" />
           )}
         </AnalyticsCard>
 
         <AnalyticsCard title="Admissions" subtitle="Application status distribution">
-          {admissions.some((item) => item.value > 0) ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={admissions} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} maxBarSize={48} />
-              </BarChart>
-            </ResponsiveContainer>
+          {admissions.length ? (
+            <div className="flex h-full flex-col items-center gap-3 sm:flex-row">
+              <div className="h-full min-h-52 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={admissions}
+                      dataKey="value"
+                      nameKey="label"
+                      innerRadius={58}
+                      outerRadius={82}
+                      paddingAngle={3}
+                      stroke="none"
+                    >
+                      {admissions.map((item) => (
+                        <Cell key={item.label} fill={item.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => Number(value ?? 0).toLocaleString("en-IN")} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ChartLegend items={admissions} />
+            </div>
           ) : (
             <ChartEmpty message="No admission records yet" />
           )}
         </AnalyticsCard>
 
-        <AnalyticsCard title="Academics" subtitle="Students allocated across colleges">
-          <div className="flex h-full flex-col items-center gap-3 sm:flex-row">
-            <div className="h-full min-h-52 flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={
-                      academics.length
-                        ? academics
-                        : [{ label: "No data", value: 1, color: "#e2e8f0" }]
-                    }
-                    dataKey="value"
-                    nameKey="label"
-                    innerRadius={58}
-                    outerRadius={82}
-                    paddingAngle={academics.length ? 3 : 0}
-                    stroke="none"
-                  >
-                    {(academics.length
-                      ? academics
-                      : [{ label: "No data", value: 1, color: "#e2e8f0" }]
-                    ).map((item) => (
-                      <Cell key={item.label} fill={item.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+        <AnalyticsCard
+          title="Academics"
+          subtitle={
+            principal
+              ? "Students in your college grouped by department"
+              : "Students allocated across colleges"
+          }
+          contentClassName="h-[380px]"
+        >
+          {principal && academics.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={academics} margin={{ top: 16, right: 16, left: 4, bottom: 4 }}>
+                <defs>
+                  <linearGradient id="principalStudentGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={1} />
+                    <stop offset="95%" stopColor="#0d9488" stopOpacity={0.72} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <YAxis
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12 }}
+                  width={44}
+                />
+                <Tooltip
+                  formatter={(value) => [Number(value ?? 0).toLocaleString("en-IN"), "Students"]}
+                  contentStyle={{ borderRadius: 14, borderColor: "#ccfbf1" }}
+                />
+                <Bar
+                  dataKey="value"
+                  fill="url(#principalStudentGradient)"
+                  radius={[10, 10, 0, 0]}
+                  maxBarSize={64}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : !principal && academics.length ? (
+            <CollegeBarList
+              items={academics}
+              barClassName="bg-teal-500"
+              valueLabel="Students"
+              categoryLabel={principal ? "Department" : "College"}
+            />
+          ) : (
+            <ChartEmpty message="No students allocated yet" />
+          )}
+        </AnalyticsCard>
+
+        <AnalyticsCard title="Fee Balance" subtitle="Collected and pending student fees">
+          {feeBalance.some((item) => item.value > 0) ? (
+            <div className="flex h-full flex-col items-center gap-3 sm:flex-row">
+              <div className="h-full min-h-52 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={feeBalance}
+                      dataKey="value"
+                      nameKey="label"
+                      innerRadius={58}
+                      outerRadius={82}
+                      paddingAngle={3}
+                      stroke="none"
+                    >
+                      {feeBalance.map((item) => (
+                        <Cell key={item.label} fill={item.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => `₹${Number(value ?? 0).toLocaleString("en-IN")}`}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ChartLegend items={feeBalance} currency />
             </div>
-            <div className="w-full space-y-2 sm:w-48">
-              {academics.slice(0, 5).map((item) => (
-                <div key={item.label} className="flex items-center gap-2 text-xs">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-slate-500">{item.label}</span>
-                  <b>{item.value}</b>
+          ) : (
+            <ChartEmpty message="No fee accounts created yet" />
+          )}
+        </AnalyticsCard>
+      </div>
+
+      {!principal && (
+        <div>
+          <Card className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-bold">Staff Overview</h2>
+                <p className="mt-1 text-xs text-slate-500">Allocated people and institutions</p>
+              </div>
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {staffCards.map(({ label, value, icon: Icon, tone }) => (
+                <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-2xl font-black">{value}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
                 </div>
               ))}
             </div>
-          </div>
-        </AnalyticsCard>
-
-        <AnalyticsCard title="Payroll" subtitle="Payroll processing allocation">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={payroll} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis
-                allowDecimals={false}
-                tick={{ fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip />
-              <Bar dataKey="value" fill="#f59e0b" radius={[8, 8, 0, 0]} maxBarSize={52} />
-            </BarChart>
-          </ResponsiveContainer>
-          <p className="-mt-6 text-center text-xs text-slate-400">Awaiting payroll API data</p>
-        </AnalyticsCard>
-      </div>
-
-      <div>
-        <Card className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="font-bold">Staff Overview</h2>
-              <p className="mt-1 text-xs text-slate-500">Allocated people and institutions</p>
-            </div>
-            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-          </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {staffCards.map(({ label, value, icon: Icon, tone }) => (
-              <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                <div className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <p className="mt-4 text-2xl font-black">{value}</p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+          </Card>
+        </div>
+      )}
     </section>
+  );
+}
+
+function ChartLegend({
+  items,
+  currency = false,
+}: {
+  items: { label: string; value: number; color: string }[];
+  currency?: boolean;
+}) {
+  return (
+    <div className="w-full space-y-2 sm:w-48">
+      {items.slice(0, 6).map((item) => (
+        <div key={item.label} className="flex items-center gap-2 text-xs">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: item.color }}
+          />
+          <span className="min-w-0 flex-1 truncate text-slate-500" title={item.label}>
+            {item.label}
+          </span>
+          <b>
+            {currency
+              ? `₹${item.value.toLocaleString("en-IN")}`
+              : item.value.toLocaleString("en-IN")}
+          </b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CollegeBarList({
+  items,
+  barClassName,
+  valueLabel,
+  currency = false,
+  categoryLabel = "College",
+}: {
+  items: { label: string; value: number }[];
+  barClassName: string;
+  valueLabel: string;
+  currency?: boolean;
+  categoryLabel?: string;
+}) {
+  const maximum = Math.max(...items.map((item) => item.value), 1);
+  const formatValue = (value: number) =>
+    currency ? `₹${value.toLocaleString("en-IN")}` : value.toLocaleString("en-IN");
+
+  return (
+    <div className="dashboard-chart-scroll h-full overflow-auto pr-1">
+      <div
+        className="college-bar-chart"
+        role="img"
+        aria-label={`${categoryLabel}-wise ${valueLabel}`}
+      >
+        <div className="college-bar-chart__header" aria-hidden="true">
+          <span>{categoryLabel} name</span>
+          <span>{valueLabel}</span>
+          <span className="text-right">Total</span>
+        </div>
+        {items.map((item) => (
+          <div className="college-bar-chart__row" key={item.label}>
+            <span className="college-bar-chart__name" title={item.label}>
+              {item.label}
+            </span>
+            <span className="college-bar-chart__track" aria-hidden="true">
+              <span
+                className={`college-bar-chart__fill ${barClassName}`}
+                style={{ width: `${Math.max((item.value / maximum) * 100, 2)}%` }}
+              />
+            </span>
+            <strong className="college-bar-chart__value">{formatValue(item.value)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -479,16 +710,18 @@ function AnalyticsCard({
   title,
   subtitle,
   children,
+  contentClassName = "h-64",
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  contentClassName?: string;
 }) {
   return (
-    <Card className="p-6">
-      <h2 className="font-bold">{title}</h2>
-      <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-      <div className="mt-4 h-64">{children}</div>
+    <Card className="overflow-hidden p-5 sm:p-6">
+      <h2 className="text-base font-bold tracking-tight text-slate-900">{title}</h2>
+      <p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p>
+      <div className={`mt-4 ${contentClassName}`}>{children}</div>
     </Card>
   );
 }
@@ -798,7 +1031,14 @@ export function AdminFeeSetupPage() {
     </div>
   );
 }
-export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
+export function AdminMoneyPage({
+  pending = false,
+  principal = false,
+}: {
+  pending?: boolean;
+  principal?: boolean;
+}) {
+  const { user } = useAuth();
   const [result, setResult] = useState<PageResponse<
     api.FeeCollectionRow | api.PendingFeeRow
   > | null>(null);
@@ -807,20 +1047,23 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [filters, setFilters] = useState({
     keyword: "",
-    collegeId: "",
+    collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
     courseYearId: "",
     divisionId: "",
   });
 
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()])
+    Promise.all([
+      principal ? Promise.resolve([]) : getActiveColleges(),
+      weeklyTimetableApi.divisions(),
+    ])
       .then(([c, d]) => {
         setColleges(c);
         setDivisions(d);
       })
       .catch(() => undefined);
-  }, []);
+  }, [principal]);
 
   useEffect(() => {
     setPage(0);
@@ -831,7 +1074,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
     const timer = window.setTimeout(
       () =>
         (pending
-          ? api.getPendingFees({
+          ? (principal ? api.getPrincipalPendingFees : api.getPendingFees)({
               ...filters,
               keyword: filters.keyword || undefined,
               collegeId: filters.collegeId || undefined,
@@ -841,7 +1084,7 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               page,
               size: 20,
             })
-          : api.getCollections({
+          : (principal ? api.getPrincipalCollections : api.getCollections)({
               ...filters,
               keyword: filters.keyword || undefined,
               collegeId: filters.collegeId || undefined,
@@ -857,13 +1100,15 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
       250,
     );
     return () => window.clearTimeout(timer);
-  }, [page, pending, filters]);
+  }, [page, pending, principal, filters]);
 
   const rows = result?.content ?? [];
   const displayedAmount = rows.reduce(
     (sum, row) =>
       sum +
-      (pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount),
+      moneyValue(
+        pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount,
+      ),
     0,
   );
   return (
@@ -871,21 +1116,27 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <h1 className="page-title">{pending ? "Pending Fees" : "Fee Collection"}</h1>
-          <p className="page-subtitle">Global college and department fee overview.</p>
+          <p className="page-subtitle">
+            {principal
+              ? "College and department fee overview."
+              : "Global college and department fee overview."}
+          </p>
         </div>
         {result && (
           <div
             className={`rounded-2xl px-5 py-3 ${pending ? "bg-orange-50 text-orange-800" : "bg-emerald-50 text-emerald-800"}`}
           >
             <p className="text-[10px] font-bold uppercase tracking-wider">
-              {pending ? "Pending on this page" : "Collected on this page"}
+              {pending ? "Pending Fee" : "Collected Fee"}
             </p>
             <p className="mt-1 text-xl font-black">₹{displayedAmount.toLocaleString("en-IN")}</p>
           </div>
         )}
       </div>
       <Card className="mt-6 p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div
+          className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}
+        >
           <Input
             placeholder="Search student name…"
             icon={<Search className="h-4 w-4" />}
@@ -895,23 +1146,25 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
               setPage(0);
             }}
           />
-          <Select
-            options={[
-              { label: "All colleges", value: "" },
-              ...colleges.map((c) => ({ label: c.name, value: c.id })),
-            ]}
-            value={filters.collegeId}
-            onChange={(e) => {
-              setFilters({
-                ...filters,
-                collegeId: e.target.value,
-                departmentId: "",
-                courseYearId: "",
-                divisionId: "",
-              });
-              setPage(0);
-            }}
-          />
+          {!principal && (
+            <Select
+              options={[
+                { label: "All colleges", value: "" },
+                ...colleges.map((c) => ({ label: c.name, value: c.id })),
+              ]}
+              value={filters.collegeId}
+              onChange={(e) => {
+                setFilters({
+                  ...filters,
+                  collegeId: e.target.value,
+                  departmentId: "",
+                  courseYearId: "",
+                  divisionId: "",
+                });
+                setPage(0);
+              }}
+            />
+          )}
           <Select
             options={[
               { label: "All departments", value: "" },
@@ -967,8 +1220,8 @@ export function AdminMoneyPage({ pending = false }: { pending?: boolean }) {
           <Loader />
         ) : rows.length ? (
           <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-left">
+            <div className="erp-table-scroll hidden md:block">
+              <table className="erp-table">
                 <thead>
                   <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="px-5 py-4">Student</th>
@@ -1040,9 +1293,36 @@ function uniqueOptions(
   idKey: "departmentId" | "courseYearId",
   labelKey: "department" | "year",
 ) {
-  return Array.from(new Map(items.map((item) => [item[idKey], item[labelKey]])).entries()).map(
-    ([value, label]) => ({ label, value }),
-  );
+  const options = Array.from(
+    new Map(items.map((item) => [item[idKey], item[labelKey]])).entries(),
+  ).map(([value, label]) => ({ label, value }));
+
+  if (idKey === "courseYearId") {
+    options.sort(
+      (left, right) =>
+        academicYearSequence(left.label) - academicYearSequence(right.label) ||
+        left.label.localeCompare(right.label, undefined, { numeric: true }),
+    );
+  }
+
+  return options;
+}
+
+function academicYearSequence(label: string) {
+  const normalized = label.toLowerCase();
+  const namedYears: Array<[RegExp, number]> = [
+    [/\b(first|fy)\b/, 1],
+    [/\b(second|sy)\b/, 2],
+    [/\b(third|ty)\b/, 3],
+    [/\bfourth\b/, 4],
+    [/\bfifth\b/, 5],
+    [/\bsixth\b/, 6],
+  ];
+  const namedYear = namedYears.find(([pattern]) => pattern.test(normalized));
+  if (namedYear) return namedYear[1];
+
+  const numericYear = normalized.match(/\byear\s*(\d+)\b|\b(\d+)(?:st|nd|rd|th)\s+year\b/);
+  return numericYear ? Number(numericYear[1] ?? numericYear[2]) : Number.MAX_SAFE_INTEGER;
 }
 
 function StudentIdentity({ name, detail }: { name: string; detail?: string }) {
@@ -1065,6 +1345,16 @@ function CategoryBadge({ value }: { value: string }) {
     </span>
   );
 }
+
+function moneyValue(value: number | null | undefined) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatMoney(value: number | null | undefined) {
+  return moneyValue(value).toLocaleString("en-IN");
+}
+
 function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
   return (
     <tr className="transition hover:bg-slate-50/70">
@@ -1091,7 +1381,7 @@ function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
         </span>
       </td>
       <td className="px-5 py-4 text-right text-base font-black text-emerald-600">
-        ₹{row.amount.toLocaleString("en-IN")}
+        ₹{formatMoney(row.amount)}
       </td>
     </tr>
   );
@@ -1110,11 +1400,11 @@ function PendingFeeTableRow({ row }: { row: api.PendingFeeRow }) {
         <CategoryBadge value={row.studentCategory} />
       </td>
       <td className="px-5 py-4 text-right">
-        <p className="text-sm font-semibold">₹{row.totalFee.toLocaleString("en-IN")}</p>
-        <p className="text-xs text-emerald-600">₹{row.paidAmount.toLocaleString("en-IN")} paid</p>
+        <p className="text-sm font-semibold">₹{formatMoney(row.totalFee)}</p>
+        <p className="text-xs text-emerald-600">₹{formatMoney(row.paidAmount)} paid</p>
       </td>
       <td className="px-5 py-4 text-right text-base font-black text-orange-600">
-        ₹{row.remainingAmount.toLocaleString("en-IN")}
+        ₹{formatMoney(row.remainingAmount)}
       </td>
     </tr>
   );
@@ -1147,14 +1437,16 @@ function CollectionCard({ row }: { row: api.FeeCollectionRow }) {
         <span className="text-xs font-semibold text-slate-400">Verified payment</span>
         <span className="flex items-center text-xl font-black text-emerald-600">
           <IndianRupee className="h-4 w-4" />
-          {row.amount.toLocaleString("en-IN")}
+          {formatMoney(row.amount)}
         </span>
       </div>
     </div>
   );
 }
 function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
-  const paidRate = row.totalFee > 0 ? Math.round((row.paidAmount / row.totalFee) * 100) : 0;
+  const totalFee = Number(row.totalFee) || 0;
+  const paidAmount = Number(row.paidAmount) || 0;
+  const paidRate = totalFee > 0 ? Math.round((paidAmount / totalFee) * 100) : 0;
   return (
     <div className="rounded-2xl border border-slate-100 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -1165,69 +1457,100 @@ function PendingFeeCard({ row }: { row: api.PendingFeeRow }) {
         <CategoryBadge value={row.studentCategory} />
       </div>
       <div className="mt-4 flex justify-between text-xs">
-        <span className="text-slate-500">Paid ₹{row.paidAmount.toLocaleString("en-IN")}</span>
-        <b className="text-orange-600">₹{row.remainingAmount.toLocaleString("en-IN")} pending</b>
+        <span className="text-slate-500">Paid ₹{formatMoney(row.paidAmount)}</span>
+        <b className="text-orange-600">₹{formatMoney(row.remainingAmount)} pending</b>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
         <div className="h-full rounded-full bg-emerald-500" style={{ width: `${paidRate}%` }} />
       </div>
       <p className="mt-2 text-right text-[10px] font-bold text-slate-400">
-        {paidRate}% of ₹{row.totalFee.toLocaleString("en-IN")} paid
+        {paidRate}% of ₹{formatMoney(row.totalFee)} paid
       </p>
     </div>
   );
 }
-export function AdminAnalyticsPage() {
+export function AdminAnalyticsPage({ principal = false }: { principal?: boolean }) {
+  const { user } = useAuth();
   const [data, setData] = useState<api.AdminAnalytics | null>(null);
   const [colleges, setColleges] = useState<College[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
+  const [qrManagerOpen, setQrManagerOpen] = useState(false);
   const [filters, setFilters] = useState({
-    collegeId: "",
+    collegeId: principal ? String(user?.collegeId || "") : "",
     departmentId: "",
     courseYearId: "",
     divisionId: "",
   });
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()]).then(([c, d]) => {
+    Promise.all([
+      principal ? Promise.resolve([]) : getActiveColleges(),
+      weeklyTimetableApi.divisions(),
+    ]).then(([c, d]) => {
       setColleges(c);
       setDivisions(d);
     });
-  }, []);
+  }, [principal]);
   useEffect(() => {
+    const controller = new AbortController();
     setData(null);
-    api
-      .getAdminAnalytics({
-        collegeId: filters.collegeId || undefined,
+    api[principal ? "getPrincipalAnalytics" : "getAdminAnalytics"](
+      {
+        collegeId: principal ? undefined : filters.collegeId || undefined,
         departmentId: filters.departmentId || undefined,
         courseYearId: filters.courseYearId || undefined,
         divisionId: filters.divisionId || undefined,
-      })
+      },
+      controller.signal,
+    )
       .then(setData)
-      .catch((e) => toast.error(handleApiError(e).message));
-  }, [filters]);
+      .catch((e) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(e).message);
+      });
+    return () => controller.abort();
+  }, [filters, principal]);
   return (
     <div className="page-container pb-10">
-      <div>
-        <h1 className="page-title">Analytics</h1>
-        <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Analytics</h1>
+          <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
+        </div>
+        {principal && (
+          <Button variant="secondary" onClick={() => setQrManagerOpen(true)}>
+            <QrCode className="h-4 w-4" /> Change Payment QR
+          </Button>
+        )}
       </div>
+      <Modal
+        open={qrManagerOpen}
+        onClose={() => setQrManagerOpen(false)}
+        title="Change College Payment QR"
+        description="This QR code is shown to students when they submit fee payment proof."
+        size="xl"
+      >
+        <PaymentQrManager />
+      </Modal>
       <Card className="mt-6 p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Select
-            options={[
-              { label: "All colleges", value: "" },
-              ...colleges.map((c) => ({ label: c.name, value: c.id })),
-            ]}
-            value={filters.collegeId}
-            onChange={(e) =>
-              setFilters({
-                collegeId: e.target.value,
-                departmentId: "",
-                courseYearId: "",
-                divisionId: "",
-              })
-            }
-          />
+        <div
+          className={`grid gap-3 md:grid-cols-2 ${principal ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}
+        >
+          {!principal && (
+            <Select
+              options={[
+                { label: "All colleges", value: "" },
+                ...colleges.map((c) => ({ label: c.name, value: c.id })),
+              ]}
+              value={filters.collegeId}
+              onChange={(e) =>
+                setFilters({
+                  collegeId: e.target.value,
+                  departmentId: "",
+                  courseYearId: "",
+                  divisionId: "",
+                })
+              }
+            />
+          )}
           <Select
             options={[
               { label: "All departments", value: "" },
@@ -1273,7 +1596,11 @@ export function AdminAnalyticsPage() {
           />
         </div>
       </Card>
-      {data ? <DashboardAnalytics analytics={data} /> : <Loader label="Loading analytics…" />}
+      {data ? (
+        <DashboardAnalytics analytics={data} principal={principal} />
+      ) : (
+        <Loader label="Loading analytics…" />
+      )}
     </div>
   );
 }
@@ -1281,6 +1608,8 @@ export function AdminAnalyticsPage() {
 export function AdminLectureLoadPage() {
   const [rows, setRows] = useState<api.LectureLoadRow[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [courseYears, setCourseYears] = useState<api.AdminCourseYearOption[]>([]);
   const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
   const [staffId, setStaffId] = useState("");
   const [teacherSearch, setTeacherSearch] = useState("");
@@ -1297,7 +1626,7 @@ export function AdminLectureLoadPage() {
   });
 
   useEffect(() => {
-    Promise.all([getActiveColleges(), weeklyTimetableApi.divisions()])
+    Promise.all([getAllColleges(), weeklyTimetableApi.divisions()])
       .then(([c, d]) => {
         setColleges(c);
         setDivisions(d);
@@ -1306,25 +1635,64 @@ export function AdminLectureLoadPage() {
   }, []);
 
   useEffect(() => {
-    api
-      .getLectureLoad({
-        collegeId: filters.collegeId || undefined,
-        departmentId: filters.departmentId || undefined,
-        courseYearId: filters.courseYearId || undefined,
-        divisionId: filters.divisionId || undefined,
+    let cancelled = false;
+    setDepartments([]);
+    if (!filters.collegeId) return;
+
+    getActiveDepartmentsForAdmin(Number(filters.collegeId))
+      .then((response) => {
+        if (!cancelled) setDepartments(response);
       })
+      .catch((error) => toast.error(handleApiError(error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.collegeId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCourseYears([]);
+    if (!filters.collegeId || !filters.departmentId) return;
+
+    api
+      .getCourseYearOptions(Number(filters.collegeId), Number(filters.departmentId))
+      .then((response) => {
+        if (!cancelled) setCourseYears(response);
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.collegeId, filters.departmentId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .getLectureLoad(
+        {
+          collegeId: filters.collegeId || undefined,
+          departmentId: filters.departmentId || undefined,
+          courseYearId: filters.courseYearId || undefined,
+          divisionId: filters.divisionId || undefined,
+        },
+        controller.signal,
+      )
       .then(setRows)
-      .catch((e) => toast.error(handleApiError(e).message));
+      .catch((e) => {
+        if (!controller.signal.aborted) toast.error(handleApiError(e).message);
+      });
+    return () => controller.abort();
   }, [filters]);
 
   useEffect(() => {
+    const controller = new AbortController();
     if (!staffId) {
       setTable(null);
       return;
     }
     setTableLoading(true);
     api
-      .getStaffTimetable(Number(staffId))
+      .getStaffTimetable(Number(staffId), controller.signal)
       .then((response) => {
         setTable(response);
         setSelectedDay(
@@ -1336,10 +1704,14 @@ export function AdminLectureLoadPage() {
         );
       })
       .catch((error) => {
+        if (controller.signal.aborted) return;
         setTable(null);
         toast.error(handleApiError(error).message);
       })
-      .finally(() => setTableLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setTableLoading(false);
+      });
+    return () => controller.abort();
   }, [staffId]);
 
   const clearTeacher = () => {
@@ -1442,13 +1814,10 @@ export function AdminLectureLoadPage() {
             disabled={!filters.collegeId}
             options={[
               { label: filters.collegeId ? "All departments" : "Select college first", value: "" },
-              ...uniqueOptions(
-                divisions.filter(
-                  (d) => d.collegeId === Number(filters.collegeId),
-                ),
-                "departmentId",
-                "department",
-              ),
+              ...departments.map((department) => ({
+                label: department.name,
+                value: department.id,
+              })),
             ]}
             value={filters.departmentId}
             onChange={(e) => {
@@ -1466,7 +1835,10 @@ export function AdminLectureLoadPage() {
             disabled={!filters.departmentId}
             options={[
               { label: "All years/classes", value: "" },
-              ...uniqueOptions(scopedDivisions(divisions, filters), "courseYearId", "year"),
+              ...courseYears.map((courseYear) => ({
+                label: courseYear.displayName,
+                value: courseYear.id,
+              })),
             ]}
             value={filters.courseYearId}
             onChange={(e) => {
@@ -1567,17 +1939,12 @@ export function AdminLectureLoadPage() {
                   label="Day"
                   value={selectedDay}
                   onChange={(event) => setSelectedDay(event.target.value)}
-                  options={[
-                    "MONDAY",
-                    "TUESDAY",
-                    "WEDNESDAY",
-                    "THURSDAY",
-                    "FRIDAY",
-                    "SATURDAY",
-                  ].map((day) => ({
-                    value: day,
-                    label: day[0] + day.slice(1).toLowerCase(),
-                  }))}
+                  options={["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"].map(
+                    (day) => ({
+                      value: day,
+                      label: day[0] + day.slice(1).toLowerCase(),
+                    }),
+                  )}
                 />
               </Card>
               {dayData && (

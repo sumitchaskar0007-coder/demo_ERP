@@ -13,7 +13,8 @@ public final class WeeklyTimetableDtos {
     public record SubjectTeacherOption(Long subjectId,List<Option> teachers){}
     public record PeriodResponse(Long id,Integer position,String label,LocalTime startTime,LocalTime endTime,String kind){}
     public record EntryResponse(Long id,String dayOfWeek,Long periodId,Long subjectId,String subject,Long teacherId,String teacher,String room,String lectureType,String remarks){}
-    public record TimetableResponse(Long id,Long sectionId,String department,String year,String division,String classTeacher,String academicYear,String status,boolean editable,List<PeriodResponse> periods,List<EntryResponse> entries,List<Option> subjects,List<Option> teachers,List<SubjectTeacherOption> subjectTeachers,List<String> rooms){}
+    public record TimetableResponse(Long id,Long sectionId,String college,String department,String year,String division,String classTeacher,String academicYear,String status,String reviewComment,boolean editable,List<PeriodResponse> periods,List<EntryResponse> entries,List<Option> subjects,List<Option> teachers,List<SubjectTeacherOption> subjectTeachers,List<String> rooms){}
+    public record ReviewRequest(@NotBlank String action,@Size(max=500) String comment){}
     public record SaveEntryRequest(@NotNull Long subjectId,@NotNull Long teacherId,@Size(max=80) String room,@NotBlank String lectureType,@Size(max=500) String remarks){}
     public record MoveEntryRequest(@NotNull String fromDay,@NotNull Long fromPeriodId,@NotNull String toDay,@NotNull Long toPeriodId){}
     public record CopyDayRequest(@NotNull String sourceDay,@NotNull String targetDay,boolean overwrite){}

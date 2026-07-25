@@ -1,6 +1,13 @@
 import type { TimetableDay } from "./types";
 
-export const DAYS: TimetableDay[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+export const DAYS: TimetableDay[] = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
 
 export const DAY_LABELS: Record<TimetableDay, string> = {
   MONDAY: "Monday",
@@ -32,16 +39,12 @@ export const DEFAULT_PERIODS = [
 ];
 
 export const SUBJECT_COLORS = [
-  "bg-blue-100 border-blue-300 text-blue-800",
-  "bg-green-100 border-green-300 text-green-800",
-  "bg-orange-100 border-orange-300 text-orange-800",
-  "bg-purple-100 border-purple-300 text-purple-800",
-  "bg-pink-100 border-pink-300 text-pink-800",
-  "bg-teal-100 border-teal-300 text-teal-800",
-  "bg-indigo-100 border-indigo-300 text-indigo-800",
-  "bg-amber-100 border-amber-300 text-amber-800",
-  "bg-cyan-100 border-cyan-300 text-cyan-800",
-  "bg-rose-100 border-rose-300 text-rose-800",
+  "bg-gradient-to-br from-blue-50 to-sky-100/70 border-sky-200 text-slate-800",
+  "bg-gradient-to-br from-teal-50 to-cyan-100/60 border-teal-200 text-slate-800",
+  "bg-gradient-to-br from-orange-50 to-amber-100/60 border-orange-200 text-slate-800",
+  "bg-gradient-to-br from-cyan-50 to-sky-100/60 border-cyan-200 text-slate-800",
+  "bg-gradient-to-br from-lime-50 to-emerald-100/50 border-lime-200 text-slate-800",
+  "bg-gradient-to-br from-slate-50 to-blue-100/50 border-slate-200 text-slate-800",
 ];
 
 export const BREAK_STYLE = "bg-slate-100 border-slate-200 text-slate-500";

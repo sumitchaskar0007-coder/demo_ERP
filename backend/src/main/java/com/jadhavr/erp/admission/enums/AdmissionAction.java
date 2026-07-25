@@ -1,6 +1,7 @@
 package com.jadhavr.erp.admission.enums;
 
 public enum AdmissionAction {
+    STUDENT_DETAILS_SUBMITTED,
     SUBMITTED,
     STUDENT_SECTION_REVIEW_STARTED,
     STUDENT_SECTION_APPROVED,

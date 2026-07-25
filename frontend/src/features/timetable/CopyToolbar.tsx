@@ -16,7 +16,9 @@ interface Props {
 export function CopyToolbar({ timetableId, currentDay, onCopied }: Props) {
   const [copyDayTarget, setCopyDayTarget] = useState("");
   const [copyWeekTarget, setCopyWeekTarget] = useState("");
-  const [timetables, setTimetables] = useState<{ id: number; weekStart: string; section: string }[]>([]);
+  const [timetables, setTimetables] = useState<
+    { id: number; weekStart: string; section: string }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [showWeekCopy, setShowWeekCopy] = useState(false);
 
@@ -28,7 +30,9 @@ export function CopyToolbar({ timetableId, currentDay, onCopied }: Props) {
         sourceDay: currentDay,
         targetDay: copyDayTarget,
       });
-      toast.success(`Copied ${DAY_LABELS[currentDay]} to ${DAY_LABELS[copyDayTarget as TimetableDay]}`);
+      toast.success(
+        `Copied ${DAY_LABELS[currentDay]} to ${DAY_LABELS[copyDayTarget as TimetableDay]}`,
+      );
       setCopyDayTarget("");
       onCopied();
     } catch (e) {
@@ -63,7 +67,7 @@ export function CopyToolbar({ timetableId, currentDay, onCopied }: Props) {
       setTimetables(
         tables
           .filter((t) => t.id !== timetableId && t.status === "DRAFT")
-          .map((t) => ({ id: t.id, weekStart: t.weekStart, section: t.section }))
+          .map((t) => ({ id: t.id, weekStart: t.weekStart, section: t.section })),
       );
     } catch (e) {
       toast.error(handleApiError(e).message);
@@ -107,7 +111,12 @@ export function CopyToolbar({ timetableId, currentDay, onCopied }: Props) {
       <Button className="h-8 px-3 text-xs" onClick={copyDay} disabled={!copyDayTarget || loading}>
         Copy Day
       </Button>
-      <Button className="h-8 px-3 text-xs" variant="secondary" onClick={copyToAllDays} disabled={loading}>
+      <Button
+        className="h-8 px-3 text-xs"
+        variant="secondary"
+        onClick={copyToAllDays}
+        disabled={loading}
+      >
         Copy to All Days
       </Button>
       {!showWeekCopy ? (
@@ -135,10 +144,18 @@ export function CopyToolbar({ timetableId, currentDay, onCopied }: Props) {
               })),
             ]}
           />
-          <Button className="h-8 px-3 text-xs" onClick={copyWeek} disabled={!copyWeekTarget || loading}>
+          <Button
+            className="h-8 px-3 text-xs"
+            onClick={copyWeek}
+            disabled={!copyWeekTarget || loading}
+          >
             Copy Week
           </Button>
-          <Button className="h-8 px-3 text-xs" variant="ghost" onClick={() => setShowWeekCopy(false)}>
+          <Button
+            className="h-8 px-3 text-xs"
+            variant="ghost"
+            onClick={() => setShowWeekCopy(false)}
+          >
             Cancel
           </Button>
         </>

@@ -18,6 +18,9 @@ public class Notice extends BaseAuditEntity {
     private String title;
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'NORMAL'")
+    private NoticePriority priority = NoticePriority.NORMAL;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private User createdBy;
@@ -32,6 +35,8 @@ public class Notice extends BaseAuditEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role_name", nullable = false, length = 40)
     private Set<RoleName> audienceRoles = new HashSet<>();
+    @Column(name = "action_path", length = 500)
+    private String actionPath;
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
     @ManyToOne(fetch = FetchType.LAZY)
@@ -43,6 +48,8 @@ public class Notice extends BaseAuditEntity {
     public void setTitle(String title) { this.title = title; }
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
+    public NoticePriority getPriority() { return priority; }
+    public void setPriority(NoticePriority value) { priority = value == null ? NoticePriority.NORMAL : value; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
     public Set<com.jadhavr.erp.college.entity.College> getColleges() { return colleges; }
@@ -51,6 +58,8 @@ public class Notice extends BaseAuditEntity {
     public void setDepartment(Department department) { this.department = department; }
     public Set<RoleName> getAudienceRoles() { return audienceRoles; }
     public void setAudienceRoles(Set<RoleName> audienceRoles) { this.audienceRoles = audienceRoles; }
+    public String getActionPath() { return actionPath; }
+    public void setActionPath(String actionPath) { this.actionPath = actionPath; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     public User getDeletedBy() { return deletedBy; }

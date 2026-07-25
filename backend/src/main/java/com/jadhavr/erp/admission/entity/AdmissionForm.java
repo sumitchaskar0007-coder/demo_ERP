@@ -2,6 +2,7 @@ package com.jadhavr.erp.admission.entity;
 
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
@@ -47,6 +48,10 @@ public class AdmissionForm extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_year_id")
+    private AcademicClass courseYear;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "student_id", nullable = false)
@@ -121,6 +126,54 @@ public class AdmissionForm extends BaseAuditEntity {
     private BigDecimal previousPercentage;
     @Column(length = 180)
     private String photoStorageName;
+
+    @Column(length = 180)
+    private String tenthMarksheetStorageName;
+
+    @Column(length = 180)
+    private String twelfthMarksheetStorageName;
+
+    @Column(length = 180)
+    private String graduationPgCertificateStorageName;
+    @Column(length = 180)
+    private String leavingCertificateStorageName;
+    @Column(length = 180)
+    private String migrationCertificateStorageName;
+    @Column(length = 180)
+    private String gapAffidavitStorageName;
+    @Column(length = 180)
+    private String casteCertificateStorageName;
+    @Column(length = 180)
+    private String incomeProofStorageName;
+    @Column(length = 180)
+    private String nameChangeCertificateStorageName;
+    @Column(length = 180)
+    private String aadhaarCardStorageName;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean photoVerified = false;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean tenthMarksheetVerified = false;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean twelfthMarksheetVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean leavingCertificateVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean aadhaarCardVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean graduationPgCertificateVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean migrationCertificateVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean gapAffidavitVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean casteCertificateVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean incomeProofVerified = false;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean nameChangeCertificateVerified = false;
 
     @Column(length = 120)
     private String placeOfBirth;
@@ -230,6 +283,8 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setCollege(College college) { this.college = college; }
     public Department getDepartment() { return department; }
     public void setDepartment(Department department) { this.department = department; }
+    public AcademicClass getCourseYear() { return courseYear; }
+    public void setCourseYear(AcademicClass courseYear) { this.courseYear = courseYear; }
     public StudentProfile getStudent() { return student; }
     public void setStudent(StudentProfile student) { this.student = student; }
     public User getStudentUser() { return studentUser; }
@@ -304,6 +359,48 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setPrintCount(Integer printCount) { this.printCount = printCount; }
     public String getPhotoStorageName() { return photoStorageName; }
     public void setPhotoStorageName(String photoStorageName) { this.photoStorageName = photoStorageName; }
+    public String getTenthMarksheetStorageName() { return tenthMarksheetStorageName; }
+    public void setTenthMarksheetStorageName(String value) { this.tenthMarksheetStorageName = value; }
+    public String getTwelfthMarksheetStorageName() { return twelfthMarksheetStorageName; }
+    public void setTwelfthMarksheetStorageName(String value) { this.twelfthMarksheetStorageName = value; }
+    public String getGraduationPgCertificateStorageName() { return graduationPgCertificateStorageName; }
+    public void setGraduationPgCertificateStorageName(String value) { this.graduationPgCertificateStorageName = value; }
+    public String getLeavingCertificateStorageName() { return leavingCertificateStorageName; }
+    public void setLeavingCertificateStorageName(String value) { this.leavingCertificateStorageName = value; }
+    public String getMigrationCertificateStorageName() { return migrationCertificateStorageName; }
+    public void setMigrationCertificateStorageName(String value) { this.migrationCertificateStorageName = value; }
+    public String getGapAffidavitStorageName() { return gapAffidavitStorageName; }
+    public void setGapAffidavitStorageName(String value) { this.gapAffidavitStorageName = value; }
+    public String getCasteCertificateStorageName() { return casteCertificateStorageName; }
+    public void setCasteCertificateStorageName(String value) { this.casteCertificateStorageName = value; }
+    public String getIncomeProofStorageName() { return incomeProofStorageName; }
+    public void setIncomeProofStorageName(String value) { this.incomeProofStorageName = value; }
+    public String getNameChangeCertificateStorageName() { return nameChangeCertificateStorageName; }
+    public void setNameChangeCertificateStorageName(String value) { this.nameChangeCertificateStorageName = value; }
+    public String getAadhaarCardStorageName() { return aadhaarCardStorageName; }
+    public void setAadhaarCardStorageName(String value) { this.aadhaarCardStorageName = value; }
+    public boolean isPhotoVerified() { return photoVerified; }
+    public void setPhotoVerified(boolean value) { this.photoVerified = value; }
+    public boolean isTenthMarksheetVerified() { return tenthMarksheetVerified; }
+    public void setTenthMarksheetVerified(boolean value) { this.tenthMarksheetVerified = value; }
+    public boolean isTwelfthMarksheetVerified() { return twelfthMarksheetVerified; }
+    public void setTwelfthMarksheetVerified(boolean value) { this.twelfthMarksheetVerified = value; }
+    public boolean isLeavingCertificateVerified() { return leavingCertificateVerified; }
+    public void setLeavingCertificateVerified(boolean value) { this.leavingCertificateVerified = value; }
+    public boolean isAadhaarCardVerified() { return aadhaarCardVerified; }
+    public void setAadhaarCardVerified(boolean value) { this.aadhaarCardVerified = value; }
+    public boolean isGraduationPgCertificateVerified() { return graduationPgCertificateVerified; }
+    public void setGraduationPgCertificateVerified(boolean value) { this.graduationPgCertificateVerified = value; }
+    public boolean isMigrationCertificateVerified() { return migrationCertificateVerified; }
+    public void setMigrationCertificateVerified(boolean value) { this.migrationCertificateVerified = value; }
+    public boolean isGapAffidavitVerified() { return gapAffidavitVerified; }
+    public void setGapAffidavitVerified(boolean value) { this.gapAffidavitVerified = value; }
+    public boolean isCasteCertificateVerified() { return casteCertificateVerified; }
+    public void setCasteCertificateVerified(boolean value) { this.casteCertificateVerified = value; }
+    public boolean isIncomeProofVerified() { return incomeProofVerified; }
+    public void setIncomeProofVerified(boolean value) { this.incomeProofVerified = value; }
+    public boolean isNameChangeCertificateVerified() { return nameChangeCertificateVerified; }
+    public void setNameChangeCertificateVerified(boolean value) { this.nameChangeCertificateVerified = value; }
     public String getPlaceOfBirth() { return placeOfBirth; }
     public void setPlaceOfBirth(String placeOfBirth) { this.placeOfBirth = placeOfBirth; }
     public String getMaritalStatus() { return maritalStatus; }

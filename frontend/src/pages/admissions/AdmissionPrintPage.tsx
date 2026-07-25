@@ -1,4 +1,4 @@
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -9,32 +9,14 @@ import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/admissions/api";
 import type { AdmissionPrintResponse } from "@/features/admissions/types";
 
-const documents = [
-  "10th Mark Sheet",
-  "12th Mark Sheet",
-  "Graduation Mark Sheet - Eligible Criteria (If Applicable)",
-  "Provisional Certificate",
-  "Transfer Certificate (If Applicable)",
-  "Migration Certificate Master Degree (if any)",
-  "Gap Certificate (If Applicable)",
-  "MH-CET / CMAT / ATMA / Score Card",
-  "Nationality Certificate",
-  "Domicile Certificate",
-  "Caste Certificate (If Applicable)",
-  "Caste Validity (If Applicable)",
-  "Non - Creamy Layer Certificate (If Applicable)",
-  "5 - Passport size Photographs",
-  "Aadhar Card Xerox Copy",
-  "Name Change if any (Gazette) (If Applicable)",
-  "Income Certificate (If Applicable)",
-  "Performa - O (Only for Minority)",
-];
-
 export function AdmissionPrintPage() {
   const { admissionId = "" } = useParams();
   const id = Number(admissionId);
   const [data, setData] = useState<AdmissionPrintResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -49,20 +31,77 @@ export function AdmissionPrintPage() {
     load();
   }, [load]);
 
-  const markPrinted = async () => {
+  useEffect(() => {
+    if (!data?.student.hasPhoto) {
+      setPhotoUrl(null);
+      return;
+    }
+    let active = true;
+    let objectUrl: string | null = null;
+    setPhotoLoading(true);
+    api
+      .getAdmissionPhoto(id)
+      .then((url) => {
+        objectUrl = url;
+        if (active) setPhotoUrl(url);
+      })
+      .catch(() => {
+        if (active) setPhotoUrl(null);
+      })
+      .finally(() => {
+        if (active) setPhotoLoading(false);
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [data?.student.hasPhoto, id]);
+
+  const downloadPdf = async () => {
+    if (!data) return;
+    setDownloading(true);
     try {
-      await api.markAdmissionPrinted(id, { remarks: "Printed from frontend" });
-      toast.success("Marked as printed");
-      load();
+      const [{ default: JsPdf }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const pages = Array.from(document.querySelectorAll<HTMLElement>("[data-admission-pdf-page]"));
+      const pdf = new JsPdf({ orientation: "portrait", unit: "mm", format: "a4" });
+      for (let index = 0; index < pages.length; index += 1) {
+        const canvas = await html2canvas(pages[index], {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          logging: false,
+        });
+        if (index > 0) pdf.addPage("a4", "portrait");
+        const maxWidth = 190;
+        const maxHeight = 277;
+        const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+        const width = canvas.width * ratio;
+        const height = canvas.height * ratio;
+        pdf.addImage(
+          canvas.toDataURL("image/jpeg", 0.96),
+          "JPEG",
+          (210 - width) / 2,
+          10,
+          width,
+          height,
+        );
+      }
+      pdf.save(`admission-${data.admissionReferenceNumber}.pdf`);
+      await api.markAdmissionPrinted(id, { remarks: "Admission PDF downloaded" });
+      toast.success("Admission PDF downloaded");
     } catch (err) {
       toast.error(handleApiError(err).message);
+    } finally {
+      setDownloading(false);
     }
   };
 
   if (loading) return <Loader label="Loading print format..." />;
   if (!data) return null;
 
-  const currentYear = new Date().getFullYear();
   const courseCode = data.academic.departmentCode || "COURSE";
   const address = [
     data.student.addressLine1,
@@ -73,6 +112,16 @@ export function AdmissionPrintPage() {
   ]
     .filter(Boolean)
     .join(", ");
+  const correspondenceAddress = [
+    data.student.correspondenceAddress,
+    data.student.correspondenceCity,
+    data.student.correspondenceState,
+    data.student.correspondencePincode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const [academicStart = "", academicEnd = ""] = data.academic.academicYear.split("-");
+  const academicYearShort = `${academicStart.slice(-2)} - ${academicEnd.slice(-2)}`;
 
   return (
     <div className="page-container print-page-bg">
@@ -83,143 +132,207 @@ export function AdmissionPrintPage() {
             Back
           </Button>
         </Link>
-        <Button onClick={() => window.print()}>
-          <Printer className="h-4 w-4" />
-          Print
-        </Button>
-        <Button variant="secondary" onClick={markPrinted}>
-          Mark as Printed
+        <Button
+          onClick={downloadPdf}
+          loading={downloading || photoLoading}
+          disabled={downloading || photoLoading}
+        >
+          <Download className="h-4 w-4" />
+          Download PDF
         </Button>
       </div>
 
-      <Card className="print-container admission-form-sheet mx-auto max-w-[820px] p-4 text-black sm:p-8">
+      <Card
+        data-admission-pdf-page
+        className="print-container admission-form-sheet mx-auto min-h-[297mm] w-[210mm] max-w-full p-[10mm] text-black"
+      >
         <InstituteHeader data={data} />
 
-        <div className="mt-3 grid grid-cols-[1fr_112px] gap-4">
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_30mm] gap-4 border-t border-black pt-3">
           <div>
-            <div className="flex flex-wrap items-center gap-8 border-t border-black pt-3">
-              <h2 className="text-[26px] font-extrabold uppercase tracking-wide">Admission Form</h2>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
+              <h2 className="text-[22px] font-extrabold uppercase tracking-wide">Admission Form</h2>
               <CourseBox>{courseCode}</CourseBox>
               <CourseBox>{data.academic.academicYear}</CourseBox>
             </div>
-            <p className="mt-4 text-center text-sm">
-              Form No. <Line value={data.admissionReferenceNumber} width="190px" /> /{" "}
-              {String(currentYear).slice(2)} - {String(currentYear + 1).slice(2)}
-            </p>
+            <div className="mt-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 text-xs">
+              <b>Form No.</b>
+              <ValueLine value={data.admissionReferenceNumber} />
+              <b>/ {academicYearShort}</b>
+            </div>
           </div>
-          <div className="grid h-32 place-items-center border border-black text-sm">Photo</div>
+          <div className="grid h-[36mm] place-items-center overflow-hidden border border-black text-xs">
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt="Student uploaded document"
+                className="h-full w-full bg-white object-contain"
+              />
+            ) : (
+              "Photo"
+            )}
+          </div>
         </div>
 
-        <section className="mt-2 text-[14px] leading-8">
-          <h3 className="mb-1 font-bold">Personal Information</h3>
-          <NumberedLine number={1}>
-            Full Name of Applicant: Mr. / Ms./Mrs. <Line value={data.student.fullName} />
-            <div className="-mt-1 ml-7 text-xs">(In block letters beginning with surname)</div>
-          </NumberedLine>
-          <NumberedLine number={2}>
-            Gender:
-            <Check label="Male" checked={data.student.gender?.toLowerCase() === "male"} />
-            <Check label="Female" checked={data.student.gender?.toLowerCase() === "female"} />
-            <span className="ml-auto flex items-center gap-2">
-              <Check checked label="" /> <span className="text-xs">Tick in appropriate Box</span>
-            </span>
-          </NumberedLine>
-          <NumberedLine number={3}>
-            Date of Birth <Line value={shortDate(data.student.dateOfBirth)} width="170px" />
-            Place of Birth <Line width="170px" />
-            State <Line value={data.student.state} width="150px" />
-          </NumberedLine>
-          <NumberedLine number={4}>
-            Aadhaar Card No.: <BoxLine boxes={12} />
-            <span className="ml-4">Marital Status:</span>
-            <Check label="Married" />
-            <Check label="Unmarried" />
-          </NumberedLine>
-          <NumberedLine number={5}>
-            APAAR ID: <Line width="250px" />
-          </NumberedLine>
-          <NumberedLine number={6}>
-            Nationality: <Line value="Indian" width="220px" />
-            Religion & Caste: <Line width="260px" />
-          </NumberedLine>
-          <NumberedLine number={7}>
-            Applicant's Mobile no. & Email ID:{" "}
-            <Line value={`${data.student.phone} / ${data.student.email}`} />
-          </NumberedLine>
-          <NumberedLine number={8}>
-            Applicant's Father / Guardian's Name: <Line value={data.parent.parentName} />
-            <div className="ml-7 flex gap-3">
-              Mobile no: <Line value={data.parent.parentPhone} width="230px" />
-              Email: <Line value={data.parent.parentEmail} />
-            </div>
-          </NumberedLine>
-          <NumberedLine number={9}>
-            Permanent Address: <Line value={address} />
-            <div className="grid grid-cols-1 gap-3 sm:ml-7 sm:grid-cols-3">
-              <span>
-                Pin: <Line value={data.student.pincode} />
-              </span>
-              <span>
-                State: <Line value={data.student.state} />
-              </span>
-              <span>
-                City: <Line value={data.student.city} />
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:ml-7 sm:grid-cols-2">
-              <span>
-                Mobile no.: <Line value={data.student.phone} />
-              </span>
-              <span>
-                Email: <Line value={data.student.email} />
-              </span>
-            </div>
-          </NumberedLine>
-          <NumberedLine number={10}>
-            Correspondence Address: <Line value={address} />
-            <div className="grid grid-cols-1 gap-3 sm:ml-7 sm:grid-cols-3">
-              <span>
-                Pin: <Line value={data.student.pincode} />
-              </span>
-              <span>
-                State: <Line value={data.student.state} />
-              </span>
-              <span>
-                City: <Line value={data.student.city} />
-              </span>
-            </div>
-          </NumberedLine>
-          <NumberedLine number={11}>
-            Academic Record:
-            <AcademicTable data={data} />
-          </NumberedLine>
-          <NumberedLine number={12}>
-            Seat No. of Qualifying Entrance Test: <BoxLine boxes={12} />
-          </NumberedLine>
-          <NumberedLine number={13}>
-            Total Score in the Test (CET): Written: <Line width="520px" />
-          </NumberedLine>
-          <NumberedLine number={14}>
-            Last Graduation College Name & Address:{" "}
-            <Line value={data.academic.previousSchoolName} />
-          </NumberedLine>
+        <section className="mt-3 text-[11px] leading-4">
+          <h3 className="mb-1.5 border-b border-black pb-1 text-xs font-bold uppercase tracking-wide">
+            Personal Information
+          </h3>
+          <div className="space-y-1.5">
+            <FormRow number={1}>
+              <FormField
+                label="Full Name of Applicant: Mr. / Ms. / Mrs."
+                value={data.student.fullName}
+              />
+              <p className="mt-0.5 text-[9px] text-slate-700">
+                (In block letters beginning with surname)
+              </p>
+            </FormRow>
+            <FormRow number={2}>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <b>Gender:</b>
+                <Check label="Male" checked={data.student.gender?.toLowerCase() === "male"} />
+                <Check label="Female" checked={data.student.gender?.toLowerCase() === "female"} />
+                <Check label="Other" checked={data.student.gender?.toLowerCase() === "other"} />
+                <span className="ml-auto text-[9px]">Tick the appropriate box</span>
+              </div>
+            </FormRow>
+            <FormRow number={3}>
+              <div className="grid grid-cols-3 gap-3">
+                <FormField label="Date of Birth" value={shortDate(data.student.dateOfBirth)} />
+                <FormField label="Place of Birth" value={data.student.placeOfBirth} />
+                <FormField label="State" value={data.student.state} />
+              </div>
+            </FormRow>
+            <FormRow number={4}>
+              <div className="grid grid-cols-[1.35fr_1fr] items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <b className="shrink-0">Aadhaar Card No.</b>
+                  <BoxLine boxes={12} value={data.student.aadhaarNumber} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <b>Marital Status:</b>
+                  <Check
+                    label="Married"
+                    checked={data.student.maritalStatus?.toLowerCase() === "married"}
+                  />
+                  <Check
+                    label="Unmarried"
+                    checked={data.student.maritalStatus?.toLowerCase() === "unmarried"}
+                  />
+                </div>
+              </div>
+            </FormRow>
+            <FormRow number={5}>
+              <FormField label="APAAR ID" value={data.student.apaarId} />
+            </FormRow>
+            <FormRow number={6}>
+              <div className="grid grid-cols-3 gap-3">
+                <FormField label="Nationality" value={data.student.nationality || "Indian"} />
+                <FormField label="Religion" value={data.student.religion} />
+                <FormField label="Caste" value={data.student.caste} />
+              </div>
+            </FormRow>
+            <FormRow number={7}>
+              <FormField
+                label="Applicant Mobile No. & Email ID"
+                value={`${data.student.phone} / ${data.student.email}`}
+              />
+            </FormRow>
+            <FormRow number={8}>
+              <FormField label="Father / Guardian Name" value={data.parent.parentName} />
+              <div className="mt-1 grid grid-cols-2 gap-3">
+                <FormField label="Mobile No." value={data.parent.parentPhone} />
+                <FormField label="Email" value={data.parent.parentEmail} />
+              </div>
+            </FormRow>
+            <FormRow number={9}>
+              <FormField label="Permanent Address" value={address} />
+              <div className="mt-1 grid grid-cols-3 gap-3">
+                <FormField label="PIN" value={data.student.pincode} />
+                <FormField label="State" value={data.student.state} />
+                <FormField label="City" value={data.student.city} />
+              </div>
+              <div className="mt-1 grid grid-cols-2 gap-3">
+                <FormField
+                  label="Mobile No."
+                  value={data.student.permanentPhone || data.student.phone}
+                />
+                <FormField
+                  label="Email"
+                  value={data.student.permanentEmail || data.student.email}
+                />
+              </div>
+            </FormRow>
+            <FormRow number={10}>
+              <FormField label="Correspondence Address" value={correspondenceAddress || address} />
+              <div className="mt-1 grid grid-cols-3 gap-3">
+                <FormField
+                  label="PIN"
+                  value={data.student.correspondencePincode || data.student.pincode}
+                />
+                <FormField
+                  label="State"
+                  value={data.student.correspondenceState || data.student.state}
+                />
+                <FormField
+                  label="City"
+                  value={data.student.correspondenceCity || data.student.city}
+                />
+              </div>
+              <div className="mt-1 grid grid-cols-2 gap-3">
+                <FormField
+                  label="Mobile No."
+                  value={data.student.correspondenceMobile || data.student.correspondencePhone}
+                />
+                <FormField label="Email" value={data.student.correspondenceEmail} />
+              </div>
+            </FormRow>
+            <FormRow number={11}>
+              <b>Academic Record:</b>
+              <AcademicTable data={data} />
+            </FormRow>
+            <FormRow number={12}>
+              <FormField
+                label="Seat No. of Qualifying Entrance Test"
+                value={data.academic.qualifyingEntranceSeatNumber}
+              />
+            </FormRow>
+            <FormRow number={13}>
+              <FormField
+                label="Total Score in the Test (CET) - Written"
+                value={data.academic.qualifyingEntranceTotalScore}
+              />
+            </FormRow>
+            <FormRow number={14}>
+              <FormField
+                label="Last Graduation College Name & Address"
+                value={[
+                  data.academic.lastGraduationCollegeName,
+                  data.academic.lastGraduationCollegeAddress,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              />
+            </FormRow>
+          </div>
         </section>
 
-        <div className="mt-14 grid grid-cols-[1fr_1fr_1.4fr] items-end gap-5 text-sm">
-          <span>
-            Date: <Line width="150px" />
-          </span>
-          <span>
-            Place: <Line width="180px" />
-          </span>
-          <b className="text-right italic">Signature of the Applicant</b>
+        <div className="mt-7 grid grid-cols-[1fr_1fr_1.4fr] items-end gap-5 text-xs">
+          <FormField label="Date" />
+          <FormField label="Place" />
+          <b className="border-t border-black pt-1 text-center italic">
+            Signature of the Applicant
+          </b>
         </div>
       </Card>
 
-      <Card className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 max-w-[820px] p-4 text-black sm:p-8">
+      <Card
+        data-admission-pdf-page
+        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[14mm] text-black"
+      >
         <DeclarationSection declarations={data.declarations} />
         <UndertakingSection />
-        <DocumentChecklist />
       </Card>
     </div>
   );
@@ -264,88 +377,66 @@ function DeclarationSection({ declarations }: { declarations: string[] }) {
         "I fully understand that the Director of the institute will have full liberty to expel me from the institute for infringement of rules of conduct, discipline, attendance and the information given above.",
       ];
   return (
-    <section className="text-[14px] leading-7">
-      <h3 className="mb-4 font-bold underline">Declaration</h3>
-      <ol className="list-decimal space-y-4 pl-8">
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ol>
-      <p className="mt-16 text-right font-semibold">Signature of Applicant</p>
+    <section className="text-[13px] leading-6">
+      <h3 className="mb-4 border-b border-black pb-1 text-base font-bold">Declaration</h3>
+      <StatementList items={items} />
+      <p className="ml-auto mt-20 w-56 border-t border-black pt-1 text-center font-semibold">
+        Signature of Applicant
+      </p>
     </section>
   );
 }
 
 function UndertakingSection() {
   return (
-    <section className="mt-12 text-[14px] leading-7">
-      <h3 className="mb-4 font-bold underline">Undertaking</h3>
-      <ol className="list-decimal space-y-4 pl-8">
-        <li>
-          I undertake to observe full attendance as per the University/Institute Rules and failing
-          which I am aware that my terms will not be granted.
-        </li>
-        <li>
-          So long as I am a student of Institute, I will do nothing either inside or outside the
-          Institute which may result in disciplinary action against me under the Rules, Act and
-          Laws.
-        </li>
-        <li>
-          I agree and undertake that if the fees and other charges decided by the Institute are more
-          than the current academic year fees, then I will pay the difference to the Institute on
-          demand.
-        </li>
-      </ol>
-      <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2">
-        <span>
-          Date: <Line width="160px" />
-        </span>
-        <b className="text-right">Signature of Applicant</b>
-        <span>
-          Place: <Line width="160px" />
-        </span>
-        <b className="text-right">Signature of the Parents / Guardian</b>
-      </div>
-    </section>
-  );
-}
-
-function DocumentChecklist() {
-  return (
-    <section className="mt-10 text-[13px]">
-      <h3 className="mb-4 text-base font-extrabold">
-        Documents Original ( for Verification ) & Set of attested xerox copies ( Attached with form
-        )
-      </h3>
-      <div className="grid grid-cols-1 gap-y-2 sm:grid-cols-2 sm:gap-x-10">
-        {documents.map((document, index) => (
-          <div key={document} className="grid grid-cols-[1fr_22px] items-center gap-3">
-            <span>
-              {String(index + 1).padStart(2, "0")}.{document}
-            </span>
-            <span className="h-5 w-5 border border-black" />
-          </div>
-        ))}
+    <section className="mt-12 text-[13px] leading-6">
+      <h3 className="mb-4 border-b border-black pb-1 text-base font-bold">Undertaking</h3>
+      <StatementList
+        items={[
+          "I undertake to observe full attendance as per the University/Institute Rules and failing which I am aware that my terms will not be granted.",
+          "So long as I am a student of Institute, I will do nothing either inside or outside the Institute which may result in disciplinary action against me under the Rules, Act and Laws.",
+          "I agree and undertake that if the fees and other charges decided by the Institute are more than the current academic year fees, then I will pay the difference to the Institute on demand.",
+        ]}
+      />
+      <div className="mt-20 grid grid-cols-2 gap-x-16 gap-y-10">
+        <FormField label="Date" />
+        <b className="border-t border-black pt-1 text-center">Signature of Applicant</b>
+        <FormField label="Place" />
+        <b className="border-t border-black pt-1 text-center">
+          Signature of the Parents / Guardian
+        </b>
       </div>
     </section>
   );
 }
 
 function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
-  const rows = [
-    ["10th", "", "", "", ""],
-    [
-      data.academic.previousClassName || "12th / Graduation",
-      data.academic.previousSchoolName || "",
-      "",
-      "",
-      data.academic.previousPercentage ?? "",
-    ],
-    ["", "", "", "", ""],
-    ["", "", "", "", ""],
-  ];
+  const savedRows = data.academic.academicRecords?.map((record) => [
+    qualificationLabel(record.qualification),
+    record.instituteName || "",
+    record.boardUniversity || "",
+    record.yearOfPassing || "",
+    record.totalMarks ?? "",
+    record.obtainedMarks ?? "",
+    record.marksPercentage ?? "",
+  ]);
+  const rows = savedRows?.length
+    ? savedRows
+    : [
+        ["10th", "", "", "", "", "", ""],
+        [
+          data.academic.previousClassName || "12th / Graduation",
+          data.academic.previousSchoolName || "",
+          "",
+          "",
+          "",
+          "",
+          data.academic.previousPercentage ?? "",
+        ],
+      ];
+  while (rows.length < 4) rows.push(["", "", "", "", "", "", ""]);
   return (
-    <table className="mt-2 w-full border-collapse text-center text-[13px] leading-5">
+    <table className="mt-1 w-full table-fixed border-collapse text-center text-[9px] leading-3">
       <thead>
         <tr>
           {[
@@ -353,9 +444,11 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
             "School/College/Institute",
             "Board/University",
             "Year of Passing",
-            "Marks Obtained (%)",
+            "Total Marks",
+            "Obtained Marks",
+            "Percentage",
           ].map((head) => (
-            <th key={head} className="border border-black px-2 py-2 font-semibold">
+            <th key={head} className="border border-black px-1 py-1.5 font-semibold">
               {head}
             </th>
           ))}
@@ -365,7 +458,7 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
         {rows.map((row, index) => (
           <tr key={index}>
             {row.map((cell, cellIndex) => (
-              <td key={cellIndex} className="h-8 border border-black px-2">
+              <td key={cellIndex} className="h-6 border border-black px-1 py-1">
                 {cell}
               </td>
             ))}
@@ -378,51 +471,84 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
 
 function CourseBox({ children }: { children: ReactNode }) {
   return (
-    <span className="min-w-24 border border-black px-4 py-1 text-center text-xl font-bold uppercase">
+    <span className="min-w-20 border border-black px-2 py-1 text-center text-sm font-bold uppercase">
       {children}
     </span>
   );
 }
 
-function NumberedLine({ number, children }: { number: number; children: ReactNode }) {
+function FormRow({ number, children }: { number: number; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[28px_1fr] gap-1">
+    <div className="grid break-inside-avoid grid-cols-[18px_minmax(0,1fr)] gap-1">
       <b>{number}.</b>
-      <div>{children}</div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
 
-function Line({ value, width = "100%" }: { value?: unknown; width?: string }) {
+function FormField({ label, value }: { label: string; value?: unknown }) {
   return (
-    <span
-      className="inline-block border-b border-black px-1 align-baseline"
-      style={{ minWidth: width }}
-    >
-      {value ? String(value) : "\u00a0"}
+    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-end gap-1.5">
+      <b className="whitespace-nowrap">{label}:</b>
+      <ValueLine value={value} />
+    </div>
+  );
+}
+
+function ValueLine({ value }: { value?: unknown }) {
+  return (
+    <span className="min-h-4 min-w-0 border-b border-black px-1 font-medium">
+      {value !== null && value !== undefined && value !== "" ? String(value) : "\u00a0"}
     </span>
+  );
+}
+
+function StatementList({ items }: { items: string[] }) {
+  return (
+    <div className="space-y-3">
+      {items.map((item, index) => (
+        <div key={item} className="grid grid-cols-[20px_minmax(0,1fr)] gap-2">
+          <b>{index + 1}.</b>
+          <p>{item}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
 function Check({ label, checked }: { label: string; checked?: boolean }) {
   return (
-    <span className="ml-5 inline-flex items-center gap-2">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
       {label && <span>{label}</span>}
-      <span className="grid h-5 w-8 place-items-center border border-black text-xl leading-none">
-        {checked ? "/" : ""}
+      <span className="grid h-4 w-4 place-items-center border border-black text-xs font-bold leading-none">
+        {checked ? "X" : ""}
       </span>
     </span>
   );
 }
 
-function BoxLine({ boxes }: { boxes: number }) {
+function BoxLine({ boxes, value }: { boxes: number; value?: string | null }) {
+  const characters = value?.replace(/\s/g, "").slice(0, boxes).split("") ?? [];
   return (
     <span className="inline-flex align-middle">
       {Array.from({ length: boxes }).map((_, index) => (
-        <span key={index} className="h-6 w-8 border border-black" />
+        <span
+          key={index}
+          className="grid h-5 w-5 place-items-center border border-black text-[10px]"
+        >
+          {characters[index] || ""}
+        </span>
       ))}
     </span>
   );
+}
+
+function qualificationLabel(value: string) {
+  return value
+    .replace("10TH", "10th")
+    .replace("12TH", "12th")
+    .replace("GRADUATION", "Graduation")
+    .replace("DIPLOMA", "Diploma");
 }
 
 function shortDate(value?: string | null) {

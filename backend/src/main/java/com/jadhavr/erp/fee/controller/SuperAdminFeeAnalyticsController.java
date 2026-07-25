@@ -1,6 +1,7 @@
 package com.jadhavr.erp.fee.controller;
 
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
+import com.jadhavr.erp.analytics.repository.AdminAnalyticsReadRepository;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.api.ApiResponse;
@@ -19,6 +20,7 @@ import com.jadhavr.erp.user.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,6 +51,7 @@ public class SuperAdminFeeAnalyticsController {
     private final StudentProfileRepository students;
     private final AdmissionFormRepository admissions;
     private final StudentSectionEnrollmentRepository enrollments;
+    private final AdminAnalyticsReadRepository analyticsRead;
 
     public SuperAdminFeeAnalyticsController(
             StudentFeeAccountRepository accounts,
@@ -58,7 +61,8 @@ public class SuperAdminFeeAnalyticsController {
             StaffProfileRepository staff,
             StudentProfileRepository students,
             AdmissionFormRepository admissions,
-            StudentSectionEnrollmentRepository enrollments) {
+            StudentSectionEnrollmentRepository enrollments,
+            AdminAnalyticsReadRepository analyticsRead) {
         this.accounts = accounts;
         this.payments = payments;
         this.colleges = colleges;
@@ -67,14 +71,17 @@ public class SuperAdminFeeAnalyticsController {
         this.students = students;
         this.admissions = admissions;
         this.enrollments = enrollments;
+        this.analyticsRead = analyticsRead;
     }
 
     @GetMapping("/fees/collection-summary")
+    @Cacheable(cacheNames = "feeSummary", key = "'collection'", sync = true)
     public ApiResponse<Map<String, Object>> collectionSummary() {
         return ApiResponse.success("Collection summary", summary());
     }
 
     @GetMapping("/fees/pending-summary")
+    @Cacheable(cacheNames = "feeSummary", key = "'pending'", sync = true)
     public ApiResponse<PendingFeeSummary> pendingSummary() {
         return ApiResponse.success("Pending summary", accounts.pendingFeeSummary());
     }
@@ -131,75 +138,8 @@ public class SuperAdminFeeAnalyticsController {
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long courseYearId,
             @RequestParam(required = false) Long divisionId) {
-        Set<Long> scopedStudentIds = enrollments.findAll().stream()
-                .filter(e -> e.getStatus() == AcademicStatus.ACTIVE)
-                .filter(e -> collegeId == null || collegeId.equals(e.getSection().getCollege().getId()))
-                .filter(e -> departmentId == null || departmentId.equals(e.getSection().getDepartment().getId()))
-                .filter(e -> courseYearId == null || courseYearId.equals(e.getAcademicClass().getId()))
-                .filter(e -> divisionId == null || divisionId.equals(e.getSection().getId()))
-                .map(e -> e.getStudent().getId()).collect(Collectors.toSet());
-        boolean academicScope = courseYearId != null || divisionId != null;
-        Map<String, Long> admissionDistribution = new LinkedHashMap<>();
-        admissions.findAll().stream()
-                .filter(a -> collegeId == null || collegeId.equals(a.getCollege().getId()))
-                .filter(a -> departmentId == null || departmentId.equals(a.getDepartment().getId()))
-                .filter(a -> !academicScope || (a.getStudent() != null && scopedStudentIds.contains(a.getStudent().getId())))
-                .forEach(a -> admissionDistribution.merge(a.getStatus().name(), 1L, Long::sum));
-
-        List<Map<String, Object>> largestPendingFees = accounts.findPendingFees(
-                        null,
-                        null,
-                        null,
-                        null,
-                        "",
-                        null,
-                        null,
-                        PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "remainingAmount")))
-                .getContent()
-                .stream()
-                .map(row -> Map.<String, Object>of(
-                        "student", row.studentName(),
-                        "college", row.collegeName(),
-                        "remaining", row.remainingAmount()))
-                .toList();
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        var scopedStudents = students.findAll().stream()
-                .filter(s -> collegeId == null || collegeId.equals(s.getCollege().getId()))
-                .filter(s -> departmentId == null || departmentId.equals(s.getDepartment().getId()))
-                .filter(s -> !academicScope || scopedStudentIds.contains(s.getId())).toList();
-        var scopedAccounts = accounts.findAll().stream()
-                .filter(a -> collegeId == null || collegeId.equals(a.getCollege().getId()))
-                .filter(a -> departmentId == null || departmentId.equals(a.getDepartment().getId()))
-                .filter(a -> !academicScope || scopedStudentIds.contains(a.getStudent().getId())).toList();
-        BigDecimal paid = scopedAccounts.stream().map(a -> a.getPaidAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal pending = scopedAccounts.stream().map(a -> a.getRemainingAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
-        Map<String, Object> filteredSummary = new LinkedHashMap<>(summary());
-        if (collegeId != null) {
-            filteredSummary.put("totalColleges", colleges.existsById(collegeId) ? 1L : 0L);
-            filteredSummary.put("activeColleges", colleges.findById(collegeId)
-                    .filter(c -> c.getStatus() == CollegeStatus.ACTIVE).isPresent() ? 1L : 0L);
-            filteredSummary.put("totalPrincipals", users.findAll().stream()
-                    .filter(u -> u.getCollege() != null && collegeId.equals(u.getCollege().getId()))
-                    .filter(u -> u.getRoles().stream().anyMatch(r -> r.getName() == RoleName.PRINCIPAL)).count());
-        }
-        filteredSummary.put("totalStudents", (long) scopedStudents.size());
-        filteredSummary.put("totalStaff", staff.findAll().stream()
-                .filter(s -> collegeId == null || collegeId.equals(s.getCollege().getId()))
-                .filter(s -> departmentId == null || s.belongsToDepartment(departmentId)).count());
-        filteredSummary.put("totalFeeCollection", paid);
-        filteredSummary.put("pendingFee", pending);
-        result.put("summary", filteredSummary);
-        result.put("collegeWiseStudents", scopedStudents.stream().collect(Collectors.groupingBy(
-                s -> s.getCollege().getName(), LinkedHashMap::new, Collectors.counting())).entrySet().stream()
-                .map(e -> Map.of("label", e.getKey(), "value", e.getValue())).toList());
-        result.put("collegeWiseFeeCollection", scopedAccounts.stream().collect(Collectors.groupingBy(
-                a -> a.getCollege().getName(), LinkedHashMap::new,
-                Collectors.reducing(BigDecimal.ZERO, a -> a.getPaidAmount(), BigDecimal::add))).entrySet().stream()
-                .map(e -> Map.of("label", e.getKey(), "value", e.getValue())).toList());
-        result.put("admissionStatusDistribution", admissionDistribution);
-        result.put("pendingFees", largestPendingFees);
-        return ApiResponse.success("Admin analytics", result);
+        return ApiResponse.success("Admin analytics",
+                analyticsRead.read(collegeId, departmentId, courseYearId, divisionId));
     }
 
     private Map<String, Object> summary() {

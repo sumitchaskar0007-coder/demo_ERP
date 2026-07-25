@@ -5,6 +5,7 @@ import com.jadhavr.erp.academic.dto.CourseYearResponse;
 import com.jadhavr.erp.academic.dto.UpdateCourseYearRequest;
 import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
+import com.jadhavr.erp.academic.enums.CourseYearName;
 import com.jadhavr.erp.academic.mapper.CourseYearMapper;
 import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
@@ -76,7 +77,7 @@ public class CourseYearServiceImpl implements CourseYearService {
 
     @Override
     public PageResponse<CourseYearResponse> search(String keyword, Long departmentId,
-            String academicYear, AcademicStatus status, int page, int size,
+            String academicYear, CourseYearName yearName, AcademicStatus status, int page, int size,
             String sortBy, String sortDir) {
         validatePage(page, size);
         Long collegeId = currentCollege();
@@ -86,6 +87,8 @@ public class CourseYearServiceImpl implements CourseYearService {
                 cb.equal(root.get("department").get("id"), departmentId));
         if (academicYear != null && !academicYear.isBlank()) spec = spec.and((root, query, cb) ->
                 cb.equal(root.get("academicYear"), academicYear.trim()));
+        if (yearName != null) spec = spec.and((root, query, cb) ->
+                cb.equal(root.get("yearName"), yearName));
         if (status != null) spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
         if (keyword != null && !keyword.isBlank()) {
             String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
