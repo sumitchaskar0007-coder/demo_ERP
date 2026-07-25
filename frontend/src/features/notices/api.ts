@@ -6,6 +6,9 @@ export async function getNoticeInbox() {
   const { data } = await apiClient.get<ApiResponse<Notice[]>>("/api/notices/inbox");
   return data.data;
 }
+export async function markNoticeInboxSeen() {
+  await apiClient.post("/api/notices/inbox/seen");
+}
 export async function getSentNotices() {
   const { data } = await apiClient.get<ApiResponse<Notice[]>>("/api/notices/sent");
   return data.data;

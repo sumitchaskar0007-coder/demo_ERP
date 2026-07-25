@@ -7,8 +7,9 @@ import com.jadhavr.erp.notice.entity.NoticePriority;
 
 public record NoticeResponse(
         Long id, String title, String message, NoticePriority priority, boolean acknowledged,
+        boolean seen,
         Long createdByUserId, String createdByName,
         Set<Long> collegeIds, Set<String> collegeNames, boolean allColleges,
         Long departmentId, String departmentName,
-        Set<RoleName> audienceRoles, LocalDateTime createdAt
+        Set<RoleName> audienceRoles, String actionPath, LocalDateTime createdAt
 ) {}

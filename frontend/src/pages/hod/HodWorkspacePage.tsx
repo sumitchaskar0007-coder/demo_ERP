@@ -10,11 +10,8 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleGauge,
-  ClipboardCheck,
   Clock3,
   GraduationCap,
-  Layers3,
-  LayoutDashboard,
   RefreshCw,
   Search,
   UserCheck,
@@ -28,12 +25,12 @@ import { DivisionTimetable } from "@/pages/academic/CourseYearDivisionPages";
 import * as api from "@/features/hod/api";
 
 const tabs = [
-  ["overview", "Overview", LayoutDashboard],
-  ["students", "Student allocation", Users],
-  ["divisions", "Divisions", Layers3],
-  ["class-teachers", "Class teachers", Users],
-  ["workload", "Workload", Activity],
-  ["attendance", "Attendance", ClipboardCheck],
+  "overview",
+  "students",
+  "divisions",
+  "class-teachers",
+  "workload",
+  "attendance",
 ] as const;
 const actionClass =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50";
@@ -44,7 +41,7 @@ export function HodWorkspacePage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const requestedTab = params.get("tab") || "overview";
-  const tab = tabs.some(([key]) => key === requestedTab) ? requestedTab : "overview";
+  const tab = tabs.some((key) => key === requestedTab) ? requestedTab : "overview";
   const [data, setData] = useState<api.Workspace | null>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false);
@@ -123,20 +120,6 @@ export function HodWorkspacePage() {
           </button>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-        <div className="flex min-w-max gap-1">
-          {tabs.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              onClick={() => setParams({ tab: key })}
-              className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold ${tab === key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
       {tab === "overview" && (
         <Overview data={data} setTab={(next) => setParams({ tab: next })} navigate={navigate} />
       )}
@@ -206,16 +189,30 @@ function Overview({
   setTab: (x: string) => void;
   navigate: (to: string) => void;
 }) {
+  const [activityPage, setActivityPage] = useState(0);
+  const activityPageSize = 6;
+  const activityPages = Math.max(1, Math.ceil(data.recentActivity.length / activityPageSize));
+  const safeActivityPage = Math.min(activityPage, activityPages - 1);
+  const visibleActivity = data.recentActivity.slice(
+    safeActivityPage * activityPageSize,
+    (safeActivityPage + 1) * activityPageSize,
+  );
   const unallocatedStudents = data.totalStudents;
   const divisionsWithoutTeacher = data.divisions.filter((division) => !division.classTeacher);
   const unassignedSubjects = data.subjects.filter((subject) => subject.teacherIds.length === 0);
   const overloadedTeachers = data.teachers.filter((teacher) => teacher.loadStatus === "RED");
-  const timetablesNeedingWork = data.timetables.filter(
+  const existingTimetablesNeedingWork = data.timetables.filter(
     (timetable) =>
       timetable.lectures === 0 ||
       timetable.reviewStatus === "DRAFT" ||
       timetable.reviewStatus === "REJECTED",
   );
+  const timetableDivisionIds = new Set(data.timetables.map((timetable) => timetable.divisionId));
+  const missingTimetableDivisions = data.divisions.filter(
+    (division) => !timetableDivisionIds.has(division.id),
+  );
+  const timetablesNeedingWork =
+    existingTimetablesNeedingWork.length + missingTimetableDivisions.length;
 
   const stats = [
     {
@@ -279,10 +276,19 @@ function Overview({
     },
     {
       label: "Timetables needing attention",
-      value: timetablesNeedingWork.length,
-      description: "Finish drafts and resolve rejected timetable submissions.",
+      value: timetablesNeedingWork,
+      description: missingTimetableDivisions.length
+        ? `Not created: ${missingTimetableDivisions
+            .map((division) => `${division.courseYear} · ${division.name}`)
+            .join(", ")}`
+        : "Finish drafts and resolve rejected timetable submissions.",
       icon: Clock3,
-      action: () => navigate(ROUTES.timetable),
+      action: () =>
+        navigate(
+          missingTimetableDivisions[0]
+            ? `${ROUTES.timetable}?sectionId=${missingTimetableDivisions[0].id}`
+            : ROUTES.timetable,
+        ),
     },
   ];
 
@@ -470,8 +476,8 @@ function Overview({
 
       <Panel title="Recent activity" subtitle="Latest department allocation changes">
         <div className="divide-y divide-slate-100">
-          {data.recentActivity.length ? (
-            data.recentActivity.slice(0, 6).map((activity, index) => (
+          {visibleActivity.length ? (
+            visibleActivity.map((activity, index) => (
               <div className="flex items-start gap-3 py-3" key={`${activity.occurredAt}-${index}`}>
                 <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
                   <Activity className="h-4 w-4" />
@@ -491,6 +497,31 @@ function Overview({
             />
           )}
         </div>
+        {activityPages > 1 && (
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+            <p className="text-xs font-medium text-slate-500">
+              Page {safeActivityPage + 1} of {activityPages}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={safeActivityPage === 0}
+                onClick={() => setActivityPage((page) => Math.max(0, page - 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={safeActivityPage >= activityPages - 1}
+                onClick={() => setActivityPage((page) => Math.min(activityPages - 1, page + 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </Panel>
     </>
   );

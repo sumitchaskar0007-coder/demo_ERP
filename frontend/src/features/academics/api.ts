@@ -154,6 +154,8 @@ export const weeklyTimetableApi = {
     unwrap<WeeklyDivision[]>(await apiClient.get("/api/weekly-timetables/divisions")),
   get: async (sectionId: number) =>
     unwrap<WeeklyTimetable>(await apiClient.get(`/api/weekly-timetables/sections/${sectionId}`)),
+  startRevision: async (id: number) =>
+    unwrap<WeeklyTimetable>(await apiClient.post(`/api/weekly-timetables/${id}/revision`)),
   save: async (id: number, day: string, periodId: number, body: Record<string, unknown>) =>
     unwrap<WeeklyEntry>(
       await apiClient.put(`/api/weekly-timetables/${id}/entries/${day}/${periodId}`, body),

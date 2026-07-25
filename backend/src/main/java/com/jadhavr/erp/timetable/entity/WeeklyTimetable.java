@@ -6,14 +6,13 @@ import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "weekly_timetables", uniqueConstraints =
-        @UniqueConstraint(name = "uk_weekly_timetable_section", columnNames = "section_id"))
+@Table(name = "weekly_timetables")
 public class WeeklyTimetable extends BaseAuditEntity {
     public enum Status { DRAFT, ACTIVE, ARCHIVED }
     public enum ReviewStatus { DRAFT, SUBMITTED, APPROVED, REJECTED, CHANGES_REQUESTED }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "college_id", nullable = false) private College college;
-    @OneToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "section_id", nullable = false) private Section section;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "section_id", nullable = false) private Section section;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private Status status = Status.ACTIVE;
     @Enumerated(EnumType.STRING) @Column(name="review_status",nullable=false,length=30,columnDefinition="varchar(30) default 'DRAFT'") private ReviewStatus reviewStatus=ReviewStatus.DRAFT;
     @Column(name="review_comment",length=1000) private String reviewComment;

@@ -63,6 +63,7 @@ public class WeeklyAttendanceService {
         LocalTime now = LocalTime.now();
         return entries.findByTeacherId(teacher.getId()).stream()
                 .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
+                .filter(this::approved)
                 .filter(e -> e.getDayOfWeek() == date.getDayOfWeek())
                 .filter(e -> isInWindow(e, now))
                 .sorted(Comparator.comparing(e -> e.getPeriod().getStartTime()))
@@ -74,6 +75,7 @@ public class WeeklyAttendanceService {
         LocalDate today = LocalDate.now();
         return entries.findByTeacherId(teacher.getId()).stream()
                 .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
+                .filter(this::approved)
                 .filter(e -> e.getDayOfWeek() == today.getDayOfWeek())
                 .sorted(Comparator.comparing(e -> e.getPeriod().getStartTime()))
                 .map(e -> lecture(e, today))
@@ -112,6 +114,7 @@ public class WeeklyAttendanceService {
     public RosterResponse update(Long sessionId, UpdateRequest request) {
         WeeklyAttendanceSession session = session(sessionId);
         requireOwner(session);
+        requireApproved(session.getTimetableEntry());
         assertMarkingDay(session.getTimetableEntry());
         write(session, request.records(), request.submit());
         return roster(session.getTimetableEntry().getId());
@@ -210,6 +213,7 @@ public class WeeklyAttendanceService {
                 .map(r -> r.getStudent().getId()).collect(Collectors.toSet());
         List<WeeklyTimetableEntry> expectedEntries = entries.findAll().stream()
                 .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
+                .filter(this::approved)
                 .filter(e -> scope.test(e.getTimetable().getSection()))
                 .filter(e -> subjectId == null || subjectId.equals(e.getSubject().getId()))
                 .filter(e -> divisionId == null || divisionId.equals(e.getTimetable().getSection().getId()))
@@ -353,8 +357,18 @@ public class WeeklyAttendanceService {
         StaffProfile teacher = currentStaff();
         if (!entry.getTeacher().getId().equals(teacher.getId())) throw new AccessDeniedException("You can mark only your own lecture");
         if (entry.getTimetable().getStatus() != WeeklyTimetable.Status.ACTIVE) throw new BadRequestException("The timetable is not active");
+        requireApproved(entry);
         if (enforceWindow) assertMarkingDay(entry);
         return entry;
+    }
+
+    private boolean approved(WeeklyTimetableEntry entry) {
+        return entry.getTimetable().getReviewStatus() == WeeklyTimetable.ReviewStatus.APPROVED;
+    }
+
+    private void requireApproved(WeeklyTimetableEntry entry) {
+        if (!approved(entry))
+            throw new AccessDeniedException("Attendance is unavailable until the Principal approves the timetable");
     }
 
     private void assertMarkingDay(WeeklyTimetableEntry entry) {
@@ -392,6 +406,7 @@ public class WeeklyAttendanceService {
         boolean active = e.getDayOfWeek() == date.getDayOfWeek() && isInWindow(e, LocalTime.now());
         boolean canMark = date.equals(LocalDate.now())
                 && e.getDayOfWeek() == date.getDayOfWeek()
+                && approved(e)
                 && (session == null || session.getStatus() == WeeklyAttendanceSession.Status.DRAFT);
         return new LectureResponse(e.getId(), session == null ? null : session.getId(), session == null ? null : session.getStatus().name(),
                 date, e.getPeriod().getLabel(), e.getPeriod().getPosition(), e.getPeriod().getStartTime(), e.getPeriod().getEndTime(),

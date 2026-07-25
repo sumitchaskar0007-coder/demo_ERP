@@ -8,13 +8,13 @@ import {
   Pencil,
   Plus,
   Redo2,
-  Search,
   Settings2,
   Trash2,
   Undo2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
@@ -99,6 +99,8 @@ const toInput = (entry: WeeklyEntry): WeeklyEntryInput => ({
 });
 
 export function TimetablePage() {
+  const [searchParams] = useSearchParams();
+  const requestedSectionId = searchParams.get("sectionId");
   const { isRole } = useAuth();
   const isSuperAdmin = isRole([ROLES.SUPER_ADMIN]);
   const isPrincipal = isRole([ROLES.PRINCIPAL]);
@@ -115,7 +117,6 @@ export function TimetablePage() {
   const [mobileDay, setMobileDay] = useState("MONDAY");
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [query, setQuery] = useState("");
   const [sourceDay, setSourceDay] = useState("MONDAY");
   const [targetDay, setTargetDay] = useState("TUESDAY");
   const [sourceSectionId, setSourceSectionId] = useState("");
@@ -128,18 +129,22 @@ export function TimetablePage() {
       .divisions()
       .then((rows) => {
         setDivisions(rows);
-        if (rows[0] && !isSuperAdmin) {
-          setSectionId(String(rows[0].id));
+        const requestedDivision = rows.find(
+          (division) => String(division.id) === requestedSectionId,
+        );
+        const initialDivision = requestedDivision ?? (!isSuperAdmin ? rows[0] : undefined);
+        if (initialDivision) {
+          setSectionId(String(initialDivision.id));
           setScope({
-            collegeId: String(rows[0].collegeId),
-            departmentId: String(rows[0].departmentId),
-            courseYearId: String(rows[0].courseYearId),
+            collegeId: String(initialDivision.collegeId),
+            departmentId: String(initialDivision.departmentId),
+            courseYearId: String(initialDivision.courseYearId),
           });
         }
       })
       .catch((error) => toast.error(handleApiError(error).message))
       .finally(() => setLoading(false));
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, requestedSectionId]);
   useEffect(() => {
     getActiveColleges()
       .then(setColleges)
@@ -147,21 +152,37 @@ export function TimetablePage() {
   }, []);
 
   useEffect(() => {
+    setTable(null);
+    setTimes([]);
+    setEditor(null);
+    setTimeEditor(false);
+    setSourceSectionId("");
+    setPast([]);
+    setFuture([]);
     if (!sectionId) return;
+
+    let active = true;
+    const requestedId = Number(sectionId);
     setLoading(true);
     weeklyTimetableApi
-      .get(Number(sectionId))
+      .get(requestedId)
       .then((next) => {
+        if (!active || next.sectionId !== requestedId) return;
         setTable(next);
         setTimes(next.periods);
-        setPast([]);
-        setFuture([]);
       })
       .catch((error) => {
+        if (!active) return;
         setTable(null);
         toast.error(handleApiError(error).message);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [sectionId]);
 
   const entryMap = useMemo(
@@ -171,19 +192,11 @@ export function TimetablePage() {
       ),
     [table],
   );
-  const normalizedQuery = query.trim().toLowerCase();
   const selectedCollegeName =
     colleges.find((college) => college.id === Number(scope.collegeId))?.name ??
     table?.college ??
     "";
-  const matchesSearch = (entry?: WeeklyEntry) =>
-    !normalizedQuery ||
-    Boolean(
-      entry &&
-        [entry.subject, entry.teacher, entry.room, entry.lectureType, table?.division]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(normalizedQuery)),
-    );
+  const matchesSearch = () => true;
 
   const setSavedSoon = () => {
     setSaveState("saved");
@@ -217,6 +230,23 @@ export function TimetablePage() {
     try {
       setTable(await weeklyTimetableApi.submitReview(table.id));
       toast.success("Timetable submitted to the Principal for approval");
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startTimetableUpdate = async () => {
+    if (!table) return;
+    setSaving(true);
+    try {
+      const next = await weeklyTimetableApi.startRevision(table.id);
+      setTable(next);
+      setTimes(next.periods);
+      setPast([]);
+      setFuture([]);
+      toast.success("Update draft created. The approved timetable remains live.");
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -430,7 +460,7 @@ export function TimetablePage() {
               : "View the weekly schedule by college, department, year and division."}
           </p>
         </div>
-        {table?.editable && (
+        {table?.editable ? (
           <div className="flex flex-wrap items-center gap-2">
             {saveState !== "idle" && (
               <span
@@ -456,12 +486,23 @@ export function TimetablePage() {
               <Redo2 className="h-4 w-4" />
               Redo
             </Button>
-            <Button variant="secondary" onClick={() => setTimeEditor(true)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setTimes(table.periods.map((period) => ({ ...period })));
+                setTimeEditor(true);
+              }}
+            >
               <Settings2 className="h-4 w-4" />
               Configure times
             </Button>
           </div>
-        )}
+        ) : isHod && table?.status === "APPROVED" ? (
+          <Button loading={saving} onClick={() => void startTimetableUpdate()}>
+            <Pencil className="h-4 w-4" />
+            Update timetable
+          </Button>
+        ) : null}
       </div>
 
       <Card className="p-4 sm:p-5 print:border-0 print:shadow-none">
@@ -608,45 +649,6 @@ export function TimetablePage() {
       {table && (
         <>
           {table.editable && (
-            <Card className="space-y-4 p-4 sm:p-5 print:hidden">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-brand-600" />
-                  <h2 className="font-semibold">Subjects</h2>
-                  <span className="text-xs text-slate-400">Drag into a teaching period</span>
-                </div>
-                <div className="w-full lg:w-80">
-                  <Input
-                    aria-label="Search timetable"
-                    placeholder="Search teacher, subject, room…"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    icon={<Search className="h-4 w-4" />}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {table.subjects.map((subject) => (
-                  <button
-                    key={subject.id}
-                    draggable={table.editable}
-                    onDragStart={(event) =>
-                      event.dataTransfer.setData(
-                        "application/json",
-                        JSON.stringify({ type: "subject", subjectId: subject.id }),
-                      )
-                    }
-                    className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition hover:-translate-y-0.5 ${color(subject.id)}`}
-                  >
-                    <GripVertical className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{subject.label}</span>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {table.editable && (
             <Card className="grid gap-3 p-4 print:hidden xl:grid-cols-[1fr_1fr_auto_auto]">
               <Select
                 label="Copy from day"
@@ -708,6 +710,34 @@ export function TimetablePage() {
                 <ClipboardCopy className="h-4 w-4" />
                 Copy timetable
               </Button>
+            </Card>
+          )}
+
+          {table.editable && (
+            <Card className="space-y-4 p-4 sm:p-5 print:hidden">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-brand-600" />
+                <h2 className="font-semibold">Subjects</h2>
+                <span className="text-xs text-slate-400">Drag into a teaching period</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {table.subjects.map((subject) => (
+                  <button
+                    key={subject.id}
+                    draggable={table.editable}
+                    onDragStart={(event) =>
+                      event.dataTransfer.setData(
+                        "application/json",
+                        JSON.stringify({ type: "subject", subjectId: subject.id }),
+                      )
+                    }
+                    className={`inline-flex max-w-full items-center gap-1 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition hover:-translate-y-0.5 ${color(subject.id)}`}
+                  >
+                    <GripVertical className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{subject.label}</span>
+                  </button>
+                ))}
+              </div>
             </Card>
           )}
 
@@ -971,6 +1001,21 @@ export function TimetablePage() {
                 setSaving(true);
                 setSaveState("saving");
                 try {
+                  const changedPeriodIds = new Set(
+                    times
+                      .filter((period) => {
+                        const current = table.periods.find((item) => item.id === period.id);
+                        return (
+                          current &&
+                          (current.startTime.slice(0, 5) !== period.startTime.slice(0, 5) ||
+                            current.endTime.slice(0, 5) !== period.endTime.slice(0, 5))
+                        );
+                      })
+                      .map((period) => period.id),
+                  );
+                  const clearedLectures = table.entries.filter((entry) =>
+                    changedPeriodIds.has(entry.periodId),
+                  ).length;
                   const next = await weeklyTimetableApi.updatePeriods(
                     table.id,
                     times.map((period) => ({
@@ -983,7 +1028,11 @@ export function TimetablePage() {
                   setTimes(next.periods);
                   setTimeEditor(false);
                   setSavedSoon();
-                  toast.success("Period times updated");
+                  toast.success(
+                    clearedLectures > 0
+                      ? `Period times updated. ${clearedLectures} lecture assignment${clearedLectures === 1 ? "" : "s"} cleared for reassignment.`
+                      : "Period times updated",
+                  );
                 } catch (error) {
                   setSaveState("idle");
                   toast.error(handleApiError(error).message);

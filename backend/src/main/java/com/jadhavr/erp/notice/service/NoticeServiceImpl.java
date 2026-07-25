@@ -12,8 +12,10 @@ import com.jadhavr.erp.notice.dto.NoticeResponse;
 import com.jadhavr.erp.notice.entity.Notice;
 import com.jadhavr.erp.notice.entity.NoticeAcknowledgement;
 import com.jadhavr.erp.notice.entity.NoticePriority;
+import com.jadhavr.erp.notice.entity.NoticeView;
 import com.jadhavr.erp.notice.repository.NoticeAcknowledgementRepository;
 import com.jadhavr.erp.notice.repository.NoticeRepository;
+import com.jadhavr.erp.notice.repository.NoticeViewRepository;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
@@ -45,13 +47,16 @@ public class NoticeServiceImpl implements NoticeService {
     private final StaffProfileRepository staffProfiles;
     private final StudentProfileRepository studentProfiles;
     private final NoticeAcknowledgementRepository acknowledgements;
+    private final NoticeViewRepository views;
 
     public NoticeServiceImpl(NoticeRepository notices, UserRepository users, CollegeRepository colleges,
                              StaffProfileRepository staffProfiles, StudentProfileRepository studentProfiles,
-                             NoticeAcknowledgementRepository acknowledgements) {
+                             NoticeAcknowledgementRepository acknowledgements,
+                             NoticeViewRepository views) {
         this.notices = notices; this.users = users; this.colleges = colleges;
         this.staffProfiles = staffProfiles; this.studentProfiles = studentProfiles;
         this.acknowledgements = acknowledgements;
+        this.views = views;
     }
 
     @Override @Transactional
@@ -86,7 +91,25 @@ public class NoticeServiceImpl implements NoticeService {
             throw new AccessDeniedException("Your role cannot send notices");
         }
         notice.setAudienceRoles(targets);
-        return map(notices.save(notice), activeCollegeIds(), Set.of());
+        return map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
+    }
+
+    @Override @Transactional
+    public NoticeResponse createWorkflowNotice(String title, String message, NoticePriority priority,
+                                               Set<RoleName> audienceRoles, College college,
+                                               String actionPath) {
+        CustomUserDetails current = SecurityUtils.requireCurrentUser();
+        User sender = users.findById(current.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Notice notice = new Notice();
+        notice.setTitle(title.trim());
+        notice.setMessage(message.trim());
+        notice.setPriority(priority);
+        notice.setCreatedBy(sender);
+        notice.setAudienceRoles(Set.copyOf(audienceRoles));
+        notice.setColleges(Set.of(college));
+        notice.setActionPath(actionPath);
+        return map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
     }
 
     @Override
@@ -119,6 +142,24 @@ public class NoticeServiceImpl implements NoticeService {
         acknowledgement.setUser(users.getReferenceById(userId));
         acknowledgement.setAcknowledgedAt(LocalDateTime.now());
         acknowledgements.save(acknowledgement);
+    }
+
+    @Override @Transactional
+    public void markInboxSeen() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        Set<Long> seenIds = views.findNoticeIdsByUserId(userId);
+        User user = users.getReferenceById(userId);
+        List<NoticeView> newViews = inbox().stream()
+                .filter(notice -> !seenIds.contains(notice.id()))
+                .map(notice -> {
+                    NoticeView view = new NoticeView();
+                    view.setNotice(notices.getReferenceById(notice.id()));
+                    view.setUser(user);
+                    view.setSeenAt(LocalDateTime.now());
+                    return view;
+                })
+                .toList();
+        if (!newViews.isEmpty()) views.saveAll(newViews);
     }
 
     @Override @Transactional
@@ -165,22 +206,25 @@ public class NoticeServiceImpl implements NoticeService {
     private List<NoticeResponse> mapNotices(List<Notice> source) {
         Set<Long> activeCollegeIds = activeCollegeIds();
         Set<Long> acknowledgedIds = acknowledgements.findNoticeIdsByUserId(SecurityUtils.getCurrentUserId());
-        return source.stream().map(notice -> map(notice, activeCollegeIds, acknowledgedIds)).toList();
+        Set<Long> seenIds = views.findNoticeIdsByUserId(SecurityUtils.getCurrentUserId());
+        return source.stream().map(notice -> map(notice, activeCollegeIds, acknowledgedIds, seenIds)).toList();
     }
 
-    private NoticeResponse map(Notice n, Set<Long> activeCollegeIds, Set<Long> acknowledgedIds) {
+    private NoticeResponse map(Notice n, Set<Long> activeCollegeIds, Set<Long> acknowledgedIds,
+                               Set<Long> seenIds) {
         Set<Long> noticeCollegeIds = n.getColleges().stream()
                 .map(College::getId)
                 .collect(Collectors.toSet());
         boolean allColleges = noticeCollegeIds.isEmpty()
                 || (!activeCollegeIds.isEmpty() && noticeCollegeIds.containsAll(activeCollegeIds));
         return new NoticeResponse(n.getId(), n.getTitle(), n.getMessage(), n.getPriority(),
-                acknowledgedIds.contains(n.getId()), n.getCreatedBy().getId(),
+                acknowledgedIds.contains(n.getId()), seenIds.contains(n.getId()), n.getCreatedBy().getId(),
                 n.getCreatedBy().getFullName(),
                 noticeCollegeIds,
                 n.getColleges().stream().map(College::getName).collect(Collectors.toSet()),
                 allColleges,
                 n.getDepartment() == null ? null : n.getDepartment().getId(),
-                n.getDepartment() == null ? null : n.getDepartment().getName(), Set.copyOf(n.getAudienceRoles()), n.getCreatedAt());
+                n.getDepartment() == null ? null : n.getDepartment().getName(),
+                Set.copyOf(n.getAudienceRoles()), n.getActionPath(), n.getCreatedAt());
     }
 }

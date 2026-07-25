@@ -24,6 +24,12 @@ public class NoticeController {
     @GetMapping("/inbox")
     @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
     public ApiResponse<List<NoticeResponse>> inbox() { return ApiResponse.success("Notices retrieved successfully", service.inbox()); }
+    @PostMapping("/inbox/seen")
+    @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
+    public ApiResponse<Void> markInboxSeen() {
+        service.markInboxSeen();
+        return ApiResponse.success("Notices marked as seen", null);
+    }
     @GetMapping("/sent")
     @PreAuthorize("hasAuthority('PERM_NOTICE_SEND')")
     public ApiResponse<List<NoticeResponse>> sent() { return ApiResponse.success("Sent notices retrieved successfully", service.sent()); }

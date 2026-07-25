@@ -14,6 +14,7 @@ export interface Notice {
   message: string;
   priority: NoticePriority;
   acknowledged: boolean;
+  seen: boolean;
   createdByUserId: number;
   createdByName: string;
   collegeIds: number[];
@@ -22,6 +23,7 @@ export interface Notice {
   departmentId: number | null;
   departmentName: string | null;
   audienceRoles: NoticeRole[];
+  actionPath: string | null;
   createdAt: string;
 }
 

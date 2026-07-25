@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, Building2, CalendarDays, Inbox, Megaphone, Send, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
@@ -393,6 +394,16 @@ export function NoticesPage() {
                     <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm leading-6 text-slate-600">
                       {notice.message}
                     </p>
+                    {notice.actionPath && tab === "inbox" && (
+                      <Link
+                        to={notice.actionPath}
+                        className="mt-4 inline-flex h-10 items-center rounded-xl bg-brand-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
+                      >
+                        {notice.actionPath.startsWith("/timetable")
+                          ? "Review Timetable"
+                          : "Open Action"}
+                      </Link>
+                    )}
                   </div>
                 </div>
               </article>

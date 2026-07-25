@@ -35,6 +35,8 @@ public class Notice extends BaseAuditEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role_name", nullable = false, length = 40)
     private Set<RoleName> audienceRoles = new HashSet<>();
+    @Column(name = "action_path", length = 500)
+    private String actionPath;
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
     @ManyToOne(fetch = FetchType.LAZY)
@@ -56,6 +58,8 @@ public class Notice extends BaseAuditEntity {
     public void setDepartment(Department department) { this.department = department; }
     public Set<RoleName> getAudienceRoles() { return audienceRoles; }
     public void setAudienceRoles(Set<RoleName> audienceRoles) { this.audienceRoles = audienceRoles; }
+    public String getActionPath() { return actionPath; }
+    public void setActionPath(String actionPath) { this.actionPath = actionPath; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     public User getDeletedBy() { return deletedBy; }

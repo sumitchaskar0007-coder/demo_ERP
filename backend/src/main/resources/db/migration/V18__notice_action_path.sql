@@ -1,0 +1,2 @@
+ALTER TABLE notices
+    ADD COLUMN IF NOT EXISTS action_path VARCHAR(500);

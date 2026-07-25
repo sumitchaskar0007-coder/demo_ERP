@@ -3,7 +3,7 @@ import { Bell, Clock3, LogOut, X } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/authStore";
-import { acknowledgeNotice, getNoticeInbox } from "@/features/notices/api";
+import { acknowledgeNotice, getNoticeInbox, markNoticeInboxSeen } from "@/features/notices/api";
 import type { Notice } from "@/features/notices/types";
 import { DASHBOARD_NAVIGATION_VISIBILITY_EVENT, ROLES, ROUTES } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
@@ -25,15 +25,8 @@ export function DashboardLayout() {
   const [acknowledging, setAcknowledging] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const location = useLocation();
-  const storageKey = `jadhavr-seen-notices-${user?.id ?? "guest"}`;
-  const seenIds = useMemo(() => {
-    try {
-      return new Set<number>(JSON.parse(localStorage.getItem(storageKey) || "[]"));
-    } catch {
-      return new Set<number>();
-    }
-  }, [storageKey, notices]);
-  const unread = notices.filter((notice) => !seenIds.has(notice.id));
+  const unread = useMemo(() => notices.filter((notice) => !notice.seen), [notices]);
+  const unreadIds = useMemo(() => unread.map((notice) => notice.id).join(","), [unread]);
   const priorityNotice =
     notices
       .filter((notice) => notice.priority !== "NORMAL" && !notice.acknowledged)
@@ -50,10 +43,21 @@ export function DashboardLayout() {
   }, []);
 
   useEffect(() => {
-    getNoticeInbox()
-      .then(setNotices)
-      .catch(() => setNotices([]));
-  }, [location.pathname]);
+    let active = true;
+    const refreshNotices = () => {
+      getNoticeInbox()
+        .then((rows) => {
+          if (active) setNotices(rows);
+        })
+        .catch(() => undefined);
+    };
+    refreshNotices();
+    const timer = window.setInterval(refreshNotices, 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [location.pathname, user?.id]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -75,22 +79,29 @@ export function DashboardLayout() {
   }, [priorityNotice?.id]);
 
   useEffect(() => {
-    const isDashboard =
-      location.pathname === ROUTES.dashboard || location.pathname.endsWith("/dashboard");
-    if (priorityNotice || !isDashboard || unread.length === 0) {
+    if (location.pathname !== ROUTES.notices || unread.length === 0) return;
+    let active = true;
+    markNoticeInboxSeen()
+      .then(() => {
+        if (active) {
+          setNotices((current) => current.map((notice) => ({ ...notice, seen: true })));
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [location.pathname, unreadIds]);
+
+  useEffect(() => {
+    if (priorityNotice || location.pathname === ROUTES.notices || unread.length === 0) {
       setPopup(null);
       return;
     }
     setPopup(unread[0]);
-    const timer = window.setTimeout(() => {
-      const updated = new Set(seenIds);
-      unread.forEach((notice) => updated.add(notice.id));
-      localStorage.setItem(storageKey, JSON.stringify([...updated]));
-      setPopup(null);
-      setNotices((current) => [...current]);
-    }, 5000);
+    const timer = window.setTimeout(() => setPopup(null), 5000);
     return () => window.clearTimeout(timer);
-  }, [location.pathname, notices.length, storageKey, priorityNotice?.id]);
+  }, [location.pathname, unreadIds, priorityNotice?.id]);
 
   async function acceptPriorityNotice() {
     if (!priorityNotice || acknowledgeSeconds > 0) return;
@@ -111,12 +122,6 @@ export function DashboardLayout() {
   }
 
   function dismissPopup() {
-    if (popup) {
-      const updated = new Set(seenIds);
-      updated.add(popup.id);
-      localStorage.setItem(storageKey, JSON.stringify([...updated]));
-      setNotices((current) => [...current]);
-    }
     setPopup(null);
   }
 
@@ -258,11 +263,15 @@ export function DashboardLayout() {
               <div className="mt-4 flex flex-col items-start gap-2 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
                 <span className="text-xs text-slate-400">From {popup.createdByName}</span>
                 <Link
-                  to={ROUTES.notices}
+                  to={popup.actionPath || ROUTES.notices}
                   onClick={dismissPopup}
                   className="text-sm font-semibold text-brand-600 hover:text-brand-700"
                 >
-                  Open Notice Board
+                  {popup.actionPath?.startsWith("/timetable")
+                    ? "Review Timetable"
+                    : popup.actionPath
+                      ? "Open Action"
+                      : "Open Notice Board"}
                 </Link>
               </div>
             </div>

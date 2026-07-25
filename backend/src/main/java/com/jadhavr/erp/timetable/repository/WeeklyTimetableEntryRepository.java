@@ -30,13 +30,15 @@ public interface WeeklyTimetableEntryRepository extends JpaRepository<WeeklyTime
     and (:courseYearId is null or section.academic_class_id=:courseYearId)
     and (:divisionId is null or section.id=:divisionId)
     and (:staffId is null or teacher.id=:staffId)
+    and timetable.status='ACTIVE'
+    and timetable.review_status='APPROVED'
   group by teacher.id,teacher.employee_code,teacher.full_name,college.id,college.name,
     department.id,department.name order by teacher.full_name
   """,nativeQuery=true)
  List<LectureLoadProjection> lectureLoad(@Param("collegeId")Long collegeId,@Param("departmentId")Long departmentId,
   @Param("courseYearId")Long courseYearId,@Param("divisionId")Long divisionId,@Param("staffId")Long staffId);
- @Query("select count(e) from WeeklyTimetableEntry e where e.timetable.college.id=:college and e.dayOfWeek=:day and e.teacher.id=:teacher and e.period.startTime < :end and e.period.endTime > :start and (:exclude is null or e.id<>:exclude)")
- long teacherConflicts(@Param("college")Long college,@Param("day")DayOfWeek day,@Param("teacher")Long teacher,@Param("start")LocalTime start,@Param("end")LocalTime end,@Param("exclude")Long exclude);
- @Query("select count(e) from WeeklyTimetableEntry e where e.timetable.college.id=:college and e.dayOfWeek=:day and lower(e.room)=lower(:room) and e.period.startTime < :end and e.period.endTime > :start and (:exclude is null or e.id<>:exclude)")
- long roomConflicts(@Param("college")Long college,@Param("day")DayOfWeek day,@Param("room")String room,@Param("start")LocalTime start,@Param("end")LocalTime end,@Param("exclude")Long exclude);
+ @Query("select e from WeeklyTimetableEntry e where e.timetable.college.id=:college and e.timetable.status<>com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status.ARCHIVED and (e.timetable.id=:currentTimetable or e.timetable.section.id<>:section) and e.dayOfWeek=:day and e.teacher.id=:teacher and e.period.startTime < :end and e.period.endTime > :start and (:exclude is null or e.id<>:exclude) order by e.period.startTime")
+ List<WeeklyTimetableEntry> teacherConflicts(@Param("college")Long college,@Param("currentTimetable")Long currentTimetable,@Param("section")Long section,@Param("day")DayOfWeek day,@Param("teacher")Long teacher,@Param("start")LocalTime start,@Param("end")LocalTime end,@Param("exclude")Long exclude);
+ @Query("select count(e) from WeeklyTimetableEntry e where e.timetable.college.id=:college and e.timetable.status<>com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status.ARCHIVED and (e.timetable.id=:currentTimetable or e.timetable.section.id<>:section) and e.dayOfWeek=:day and lower(e.room)=lower(:room) and e.period.startTime < :end and e.period.endTime > :start and (:exclude is null or e.id<>:exclude)")
+ long roomConflicts(@Param("college")Long college,@Param("currentTimetable")Long currentTimetable,@Param("section")Long section,@Param("day")DayOfWeek day,@Param("room")String room,@Param("start")LocalTime start,@Param("end")LocalTime end,@Param("exclude")Long exclude);
 }
