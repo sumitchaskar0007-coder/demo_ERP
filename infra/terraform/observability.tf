@@ -152,9 +152,24 @@ resource "aws_iam_policy" "deployment" {
         Resource = [aws_s3_bucket.frontend.arn, "${aws_s3_bucket.frontend.arn}/*"]
       },
       {
+        Effect = "Allow"
+        Action = [
+          "ecs:DescribeServices",
+          "ecs:DescribeTasks",
+          "ecs:DescribeTaskDefinition",
+          "ecs:RegisterTaskDefinition"
+        ]
+        Resource = "*"
+      },
+      {
         Effect   = "Allow"
-        Action   = ["ecs:DescribeServices", "ecs:DescribeTasks", "ecs:RunTask", "ecs:UpdateService"]
-        Resource = [aws_ecs_service.backend.id, aws_ecs_task_definition.migration.arn]
+        Action   = ["ecs:RunTask"]
+        Resource = "${aws_ecs_task_definition.migration.arn_without_revision}:*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ecs:UpdateService"]
+        Resource = aws_ecs_service.backend.id
       },
       {
         Effect    = "Allow"

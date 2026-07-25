@@ -5,6 +5,32 @@ cluster with the backend task definition. Never put credentials or secret
 values in commands, Terraform variables, logs, or image layers. Use an
 assumed deployment role and Secrets Manager.
 
+## GitHub Actions production environment
+
+The production deployment workflow is `.github/workflows/deploy.yml`. It runs
+automatically after the `Verify` workflow succeeds on `main` and can also be
+started manually. Create a protected GitHub environment named `production`,
+require deployment approval as appropriate, and configure the following
+repository or environment variables:
+
+- `AWS_REGION` — for example, `ap-south-1`
+- `ECR_REPOSITORY` — ECR repository name, not the full registry URL
+- `ECS_CLUSTER` — Terraform output `ecs_cluster_name`
+- `ECS_SERVICE` — Terraform output `ecs_service_name`
+- `ECS_MIGRATION_TASK_DEFINITION` — Terraform output
+  `migration_task_definition`
+- `FRONTEND_BUCKET` — Terraform output `frontend_bucket`
+- `CLOUDFRONT_DISTRIBUTION_ID` — the production distribution ID
+- `APPLICATION_URL` — Terraform output `application_url`
+
+Configure one GitHub environment secret:
+
+- `AWS_DEPLOY_ROLE_ARN` — an AWS IAM role trusted through GitHub OIDC and
+  attached to the Terraform output `deployment_policy_arn`
+
+Restrict the role trust policy to this repository and the `production`
+environment. Do not create long-lived AWS access-key secrets in GitHub.
+
 Before the first task starts, populate the Terraform-created application
 secret with the required JSON keys (`DB_APP_USERNAME`, `DB_APP_PASSWORD`,
 `JWT_SECRET`, `RATE_LIMIT_KEY_SECRET`, mail settings, and the one-time bootstrap keys). Store values via

@@ -1,0 +1,289 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows: ["Verify"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  ECS_MIGRATION_TASK_DEFINITION: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+  FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+  APPLICATION_URL: ${{ vars.APPLICATION_URL }}
+
+jobs:
+  deploy:
+    name: Build and deploy
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+
+    steps:
+      - name: Resolve release commit
+        id: release
+        env:
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          release_sha="${VERIFIED_SHA:-${GITHUB_SHA}}"
+          echo "sha=${release_sha}" >> "$GITHUB_OUTPUT"
+          echo "tag=${release_sha:0:12}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out verified commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.sha }}
+
+      - name: Validate deployment configuration
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          required=(
+            AWS_REGION
+            ECR_REPOSITORY
+            ECS_CLUSTER
+            ECS_SERVICE
+            ECS_MIGRATION_TASK_DEFINITION
+            FRONTEND_BUCKET
+            CLOUDFRONT_DISTRIBUTION_ID
+            APPLICATION_URL
+            AWS_DEPLOY_ROLE_ARN
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub production variable or secret: ${name}"
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sign in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.release.outputs.tag }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ""
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Create backend and migration task revisions
+        id: tasks
+        env:
+          IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          current_backend_task="$(
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_SERVICE" \
+              --query 'services[0].taskDefinition' \
+              --output text
+          )"
+
+          if [ -z "$current_backend_task" ] || [ "$current_backend_task" = "None" ]; then
+            echo "::error::Unable to resolve the current ECS backend task definition"
+            exit 1
+          fi
+
+          aws ecs describe-task-definition \
+            --task-definition "$current_backend_task" \
+            --query taskDefinition \
+            --output json > backend-task-current.json
+
+          jq --arg image "$IMAGE_URI" '
+            .containerDefinitions |= map(
+              if .name == "backend" then .image = $image else . end
+            )
+            | del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy,
+                .deregisteredAt
+              )
+          ' backend-task-current.json > backend-task-release.json
+
+          backend_task_arn="$(
+            aws ecs register-task-definition \
+              --cli-input-json file://backend-task-release.json \
+              --query 'taskDefinition.taskDefinitionArn' \
+              --output text
+          )"
+
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_MIGRATION_TASK_DEFINITION" \
+            --query taskDefinition \
+            --output json > migration-task-current.json
+
+          jq --arg image "$IMAGE_URI" '
+            .containerDefinitions |= map(
+              if .name == "migration" then .image = $image else . end
+            )
+            | del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy,
+                .deregisteredAt
+              )
+          ' migration-task-current.json > migration-task-release.json
+
+          migration_task_arn="$(
+            aws ecs register-task-definition \
+              --cli-input-json file://migration-task-release.json \
+              --query 'taskDefinition.taskDefinitionArn' \
+              --output text
+          )"
+
+          echo "backend=${backend_task_arn}" >> "$GITHUB_OUTPUT"
+          echo "migration=${migration_task_arn}" >> "$GITHUB_OUTPUT"
+
+      - name: Run database migration
+        env:
+          MIGRATION_TASK_ARN: ${{ steps.tasks.outputs.migration }}
+        run: |
+          set -euo pipefail
+
+          network_configuration="$(
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_SERVICE" \
+              --query 'services[0].networkConfiguration' \
+              --output json
+          )"
+
+          migration_task="$(
+            aws ecs run-task \
+              --cluster "$ECS_CLUSTER" \
+              --task-definition "$MIGRATION_TASK_ARN" \
+              --launch-type FARGATE \
+              --network-configuration "$network_configuration" \
+              --query 'tasks[0].taskArn' \
+              --output text
+          )"
+
+          if [ -z "$migration_task" ] || [ "$migration_task" = "None" ]; then
+            echo "::error::ECS did not start the migration task"
+            exit 1
+          fi
+
+          aws ecs wait tasks-stopped \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$migration_task"
+
+          exit_code="$(
+            aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --tasks "$migration_task" \
+              --query 'tasks[0].containers[?name==`migration`].exitCode | [0]' \
+              --output text
+          )"
+
+          if [ "$exit_code" != "0" ]; then
+            aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --tasks "$migration_task" \
+              --query 'tasks[0].{stoppedReason:stoppedReason,containers:containers[*].{name:name,reason:reason,exitCode:exitCode}}'
+            echo "::error::Database migration failed with exit code ${exit_code}"
+            exit 1
+          fi
+
+      - name: Deploy backend
+        env:
+          BACKEND_TASK_ARN: ${{ steps.tasks.outputs.backend }}
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$BACKEND_TASK_ARN" \
+            --force-new-deployment \
+            --query 'service.serviceArn' \
+            --output text
+
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"
+
+      - name: Deploy frontend
+        run: |
+          set -euo pipefail
+          aws s3 sync frontend/dist "s3://${FRONTEND_BUCKET}" \
+            --delete \
+            --only-show-errors
+
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths '/*' \
+            --query 'Invalidation.Id' \
+            --output text
+
+      - name: Verify production health
+        run: |
+          set -euo pipefail
+          for attempt in {1..18}; do
+            if curl --fail --silent --show-error \
+              --max-time 15 \
+              "${APPLICATION_URL%/}/actuator/health/readiness"; then
+              exit 0
+            fi
+            echo "Health check attempt ${attempt}/18 failed; retrying in 10 seconds"
+            sleep 10
+          done
+          echo "::error::Production health check did not become ready"
+          exit 1
