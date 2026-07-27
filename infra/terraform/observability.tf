@@ -98,7 +98,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
-  alarm_name          = "${local.name}-redis-cpu"
+  count               = 2
+  alarm_name          = "${local.name}-redis-${count.index + 1}-cpu"
   namespace           = "AWS/ElastiCache"
   metric_name         = "EngineCPUUtilization"
   statistic           = "Average"
@@ -106,8 +107,11 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
   evaluation_periods  = 3
   threshold           = 75
   comparison_operator = "GreaterThanThreshold"
-  dimensions          = { ReplicationGroupId = aws_elasticache_replication_group.redis.id }
-  alarm_actions       = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    CacheClusterId = tolist(aws_elasticache_replication_group.redis.member_clusters)[count.index]
+  }
+  alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_running_tasks" {

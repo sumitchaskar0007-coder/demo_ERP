@@ -56,6 +56,8 @@ or Actions spending limit.
   least-privilege SMTP credentials, and a dedicated encrypted Secrets Manager secret.
 - Added a GitHub OIDC deployment role restricted to this repository's production environment and
   configured the production deployment environment.
+- Corrected the Valkey CPU alarm to monitor both emitted `CacheClusterId` metrics; the previous
+  replication-group dimension did not emit `EngineCPUUtilization` data.
 
 ## Verified gates
 
