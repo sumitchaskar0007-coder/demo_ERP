@@ -7,13 +7,17 @@ minutes. These are objectives, not a substitute for a restore drill.
 
 ## RDS backup and point-in-time restore
 
-Terraform enables encrypted Multi-AZ RDS, 14 days of automated backups,
-performance insights, and deletion protection. Verify those settings after
-each infrastructure change. For a restore drill, restore to a *separate*
-instance in private subnets, use a temporary Secrets Manager entry, run the
-Flyway validation task, and execute read-only application smoke tests. Record
-the restore timestamp, duration, and row/checksum verification, then destroy
-the drill instance according to the change ticket.
+The production RDS owner controls encryption, topology, backups, monitoring,
+deletion protection, restore drills, and Flyway validation. This application
+Terraform neither creates nor modifies those controls. Before a production
+release, obtain evidence that the agreed backup retention and recovery targets
+are active.
+
+For a restore drill, the RDS owner restores to a *separate* instance in private
+subnets, supplies temporary runtime and migration secret ARNs, and completes
+their Flyway validation. The application team then executes read-only smoke
+tests. Record the restore timestamp, duration, and row/checksum verification;
+the RDS owner removes the drill instance according to the change ticket.
 
 ```sh
 aws rds describe-db-instances --db-instance-identifier "$DB_INSTANCE" \
@@ -32,8 +36,9 @@ short-lived presigned URL.
 
 ## Failure procedures
 
-- **Migration failure:** stop the service deployment, preserve logs, identify
-  the failed version, and restore/fix data before retrying the one-time task.
+- **Migration failure:** stop the service deployment, preserve logs, and notify
+  the RDS owner. Do not retry or alter production Flyway state without their
+  approved recovery plan.
 - **Redis outage:** rate limiting and distributed session features fail closed
   in production. Restore the Valkey replication group or fail over; do not
   enable an unauthenticated local cache as a workaround.

@@ -58,6 +58,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_5xx" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
+  count               = local.manage_database ? 1 : 0
   alarm_name          = "${local.name}-rds-cpu"
   namespace           = "AWS/RDS"
   metric_name         = "CPUUtilization"
@@ -66,11 +67,12 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   evaluation_periods  = 3
   threshold           = 80
   comparison_operator = "GreaterThanThreshold"
-  dimensions          = { DBInstanceIdentifier = aws_db_instance.postgres.identifier }
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.postgres[0].identifier }
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_storage" {
+  count               = local.manage_database ? 1 : 0
   alarm_name          = "${local.name}-rds-low-storage"
   namespace           = "AWS/RDS"
   metric_name         = "FreeStorageSpace"
@@ -79,11 +81,12 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   evaluation_periods  = 2
   threshold           = 10737418240
   comparison_operator = "LessThanThreshold"
-  dimensions          = { DBInstanceIdentifier = aws_db_instance.postgres.identifier }
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.postgres[0].identifier }
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_connections" {
+  count               = local.manage_database ? 1 : 0
   alarm_name          = "${local.name}-rds-connections"
   namespace           = "AWS/RDS"
   metric_name         = "DatabaseConnections"
@@ -93,7 +96,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
   threshold           = 150
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
-  dimensions          = { DBInstanceIdentifier = aws_db_instance.postgres.identifier }
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.postgres[0].identifier }
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
@@ -130,12 +133,27 @@ resource "aws_cloudwatch_metric_alarm" "ecs_running_tasks" {
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
+moved {
+  from = aws_cloudwatch_metric_alarm.rds_cpu
+  to   = aws_cloudwatch_metric_alarm.rds_cpu[0]
+}
+
+moved {
+  from = aws_cloudwatch_metric_alarm.rds_storage
+  to   = aws_cloudwatch_metric_alarm.rds_storage[0]
+}
+
+moved {
+  from = aws_cloudwatch_metric_alarm.rds_connections
+  to   = aws_cloudwatch_metric_alarm.rds_connections[0]
+}
+
 resource "aws_iam_policy" "deployment" {
   name        = "${local.name}-deployment"
   description = "Scoped permissions for immutable frontend/backend release deployment"
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Effect = "Allow"
         Action = [
@@ -164,12 +182,14 @@ resource "aws_iam_policy" "deployment" {
           "ecs:RegisterTaskDefinition"
         ]
         Resource = "*"
-      },
+      }
+      ], local.manage_database ? [
       {
         Effect   = "Allow"
         Action   = ["ecs:RunTask"]
         Resource = "${aws_ecs_task_definition.migration.arn_without_revision}:*"
-      },
+      }
+      ] : [], [
       {
         Effect   = "Allow"
         Action   = ["ecs:UpdateService"]
@@ -186,6 +206,6 @@ resource "aws_iam_policy" "deployment" {
         Action   = ["cloudfront:CreateInvalidation"]
         Resource = aws_cloudfront_distribution.main.arn
       }
-    ]
+    ])
   })
 }

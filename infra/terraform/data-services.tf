@@ -1,9 +1,11 @@
 resource "aws_db_subnet_group" "main" {
+  count      = local.manage_database ? 1 : 0
   name       = local.name
   subnet_ids = aws_subnet.data[*].id
 }
 
 resource "aws_db_instance" "postgres" {
+  count                           = local.manage_database ? 1 : 0
   identifier                      = "${local.name}-postgres"
   engine                          = "postgres"
   engine_version                  = "17.5"
@@ -17,8 +19,8 @@ resource "aws_db_instance" "postgres" {
   manage_master_user_password     = true
   multi_az                        = true
   publicly_accessible             = false
-  db_subnet_group_name            = aws_db_subnet_group.main.name
-  vpc_security_group_ids          = [aws_security_group.database.id]
+  db_subnet_group_name            = aws_db_subnet_group.main[0].name
+  vpc_security_group_ids          = [aws_security_group.database[0].id]
   backup_retention_period         = 14
   backup_window                   = "18:00-19:00"
   maintenance_window              = "sun:19:30-sun:20:30"
@@ -29,7 +31,7 @@ resource "aws_db_instance" "postgres" {
   copy_tags_to_snapshot           = true
   performance_insights_enabled    = true
   monitoring_interval             = 60
-  monitoring_role_arn             = aws_iam_role.rds_monitoring.arn
+  monitoring_role_arn             = aws_iam_role.rds_monitoring[0].arn
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   lifecycle {
@@ -38,7 +40,8 @@ resource "aws_db_instance" "postgres" {
 }
 
 resource "aws_iam_role" "rds_monitoring" {
-  name = "${local.name}-rds-monitoring"
+  count = local.manage_database ? 1 : 0
+  name  = "${local.name}-rds-monitoring"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -50,7 +53,8 @@ resource "aws_iam_role" "rds_monitoring" {
 }
 
 resource "aws_iam_role_policy_attachment" "rds_monitoring" {
-  role       = aws_iam_role.rds_monitoring.name
+  count      = local.manage_database ? 1 : 0
+  role       = aws_iam_role.rds_monitoring[0].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
@@ -71,7 +75,7 @@ resource "aws_secretsmanager_secret_version" "redis" {
 
 resource "aws_elasticache_subnet_group" "main" {
   name       = local.name
-  subnet_ids = aws_subnet.data[*].id
+  subnet_ids = local.cache_subnet_ids
 }
 
 resource "aws_elasticache_replication_group" "redis" {
@@ -99,4 +103,24 @@ resource "aws_secretsmanager_secret" "application" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+moved {
+  from = aws_db_subnet_group.main
+  to   = aws_db_subnet_group.main[0]
+}
+
+moved {
+  from = aws_db_instance.postgres
+  to   = aws_db_instance.postgres[0]
+}
+
+moved {
+  from = aws_iam_role.rds_monitoring
+  to   = aws_iam_role.rds_monitoring[0]
+}
+
+moved {
+  from = aws_iam_role_policy_attachment.rds_monitoring
+  to   = aws_iam_role_policy_attachment.rds_monitoring[0]
 }

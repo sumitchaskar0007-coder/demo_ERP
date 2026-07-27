@@ -1,0 +1,7 @@
+# This key is intentionally different from the historical backend.hcl key,
+# which currently contains the live staging state.
+bucket       = "jadhavr-erp-terraform-state-814645955631-ap-south-1"
+key          = "production-external/terraform.tfstate"
+region       = "ap-south-1"
+encrypt      = true
+use_lockfile = true

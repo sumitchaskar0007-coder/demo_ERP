@@ -1,8 +1,9 @@
 node_modules/
 dist/
 target/
-.terraform/
+.terraform*/
 backend.hcl
+backend.*.hcl
 *.tfvars
 !*.tfvars.example
 *.tfplan

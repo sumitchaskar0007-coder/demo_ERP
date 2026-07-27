@@ -2,8 +2,8 @@
 
 **Audit date:** 27 July 2026  
 **Commit reviewed:** `cf694ec` (`main`) plus the corrections listed below  
-**Target:** AWS `ap-south-1`, CloudFront + WAF + S3 frontend, ALB + ECS Fargate backend,
-RDS PostgreSQL, ElastiCache Valkey, Secrets Manager, Route 53, ACM, and CloudWatch.
+**Current deployed staging target:** AWS `ap-south-1`, CloudFront + WAF + S3 frontend, ALB + ECS
+Fargate backend, RDS PostgreSQL, ElastiCache Valkey, Secrets Manager, Route 53, ACM, and CloudWatch.
 
 ## Decision
 
@@ -29,6 +29,24 @@ operational/contact email is required before resubmitting. The SNS email subscri
 disabled because no operational alert email was supplied. GitHub Actions is connected through
 OIDC, but GitHub currently refuses to start hosted runners because of the account's failed payment
 or Actions spending limit.
+
+## Production external-RDS handoff
+
+Production has a separate ownership model and has not been applied from the current staging state:
+
+- The supplied production VPC is `vpc-0d7999d87f213a1dc`.
+- The RDS owner controls the production RDS instance, subnet group, security group, KMS key,
+  parameter group, database roles, Flyway, backups, and monitoring.
+- Production Terraform consumes the external endpoint, port, database name, RDS security-group ID,
+  runtime secret ARN, and migration secret ARN. It does not create or modify production VPC/RDS
+  resources.
+- An isolated production plan reports `59 to add, 0 to change, 0 to destroy`; its explicit
+  forbidden-resource check reports none. The plan was not applied.
+- Phase one keeps ECS at zero tasks. Terraform output `backend_security_group_id` becomes the exact
+  source security-group ID that the RDS owner permits on TCP/5432. That AWS ID does not exist until
+  phase one is applied.
+- The current historical state key remains the live staging state. Production must use
+  `backend.production.hcl` and the separate `production-external/terraform.tfstate` key.
 
 ## Corrections applied during this audit
 
@@ -103,19 +121,21 @@ or Actions spending limit.
 
 ### Good controls
 
-- Two-AZ public, application, and isolated data subnets.
-- ECS tasks have no public IP; RDS and Valkey accept traffic only from the ECS security group.
+- The current staging stack uses two-AZ public, application, and isolated data subnets.
+- ECS tasks have no public IP; staging RDS and Valkey accept traffic only from the ECS security
+  group. Production RDS access is delegated to its external owner.
 - ALB accepts HTTPS only from the AWS CloudFront origin-facing prefix list.
-- RDS uses encryption, Multi-AZ, backups, deletion protection, final snapshots, enhanced monitoring,
-  and PostgreSQL logs.
+- The current staging RDS uses encryption, Multi-AZ, backups, deletion protection, final snapshots,
+  enhanced monitoring, and PostgreSQL logs. The production RDS owner is responsible for equivalent
+  production controls.
 - Valkey uses TLS, authentication, encryption at rest, Multi-AZ, and automatic failover.
 - Frontend and uploads buckets block public access; uploads use versioning and lifecycle cleanup.
 - Runtime tasks are non-root, read-only, and use temporary task-role credentials.
 - Runtime and migration database identities are separated.
-- Production ECS services disable automatic Flyway and administrator bootstrap; a one-time migration
-  task runs before service replacement.
-- GitHub deployment uses OIDC, immutable ECR tags, migration gating, ECS circuit breaker rollback,
-  CloudFront invalidation, and a readiness check.
+- Production ECS services disable automatic Flyway and administrator bootstrap. The application
+  workflow requires external migration approval and never runs production Flyway.
+- GitHub deployment uses OIDC, immutable ECR tags, external migration approval, ECS circuit breaker
+  rollback, CloudFront invalidation, and a readiness check.
 
 ### Remaining improvements
 
@@ -125,9 +145,10 @@ or Actions spending limit.
    sampled staging traffic.
 3. Make `alert_email` mandatory for production or integrate the SNS topic with the operational
    incident channel. The current default silently creates no subscription.
-4. Add CloudFront, ECS CPU/memory, RDS failover, Redis memory/eviction, and application business
-   alarms.
-5. Add AWS Backup or a scheduled restore drill and record recovery time/recovery point objectives.
+4. Add CloudFront, ECS CPU/memory, Redis memory/eviction, and application business alarms; obtain
+   production RDS failover/monitoring evidence from the RDS owner.
+5. Coordinate a scheduled production RDS restore drill with the RDS owner and record recovery
+   time/recovery point objectives.
 6. Add a production canary that logs in with a synthetic account and verifies one authenticated
    read path; the current post-deploy check only verifies readiness.
 

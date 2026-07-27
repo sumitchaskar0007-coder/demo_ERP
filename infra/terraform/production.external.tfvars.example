@@ -1,0 +1,52 @@
+project_name = "jadhavr-erp"
+environment  = "production"
+aws_region   = "ap-south-1"
+
+# Use a brand-new Terraform backend key/state for production. Never reuse the
+# existing staging state, even if its historical key contains "production".
+
+# Existing production network. This stack creates no production VPC, subnets,
+# route tables, internet/NAT gateways, or RDS security group.
+production_vpc_id = "vpc-0d7999d87f213a1dc"
+production_public_subnet_ids = [
+  "subnet-0807ac140719e2c72",
+  "subnet-0d2cc076596e1b6d2",
+]
+production_backend_subnet_ids = [
+  "subnet-0d280a8bd62b3a8ec",
+  "subnet-0b3d2046e0d815cb9",
+]
+
+# Optional. When omitted, Valkey uses production_backend_subnet_ids.
+production_cache_subnet_ids = [
+  "subnet-0d280a8bd62b3a8ec",
+  "subnet-0b3d2046e0d815cb9",
+]
+
+# Externally managed production database. Both secret JSON objects must contain
+# string fields named "username" and "password".
+production_rds_endpoint                  = "database.cluster-example.ap-south-1.rds.amazonaws.com"
+production_database_port                 = 5432
+production_database_name                 = "college_erp_prod"
+production_rds_security_group_id         = "sg-0b98a3468f8c04e2a"
+production_runtime_database_secret_arn   = "arn:aws:secretsmanager:ap-south-1:814645955631:secret:replace-production-runtime-database"
+production_migration_database_secret_arn = "arn:aws:secretsmanager:ap-south-1:814645955631:secret:replace-production-migration-database"
+
+# Add secret CMK ARNs here only when the supplied secrets use customer-managed
+# KMS keys. The key policies must also authorize output ecs_execution_role_arn.
+production_database_secret_kms_key_arns = []
+
+# Phase 1: keep zero tasks, apply, and give output backend_security_group_id to
+# the RDS owner. Phase 2: after they allow TCP/5432 and approve migrations, set
+# access_ready=true and desired_count=2 or higher.
+production_database_access_ready = false
+desired_count                    = 0
+
+temporary_domain = true
+domain_name      = ""
+api_domain_name  = ""
+route53_zone_id  = ""
+backend_image    = "000000000000.dkr.ecr.ap-south-1.amazonaws.com/jadhavr-erp-production-backend:v1.0.0"
+alert_email      = ""
+mail_enabled     = false
+github_repository = "your-github-owner/Jadhavr-ERP"

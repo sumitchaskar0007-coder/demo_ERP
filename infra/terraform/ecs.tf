@@ -41,16 +41,24 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
   role = aws_iam_role.ecs_execution.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = ["secretsmanager:GetSecretValue"]
-      Resource = [
-        aws_secretsmanager_secret.application.arn,
-        aws_secretsmanager_secret.mail.arn,
-        aws_secretsmanager_secret.redis.arn,
-        aws_db_instance.postgres.master_user_secret[0].secret_arn
-      ]
-    }]
+    Statement = concat(
+      [{
+        Effect = "Allow"
+        Action = ["secretsmanager:GetSecretValue"]
+        Resource = distinct([
+          aws_secretsmanager_secret.application.arn,
+          aws_secretsmanager_secret.mail.arn,
+          aws_secretsmanager_secret.redis.arn,
+          local.runtime_secret_arn,
+          local.migration_secret_arn
+        ])
+      }],
+      length(var.production_database_secret_kms_key_arns) == 0 ? [] : [{
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = var.production_database_secret_kms_key_arns
+      }]
+    )
   })
 }
 
@@ -91,7 +99,7 @@ resource "aws_lb" "backend" {
   internal                   = false
   load_balancer_type         = "application"
   security_groups            = [aws_security_group.alb.id]
-  subnets                    = aws_subnet.public[*].id
+  subnets                    = local.public_subnet_ids
   enable_deletion_protection = true
   drop_invalid_header_fields = true
 }
@@ -101,7 +109,7 @@ resource "aws_lb_target_group" "backend" {
   port        = 8081
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = local.vpc_id
 
   health_check {
     enabled             = true
@@ -173,7 +181,7 @@ resource "aws_lb_listener_rule" "cloudfront_only" {
 locals {
   common_environment = [
     { name = "SPRING_PROFILES_ACTIVE", value = "production" },
-    { name = "DB_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}?sslmode=verify-full" },
+    { name = "DB_URL", value = "jdbc:postgresql://${local.database_endpoint}:${local.database_port}/${local.database_name}?sslmode=verify-full" },
     { name = "REDIS_HOST", value = aws_elasticache_replication_group.redis.primary_endpoint_address },
     { name = "REDIS_PORT", value = tostring(aws_elasticache_replication_group.redis.port) },
     { name = "REDIS_SSL_ENABLED", value = "true" },
@@ -186,13 +194,19 @@ locals {
     { name = "DB_SSL_ROOT_CERT", value = "/etc/ssl/certs/rds-ca-bundle.pem" }
   ]
 
-  base_runtime_secrets = [
+  database_runtime_secrets = local.manage_database ? [
     { name = "DB_USERNAME", valueFrom = "${aws_secretsmanager_secret.application.arn}:DB_APP_USERNAME::" },
-    { name = "DB_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:DB_APP_PASSWORD::" },
+    { name = "DB_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:DB_APP_PASSWORD::" }
+    ] : [
+    { name = "DB_USERNAME", valueFrom = "${var.production_runtime_database_secret_arn}:username::" },
+    { name = "DB_PASSWORD", valueFrom = "${var.production_runtime_database_secret_arn}:password::" }
+  ]
+
+  base_runtime_secrets = concat(local.database_runtime_secrets, [
     { name = "JWT_SECRET", valueFrom = "${aws_secretsmanager_secret.application.arn}:JWT_SECRET::" },
     { name = "RATE_LIMIT_KEY_SECRET", valueFrom = "${aws_secretsmanager_secret.application.arn}:RATE_LIMIT_KEY_SECRET::" },
     { name = "REDIS_PASSWORD", valueFrom = "${aws_secretsmanager_secret.redis.arn}:auth_token::" }
-  ]
+  ])
 
   mail_runtime_secrets = [
     { name = "MAIL_HOST", valueFrom = "${aws_secretsmanager_secret.mail.arn}:MAIL_HOST::" },
@@ -202,6 +216,12 @@ locals {
   ]
 
   runtime_secrets = concat(local.base_runtime_secrets, var.mail_enabled ? local.mail_runtime_secrets : [])
+
+  migration_bootstrap_secrets = local.manage_database ? [
+    { name = "SUPER_ADMIN_NAME", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_NAME::" },
+    { name = "SUPER_ADMIN_EMAIL", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_EMAIL::" },
+    { name = "SUPER_ADMIN_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_PASSWORD::" }
+  ] : []
 }
 
 resource "aws_ecs_task_definition" "backend" {
@@ -271,15 +291,16 @@ resource "aws_ecs_task_definition" "migration" {
     command   = ["--app.migration-task=true", "--server.port=0"]
     environment = concat(local.common_environment, [
       { name = "FLYWAY_ENABLED", value = "true" },
-      { name = "BOOTSTRAP_ENABLED", value = "true" }
+      { name = "BOOTSTRAP_ENABLED", value = tostring(local.manage_database) }
     ])
-    secrets = concat([
-      { name = "DB_USERNAME", valueFrom = "${aws_db_instance.postgres.master_user_secret[0].secret_arn}:username::" },
-      { name = "DB_PASSWORD", valueFrom = "${aws_db_instance.postgres.master_user_secret[0].secret_arn}:password::" },
-      { name = "SUPER_ADMIN_NAME", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_NAME::" },
-      { name = "SUPER_ADMIN_EMAIL", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_EMAIL::" },
-      { name = "SUPER_ADMIN_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_PASSWORD::" }
-    ], [for secret in local.runtime_secrets : secret if !contains(["DB_USERNAME", "DB_PASSWORD"], secret.name)])
+    secrets = concat(
+      [
+        { name = "DB_USERNAME", valueFrom = "${local.migration_secret_arn}:username::" },
+        { name = "DB_PASSWORD", valueFrom = "${local.migration_secret_arn}:password::" }
+      ],
+      local.migration_bootstrap_secrets,
+      [for secret in local.runtime_secrets : secret if !contains(["DB_USERNAME", "DB_PASSWORD"], secret.name)]
+    )
     readonlyRootFilesystem = true
     linuxParameters = {
       initProcessEnabled = true
@@ -301,6 +322,7 @@ resource "aws_ecs_task_definition" "migration" {
 }
 
 resource "aws_ecs_task_definition" "database_role" {
+  count                    = local.manage_database ? 1 : 0
   family                   = "${local.name}-database-role"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
@@ -341,12 +363,12 @@ resource "aws_ecs_task_definition" "database_role" {
       EOT
     ]
     environment = [
-      { name = "DB_HOST", value = aws_db_instance.postgres.address },
-      { name = "DB_NAME", value = var.db_name },
+      { name = "DB_HOST", value = local.database_endpoint },
+      { name = "DB_NAME", value = local.database_name },
       { name = "DB_MASTER_USERNAME", value = var.db_master_username }
     ]
     secrets = [
-      { name = "PGPASSWORD", valueFrom = "${aws_db_instance.postgres.master_user_secret[0].secret_arn}:password::" },
+      { name = "PGPASSWORD", valueFrom = "${aws_db_instance.postgres[0].master_user_secret[0].secret_arn}:password::" },
       { name = "DB_APP_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:DB_APP_PASSWORD::" }
     ]
     readonlyRootFilesystem = true
@@ -387,7 +409,7 @@ resource "aws_ecs_service" "backend" {
   enable_execute_command             = false
 
   network_configuration {
-    subnets          = aws_subnet.application[*].id
+    subnets          = local.backend_subnet_ids
     security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = false
   }
@@ -398,12 +420,22 @@ resource "aws_ecs_service" "backend" {
     container_port   = 8081
   }
 
-  depends_on = [aws_lb_listener_rule.cloudfront_only]
+  depends_on = [
+    aws_lb_listener_rule.cloudfront_only,
+    terraform_data.production_contract
+  ]
 
   lifecycle {
     precondition {
-      condition     = var.environment != "production" || var.desired_count >= 2
-      error_message = "Production ECS service requires at least two tasks."
+      condition = !local.external_production || (
+        var.production_database_access_ready ? var.desired_count >= 2 : var.desired_count == 0
+      )
+      error_message = "Production requires desired_count=0 until production_database_access_ready=true; after approval it requires at least two tasks."
     }
   }
+}
+
+moved {
+  from = aws_ecs_task_definition.database_role
+  to   = aws_ecs_task_definition.database_role[0]
 }
