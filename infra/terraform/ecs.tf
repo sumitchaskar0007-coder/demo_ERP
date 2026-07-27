@@ -46,6 +46,7 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
       Action = ["secretsmanager:GetSecretValue"]
       Resource = [
         aws_secretsmanager_secret.application.arn,
+        aws_secretsmanager_secret.mail.arn,
         aws_secretsmanager_secret.redis.arn,
         aws_db_instance.postgres.master_user_secret[0].secret_arn
       ]
@@ -194,10 +195,10 @@ locals {
   ]
 
   mail_runtime_secrets = [
-    { name = "MAIL_HOST", valueFrom = "${aws_secretsmanager_secret.application.arn}:MAIL_HOST::" },
-    { name = "MAIL_USERNAME", valueFrom = "${aws_secretsmanager_secret.application.arn}:MAIL_USERNAME::" },
-    { name = "MAIL_PASSWORD", valueFrom = "${aws_secretsmanager_secret.application.arn}:MAIL_PASSWORD::" },
-    { name = "MAIL_FROM_ADDRESS", valueFrom = "${aws_secretsmanager_secret.application.arn}:MAIL_FROM_ADDRESS::" }
+    { name = "MAIL_HOST", valueFrom = "${aws_secretsmanager_secret.mail.arn}:MAIL_HOST::" },
+    { name = "MAIL_USERNAME", valueFrom = "${aws_secretsmanager_secret.mail.arn}:MAIL_USERNAME::" },
+    { name = "MAIL_PASSWORD", valueFrom = "${aws_secretsmanager_secret.mail.arn}:MAIL_PASSWORD::" },
+    { name = "MAIL_FROM_ADDRESS", valueFrom = "${aws_secretsmanager_secret.mail.arn}:MAIL_FROM_ADDRESS::" }
   ]
 
   runtime_secrets = concat(local.base_runtime_secrets, var.mail_enabled ? local.mail_runtime_secrets : [])

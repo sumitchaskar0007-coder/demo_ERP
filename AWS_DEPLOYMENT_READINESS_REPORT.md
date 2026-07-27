@@ -20,9 +20,13 @@ Deployment verification completed:
 - A live Secrets Manager-backed administrator login succeeds with the `SUPER_ADMIN` role.
 - The final Terraform plan reports no changes.
 
-SMTP delivery and the SNS email subscription remain disabled because no SMTP account or operational
-alert email was supplied. The React Router npm advisory remains a CI issue; it affects unstable
-React Server Components APIs that this Vite SPA does not use.
+AWS SES SMTP infrastructure is configured and its SMTP credential is stored only in Secrets
+Manager. Domain verification, DKIM, SPF, DMARC, custom MAIL FROM, and an AWS mailbox-simulator SMTP
+test all pass. Automatic delivery remains disabled only while AWS reviews the submitted SES
+production-access request; enabling it in the SES sandbox would reject unverified student
+addresses. The SNS email subscription remains disabled because no operational alert email was
+supplied. GitHub Actions is connected through OIDC, but GitHub currently refuses to start hosted
+runners because of the account's failed payment or Actions spending limit.
 
 ## Corrections applied during this audit
 
@@ -46,6 +50,10 @@ React Server Components APIs that this Vite SPA does not use.
   secure writable tmpfs at `/app/tmp`.
 - Made SMTP independently configurable so deployment can start safely with mail disabled and
   without placeholder mail secrets.
+- Added Terraform-managed SES domain authentication, a custom MAIL FROM domain, DKIM/SPF/DMARC,
+  least-privilege SMTP credentials, and a dedicated encrypted Secrets Manager secret.
+- Added a GitHub OIDC deployment role restricted to this repository's production environment and
+  configured the production deployment environment.
 
 ## Verified gates
 
@@ -68,6 +76,9 @@ React Server Components APIs that this Vite SPA does not use.
 | Live ECS/ALB health | Pass — 2/2 tasks running and 2/2 targets healthy |
 | Public readiness | Pass — `https://jadhavaredu.com/actuator/health/readiness` is UP |
 | Authenticated smoke | Pass — Secrets Manager-backed Super Admin login succeeded |
+| SES domain authentication | Pass — identity, DKIM, and custom MAIL FROM report SUCCESS |
+| SES SMTP smoke | Pass — authenticated delivery to the AWS mailbox simulator |
+| SES production access | Pending — AWS review submitted on 27 July 2026 |
 
 ## Application module analysis
 
@@ -80,7 +91,7 @@ React Server Components APIs that this Vite SPA does not use.
 | Academics | Legacy endpoints now have method-level role restrictions and tenant visibility checks. Several list operations still aggregate in Java and should be converted to scoped database queries as data grows. |
 | Timetable and attendance | Authorization and approval behavior are tested. The duplicate migration introduced by the class-teacher identifier feature is corrected. |
 | Reports and audit | Role and tenant scoping are in place. Exports are capped at 10,000 rows and attendance has a dedicated export path. |
-| Email and account recovery | Token and notification services have tests. SMTP is intentionally disabled until credentials are added directly to Secrets Manager; mail delivery still needs a smoke test before enabling it. |
+| Email and account recovery | Token and notification services have tests. SES credentials are stored in a dedicated Secrets Manager secret and an authenticated simulator delivery passes. Delivery remains disabled until AWS grants production access for arbitrary student recipients. |
 | Object storage | Production uses a private, versioned S3 bucket and task-role credentials; no static AWS keys are required. S3 service behavior has unit tests. |
 | Frontend | Build and tests pass. Route splitting improved the main chunk, but spreadsheet and main application chunks remain above 500 kB. Hook dependency/Fast Refresh warnings remain. |
 
@@ -129,10 +140,10 @@ React Server Components APIs that this Vite SPA does not use.
 
 ## Remaining operational follow-up
 
-1. Add SMTP keys directly to `jadhavr-erp-staging/application`, set `mail_enabled = true`, and run a
-   delivery smoke test.
-2. Supply `alert_email` and confirm the SNS subscription.
-3. Configure a non-root GitHub OIDC deployment role before enabling automated deployments.
+1. After AWS approves the pending SES production-access review, set `mail_enabled = true`, deploy
+   the resulting ECS task definition, and test delivery to an authorized real recipient.
+2. Supply an operational `alert_email` and confirm the SNS subscription.
+3. Resolve the GitHub account payment/Actions spending-limit block and rerun pull request checks.
 4. Resolve or document the non-applicable React Router RSC advisory so the npm audit CI gate is
    deterministic.
 5. Retrieve the initial administrator password directly from Secrets Manager, sign in, and rotate

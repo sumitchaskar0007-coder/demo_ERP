@@ -35,6 +35,11 @@ output "application_secret_arn" {
   sensitive = true
 }
 
+output "mail_secret_arn" {
+  value     = aws_secretsmanager_secret.mail.arn
+  sensitive = true
+}
+
 output "deployment_policy_arn" {
   value = aws_iam_policy.deployment.arn
 }
