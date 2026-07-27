@@ -71,29 +71,36 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 }
 
 resource "aws_acm_certificate" "regional" {
+  count             = var.temporary_domain ? 0 : 1
   domain_name       = var.api_domain_name
   validation_method = "DNS"
 }
 
 resource "aws_acm_certificate" "cloudfront" {
+  count             = var.temporary_domain ? 0 : 1
   provider          = aws.us_east_1
   domain_name       = var.domain_name
   validation_method = "DNS"
 }
 
-locals {
-  certificate_validation_records = merge(
-    { for option in aws_acm_certificate.regional.domain_validation_options :
-      "regional-${option.domain_name}" => option
-    },
-    { for option in aws_acm_certificate.cloudfront.domain_validation_options :
-      "cloudfront-${option.domain_name}" => option
-    }
-  )
+resource "aws_route53_record" "regional_certificate_validation" {
+  for_each = var.temporary_domain ? {} : {
+    for option in aws_acm_certificate.regional[0].domain_validation_options :
+    option.domain_name => option
+  }
+
+  zone_id = var.route53_zone_id
+  name    = each.value.resource_record_name
+  type    = each.value.resource_record_type
+  records = [each.value.resource_record_value]
+  ttl     = 300
 }
 
-resource "aws_route53_record" "certificate_validation" {
-  for_each = local.certificate_validation_records
+resource "aws_route53_record" "cloudfront_certificate_validation" {
+  for_each = var.temporary_domain ? {} : {
+    for option in aws_acm_certificate.cloudfront[0].domain_validation_options :
+    option.domain_name => option
+  }
 
   zone_id = var.route53_zone_id
   name    = each.value.resource_record_name
@@ -103,14 +110,16 @@ resource "aws_route53_record" "certificate_validation" {
 }
 
 resource "aws_acm_certificate_validation" "regional" {
-  certificate_arn         = aws_acm_certificate.regional.arn
-  validation_record_fqdns = [for record in aws_route53_record.certificate_validation : record.fqdn]
+  count                   = var.temporary_domain ? 0 : 1
+  certificate_arn         = aws_acm_certificate.regional[0].arn
+  validation_record_fqdns = [for record in aws_route53_record.regional_certificate_validation : record.fqdn]
 }
 
 resource "aws_acm_certificate_validation" "cloudfront" {
+  count                   = var.temporary_domain ? 0 : 1
   provider                = aws.us_east_1
-  certificate_arn         = aws_acm_certificate.cloudfront.arn
-  validation_record_fqdns = [for record in aws_route53_record.certificate_validation : record.fqdn]
+  certificate_arn         = aws_acm_certificate.cloudfront[0].arn
+  validation_record_fqdns = [for record in aws_route53_record.cloudfront_certificate_validation : record.fqdn]
 }
 
 resource "aws_cloudfront_function" "spa" {
@@ -182,7 +191,7 @@ resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  aliases             = [var.domain_name]
+  aliases             = var.temporary_domain ? [] : [var.domain_name]
   web_acl_id          = aws_wafv2_web_acl.main.arn
 
   origin {
@@ -192,12 +201,18 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   origin {
-    domain_name = var.api_domain_name
+    domain_name = var.temporary_domain ? aws_lb.backend.dns_name : var.api_domain_name
     origin_id   = "backend"
+
+    custom_header {
+      name  = "X-Origin-Verify"
+      value = random_password.origin_header.result
+    }
+
     custom_origin_config {
       http_port              = 80
       https_port             = 443
-      origin_protocol_policy = "https-only"
+      origin_protocol_policy = var.temporary_domain ? "http-only" : "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
@@ -242,12 +257,22 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate_validation.cloudfront.certificate_arn
-    ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
+    cloudfront_default_certificate = var.temporary_domain
+    acm_certificate_arn            = var.temporary_domain ? null : aws_acm_certificate_validation.cloudfront[0].certificate_arn
+    ssl_support_method             = var.temporary_domain ? null : "sni-only"
+    minimum_protocol_version       = var.temporary_domain ? "TLSv1" : "TLSv1.2_2021"
   }
 
-  depends_on = [aws_acm_certificate_validation.cloudfront]
+  lifecycle {
+    precondition {
+      condition = var.temporary_domain || (
+        var.domain_name != "" &&
+        var.api_domain_name != "" &&
+        var.route53_zone_id != ""
+      )
+      error_message = "Custom-domain mode requires domain_name, api_domain_name, and route53_zone_id."
+    }
+  }
 }
 
 resource "aws_cloudfront_cache_policy" "frontend" {
@@ -280,6 +305,7 @@ resource "aws_s3_bucket_policy" "frontend" {
 }
 
 resource "aws_route53_record" "application" {
+  count   = var.temporary_domain ? 0 : 1
   zone_id = var.route53_zone_id
   name    = var.domain_name
   type    = "A"
@@ -291,6 +317,7 @@ resource "aws_route53_record" "application" {
 }
 
 resource "aws_route53_record" "api" {
+  count   = var.temporary_domain ? 0 : 1
   zone_id = var.route53_zone_id
   name    = var.api_domain_name
   type    = "A"

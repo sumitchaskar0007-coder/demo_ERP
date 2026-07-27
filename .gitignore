@@ -1,6 +1,13 @@
 node_modules/
 dist/
 target/
+.terraform/
+backend.hcl
+*.tfvars
+!*.tfvars.example
+*.tfplan
+test-results/
+playwright-report/
 .idea/
 .vscode/
 *.iml

@@ -21,6 +21,7 @@ public class ProductionSecretsValidator {
     private final String superAdminPassword;
     private final String redisHost;
     private final String redisPassword;
+    private final boolean mailEnabled;
     private final String mailHost;
     private final String mailUsername;
     private final String mailPassword;
@@ -37,6 +38,7 @@ public class ProductionSecretsValidator {
             @Value("${app.super-admin.password}") String superAdminPassword,
             @Value("${spring.data.redis.host}") String redisHost,
             @Value("${spring.data.redis.password}") String redisPassword,
+            @Value("${app.mail.enabled:true}") boolean mailEnabled,
             @Value("${spring.mail.host}") String mailHost,
             @Value("${spring.mail.username}") String mailUsername,
             @Value("${spring.mail.password}") String mailPassword,
@@ -51,6 +53,7 @@ public class ProductionSecretsValidator {
         this.superAdminPassword = superAdminPassword;
         this.redisHost = redisHost;
         this.redisPassword = redisPassword;
+        this.mailEnabled = mailEnabled;
         this.mailHost = mailHost;
         this.mailUsername = mailUsername;
         this.mailPassword = mailPassword;
@@ -71,16 +74,20 @@ public class ProductionSecretsValidator {
         }
         required(invalid, "REDIS_HOST", redisHost);
         required(invalid, "REDIS_PASSWORD", redisPassword);
-        required(invalid, "MAIL_HOST", mailHost);
-        required(invalid, "MAIL_USERNAME", mailUsername);
-        required(invalid, "MAIL_PASSWORD", mailPassword);
+        if (mailEnabled) {
+            required(invalid, "MAIL_HOST", mailHost);
+            required(invalid, "MAIL_USERNAME", mailUsername);
+            required(invalid, "MAIL_PASSWORD", mailPassword);
+        }
         required(invalid, "AWS_REGION", awsRegion);
         required(invalid, "AWS_PRIVATE_UPLOAD_BUCKET", uploadBucket);
         required(invalid, "AWS_SECRETS_NAME", secretsName);
 
         rejectLocalHost(invalid, "DB_URL", databaseUrl);
         rejectLocalHost(invalid, "REDIS_HOST", redisHost);
-        rejectLocalHost(invalid, "MAIL_HOST", mailHost);
+        if (mailEnabled) {
+            rejectLocalHost(invalid, "MAIL_HOST", mailHost);
+        }
         if (jwtSecret == null || jwtSecret.length() < 32 || contains(jwtSecret, "change_this")) {
             invalid.add("JWT_SECRET must be a random value of at least 32 characters");
         }

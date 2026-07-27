@@ -337,9 +337,7 @@ export function SubjectTeacherAssignmentPage() {
               <div className="border-b bg-slate-50/70 px-4 py-3 sm:px-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">
-                      Manage subject allocation
-                    </h3>
+                    <h3 className="text-sm font-bold text-slate-900">Manage subject allocation</h3>
                     <p className="mt-0.5 text-xs text-slate-500">
                       Select a subject to assign or remove it for this teacher.
                     </p>

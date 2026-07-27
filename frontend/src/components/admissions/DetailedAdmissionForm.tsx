@@ -1174,11 +1174,7 @@ function DocumentUpload({
           >
             {file?.name ?? (available ? "Uploaded successfully" : "No file attached yet")}
           </p>
-          {file && (
-            <p className="mt-1 text-[11px] text-slate-500">
-              {formatFileSize(file.size)}
-            </p>
-          )}
+          {file && <p className="mt-1 text-[11px] text-slate-500">{formatFileSize(file.size)}</p>}
         </div>
         {state !== "selected" && (
           <span

@@ -85,16 +85,14 @@ export function EditStaffPage() {
     ])
       .then(([staffResponse, departmentPage]) => {
         setStaff(staffResponse);
-        setDepartments(
-          [
-            ...new Map(
-              departmentPage.content.map((department) => [
-                `${department.collegeId}:${department.code.trim().toUpperCase()}`,
-                department,
-              ]),
-            ).values(),
-          ],
-        );
+        setDepartments([
+          ...new Map(
+            departmentPage.content.map((department) => [
+              `${department.collegeId}:${department.code.trim().toUpperCase()}`,
+              department,
+            ]),
+          ).values(),
+        ]);
         reset({
           staffTypes: editableRoles(staffResponse),
           departmentIds: staffResponse.departmentIds,

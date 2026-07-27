@@ -400,7 +400,8 @@ function IdentifierManager({
   }, [students]);
   const complete = students.filter((student) => student.prn && student.rollNumber).length;
   const visible = students.filter((student) => {
-    const value = `${student.name} ${student.admissionNumber} ${student.prn ?? ""} ${student.rollNumber ?? ""}`.toLowerCase();
+    const value =
+      `${student.name} ${student.admissionNumber} ${student.prn ?? ""} ${student.rollNumber ?? ""}`.toLowerCase();
     return value.includes(query.trim().toLowerCase());
   });
   const save = async (student: api.Student) => {

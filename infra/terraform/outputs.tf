@@ -1,5 +1,5 @@
 output "application_url" {
-  value = "https://${var.domain_name}"
+  value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name}"
 }
 
 output "frontend_bucket" {
@@ -26,6 +26,10 @@ output "migration_task_definition" {
   value = aws_ecs_task_definition.migration.family
 }
 
+output "database_role_task_definition" {
+  value = aws_ecs_task_definition.database_role.family
+}
+
 output "application_secret_arn" {
   value     = aws_secretsmanager_secret.application.arn
   sensitive = true
@@ -33,4 +37,8 @@ output "application_secret_arn" {
 
 output "deployment_policy_arn" {
   value = aws_iam_policy.deployment.arn
+}
+
+output "github_deploy_role_arn" {
+  value = aws_iam_role.github_deploy.arn
 }
