@@ -181,7 +181,7 @@ locals {
     { name = "AWS_PRIVATE_UPLOAD_BUCKET", value = aws_s3_bucket.uploads.id },
     { name = "AWS_SECRETS_NAME", value = aws_secretsmanager_secret.application.name },
     { name = "FRONTEND_URL", value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name}" },
-    { name = "CORS_ALLOWED_ORIGINS", value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name}" },
+    { name = "CORS_ALLOWED_ORIGINS", value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name},https://www.${var.domain_name}" },
     { name = "MAIL_ENABLED", value = tostring(var.mail_enabled) },
     { name = "DB_SSL_ROOT_CERT", value = "/etc/ssl/certs/rds-ca-bundle.pem" }
   ]

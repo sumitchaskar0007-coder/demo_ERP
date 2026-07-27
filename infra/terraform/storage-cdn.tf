@@ -77,10 +77,15 @@ resource "aws_acm_certificate" "regional" {
 }
 
 resource "aws_acm_certificate" "cloudfront" {
-  count             = var.temporary_domain ? 0 : 1
-  provider          = aws.us_east_1
-  domain_name       = var.domain_name
-  validation_method = "DNS"
+  count                     = var.temporary_domain ? 0 : 1
+  provider                  = aws.us_east_1
+  domain_name               = var.domain_name
+  subject_alternative_names = ["www.${var.domain_name}"]
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_route53_record" "regional_certificate_validation" {
@@ -191,7 +196,7 @@ resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  aliases             = var.temporary_domain ? [] : [var.domain_name]
+  aliases             = var.temporary_domain ? [] : [var.domain_name, "www.${var.domain_name}"]
   web_acl_id          = aws_wafv2_web_acl.main.arn
 
   origin {
@@ -308,6 +313,18 @@ resource "aws_route53_record" "application" {
   count   = var.temporary_domain ? 0 : 1
   zone_id = var.route53_zone_id
   name    = var.domain_name
+  type    = "A"
+  alias {
+    name                   = aws_cloudfront_distribution.main.domain_name
+    zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "www" {
+  count   = var.temporary_domain ? 0 : 1
+  zone_id = var.route53_zone_id
+  name    = "www.${var.domain_name}"
   type    = "A"
   alias {
     name                   = aws_cloudfront_distribution.main.domain_name

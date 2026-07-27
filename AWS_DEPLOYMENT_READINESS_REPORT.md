@@ -14,7 +14,8 @@ attached.
 
 Deployment verification completed:
 
-- Route 53 and ACM serve `jadhavaredu.com`; `api.jadhavaredu.com` is the CloudFront ALB origin.
+- Route 53 and ACM serve `jadhavaredu.com` and `www.jadhavaredu.com`;
+  `api.jadhavaredu.com` is the CloudFront ALB origin.
 - Both ECS Fargate tasks and both ALB targets are healthy.
 - Public readiness returns `{"status":"UP"}`.
 - A live Secrets Manager-backed administrator login succeeds with the `SUPER_ADMIN` role.
@@ -22,11 +23,12 @@ Deployment verification completed:
 
 AWS SES SMTP infrastructure is configured and its SMTP credential is stored only in Secrets
 Manager. Domain verification, DKIM, SPF, DMARC, custom MAIL FROM, and an AWS mailbox-simulator SMTP
-test all pass. Automatic delivery remains disabled only while AWS reviews the submitted SES
-production-access request; enabling it in the SES sandbox would reject unverified student
-addresses. The SNS email subscription remains disabled because no operational alert email was
-supplied. GitHub Actions is connected through OIDC, but GitHub currently refuses to start hosted
-runners because of the account's failed payment or Actions spending limit.
+test all pass. AWS denied production-access case `178513625800051`, so automatic delivery remains
+disabled; enabling it in the SES sandbox would reject unverified student addresses. A reachable
+operational/contact email is required before resubmitting. The SNS email subscription also remains
+disabled because no operational alert email was supplied. GitHub Actions is connected through
+OIDC, but GitHub currently refuses to start hosted runners because of the account's failed payment
+or Actions spending limit.
 
 ## Corrections applied during this audit
 
@@ -78,7 +80,7 @@ runners because of the account's failed payment or Actions spending limit.
 | Authenticated smoke | Pass — Secrets Manager-backed Super Admin login succeeded |
 | SES domain authentication | Pass — identity, DKIM, and custom MAIL FROM report SUCCESS |
 | SES SMTP smoke | Pass — authenticated delivery to the AWS mailbox simulator |
-| SES production access | Pending — AWS review submitted on 27 July 2026 |
+| SES production access | Blocked — AWS denied case `178513625800051`; resubmit after a reachable contact email is supplied |
 
 ## Application module analysis
 
@@ -140,8 +142,9 @@ runners because of the account's failed payment or Actions spending limit.
 
 ## Remaining operational follow-up
 
-1. After AWS approves the pending SES production-access review, set `mail_enabled = true`, deploy
-   the resulting ECS task definition, and test delivery to an authorized real recipient.
+1. Supply a reachable contact email, resubmit the denied SES production-access request, and after
+   approval set `mail_enabled = true`, deploy the resulting ECS task definition, and test delivery
+   to an authorized real recipient.
 2. Supply an operational `alert_email` and confirm the SNS subscription.
 3. Resolve the GitHub account payment/Actions spending-limit block and rerun pull request checks.
 4. Resolve or document the non-applicable React Router RSC advisory so the npm audit CI gate is
