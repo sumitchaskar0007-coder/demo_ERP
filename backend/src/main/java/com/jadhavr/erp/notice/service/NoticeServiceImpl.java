@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Collectors;
@@ -118,15 +119,15 @@ public class NoticeServiceImpl implements NoticeService {
         Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
         if (roles.isEmpty()) return List.of();
-        return mapNotices(notices.findInbox(current.getId(), current.getCollegeId(), departmentId, roles,
-                PageRequest.of(0, 100)));
+        List<Long> noticeIds = notices.findInboxIds(current.getId(), current.getCollegeId(), departmentId, roles,
+                PageRequest.of(0, 100));
+        return mapNotices(loadDetailedNotices(noticeIds));
     }
 
     @Override
     public List<NoticeResponse> sent() {
         Long id = SecurityUtils.getCurrentUserId();
-        return mapNotices(notices.findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(id,
-                PageRequest.of(0, 100)));
+        return mapNotices(loadDetailedNotices(notices.findSentIds(id, PageRequest.of(0, 100))));
     }
 
     @Override @Transactional
@@ -208,6 +209,16 @@ public class NoticeServiceImpl implements NoticeService {
         Set<Long> acknowledgedIds = acknowledgements.findNoticeIdsByUserId(SecurityUtils.getCurrentUserId());
         Set<Long> seenIds = views.findNoticeIdsByUserId(SecurityUtils.getCurrentUserId());
         return source.stream().map(notice -> map(notice, activeCollegeIds, acknowledgedIds, seenIds)).toList();
+    }
+
+    private List<Notice> loadDetailedNotices(List<Long> noticeIds) {
+        if (noticeIds.isEmpty()) return List.of();
+        Map<Long, Notice> noticesById = notices.findDetailedByIdIn(noticeIds).stream()
+                .collect(Collectors.toMap(Notice::getId, notice -> notice, (first, duplicate) -> first));
+        return noticeIds.stream()
+                .map(noticesById::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     private NoticeResponse map(Notice n, Set<Long> activeCollegeIds, Set<Long> acknowledgedIds,
