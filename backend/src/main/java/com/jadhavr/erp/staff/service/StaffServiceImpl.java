@@ -212,7 +212,9 @@ public class StaffServiceImpl implements StaffService {
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(assignedRoles);
         User savedUser = users.save(user);
-        if (emailNotifications != null) emailNotifications.queueUserCreatedEmail(savedUser);
+        if (emailNotifications != null) {
+            emailNotifications.queueUserCreatedEmail(savedUser, rawPassword);
+        }
 
         StaffProfile profile = new StaffProfile();
         profile.setUser(savedUser);

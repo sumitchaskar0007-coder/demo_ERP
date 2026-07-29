@@ -83,7 +83,9 @@ public class UserServiceImpl implements UserService {
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(principalRole));
         User saved = users.save(user);
-        if (emailNotifications != null) emailNotifications.queuePrincipalCreatedEmail(saved);
+        if (emailNotifications != null) {
+            emailNotifications.queuePrincipalCreatedEmail(saved, request.phone().trim());
+        }
         return mapper.toResponse(saved);
     }
 

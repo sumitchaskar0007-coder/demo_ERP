@@ -1,1 +1,18 @@
-<!doctype html><html><body style="font-family:Arial;background:#eef4ff;padding:24px"><main style="max-width:600px;margin:auto;background:white;padding:28px;border-radius:16px"><h2 style="color:#2563eb">Jadhavar ERP</h2><h3 th:text="${subject}">Account created</h3><p>Hello <span th:text="${name}">User</span>,</p><p>Your ERP account is ready. For security, no password is included in this email.</p><p><a th:href="${url}" style="background:#2563eb;color:white;padding:12px 20px;text-decoration:none;border-radius:8px">Open ERP</a></p><p style="font-size:12px" th:text="${url}"></p><hr><small>If you did not expect this email, contact your administrator. © <span th:text="${year}"></span></small></main></body></html>
+<!doctype html>
+<html>
+<body style="font-family:Arial;background:#eef4ff;padding:24px">
+<main style="max-width:600px;margin:auto;background:white;padding:28px;border-radius:16px">
+  <h2 style="color:#2563eb">Jadhavar ERP</h2>
+  <h3 th:text="${subject}">Account created</h3>
+  <p>Hello <span th:text="${name}">User</span>,</p>
+  <p>Your ERP account is ready. Sign in with these temporary credentials:</p>
+  <p><strong>Username:</strong> <span th:text="${username}">user@example.com</span><br>
+     <strong>Temporary password:</strong> <span th:text="${temporaryPassword}">temporary password</span></p>
+  <p>Please change the temporary password after signing in.</p>
+  <p><a th:href="${url}" style="background:#2563eb;color:white;padding:12px 20px;text-decoration:none;border-radius:8px">Sign in and change password</a></p>
+  <p style="font-size:12px" th:text="${url}"></p>
+  <hr>
+  <small>If you did not expect this email, contact your administrator. © <span th:text="${year}"></span></small>
+</main>
+</body>
+</html>
