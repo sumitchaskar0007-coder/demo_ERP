@@ -12,12 +12,16 @@ import java.util.Collection;
 import java.util.List;
 
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
-    @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
-    List<Notice> findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long userId, Pageable pageable);
-
-    @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
     @Query("""
-            select distinct n from Notice n
+            select n.id from Notice n
+            where n.createdBy.id = :userId
+              and n.deletedAt is null
+            order by n.createdAt desc, n.id desc
+            """)
+    List<Long> findSentIds(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("""
+            select n.id from Notice n
             join n.audienceRoles role
             left join n.colleges college
             where n.createdBy.id <> :userId
@@ -25,12 +29,17 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
               and role in :roles
               and (college is null or college.id = :collegeId)
               and (n.department is null or n.department.id = :departmentId)
-            order by n.createdAt desc
+            group by n.id, n.createdAt
+            order by n.createdAt desc, n.id desc
             """)
-    List<Notice> findInbox(
+    List<Long> findInboxIds(
             @Param("userId") Long userId,
             @Param("collegeId") Long collegeId,
             @Param("departmentId") Long departmentId,
             @Param("roles") Collection<RoleName> roles,
             Pageable pageable);
+
+    @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
+    @Query("select distinct n from Notice n where n.id in :ids")
+    List<Notice> findDetailedByIdIn(@Param("ids") Collection<Long> ids);
 }
