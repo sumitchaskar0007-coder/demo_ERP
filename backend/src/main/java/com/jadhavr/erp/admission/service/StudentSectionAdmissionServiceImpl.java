@@ -29,6 +29,7 @@ import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.fee.service.FeeService;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.enums.CourseYearName;
@@ -69,6 +70,12 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private final AcademicClassRepository courseYears;
     private final AdmissionDocumentRepository documents;
     private final PasswordEncoder passwordEncoder;
+    private EmailNotificationService emailNotifications;
+
+    @Autowired(required = false)
+    public void setEmailNotifications(EmailNotificationService service) {
+        this.emailNotifications = service;
+    }
 
     @Autowired
     public StudentSectionAdmissionServiceImpl(
@@ -297,6 +304,12 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (feeService != null) feeService.createAccountForAdmission(saved);
         saveHistory(saved, oldStatus, saved.getStatus(),
                 AdmissionAction.STUDENT_SECTION_APPROVED, trimToNull(request.remarks()));
+        if (emailNotifications != null) {
+            emailNotifications.queueAdmissionApprovedEmail(
+                    saved.getStudentUser(),
+                    saved.getAdmissionReferenceNumber(),
+                    saved.getStudent().getAdmissionNumber());
+        }
         return admissionMapper.toResponse(saved);
     }
 
