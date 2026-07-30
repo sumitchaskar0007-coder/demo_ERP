@@ -24,7 +24,7 @@ public class StudentSectionAdmissionMapper {
     }
 
     public StudentSectionAdmissionResponse toResponse(AdmissionForm admission) {
-        Set<AdmissionDocumentType> uploadedDocuments = documents == null
+        Set<String> uploadedDocuments = documents == null
                 ? Set.of()
                 : documents.findTypesByAdmissionId(admission.getId());
         return new StudentSectionAdmissionResponse(
@@ -59,25 +59,25 @@ public class StudentSectionAdmissionMapper {
                 admission.getPreviousClassName(),
                 admission.getPreviousPercentage(),
                 admission.getPhotoStorageName() != null,
-                available(uploadedDocuments, AdmissionDocumentType.TENTH_MARKSHEET,
+                available(uploadedDocuments, AdmissionDocumentType.TENTH_MARKSHEET.name(),
                         admission.getTenthMarksheetStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.TWELFTH_MARKSHEET,
+                available(uploadedDocuments, AdmissionDocumentType.TWELFTH_MARKSHEET.name(),
                         admission.getTwelfthMarksheetStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.GRADUATION_MARKSHEET,
+                available(uploadedDocuments, AdmissionDocumentType.GRADUATION_MARKSHEET.name(),
                         admission.getGraduationPgCertificateStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.TRANSFER_CERTIFICATE,
+                available(uploadedDocuments, AdmissionDocumentType.TRANSFER_CERTIFICATE.name(),
                         admission.getLeavingCertificateStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.MIGRATION_CERTIFICATE,
+                available(uploadedDocuments, AdmissionDocumentType.MIGRATION_CERTIFICATE.name(),
                         admission.getMigrationCertificateStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.GAP_CERTIFICATE,
+                available(uploadedDocuments, AdmissionDocumentType.GAP_CERTIFICATE.name(),
                         admission.getGapAffidavitStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.CASTE_CERTIFICATE,
+                available(uploadedDocuments, AdmissionDocumentType.CASTE_CERTIFICATE.name(),
                         admission.getCasteCertificateStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.INCOME_CERTIFICATE,
+                available(uploadedDocuments, AdmissionDocumentType.INCOME_CERTIFICATE.name(),
                         admission.getIncomeProofStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.NAME_CHANGE_CERTIFICATE,
+                available(uploadedDocuments, AdmissionDocumentType.NAME_CHANGE_CERTIFICATE.name(),
                         admission.getNameChangeCertificateStorageName()),
-                available(uploadedDocuments, AdmissionDocumentType.AADHAAR_CARD,
+                available(uploadedDocuments, AdmissionDocumentType.AADHAAR_CARD.name(),
                         admission.getAadhaarCardStorageName()),
                 admission.isPhotoVerified(),
                 admission.isTenthMarksheetVerified(),
@@ -138,8 +138,8 @@ public class StudentSectionAdmissionMapper {
         );
     }
 
-    private boolean available(Set<AdmissionDocumentType> uploadedDocuments,
-            AdmissionDocumentType type, String legacyStorageName) {
+    private boolean available(Set<String> uploadedDocuments,
+            String type, String legacyStorageName) {
         return legacyStorageName != null || uploadedDocuments.contains(type);
     }
 }

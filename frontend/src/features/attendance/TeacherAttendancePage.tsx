@@ -15,13 +15,12 @@ import {
 import { handleApiError } from "@/lib/handleApiError";
 import { cn } from "@/lib/utils";
 
-const statusStyles: Record<AttendanceStatus, string> = {
+type MarkableAttendanceStatus = Extract<AttendanceStatus, "PRESENT" | "ABSENT">;
+const statusStyles: Record<MarkableAttendanceStatus, string> = {
   PRESENT: "border-emerald-200 bg-emerald-50 text-emerald-700",
   ABSENT: "border-rose-200 bg-rose-50 text-rose-700",
-  LATE: "border-amber-200 bg-amber-50 text-amber-700",
-  LEAVE: "border-blue-200 bg-blue-50 text-blue-700",
 };
-const statuses = Object.keys(statusStyles) as AttendanceStatus[];
+const statuses: MarkableAttendanceStatus[] = ["PRESENT", "ABSENT"];
 
 export function TeacherAttendancePage() {
   const [lecture, setLecture] = useState<Lecture | null>();
@@ -75,7 +74,7 @@ export function TeacherAttendancePage() {
           status,
           roster?.students.filter((s) => s.status === status).length ?? 0,
         ]),
-      ) as Record<AttendanceStatus, number>,
+      ) as Record<MarkableAttendanceStatus, number>,
     [roster],
   );
   const updateStudent = (
@@ -91,7 +90,7 @@ export function TeacherAttendancePage() {
           ),
         },
     );
-  const markAll = (status: AttendanceStatus) =>
+  const markAll = (status: MarkableAttendanceStatus) =>
     setRoster(
       (current) =>
         current && { ...current, students: current.students.map((s) => ({ ...s, status })) },
@@ -265,7 +264,7 @@ export function TeacherAttendancePage() {
                     </Button>
                   </div>
                 </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   {statuses.map((status) => (
                     <div
                       key={status}
@@ -380,7 +379,7 @@ export function TeacherAttendancePage() {
                 <X />
               </button>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-3">
               {statuses.map((s) => (
                 <div key={s} className={cn("rounded-xl border p-3 text-center", statusStyles[s])}>
                   <p className="text-xs font-bold">{s}</p>
@@ -423,8 +422,6 @@ function HistoryTable({ rows }: { rows: SessionSummary[] }) {
                   "Class",
                   "Present",
                   "Absent",
-                  "Late",
-                  "Leave",
                   "Status",
                 ].map((h) => (
                   <th key={h} className="px-4 py-3">
@@ -447,8 +444,6 @@ function HistoryTable({ rows }: { rows: SessionSummary[] }) {
                   </td>
                   <td className="px-4 py-3 text-emerald-600">{r.present}</td>
                   <td className="px-4 py-3 text-rose-600">{r.absent}</td>
-                  <td className="px-4 py-3 text-amber-600">{r.late}</td>
-                  <td className="px-4 py-3 text-blue-600">{r.leave}</td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">
                       {r.status}

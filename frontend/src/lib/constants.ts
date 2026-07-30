@@ -40,6 +40,7 @@ export const ROUTES = {
   principalFees: "/principal/fees",
   principalReports: "/principal/reports",
   principalAdministration: "/principal/administration",
+  principalAdmissionDocuments: "/principal/admission-documents",
   adminLectureLoad: "/admin/lecture-load",
   publicAdmission: "/admission/:collegeCode",
   publicAdmissionSuccess: "/admission/:collegeCode/success",

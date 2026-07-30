@@ -6,7 +6,7 @@ import { Input } from "@/components/common/Input";
 import { Select } from "@/components/common/Select";
 import { handleApiError } from "@/lib/handleApiError";
 import { localDateString } from "@/lib/date";
-const statuses = ["PRESENT", "ABSENT", "LATE", "EXCUSED", "HALF_DAY", "LEAVE"];
+const statuses = ["PRESENT", "ABSENT"];
 const today = localDateString();
 export function AttendancePage() {
   const [from, setFrom] = useState(today),

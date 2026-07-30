@@ -160,7 +160,6 @@ export const createStaffSchema = z
     phone: z.string().trim().min(1, "Phone number is required").max(20),
     staffTypes: z.array(staffTypeSchema).min(1, "Select at least one role"),
     departmentIds: z.array(z.number()).default([]),
-    joiningDate: z.string().optional().default(""),
   })
   .superRefine(validateStaffAssignment);
 

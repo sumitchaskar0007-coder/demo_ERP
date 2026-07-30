@@ -743,9 +743,10 @@ export function AdminFeeSetupPage() {
   const [rows, setRows] = useState<FeeStructureResponse[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [feeDivisions, setFeeDivisions] = useState<WeeklyDivision[]>([]);
+  const [courseYears, setCourseYears] = useState<api.AdminCourseYearOption[]>([]);
   const [loadingColleges, setLoadingColleges] = useState(true);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingCourseYears, setLoadingCourseYears] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [filter, setFilter] = useState({ collegeId: "", departmentId: "", studentCategory: "" });
@@ -786,15 +787,40 @@ export function AdminFeeSetupPage() {
       .then(setColleges)
       .catch((error) => toast.error(handleApiError(error).message))
       .finally(() => setLoadingColleges(false));
-    weeklyTimetableApi
-      .divisions()
-      .then(setFeeDivisions)
-      .catch(() => setFeeDivisions([]));
   }, []);
 
   useEffect(() => {
     void load(0);
   }, [filter]);
+
+  useEffect(() => {
+    if (!v.collegeId || !v.departmentId) {
+      setCourseYears([]);
+      setLoadingCourseYears(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingCourseYears(true);
+    api
+      .getCourseYearOptions(Number(v.collegeId), Number(v.departmentId))
+      .then((options) => {
+        if (!cancelled) setCourseYears(options);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCourseYears([]);
+          toast.error(handleApiError(error).message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCourseYears(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [v.collegeId, v.departmentId]);
 
   const selectFilterCollege = async (collegeId: string) => {
     setFilter({ ...filter, collegeId, departmentId: "" });
@@ -904,20 +930,21 @@ export function AdminFeeSetupPage() {
           <Select
             label="Course Year"
             value={v.courseYear}
-            disabled={!v.departmentId}
+            disabled={!v.departmentId || loadingCourseYears}
             onChange={(event) => setV({ ...v, courseYear: event.target.value })}
             options={[
               {
-                label: v.departmentId ? "Select course year" : "Select department first",
+                label: loadingCourseYears
+                  ? "Loading course years..."
+                  : v.departmentId
+                    ? "Select course year"
+                    : "Select department first",
                 value: "",
               },
-              ...Array.from(
-                new Set(
-                  feeDivisions
-                    .filter((item) => item.departmentId === Number(v.departmentId))
-                    .map((item) => item.year),
-                ),
-              ).map((year) => ({ label: year, value: year })),
+              ...courseYears.map((courseYear) => ({
+                label: courseYear.displayName,
+                value: courseYear.displayName,
+              })),
             ]}
           />
           <Input label="Academic Year" value="2026-27" readOnly disabled />

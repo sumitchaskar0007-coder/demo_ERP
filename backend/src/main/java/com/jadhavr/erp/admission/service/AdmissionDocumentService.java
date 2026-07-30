@@ -31,7 +31,7 @@ import java.util.UUID;
 @Service
 public class AdmissionDocumentService {
     private static final Logger log = LoggerFactory.getLogger(AdmissionDocumentService.class);
-    private static final long MAX_BYTES = 5L * 1024 * 1024;
+    private static final long MAX_BYTES = 2L * 1024 * 1024;
     private static final Map<String, String> EXTENSIONS = Map.of(
             MediaType.APPLICATION_PDF_VALUE, ".pdf",
             MediaType.IMAGE_JPEG_VALUE, ".jpg",
@@ -46,6 +46,7 @@ public class AdmissionDocumentService {
     private final AdmissionFormRepository admissions;
     private final AdmissionDocumentRepository documents;
     private final ObjectStorageService storage;
+    private AdmissionDocumentRequirementService requirements;
 
     public AdmissionDocumentService(AdmissionFormRepository admissions,
             AdmissionDocumentRepository documents,
@@ -55,8 +56,13 @@ public class AdmissionDocumentService {
         this.storage = storage;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRequirements(AdmissionDocumentRequirementService requirements) {
+        this.requirements = requirements;
+    }
+
     @Transactional
-    public AdmissionDocument saveMine(AdmissionDocumentType type, MultipartFile file) {
+    public AdmissionDocument saveMine(String type, MultipartFile file) {
         AdmissionForm admission = admissions
                 .findTopByStudentUserIdOrderByCreatedAtDesc(SecurityUtils.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
@@ -64,16 +70,18 @@ public class AdmissionDocumentService {
     }
 
     @Transactional
-    public AdmissionDocument save(Long admissionId, AdmissionDocumentType type, MultipartFile file) {
+    public AdmissionDocument save(Long admissionId, String type, MultipartFile file) {
         return save(findScoped(admissionId), type, file);
     }
 
-    private AdmissionDocument save(AdmissionForm admission, AdmissionDocumentType type, MultipartFile file) {
+    private AdmissionDocument save(AdmissionForm admission, String rawType, MultipartFile file) {
+        String type = AdmissionDocumentRequirementService.normalizeKey(rawType);
+        if (requirements != null) requirements.requireActive(admission, type);
         if (!EDITABLE.contains(admission.getStatus())) {
             throw new BadRequestException("Admission documents cannot be changed after approval");
         }
         if (file == null || file.isEmpty()) throw new BadRequestException("Document file is required");
-        if (file.getSize() > MAX_BYTES) throw new BadRequestException("Document must not exceed 5 MB");
+        if (file.getSize() > MAX_BYTES) throw new BadRequestException("Document must not exceed 2 MB");
         String contentType = resolveContentType(file);
         String extension = EXTENSIONS.get(contentType);
         if (extension == null) throw new BadRequestException("Only PDF, JPEG, PNG, or WebP documents are allowed");
@@ -85,7 +93,7 @@ public class AdmissionDocumentService {
         String oldStorageName = document.getStorageName();
         String storageName = "colleges/" + admission.getCollege().getId()
                 + "/admissions/" + admission.getId()
-                + "/documents/" + type.name().toLowerCase(Locale.ROOT)
+                + "/documents/" + type.toLowerCase(Locale.ROOT)
                 + "/" + UUID.randomUUID() + extension;
         try {
             storage.put(storageName, file.getBytes(), contentType);
@@ -109,7 +117,7 @@ public class AdmissionDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public DocumentResource loadMine(AdmissionDocumentType type) {
+    public DocumentResource loadMine(String type) {
         AdmissionForm admission = admissions
                 .findTopByStudentUserIdOrderByCreatedAtDesc(SecurityUtils.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
@@ -117,11 +125,12 @@ public class AdmissionDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public DocumentResource load(Long admissionId, AdmissionDocumentType type) {
+    public DocumentResource load(Long admissionId, String type) {
         return load(findScoped(admissionId), type);
     }
 
-    private DocumentResource load(AdmissionForm admission, AdmissionDocumentType type) {
+    private DocumentResource load(AdmissionForm admission, String rawType) {
+        String type = AdmissionDocumentRequirementService.normalizeKey(rawType);
         AdmissionDocument document = documents.findByAdmissionFormIdAndDocumentType(admission.getId(), type)
                 .orElseThrow(() -> new ResourceNotFoundException("Admission document not uploaded"));
         ObjectStorageService.StoredObject object = storage.get(document.getStorageName());
@@ -147,12 +156,28 @@ public class AdmissionDocumentService {
         return admission;
     }
 
-    private String safeOriginalFilename(String original, AdmissionDocumentType type, String extension) {
-        if (original == null || original.isBlank()) return type.name().toLowerCase() + extension;
+    private String safeOriginalFilename(String original, String type, String extension) {
+        if (original == null || original.isBlank()) return type.toLowerCase(Locale.ROOT) + extension;
         String normalized = original.replace('\\', '/');
         String filename = normalized.substring(normalized.lastIndexOf('/') + 1).trim();
-        return filename.isBlank() ? type.name().toLowerCase() + extension
+        return filename.isBlank() ? type.toLowerCase(Locale.ROOT) + extension
                 : filename.substring(0, Math.min(filename.length(), 255));
+    }
+
+    public AdmissionDocument saveMine(AdmissionDocumentType type, MultipartFile file) {
+        return saveMine(type.name(), file);
+    }
+
+    public AdmissionDocument save(Long admissionId, AdmissionDocumentType type, MultipartFile file) {
+        return save(admissionId, type.name(), file);
+    }
+
+    public DocumentResource loadMine(AdmissionDocumentType type) {
+        return loadMine(type.name());
+    }
+
+    public DocumentResource load(Long admissionId, AdmissionDocumentType type) {
+        return load(admissionId, type.name());
     }
 
     private String resolveContentType(MultipartFile file) {

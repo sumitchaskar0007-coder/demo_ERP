@@ -36,24 +36,16 @@ export interface AcademicRecord {
   marksPercentage?: number | null;
 }
 
-export type AdmissionDocumentType =
-  | "TENTH_MARKSHEET"
-  | "TWELFTH_MARKSHEET"
-  | "PROVISIONAL_CERTIFICATE"
-  | "TRANSFER_CERTIFICATE"
-  | "NATIONALITY_CERTIFICATE"
-  | "DOMICILE_CERTIFICATE"
-  | "AADHAAR_CARD"
-  | "GRADUATION_MARKSHEET"
-  | "MIGRATION_CERTIFICATE"
-  | "GAP_CERTIFICATE"
-  | "ENTRANCE_SCORE_CARD"
-  | "CASTE_CERTIFICATE"
-  | "CASTE_VALIDITY"
-  | "NON_CREAMY_LAYER_CERTIFICATE"
-  | "NAME_CHANGE_CERTIFICATE"
-  | "INCOME_CERTIFICATE"
-  | "FORM_O_MINORITY";
+export type AdmissionDocumentType = string;
+
+export interface AdmissionDocumentRequirement {
+  id: number;
+  documentKey: AdmissionDocumentType;
+  documentName: string;
+  required: boolean;
+  active: boolean;
+  displayOrder: number;
+}
 
 export interface AdmissionCourseYearOption {
   id: number;

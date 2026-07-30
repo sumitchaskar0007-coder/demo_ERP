@@ -20,7 +20,11 @@ import { cn } from "@/lib/utils";
 
 const qualifications: AcademicRecord["qualification"][] = ["10TH", "12TH", "DIPLOMA", "GRADUATION"];
 
-const documentDefinitions: { type: AdmissionDocumentType; label: string; required: boolean }[] = [
+const defaultDocumentDefinitions: {
+  type: AdmissionDocumentType;
+  label: string;
+  required: boolean;
+}[] = [
   { type: "TENTH_MARKSHEET", label: "10th marksheet", required: true },
   { type: "TWELFTH_MARKSHEET", label: "12th marksheet", required: true },
   { type: "PROVISIONAL_CERTIFICATE", label: "Provisional certificate", required: true },
@@ -125,6 +129,7 @@ export function DetailedAdmissionForm({
     Partial<Record<AdmissionDocumentType, DocumentTransferState>>
   >({});
   const [courseYears, setCourseYears] = useState<AdmissionCourseYearOption[]>([]);
+  const [documentDefinitions, setDocumentDefinitions] = useState(defaultDocumentDefinitions);
   const [courseYearsLoading, setCourseYearsLoading] = useState(true);
   const [sameAddress, setSameAddress] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -192,6 +197,7 @@ export function DetailedAdmissionForm({
     aadhaarValid,
     admission.photoAvailable,
     correspondencePinValid,
+    documentDefinitions,
     documents,
     permanentPinValid,
     photo,
@@ -229,6 +235,27 @@ export function DetailedAdmissionForm({
       })
       .catch((error) => toast.error(handleApiError(error).message))
       .finally(() => active && setCourseYearsLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [admission.id, studentOwned]);
+  useEffect(() => {
+    let active = true;
+    const request = studentOwned
+      ? api.getMyAdmissionDocumentRequirements()
+      : api.getAdmissionDocumentRequirements(admission.id);
+    request
+      .then((items) => {
+        if (!active) return;
+        setDocumentDefinitions(
+          items.map((item) => ({
+            type: item.documentKey,
+            label: item.documentName,
+            required: item.required,
+          })),
+        );
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
     return () => {
       active = false;
     };
@@ -934,7 +961,7 @@ export function DetailedAdmissionForm({
         complete={formSteps[7].complete}
       >
         <p className="mb-4 text-sm text-slate-500">
-          Upload PDF, JPEG, PNG, or WebP files up to 5 MB each. Required documents must be uploaded
+          Upload PDF, JPEG, PNG, or WebP files up to 2 MB each. Required documents must be uploaded
           before submission.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
@@ -948,7 +975,16 @@ export function DetailedAdmissionForm({
               transfer={documentTransfers[item.type]}
               disabled={saving}
               onChange={(file) => {
-                setDocuments((current) => ({ ...current, [item.type]: file }));
+                if (file && file.size > 2 * 1024 * 1024) {
+                  toast.error("Document must not exceed 2 MB");
+                  return;
+                }
+                setDocuments((current) => {
+                  const next = { ...current };
+                  if (file) next[item.type] = file;
+                  else delete next[item.type];
+                  return next;
+                });
                 setDocumentTransfers((current) => {
                   const next = { ...current };
                   delete next[item.type];
@@ -1151,7 +1187,7 @@ export function DetailedAdmissionView({
               >
                 {openingDocument === type
                   ? "Opening..."
-                  : (documentDefinitions.find((item) => item.type === type)?.label ?? type)}
+                  : (defaultDocumentDefinitions.find((item) => item.type === type)?.label ?? type)}
               </button>
             ))
           ) : (

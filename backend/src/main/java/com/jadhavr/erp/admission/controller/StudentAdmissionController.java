@@ -88,13 +88,13 @@ public class StudentAdmissionController {
 
     @PostMapping(path = "/me/documents/{type}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<StudentSectionAdmissionResponse> uploadDocument(
-            @PathVariable AdmissionDocumentType type, @RequestParam("file") MultipartFile file) {
+            @PathVariable String type, @RequestParam("file") MultipartFile file) {
         documentService.saveMine(type, file);
         return ApiResponse.success("Admission document uploaded successfully", admissionService.getMyDetailedAdmission());
     }
 
     @GetMapping("/me/documents/{type}")
-    public ResponseEntity<Resource> getDocument(@PathVariable AdmissionDocumentType type) {
+    public ResponseEntity<Resource> getDocument(@PathVariable String type) {
         var document = documentService.loadMine(type);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()

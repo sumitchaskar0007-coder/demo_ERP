@@ -20,6 +20,7 @@ import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
 import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
+import com.jadhavr.erp.admission.repository.AdmissionDocumentRequirementRepository;
 import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
@@ -84,11 +85,17 @@ public class AdmissionServiceImpl implements AdmissionService {
     private final AdmissionStatusHistoryRepository statusHistories;
     private final AcademicClassRepository courseYears;
     private final AdmissionDocumentRepository documents;
+    private AdmissionDocumentRequirementRepository documentRequirements;
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
+
+    @Autowired(required = false)
+    public void setDocumentRequirements(AdmissionDocumentRequirementRepository repository) {
+        this.documentRequirements = repository;
+    }
 
     @Autowired
     public AdmissionServiceImpl(
@@ -309,7 +316,10 @@ public class AdmissionServiceImpl implements AdmissionService {
             throw new BadRequestException("Upload the passport-size photo before submitting the admission form");
         }
         if (documents != null) {
-            Set<AdmissionDocumentType> missingDocuments = AdmissionDocumentType.requiredTypes();
+            Set<String> missingDocuments = documentRequirements == null
+                    ? AdmissionDocumentType.requiredTypes().stream().map(Enum::name)
+                            .collect(Collectors.toSet())
+                    : documentRequirements.findRequiredKeys(admission.getCollege().getId());
             missingDocuments.removeAll(documents.findTypesByAdmissionId(admission.getId()));
             if (!missingDocuments.isEmpty()) {
                 throw new BadRequestException("Upload all required admission documents before submitting");

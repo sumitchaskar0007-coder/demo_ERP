@@ -2,7 +2,6 @@ package com.jadhavr.erp.admission.dto;
 
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
-import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.academic.enums.CourseYearName;
 import com.jadhavr.erp.fee.enums.StudentCategory;
 
@@ -84,7 +83,7 @@ public record StudentSectionAdmissionResponse(
         BigDecimal qualifyingEntranceTotalScore,
         String lastGraduationCollegeName,
         String lastGraduationCollegeAddress,
-        java.util.Set<AdmissionDocumentType> uploadedDocuments,
+        java.util.Set<String> uploadedDocuments,
         LocalDateTime detailsCompletedAt,
         LocalDateTime principalApprovedAt,
         AdmissionStatus status,

@@ -24,7 +24,6 @@ export interface CreateStaffRequest {
   staffType?: StaffType;
   departmentIds?: number[];
   staffTypes?: StaffType[];
-  joiningDate?: string;
 }
 export interface UpdateStaffAssignmentRequest {
   staffTypes: StaffType[];

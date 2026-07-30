@@ -1,7 +1,6 @@
 package com.jadhavr.erp.admission.repository;
 
 import com.jadhavr.erp.admission.entity.AdmissionDocument;
-import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,7 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public interface AdmissionDocumentRepository extends JpaRepository<AdmissionDocument, Long> {
-    Optional<AdmissionDocument> findByAdmissionFormIdAndDocumentType(Long admissionId, AdmissionDocumentType type);
+    Optional<AdmissionDocument> findByAdmissionFormIdAndDocumentType(Long admissionId, String type);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -24,10 +23,10 @@ public interface AdmissionDocumentRepository extends JpaRepository<AdmissionDocu
             """)
     Optional<AdmissionDocument> findByAdmissionFormIdAndDocumentTypeForUpdate(
             @Param("admissionId") Long admissionId,
-            @Param("type") AdmissionDocumentType type);
+            @Param("type") String type);
 
     @Query("select d.documentType from AdmissionDocument d where d.admissionForm.id = :admissionId")
-    Set<AdmissionDocumentType> findTypesByAdmissionId(@Param("admissionId") Long admissionId);
+    Set<String> findTypesByAdmissionId(@Param("admissionId") Long admissionId);
 
     List<AdmissionDocument> findByAdmissionFormIdOrderByDocumentType(Long admissionId);
 }

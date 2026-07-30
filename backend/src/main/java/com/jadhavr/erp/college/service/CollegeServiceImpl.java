@@ -31,6 +31,14 @@ public class CollegeServiceImpl implements CollegeService {
             "id", "name", "code", "city", "state", "status", "createdAt", "updatedAt");
     private final CollegeRepository collegeRepository;
     private final CollegeImageStorageService imageStorage;
+    private com.jadhavr.erp.admission.service.AdmissionDocumentRequirementService
+            admissionDocumentRequirements;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAdmissionDocumentRequirements(
+            com.jadhavr.erp.admission.service.AdmissionDocumentRequirementService service) {
+        this.admissionDocumentRequirements = service;
+    }
 
     public CollegeServiceImpl(CollegeRepository collegeRepository,
             CollegeImageStorageService imageStorage) {
@@ -51,6 +59,9 @@ public class CollegeServiceImpl implements CollegeService {
         college.setStatus(CollegeStatus.ACTIVE);
         applyCreateFields(college, request);
         College saved = collegeRepository.saveAndFlush(college);
+        if (admissionDocumentRequirements != null) {
+            admissionDocumentRequirements.seedDefaults(saved);
+        }
         saved.setLogoUrl(imageStorage.claim(request.logoUrl(), saved.getId(), "logo", null));
         saved.setQrCodeUrl(imageStorage.claim(request.qrCodeUrl(), saved.getId(), "qr-code", null));
         return toResponse(collegeRepository.saveAndFlush(saved));

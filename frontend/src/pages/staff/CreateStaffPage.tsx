@@ -57,7 +57,6 @@ export function CreateStaffPage() {
       phone: "",
       staffTypes: ["TEACHER"],
       departmentIds: [],
-      joiningDate: "",
     },
   });
   const staffTypes = watch("staffTypes");
@@ -134,12 +133,6 @@ export function CreateStaffPage() {
             placeholder="Used as the temporary password"
             error={errors.phone?.message}
             {...register("phone")}
-          />
-          <Input
-            label="Joining Date"
-            type="date"
-            error={errors.joiningDate?.message}
-            {...register("joiningDate")}
           />
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 md:col-span-2">
             The phone number is the staff member&apos;s temporary password. They must create a new

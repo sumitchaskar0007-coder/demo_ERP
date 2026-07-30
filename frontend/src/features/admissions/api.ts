@@ -52,6 +52,51 @@ export async function getMyAdmissionCourseYears() {
   );
   return data.data;
 }
+export async function getMyAdmissionDocumentRequirements() {
+  const { data } = await apiClient.get<
+    ApiResponse<import("./types").AdmissionDocumentRequirement[]>
+  >("/api/admission-document-requirements/me");
+  return data.data;
+}
+export async function getAdmissionDocumentRequirements(id: number) {
+  const { data } = await apiClient.get<
+    ApiResponse<import("./types").AdmissionDocumentRequirement[]>
+  >(`/api/admission-document-requirements/admission/${id}`);
+  return data.data;
+}
+export async function getAdmissionDocumentSettings() {
+  const { data } = await apiClient.get<
+    ApiResponse<import("./types").AdmissionDocumentRequirement[]>
+  >("/api/college-settings/admission-documents");
+  return data.data;
+}
+export async function createAdmissionDocumentSetting(values: {
+  documentName: string;
+  required: boolean;
+}) {
+  const { data } = await apiClient.post<
+    ApiResponse<import("./types").AdmissionDocumentRequirement>
+  >("/api/college-settings/admission-documents", values);
+  return data.data;
+}
+export async function updateAdmissionDocumentSetting(
+  id: number,
+  values: { documentName: string; required: boolean },
+) {
+  const { data } = await apiClient.put<ApiResponse<import("./types").AdmissionDocumentRequirement>>(
+    `/api/college-settings/admission-documents/${id}`,
+    values,
+  );
+  return data.data;
+}
+export async function setAdmissionDocumentSettingActive(id: number, active: boolean) {
+  const { data } = await apiClient.patch<
+    ApiResponse<import("./types").AdmissionDocumentRequirement>
+  >(`/api/college-settings/admission-documents/${id}/active`, undefined, {
+    params: { active },
+  });
+  return data.data;
+}
 export async function getAdmissionCourseYears(id: number) {
   const { data } = await apiClient.get<ApiResponse<import("./types").AdmissionCourseYearOption[]>>(
     `/api/student-section/admissions/${id}/course-years`,

@@ -120,6 +120,12 @@ const workspaces = {
     gradient: "from-slate-100 via-blue-100 to-sky-100",
     items: [
       {
+        title: "Admission Documents",
+        description: "Choose required and optional documents shown on the admission form.",
+        to: ROUTES.principalAdmissionDocuments,
+        icon: FileText,
+      },
+      {
         title: "Audit Logs",
         description: "Review important activity and record changes across the college.",
         to: ROUTES.auditLogs,

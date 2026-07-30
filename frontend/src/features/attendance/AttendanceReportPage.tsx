@@ -240,14 +240,14 @@ export function AttendanceReportPage() {
   );
   const trend = useMemo(() => aggregateTrend(data?.trend ?? [], trendMode), [data, trendMode]);
   const totalRecords = students.reduce((n, s) => n + s.total, 0);
-  const attendedRecords = students.reduce((n, s) => n + s.present + s.late, 0);
+  const attendedRecords = students.reduce((n, s) => n + s.present, 0);
   const overall = totalRecords ? round((attendedRecords * 100) / totalRecords) : 0;
   const below75 = students.filter((s) => s.total > 0 && s.percentage < 75).length;
   const below50 = students.filter((s) => s.total > 0 && s.percentage < 50).length;
   const presentToday = new Set(
     students
       .filter((s) =>
-        s.history.some((h) => h.date === today && (h.status === "PRESENT" || h.status === "LATE")),
+        s.history.some((h) => h.date === today && h.status === "PRESENT"),
       )
       .map((s) => s.studentId),
   ).size;
@@ -603,15 +603,13 @@ export function AttendanceReportPage() {
                       data={[
                         { name: "Present", value: data.present },
                         { name: "Absent", value: data.absent },
-                        { name: "Late", value: data.late },
-                        { name: "Leave", value: data.leave },
                       ]}
                       dataKey="value"
                       innerRadius={62}
                       outerRadius={92}
                       paddingAngle={3}
                     >
-                      {["#10b981", "#ef4444", "#f59e0b", "#3b82f6"].map((c) => (
+                      {["#10b981", "#ef4444"].map((c) => (
                         <Cell key={c} fill={c} />
                       ))}
                     </Pie>
@@ -622,8 +620,6 @@ export function AttendanceReportPage() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <Legend c="bg-emerald-500" label="Present records" value={data.present} />
                 <Legend c="bg-rose-500" label="Absent records" value={data.absent} />
-                <Legend c="bg-amber-500" label="Late records" value={data.late} />
-                <Legend c="bg-blue-500" label="Leave records" value={data.leave} />
               </div>
             </Card>
           </div>
@@ -1178,8 +1174,6 @@ function AnalyticsTable(p: {
                 "Attendance",
                 "Present",
                 "Absent",
-                "Late",
-                "Leave",
                 "Status",
                 "Action",
               ].map((h) => (
@@ -1205,8 +1199,6 @@ function AnalyticsTable(p: {
                 </td>
                 <td className="px-4 py-3 text-emerald-600">{s.present}</td>
                 <td className="px-4 py-3 text-rose-600">{s.absent}</td>
-                <td className="px-4 py-3 text-amber-600">{s.late}</td>
-                <td className="px-4 py-3 text-blue-600">{s.leave}</td>
                 <td className="px-4 py-3">
                   <Status value={s.indicator} />
                 </td>
@@ -1235,8 +1227,6 @@ type Agg = {
   percentage: number;
   present: number;
   absent: number;
-  late: number;
-  leave: number;
   classTeacher: string;
   presentToday: number;
   absentToday: number;
@@ -1270,14 +1260,7 @@ function GroupTable({
               <th className="px-4 py-3">Attendance</th>
               <th className="px-4 py-3">{department ? "Present Today" : "Present Records"}</th>
               <th className="px-4 py-3">{department ? "Absent Today" : "Absent Records"}</th>
-              {department ? (
-                <th className="px-4 py-3">Pending Lectures</th>
-              ) : (
-                <>
-                  <th className="px-4 py-3">Late</th>
-                  <th className="px-4 py-3">Leave</th>
-                </>
-              )}
+              {department && <th className="px-4 py-3">Pending Lectures</th>}
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Action</th>
             </tr>
@@ -1299,17 +1282,12 @@ function GroupTable({
                   {department ? r.presentToday : r.present}
                 </td>
                 <td className="px-4 py-4 text-rose-600">{department ? r.absentToday : r.absent}</td>
-                {department ? (
+                {department && (
                   <td
                     className={`px-4 py-4 ${(r.pending ?? 0) > 0 ? "font-bold text-rose-600" : "text-slate-500"}`}
                   >
                     {r.pending ?? 0}
                   </td>
-                ) : (
-                  <>
-                    <td className="px-4 py-4">{r.late}</td>
-                    <td className="px-4 py-4">{r.leave}</td>
-                  </>
                 )}
                 <td className="px-4 py-4">
                   <Status value={indicator(r.percentage)} />
@@ -1645,8 +1623,6 @@ function LectureRegister({
                 "Teacher",
                 "Present",
                 "Absent",
-                "Late",
-                "Leave",
                 "%",
                 "Status",
               ].map((h) => (
@@ -1672,8 +1648,6 @@ function LectureRegister({
                 <td className="px-4 py-3">{r.teacher}</td>
                 <td className="px-4 py-3 text-emerald-600">{r.present}</td>
                 <td className="px-4 py-3 text-rose-600">{r.absent}</td>
-                <td className="px-4 py-3 text-amber-600">{r.late}</td>
-                <td className="px-4 py-3 text-blue-600">{r.leave}</td>
                 <td className="px-4 py-3">
                   <Percent value={r.percentage} />
                 </td>
@@ -1739,11 +1713,9 @@ function StudentDrawer({ student, close }: { student: StudentAnalyticsRow; close
               <b className="text-4xl text-brand-700">{student.percentage}%</b>
               <Status value={student.indicator} />
             </div>
-            <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
+            <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
               <Stat label="Present" value={student.present} c="text-emerald-600" />
               <Stat label="Absent" value={student.absent} c="text-rose-600" />
-              <Stat label="Late" value={student.late} c="text-amber-600" />
-              <Stat label="Leave" value={student.leave} c="text-blue-600" />
             </div>
           </Card>
           <div>
@@ -1834,9 +1806,9 @@ function Status({ value }: { value: string }) {
       ? "bg-emerald-100 text-emerald-700"
       : v === "ABSENT"
         ? "bg-rose-100 text-rose-700"
-        : v === "GOOD" || v === "LEAVE"
+        : v === "GOOD"
           ? "bg-blue-100 text-blue-700"
-          : v === "AVERAGE" || v === "LATE"
+          : v === "AVERAGE"
             ? "bg-amber-100 text-amber-700"
             : v === "WARNING"
               ? "bg-orange-100 text-orange-700"
@@ -1914,7 +1886,7 @@ function indicator(p: number) {
 }
 function studentPct(list: StudentAnalyticsRow[]) {
   const total = list.reduce((n, s) => n + s.total, 0);
-  return total ? round((list.reduce((n, s) => n + s.present + s.late, 0) * 100) / total) : 0;
+  return total ? round((list.reduce((n, s) => n + s.present, 0) * 100) / total) : 0;
 }
 function aggregate(
   items: StudentAnalyticsRow[],
@@ -1929,11 +1901,9 @@ function aggregate(
       percentage: studentPct(g),
       present: g.reduce((n, s) => n + s.present, 0),
       absent: g.reduce((n, s) => n + s.absent, 0),
-      late: g.reduce((n, s) => n + s.late, 0),
-      leave: g.reduce((n, s) => n + s.leave, 0),
       classTeacher: unique(g.map((s) => s.classTeacher)).join(", "),
       presentToday: g.filter((s) =>
-        s.history.some((h) => h.date === today && (h.status === "PRESENT" || h.status === "LATE")),
+        s.history.some((h) => h.date === today && h.status === "PRESENT"),
       ).length,
       absentToday: g.filter((s) => s.history.some((h) => h.date === today && h.status === "ABSENT"))
         .length,

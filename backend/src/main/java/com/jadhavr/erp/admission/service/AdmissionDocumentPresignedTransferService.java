@@ -42,6 +42,7 @@ import java.util.UUID;
 @Service
 @Profile("production")
 public class AdmissionDocumentPresignedTransferService {
+    private static final long MAX_DOCUMENT_BYTES = 2L * 1024 * 1024;
     private static final Logger log =
             LoggerFactory.getLogger(AdmissionDocumentPresignedTransferService.class);
     private static final Set<AdmissionStatus> EDITABLE = Set.of(
@@ -61,6 +62,12 @@ public class AdmissionDocumentPresignedTransferService {
     private final Duration uploadUrlExpiry;
     private final Duration downloadUrlExpiry;
     private final Duration pendingUploadExpiry;
+    private AdmissionDocumentRequirementService requirements;
+
+    @Autowired(required = false)
+    public void setRequirements(AdmissionDocumentRequirementService requirements) {
+        this.requirements = requirements;
+    }
 
     @Autowired
     public AdmissionDocumentPresignedTransferService(
@@ -70,7 +77,7 @@ public class AdmissionDocumentPresignedTransferService {
             PresignedObjectStorageService presignedStorage,
             ObjectStorageService storage,
             ApplicationEventPublisher events,
-            @Value("${app.storage.presign.max-bytes:5242880}") long maxBytes,
+            @Value("${app.storage.presign.max-bytes:2097152}") long maxBytes,
             @Value("${app.storage.presign.upload-expiry-seconds:300}") long uploadExpirySeconds,
             @Value("${app.storage.presign.download-expiry-seconds:120}") long downloadExpirySeconds,
             @Value("${app.storage.presign.pending-expiry-seconds:900}") long pendingExpirySeconds) {
@@ -100,7 +107,8 @@ public class AdmissionDocumentPresignedTransferService {
             long uploadExpirySeconds,
             long downloadExpirySeconds,
             long pendingExpirySeconds) {
-        AdmissionDocumentUploadPolicy.validateMaxBytes(maxBytes);
+        long effectiveMaxBytes = Math.min(maxBytes, MAX_DOCUMENT_BYTES);
+        AdmissionDocumentUploadPolicy.validateMaxBytes(effectiveMaxBytes);
         this.uploadUrlExpiry = validatedDuration(
                 "app.storage.presign.upload-expiry-seconds", uploadExpirySeconds, 60, 900);
         this.downloadUrlExpiry = validatedDuration(
@@ -118,12 +126,12 @@ public class AdmissionDocumentPresignedTransferService {
         this.storage = storage;
         this.events = events;
         this.clock = clock;
-        this.maxBytes = maxBytes;
+        this.maxBytes = effectiveMaxBytes;
     }
 
     @Transactional
     public AdmissionDocumentUploadResponse initiateMine(
-            AdmissionDocumentType type,
+            String type,
             AdmissionDocumentPresignRequest request) {
         return initiate(findMine(), type, request);
     }
@@ -131,16 +139,18 @@ public class AdmissionDocumentPresignedTransferService {
     @Transactional
     public AdmissionDocumentUploadResponse initiate(
             Long admissionId,
-            AdmissionDocumentType type,
+            String type,
             AdmissionDocumentPresignRequest request) {
         return initiate(findScoped(admissionId), type, request);
     }
 
     private AdmissionDocumentUploadResponse initiate(
             AdmissionForm admission,
-            AdmissionDocumentType type,
+            String rawType,
             AdmissionDocumentPresignRequest request) {
+        String type = AdmissionDocumentRequirementService.normalizeKey(rawType);
         requireEditable(admission);
+        if (requirements != null) requirements.requireActive(admission, type);
         AdmissionDocumentUploadPolicy.ValidatedUpload validated =
                 AdmissionDocumentUploadPolicy.validate(
                         request.originalFilename(),
@@ -186,7 +196,7 @@ public class AdmissionDocumentPresignedTransferService {
 
     @Transactional(noRollbackFor = BadRequestException.class)
     public AdmissionDocumentCompletionResponse completeMine(
-            AdmissionDocumentType type,
+            String type,
             UUID uploadId) {
         AdmissionForm mine = findMine();
         return complete(findScopedForUpdate(mine.getId()), type, uploadId);
@@ -195,15 +205,16 @@ public class AdmissionDocumentPresignedTransferService {
     @Transactional(noRollbackFor = BadRequestException.class)
     public AdmissionDocumentCompletionResponse complete(
             Long admissionId,
-            AdmissionDocumentType type,
+            String type,
             UUID uploadId) {
         return complete(findScopedForUpdate(admissionId), type, uploadId);
     }
 
     private AdmissionDocumentCompletionResponse complete(
             AdmissionForm admission,
-            AdmissionDocumentType type,
+            String rawType,
             UUID uploadId) {
+        String type = AdmissionDocumentRequirementService.normalizeKey(rawType);
         AdmissionDocumentUpload upload = uploads.findByIdForUpdate(uploadId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document upload session not found"));
         requireMatchingSession(upload, admission, type);
@@ -264,20 +275,21 @@ public class AdmissionDocumentPresignedTransferService {
     }
 
     @Transactional(readOnly = true)
-    public AdmissionDocumentDownloadUrlResponse downloadMine(AdmissionDocumentType type) {
+    public AdmissionDocumentDownloadUrlResponse downloadMine(String type) {
         return download(findMine(), type);
     }
 
     @Transactional(readOnly = true)
     public AdmissionDocumentDownloadUrlResponse download(
             Long admissionId,
-            AdmissionDocumentType type) {
+            String type) {
         return download(findScoped(admissionId), type);
     }
 
     private AdmissionDocumentDownloadUrlResponse download(
             AdmissionForm admission,
-            AdmissionDocumentType type) {
+            String rawType) {
+        String type = AdmissionDocumentRequirementService.normalizeKey(rawType);
         AdmissionDocument document = documents
                 .findByAdmissionFormIdAndDocumentType(admission.getId(), type)
                 .orElseThrow(() -> new ResourceNotFoundException("Admission document not uploaded"));
@@ -350,9 +362,9 @@ public class AdmissionDocumentPresignedTransferService {
     private void requireMatchingSession(
             AdmissionDocumentUpload upload,
             AdmissionForm admission,
-            AdmissionDocumentType type) {
+            String type) {
         if (!Objects.equals(upload.getAdmissionForm().getId(), admission.getId())
-                || upload.getDocumentType() != type) {
+                || !Objects.equals(upload.getDocumentType(), type)) {
             throw new ResourceNotFoundException("Document upload session not found");
         }
     }
@@ -413,6 +425,36 @@ public class AdmissionDocumentPresignedTransferService {
                 document.getFileSize(),
                 document.getSha256Checksum(),
                 document.getVerifiedAt());
+    }
+
+    public AdmissionDocumentUploadResponse initiateMine(
+            AdmissionDocumentType type, AdmissionDocumentPresignRequest request) {
+        return initiateMine(type.name(), request);
+    }
+
+    public AdmissionDocumentUploadResponse initiate(
+            Long admissionId, AdmissionDocumentType type,
+            AdmissionDocumentPresignRequest request) {
+        return initiate(admissionId, type.name(), request);
+    }
+
+    public AdmissionDocumentCompletionResponse completeMine(
+            AdmissionDocumentType type, UUID uploadId) {
+        return completeMine(type.name(), uploadId);
+    }
+
+    public AdmissionDocumentCompletionResponse complete(
+            Long admissionId, AdmissionDocumentType type, UUID uploadId) {
+        return complete(admissionId, type.name(), uploadId);
+    }
+
+    public AdmissionDocumentDownloadUrlResponse downloadMine(AdmissionDocumentType type) {
+        return downloadMine(type.name());
+    }
+
+    public AdmissionDocumentDownloadUrlResponse download(
+            Long admissionId, AdmissionDocumentType type) {
+        return download(admissionId, type.name());
     }
 
     private void publishState(AdmissionDocumentUpload upload, String reasonCode) {

@@ -229,15 +229,15 @@ export function StaffDetailsPage() {
           />
           <Metric
             icon={CheckCircle2}
-            label="Present / late"
+            label="Present"
             value={attendance.present + attendance.late}
             help={`${attendanceRate}% of marked records`}
           />
           <Metric
             icon={Clock3}
-            label="Absent / leave"
+            label="Absent"
             value={attendance.absent + attendance.leave}
-            help={`${attendance.absent} absent · ${attendance.leave} leave`}
+            help={`${attendance.absent + attendance.leave} absent records`}
           />
         </div>
 
@@ -254,7 +254,6 @@ export function StaffDetailsPage() {
                     <th>Marked</th>
                     <th>Present</th>
                     <th>Absent</th>
-                    <th>Late / leave</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -276,10 +275,11 @@ export function StaffDetailsPage() {
                         <StatusBadge status={session.status} />
                       </td>
                       <td>{session.studentsMarked}</td>
-                      <td className="font-semibold text-emerald-700">{session.present}</td>
-                      <td className="font-semibold text-red-600">{session.absent}</td>
-                      <td>
-                        {session.late} / {session.leave}
+                      <td className="font-semibold text-emerald-700">
+                        {session.present + session.late}
+                      </td>
+                      <td className="font-semibold text-red-600">
+                        {session.absent + session.leave}
                       </td>
                     </tr>
                   ))}

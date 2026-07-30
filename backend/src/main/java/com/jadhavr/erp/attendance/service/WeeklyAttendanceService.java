@@ -89,7 +89,7 @@ public class WeeklyAttendanceService {
             WeeklyAttendanceRecord record = saved.get(student.getId());
             return new StudentRow(record == null ? null : record.getId(), student.getId(), enrollment.getRollNumber(),
                     student.getAdmissionNumber(), student.getFullName(), null,
-                    record == null ? defaultStatus.name() : record.getStatus().name(),
+                    record == null ? defaultStatus.name() : publicStatus(record.getStatus()),
                     record == null ? null : record.getRemarks());
         }).toList();
         boolean editable = session == null || session.getStatus() == WeeklyAttendanceSession.Status.DRAFT;
@@ -187,8 +187,8 @@ public class WeeklyAttendanceService {
                 : records.findBySessionIdIn(list.stream().map(WeeklyAttendanceSession::getId).toList());
         Map<Long, List<WeeklyAttendanceRecord>> sessionRecords = all.stream()
                 .collect(Collectors.groupingBy(r -> r.getSession().getId()));
-        long present = count(all, WeeklyAttendanceRecord.Status.PRESENT), absent = count(all, WeeklyAttendanceRecord.Status.ABSENT);
-        long late = count(all, WeeklyAttendanceRecord.Status.LATE), leave = count(all, WeeklyAttendanceRecord.Status.LEAVE);
+        long present = presentCount(all), absent = absentCount(all);
+        long late = 0, leave = 0;
 
         List<StudentSectionEnrollment> active = enrollments.findForAttendanceReport(
                         AcademicStatus.ACTIVE,
@@ -209,7 +209,7 @@ public class WeeklyAttendanceService {
         Set<Long> presentToday = all.stream().filter(r -> r.getSession().getAttendanceDate().equals(today))
                 .filter(this::attended).map(r -> r.getStudent().getId()).collect(Collectors.toSet());
         Set<Long> absentToday = all.stream().filter(r -> r.getSession().getAttendanceDate().equals(today))
-                .filter(r -> r.getStatus() == WeeklyAttendanceRecord.Status.ABSENT)
+                .filter(r -> !attended(r))
                 .map(r -> r.getStudent().getId()).collect(Collectors.toSet());
         List<WeeklyTimetableEntry> expectedEntries = entries.findApprovedForAttendanceReport(
                         SecurityUtils.isSuperAdmin() ? null : college,
@@ -278,8 +278,7 @@ public class WeeklyAttendanceService {
                 section.getDepartment().getId(), section.getDepartment().getName(), enrollment.getAcademicYear(),
                 section.getAcademicClass().getName(), section.getId(), section.getName(),
                 section.getClassTeacher() == null ? "Unassigned" : section.getClassTeacher().getFullName(), rows.size(),
-                count(rows, WeeklyAttendanceRecord.Status.PRESENT), count(rows, WeeklyAttendanceRecord.Status.ABSENT),
-                count(rows, WeeklyAttendanceRecord.Status.LATE), count(rows, WeeklyAttendanceRecord.Status.LEAVE), pct,
+                presentCount(rows), absentCount(rows), 0, 0, pct,
                 detailedIndicator(pct, rows.size()), subjectSummaries(rows), monthSummaries(rows),
                 ordered.stream().map(this::studentRow).toList());
     }
@@ -421,14 +420,13 @@ public class WeeklyAttendanceService {
                 s.getSubject().getId(), s.getSubject().getName(), s.getSection().getDepartment().getId(),
                 s.getSection().getDepartment().getName(), s.getSection().getId(), s.getSection().getAcademicClass().getName(),
                 s.getSection().getName(), s.getTeacher().getFullName(), s.getStatus().name(), rows.size(),
-                count(rows, WeeklyAttendanceRecord.Status.PRESENT), count(rows, WeeklyAttendanceRecord.Status.ABSENT),
-                count(rows, WeeklyAttendanceRecord.Status.LATE), count(rows, WeeklyAttendanceRecord.Status.LEAVE), percentage(rows));
+                presentCount(rows), absentCount(rows), 0, 0, percentage(rows));
     }
 
     private StudentHistoryRow studentRow(WeeklyAttendanceRecord r) {
         WeeklyAttendanceSession s = r.getSession();
         return new StudentHistoryRow(s.getAttendanceDate(), s.getStartTime() + " - " + s.getEndTime(),
-                s.getSubject().getName(), s.getTeacher().getFullName(), r.getStatus().name(), r.getRemarks());
+                s.getSubject().getName(), s.getTeacher().getFullName(), publicStatus(r.getStatus()), r.getRemarks());
     }
 
     private List<SubjectSummary> subjectSummaries(List<WeeklyAttendanceRecord> rows) {
@@ -436,9 +434,9 @@ public class WeeklyAttendanceService {
                 .values().stream().map(group -> {
                     WeeklyAttendanceRecord first = group.get(0); int total = group.size();
                     int attended = (int) group.stream().filter(this::attended).count();
-                    int absent = (int) count(group, WeeklyAttendanceRecord.Status.ABSENT);
-                    int late = (int) count(group, WeeklyAttendanceRecord.Status.LATE);
-                    int leave = (int) count(group, WeeklyAttendanceRecord.Status.LEAVE);
+                    int absent = (int) absentCount(group);
+                    int late = 0;
+                    int leave = 0;
                     double pct = total == 0 ? 0 : round(attended * 100.0 / total);
                     return new SubjectSummary(first.getSession().getSubject().getId(), first.getSession().getSubject().getName(),
                             total, attended, absent, late, leave, pct, indicator(pct));
@@ -463,14 +461,37 @@ public class WeeklyAttendanceService {
     private long count(List<WeeklyAttendanceRecord> rows, WeeklyAttendanceRecord.Status status) {
         return rows.stream().filter(r -> r.getStatus() == status).count();
     }
+    private long presentCount(List<WeeklyAttendanceRecord> rows) {
+        return rows.stream().filter(this::attended).count();
+    }
+    private long absentCount(List<WeeklyAttendanceRecord> rows) {
+        return rows.stream().filter(r -> !attended(r)).count();
+    }
+    private String publicStatus(WeeklyAttendanceRecord.Status status) {
+        return status == WeeklyAttendanceRecord.Status.PRESENT || status == WeeklyAttendanceRecord.Status.LATE
+                ? WeeklyAttendanceRecord.Status.PRESENT.name()
+                : WeeklyAttendanceRecord.Status.ABSENT.name();
+    }
     private Map<String, Long> counts(List<StudentRow> rows) {
         Map<String, Long> result = new LinkedHashMap<>();
-        for (WeeklyAttendanceRecord.Status s : WeeklyAttendanceRecord.Status.values()) result.put(s.name(), rows.stream().filter(r -> s.name().equals(r.status())).count());
+        result.put(WeeklyAttendanceRecord.Status.PRESENT.name(),
+                rows.stream().filter(r -> WeeklyAttendanceRecord.Status.PRESENT.name().equals(r.status())).count());
+        result.put(WeeklyAttendanceRecord.Status.ABSENT.name(),
+                rows.stream().filter(r -> WeeklyAttendanceRecord.Status.ABSENT.name().equals(r.status())).count());
         return result;
     }
     private WeeklyAttendanceRecord.Status parseStatus(String value) {
-        try { return WeeklyAttendanceRecord.Status.valueOf(value.trim().toUpperCase(Locale.ROOT)); }
-        catch (Exception ex) { throw new BadRequestException("Attendance status must be PRESENT, ABSENT, LATE, or LEAVE"); }
+        try {
+            WeeklyAttendanceRecord.Status status =
+                    WeeklyAttendanceRecord.Status.valueOf(value.trim().toUpperCase(Locale.ROOT));
+            if (status != WeeklyAttendanceRecord.Status.PRESENT
+                    && status != WeeklyAttendanceRecord.Status.ABSENT) {
+                throw new IllegalArgumentException();
+            }
+            return status;
+        } catch (Exception ex) {
+            throw new BadRequestException("Attendance status must be PRESENT or ABSENT");
+        }
     }
     private String indicator(double pct) { return pct >= 75 ? "GOOD" : pct >= 60 ? "WARNING" : "CRITICAL"; }
     private String detailedIndicator(double pct, int total) {

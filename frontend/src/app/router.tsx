@@ -285,6 +285,10 @@ const PrincipalWorkspacePage = lazyNamed(
   () => import("@/pages/principal/PrincipalWorkspacePage"),
   "PrincipalWorkspacePage",
 );
+const AdmissionDocumentSettingsPage = lazyNamed(
+  () => import("@/pages/principal/AdmissionDocumentSettingsPage"),
+  "AdmissionDocumentSettingsPage",
+);
 const AdminWorkspacePage = lazyNamed(
   () => import("@/pages/admin/AdminWorkspacePage"),
   "AdminWorkspacePage",
@@ -395,6 +399,10 @@ export function AppRouter() {
                 <Route
                   path={ROUTES.principalAdministration}
                   element={<PrincipalWorkspacePage kind="administration" />}
+                />
+                <Route
+                  path={ROUTES.principalAdmissionDocuments}
+                  element={<AdmissionDocumentSettingsPage />}
                 />
                 <Route path={ROUTES.departments} element={<DepartmentListPage />} />
                 <Route path="/departments/:id" element={<DepartmentDetailsPage />} />

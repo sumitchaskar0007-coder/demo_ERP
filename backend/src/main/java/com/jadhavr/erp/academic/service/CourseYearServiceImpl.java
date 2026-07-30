@@ -19,6 +19,7 @@ import com.jadhavr.erp.department.repository.DepartmentRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,7 @@ public class CourseYearServiceImpl implements CourseYearService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeCourseYears", allEntries = true)
     public CourseYearResponse create(CreateCourseYearRequest request) {
         requirePrincipal();
         Department department = departments.findById(request.departmentId())
@@ -116,6 +118,7 @@ public class CourseYearServiceImpl implements CourseYearService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeCourseYears", allEntries = true)
     public CourseYearResponse update(Long id, UpdateCourseYearRequest request) {
         requirePrincipal();
         AcademicClass entity = findScoped(id);
@@ -132,6 +135,7 @@ public class CourseYearServiceImpl implements CourseYearService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeCourseYears", allEntries = true)
     public CourseYearResponse setStatus(Long id, AcademicStatus status) {
         requirePrincipal();
         AcademicClass entity = findScoped(id);

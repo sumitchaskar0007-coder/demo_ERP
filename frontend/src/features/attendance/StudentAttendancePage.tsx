@@ -113,15 +113,12 @@ export function StudentAttendancePage() {
                     style={{ width: `${Math.min(100, s.percentage)}%` }}
                   />
                 </div>
-                <div className="mt-4 grid grid-cols-3 text-center text-xs">
+                <div className="mt-4 grid grid-cols-2 text-center text-xs">
+                  <span>
+                    <b className="block text-emerald-600">{s.attended}</b>Present
+                  </span>
                   <span>
                     <b className="block text-rose-600">{s.absent}</b>Absent
-                  </span>
-                  <span>
-                    <b className="block text-amber-600">{s.late}</b>Late
-                  </span>
-                  <span>
-                    <b className="block text-blue-600">{s.leave}</b>Leave
                   </span>
                 </div>
               </div>
@@ -163,11 +160,7 @@ export function StudentAttendancePage() {
                           "rounded-full border px-2 py-1 text-xs font-bold",
                           r.status === "PRESENT"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : r.status === "ABSENT"
-                              ? "border-rose-200 bg-rose-50 text-rose-700"
-                              : r.status === "LATE"
-                                ? "border-amber-200 bg-amber-50 text-amber-700"
-                                : "border-blue-200 bg-blue-50 text-blue-700",
+                            : "border-rose-200 bg-rose-50 text-rose-700",
                         )}
                       >
                         {r.status}

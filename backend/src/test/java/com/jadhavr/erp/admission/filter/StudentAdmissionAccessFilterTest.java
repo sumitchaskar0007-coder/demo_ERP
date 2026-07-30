@@ -101,6 +101,19 @@ class StudentAdmissionAccessFilterTest {
         verify(admissions, never()).findTopByStudentUserIdOrderByCreatedAtDesc(21L);
     }
 
+    @Test
+    void allowsPendingStudentToLoadAdmissionDocumentRequirements() throws Exception {
+        authenticateStudent(21L);
+        MockHttpServletRequest request =
+                request("/api/admission-document-requirements/me");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter().doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        verify(admissions, never()).findTopByStudentUserIdOrderByCreatedAtDesc(21L);
+    }
+
     private StudentAdmissionAccessFilter filter() {
         return new StudentAdmissionAccessFilter(
                 admissions, new ObjectMapper().registerModule(new JavaTimeModule()));

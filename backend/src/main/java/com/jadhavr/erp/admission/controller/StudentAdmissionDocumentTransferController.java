@@ -5,7 +5,6 @@ import com.jadhavr.erp.admission.dto.AdmissionDocumentCompletionResponse;
 import com.jadhavr.erp.admission.dto.AdmissionDocumentDownloadUrlResponse;
 import com.jadhavr.erp.admission.dto.AdmissionDocumentPresignRequest;
 import com.jadhavr.erp.admission.dto.AdmissionDocumentUploadResponse;
-import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.admission.service.AdmissionDocumentPresignedTransferService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import jakarta.validation.Valid;
@@ -30,7 +29,7 @@ public class StudentAdmissionDocumentTransferController {
 
     @PostMapping("/{type}/presign")
     public ApiResponse<AdmissionDocumentUploadResponse> presignUpload(
-            @PathVariable AdmissionDocumentType type,
+            @PathVariable String type,
             @Valid @RequestBody AdmissionDocumentPresignRequest request) {
         return ApiResponse.success(
                 "Admission document upload URL created",
@@ -39,7 +38,7 @@ public class StudentAdmissionDocumentTransferController {
 
     @PostMapping("/{type}/complete")
     public ApiResponse<AdmissionDocumentCompletionResponse> completeUpload(
-            @PathVariable AdmissionDocumentType type,
+            @PathVariable String type,
             @Valid @RequestBody AdmissionDocumentCompleteRequest request) {
         return ApiResponse.success(
                 "Admission document upload verified",
@@ -48,7 +47,7 @@ public class StudentAdmissionDocumentTransferController {
 
     @GetMapping("/{type}/download-url")
     public ApiResponse<AdmissionDocumentDownloadUrlResponse> downloadUrl(
-            @PathVariable AdmissionDocumentType type) {
+            @PathVariable String type) {
         return ApiResponse.success(
                 "Admission document download URL created",
                 transfers.downloadMine(type));

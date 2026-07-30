@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
@@ -9,7 +9,8 @@ import { Pagination } from "@/components/common/Pagination";
 import { Select } from "@/components/common/Select";
 import { StatusBadge } from "@/components/common/Badge";
 import { useAuth } from "@/features/auth/authStore";
-import { weeklyTimetableApi, type WeeklyDivision } from "@/features/academics/api";
+import { searchCourseYears } from "@/features/academic/api";
+import type { CourseYear } from "@/features/academic/types";
 import { searchDepartments } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
 import { handleApiError } from "@/lib/handleApiError";
@@ -32,7 +33,8 @@ export function FeeStructureListPage() {
   const collegeId = user?.collegeId ?? 0;
   const [rows, setRows] = useState<FeeStructureResponse[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [divisions, setDivisions] = useState<WeeklyDivision[]>([]);
+  const [courseYears, setCourseYears] = useState<CourseYear[]>([]);
+  const [loadingCourseYears, setLoadingCourseYears] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [page, setPage] = useState(0);
@@ -74,25 +76,44 @@ export function FeeStructureListPage() {
     searchDepartments({ collegeId, status: "ACTIVE", page: 0, size: 100 })
       .then((response) => setDepartments(uniqueDepartments(response.content)))
       .catch((error) => toast.error(handleApiError(error).message));
-    weeklyTimetableApi
-      .divisions()
-      .then(setDivisions)
-      .catch(() => setDivisions([]));
   }, [collegeId]);
   useEffect(() => {
     void load(0);
   }, [collegeId, filter]);
 
-  const courseYears = useMemo(
-    () => [
-      ...new Set(
-        divisions
-          .filter((division) => division.departmentId === Number(values.departmentId))
-          .map((division) => division.year),
-      ),
-    ],
-    [divisions, values.departmentId],
-  );
+  useEffect(() => {
+    if (!values.departmentId) {
+      setCourseYears([]);
+      setLoadingCourseYears(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingCourseYears(true);
+    searchCourseYears({
+      departmentId: Number(values.departmentId),
+      academicYear: ACADEMIC_YEAR,
+      status: "ACTIVE",
+      page: 0,
+      size: 100,
+    })
+      .then((response) => {
+        if (!cancelled) setCourseYears(response.content);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCourseYears([]);
+          toast.error(handleApiError(error).message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCourseYears(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [values.departmentId]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -172,13 +193,20 @@ export function FeeStructureListPage() {
           <Select
             label="Course Year"
             value={values.courseYear}
-            disabled={!values.departmentId || Boolean(editingId)}
+            disabled={!values.departmentId || loadingCourseYears || Boolean(editingId)}
             options={[
               {
-                label: values.departmentId ? "Select course year" : "Select department first",
+                label: loadingCourseYears
+                  ? "Loading course years..."
+                  : values.departmentId
+                    ? "Select course year"
+                    : "Select department first",
                 value: "",
               },
-              ...courseYears.map((year) => ({ label: year, value: year })),
+              ...courseYears.map((courseYear) => ({
+                label: courseYear.displayName,
+                value: courseYear.displayName,
+              })),
             ]}
             onChange={(event) => setValues({ ...values, courseYear: event.target.value })}
           />

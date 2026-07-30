@@ -1,11 +1,8 @@
 package com.jadhavr.erp.admission.entity;
 
-import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -29,9 +26,8 @@ public class AdmissionDocument extends BaseAuditEntity {
     @JoinColumn(name = "admission_form_id", nullable = false)
     private AdmissionForm admissionForm;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "document_type", nullable = false, length = 60)
-    private AdmissionDocumentType documentType;
+    private String documentType;
 
     @Column(name = "storage_name", nullable = false, length = 220)
     private String storageName;
@@ -54,8 +50,11 @@ public class AdmissionDocument extends BaseAuditEntity {
     public Long getId() { return id; }
     public AdmissionForm getAdmissionForm() { return admissionForm; }
     public void setAdmissionForm(AdmissionForm admissionForm) { this.admissionForm = admissionForm; }
-    public AdmissionDocumentType getDocumentType() { return documentType; }
-    public void setDocumentType(AdmissionDocumentType documentType) { this.documentType = documentType; }
+    public String getDocumentType() { return documentType; }
+    public void setDocumentType(String documentType) { this.documentType = documentType; }
+    public void setDocumentType(com.jadhavr.erp.admission.enums.AdmissionDocumentType documentType) {
+        this.documentType = documentType.name();
+    }
     public String getStorageName() { return storageName; }
     public void setStorageName(String storageName) { this.storageName = storageName; }
     public String getOriginalFilename() { return originalFilename; }

@@ -19,6 +19,7 @@ import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
 import com.jadhavr.erp.admission.repository.AdmissionDocumentRepository;
+import com.jadhavr.erp.admission.repository.AdmissionDocumentRequirementRepository;
 import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.SecurityUtils;
@@ -69,12 +70,18 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private final FeeService feeService;
     private final AcademicClassRepository courseYears;
     private final AdmissionDocumentRepository documents;
+    private AdmissionDocumentRequirementRepository documentRequirements;
     private final PasswordEncoder passwordEncoder;
     private EmailNotificationService emailNotifications;
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) {
         this.emailNotifications = service;
+    }
+
+    @Autowired(required = false)
+    public void setDocumentRequirements(AdmissionDocumentRequirementRepository repository) {
+        this.documentRequirements = repository;
     }
 
     @Autowired
@@ -280,7 +287,10 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
             throw new BadRequestException("Upload the passport-size photo before approval");
         }
         if (documents != null) {
-            Set<AdmissionDocumentType> missing = AdmissionDocumentType.requiredTypes();
+            Set<String> missing = documentRequirements == null
+                    ? AdmissionDocumentType.requiredTypes().stream().map(Enum::name)
+                            .collect(java.util.stream.Collectors.toSet())
+                    : documentRequirements.findRequiredKeys(admission.getCollege().getId());
             missing.removeAll(documents.findTypesByAdmissionId(admission.getId()));
             if (!missing.isEmpty()) {
                 throw new BadRequestException("All required admission documents must be uploaded before approval");

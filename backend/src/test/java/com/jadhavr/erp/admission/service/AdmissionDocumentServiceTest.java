@@ -77,7 +77,7 @@ class AdmissionDocumentServiceTest {
         Locale.setDefault(Locale.forLanguageTag("tr-TR"));
         try {
             when(documents.findByAdmissionFormIdAndDocumentTypeForUpdate(
-                    11L, AdmissionDocumentType.MIGRATION_CERTIFICATE))
+                    11L, AdmissionDocumentType.MIGRATION_CERTIFICATE.name()))
                     .thenReturn(Optional.empty());
             when(documents.saveAndFlush(any(AdmissionDocument.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
@@ -102,7 +102,7 @@ class AdmissionDocumentServiceTest {
     @Test
     void acceptsPdfWhenBrowserDoesNotProvideContentType() {
         when(documents.findByAdmissionFormIdAndDocumentTypeForUpdate(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.empty());
         when(documents.saveAndFlush(any(AdmissionDocument.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -123,11 +123,24 @@ class AdmissionDocumentServiceTest {
     }
 
     @Test
+    void rejectsDocumentLargerThanTwoMegabytes() {
+        MockMultipartFile file = new MockMultipartFile(
+                "document",
+                "large.pdf",
+                MediaType.APPLICATION_PDF_VALUE,
+                new byte[2 * 1024 * 1024 + 1]);
+
+        assertThrows(com.jadhavr.erp.common.exception.BadRequestException.class,
+                () -> service.save(11L, "CUSTOM_LARGE_FILE", file));
+        verify(storage, never()).put(anyString(), any(byte[].class), anyString());
+    }
+
+    @Test
     void deletesOldObjectOnlyAfterTransactionCommit() {
         AdmissionDocument existing = new AdmissionDocument();
         existing.setStorageName("old/document.pdf");
         when(documents.findByAdmissionFormIdAndDocumentTypeForUpdate(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.of(existing));
         when(documents.saveAndFlush(existing)).thenReturn(existing);
         TransactionSynchronizationManager.initSynchronization();
@@ -151,7 +164,7 @@ class AdmissionDocumentServiceTest {
         AdmissionDocument existing = new AdmissionDocument();
         existing.setStorageName("old/document.pdf");
         when(documents.findByAdmissionFormIdAndDocumentTypeForUpdate(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.of(existing));
         when(documents.saveAndFlush(existing)).thenReturn(existing);
         TransactionSynchronizationManager.initSynchronization();
@@ -171,7 +184,7 @@ class AdmissionDocumentServiceTest {
     @Test
     void deletesNewObjectWhenDatabaseSaveFails() {
         when(documents.findByAdmissionFormIdAndDocumentTypeForUpdate(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.empty());
         when(documents.saveAndFlush(any(AdmissionDocument.class)))
                 .thenThrow(new IllegalStateException("database write failed"));
@@ -194,7 +207,7 @@ class AdmissionDocumentServiceTest {
         document.setOriginalFilename("marksheet.pdf");
         document.setContentType(MediaType.APPLICATION_PDF_VALUE);
         when(documents.findByAdmissionFormIdAndDocumentType(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.of(document));
         byte[] content = "%PDF-1.7".getBytes(StandardCharsets.US_ASCII);
         when(storage.get("legacy-document.pdf"))

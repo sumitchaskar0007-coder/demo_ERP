@@ -1,0 +1,226 @@
+package com.jadhavr.erp.admission.service;
+
+import com.jadhavr.erp.admission.dto.AdmissionDocumentRequirementRequest;
+import com.jadhavr.erp.admission.dto.AdmissionDocumentRequirementResponse;
+import com.jadhavr.erp.admission.entity.AdmissionDocumentRequirement;
+import com.jadhavr.erp.admission.entity.AdmissionForm;
+import com.jadhavr.erp.admission.repository.AdmissionDocumentRequirementRepository;
+import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
+import com.jadhavr.erp.auth.security.SecurityUtils;
+import com.jadhavr.erp.college.entity.College;
+import com.jadhavr.erp.college.repository.CollegeRepository;
+import com.jadhavr.erp.common.exception.BadRequestException;
+import com.jadhavr.erp.common.exception.DuplicateResourceException;
+import com.jadhavr.erp.common.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
+
+@Service
+@Transactional
+public class AdmissionDocumentRequirementService {
+    private static final List<DefaultRequirement> DEFAULTS = List.of(
+            new DefaultRequirement("TENTH_MARKSHEET", "10th Marksheet", true),
+            new DefaultRequirement("TWELFTH_MARKSHEET", "12th Marksheet", true),
+            new DefaultRequirement("PROVISIONAL_CERTIFICATE", "Provisional Certificate", true),
+            new DefaultRequirement("TRANSFER_CERTIFICATE", "Transfer Certificate", true),
+            new DefaultRequirement("NATIONALITY_CERTIFICATE", "Nationality Certificate", true),
+            new DefaultRequirement("DOMICILE_CERTIFICATE", "Domicile Certificate", true),
+            new DefaultRequirement("AADHAAR_CARD", "Aadhaar Card", true),
+            new DefaultRequirement("GRADUATION_MARKSHEET", "Graduation Marksheet", false),
+            new DefaultRequirement("MIGRATION_CERTIFICATE", "Migration Certificate", false),
+            new DefaultRequirement("GAP_CERTIFICATE", "Gap Certificate", false),
+            new DefaultRequirement("ENTRANCE_SCORE_CARD", "Entrance Score Card", false),
+            new DefaultRequirement("CASTE_CERTIFICATE", "Caste Certificate", false),
+            new DefaultRequirement("CASTE_VALIDITY", "Caste Validity", false),
+            new DefaultRequirement("NON_CREAMY_LAYER_CERTIFICATE",
+                    "Non-Creamy Layer Certificate", false),
+            new DefaultRequirement("NAME_CHANGE_CERTIFICATE", "Name Change Certificate", false),
+            new DefaultRequirement("INCOME_CERTIFICATE", "Income Certificate", false),
+            new DefaultRequirement("FORM_O_MINORITY", "Form O / Minority Certificate", false));
+    private final AdmissionDocumentRequirementRepository requirements;
+    private final CollegeRepository colleges;
+    private final AdmissionFormRepository admissions;
+
+    public AdmissionDocumentRequirementService(
+            AdmissionDocumentRequirementRepository requirements,
+            CollegeRepository colleges,
+            AdmissionFormRepository admissions) {
+        this.requirements = requirements;
+        this.colleges = colleges;
+        this.admissions = admissions;
+    }
+
+    public List<AdmissionDocumentRequirementResponse> settings(Long requestedCollegeId) {
+        College college = managedCollege(requestedCollegeId);
+        seedDefaults(college);
+        return requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId())
+                .stream().map(this::response).toList();
+    }
+
+    public List<AdmissionDocumentRequirementResponse> activeForCollege(Long collegeId) {
+        College college = colleges.findById(collegeId)
+                .orElseThrow(() -> new ResourceNotFoundException("College not found"));
+        seedDefaults(college);
+        return requirements.findByCollegeIdAndActiveTrueOrderByDisplayOrderAscIdAsc(collegeId)
+                .stream().map(this::response).toList();
+    }
+
+    public List<AdmissionDocumentRequirementResponse> activeForMine() {
+        AdmissionForm admission = admissions
+                .findTopByStudentUserIdOrderByCreatedAtDesc(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
+        return activeForCollege(admission.getCollege().getId());
+    }
+
+    public List<AdmissionDocumentRequirementResponse> activeForAdmission(Long admissionId) {
+        AdmissionForm admission = admissions.findById(admissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
+        if (SecurityUtils.hasRole("STUDENT")) {
+            if (!admission.getStudentUser().getId().equals(SecurityUtils.getCurrentUserId())) {
+                throw new AccessDeniedException("Admission does not belong to the current student");
+            }
+        } else if (!SecurityUtils.isSuperAdmin()
+                && !admission.getCollege().getId().equals(
+                        SecurityUtils.requireCurrentUser().getCollegeId())) {
+            throw new AccessDeniedException("Admission is outside your college");
+        }
+        return activeForCollege(admission.getCollege().getId());
+    }
+
+    @Transactional
+    public AdmissionDocumentRequirementResponse create(
+            Long requestedCollegeId, AdmissionDocumentRequirementRequest request) {
+        College college = managedCollege(requestedCollegeId);
+        String name = normalizeName(request.documentName());
+        if (requirements.existsByCollegeIdAndDocumentNameIgnoreCase(college.getId(), name)) {
+            throw new DuplicateResourceException("Admission document name already exists");
+        }
+        AdmissionDocumentRequirement requirement = new AdmissionDocumentRequirement();
+        requirement.setCollege(college);
+        requirement.setDocumentKey("CUSTOM_" + UUID.randomUUID().toString()
+                .replace("-", "").substring(0, 24).toUpperCase(Locale.ROOT));
+        requirement.setDocumentName(name);
+        requirement.setRequired(request.required());
+        requirement.setActive(true);
+        int nextOrder = requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId())
+                .stream().mapToInt(AdmissionDocumentRequirement::getDisplayOrder)
+                .max().orElse(0) + 10;
+        requirement.setDisplayOrder(nextOrder);
+        return response(requirements.save(requirement));
+    }
+
+    @Transactional
+    public AdmissionDocumentRequirementResponse update(
+            Long id, Long requestedCollegeId, AdmissionDocumentRequirementRequest request) {
+        College college = managedCollege(requestedCollegeId);
+        AdmissionDocumentRequirement requirement = scoped(id, college.getId());
+        String name = normalizeName(request.documentName());
+        requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId()).stream()
+                .filter(item -> !item.getId().equals(id))
+                .filter(item -> item.getDocumentName().equalsIgnoreCase(name))
+                .findAny()
+                .ifPresent(item -> {
+                    throw new DuplicateResourceException("Admission document name already exists");
+                });
+        requirement.setDocumentName(name);
+        requirement.setRequired(request.required());
+        return response(requirements.save(requirement));
+    }
+
+    @Transactional
+    public AdmissionDocumentRequirementResponse setActive(
+            Long id, Long requestedCollegeId, boolean active) {
+        College college = managedCollege(requestedCollegeId);
+        AdmissionDocumentRequirement requirement = scoped(id, college.getId());
+        requirement.setActive(active);
+        return response(requirements.save(requirement));
+    }
+
+    public Set<String> requiredKeys(Long collegeId) {
+        College college = colleges.findById(collegeId)
+                .orElseThrow(() -> new ResourceNotFoundException("College not found"));
+        seedDefaults(college);
+        return requirements.findRequiredKeys(collegeId);
+    }
+
+    @Transactional
+    public void seedDefaults(College college) {
+        if (!requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId()).isEmpty()) {
+            return;
+        }
+        for (int index = 0; index < DEFAULTS.size(); index++) {
+            DefaultRequirement item = DEFAULTS.get(index);
+            AdmissionDocumentRequirement requirement = new AdmissionDocumentRequirement();
+            requirement.setCollege(college);
+            requirement.setDocumentKey(item.key());
+            requirement.setDocumentName(item.name());
+            requirement.setRequired(item.required());
+            requirement.setActive(true);
+            requirement.setDisplayOrder((index + 1) * 10);
+            requirements.save(requirement);
+        }
+    }
+
+    public void requireActive(AdmissionForm admission, String rawKey) {
+        String key = normalizeKey(rawKey);
+        seedDefaults(admission.getCollege());
+        requirements.findByCollegeIdAndDocumentKeyAndActiveTrue(
+                        admission.getCollege().getId(), key)
+                .orElseThrow(() -> new BadRequestException(
+                        "This admission document is not configured for the college"));
+    }
+
+    public static String normalizeKey(String key) {
+        if (key == null || !key.matches("[A-Za-z][A-Za-z0-9_]{1,59}")) {
+            throw new BadRequestException("Admission document key is invalid");
+        }
+        return key.toUpperCase(Locale.ROOT);
+    }
+
+    private College managedCollege(Long requestedCollegeId) {
+        Long collegeId;
+        if (SecurityUtils.isSuperAdmin()) {
+            if (requestedCollegeId == null) throw new BadRequestException("College is required");
+            collegeId = requestedCollegeId;
+        } else if (SecurityUtils.isPrincipal()) {
+            collegeId = SecurityUtils.requireCurrentUser().getCollegeId();
+            if (collegeId == null) throw new BadRequestException("Principal has no college assigned");
+            if (requestedCollegeId != null && !requestedCollegeId.equals(collegeId)) {
+                throw new AccessDeniedException("Admission document settings are outside your college");
+            }
+        } else {
+            throw new AccessDeniedException("Admission document settings access denied");
+        }
+        return colleges.findById(collegeId)
+                .orElseThrow(() -> new ResourceNotFoundException("College not found"));
+    }
+
+    private AdmissionDocumentRequirement scoped(Long id, Long collegeId) {
+        return requirements.findByIdAndCollegeId(id, collegeId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Admission document setting not found"));
+    }
+
+    private String normalizeName(String name) {
+        if (name == null) throw new BadRequestException("Document name is required");
+        String normalized = name.trim().replaceAll("\\s+", " ");
+        if (normalized.length() < 2 || normalized.length() > 120) {
+            throw new BadRequestException("Document name must contain 2 to 120 characters");
+        }
+        return normalized;
+    }
+
+    private AdmissionDocumentRequirementResponse response(AdmissionDocumentRequirement item) {
+        return new AdmissionDocumentRequirementResponse(
+                item.getId(), item.getDocumentKey(), item.getDocumentName(),
+                item.isRequired(), item.isActive(), item.getDisplayOrder());
+    }
+
+    private record DefaultRequirement(String key, String name, boolean required) {}
+}

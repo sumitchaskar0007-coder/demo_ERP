@@ -150,7 +150,7 @@ class AdmissionDocumentPresignedTransferServiceTest {
         assertThrows(BadRequestException.class, () -> service.initiate(
                 11L,
                 AdmissionDocumentType.TENTH_MARKSHEET,
-                request("marksheet.pdf", "application/pdf", 5L * 1024 * 1024 + 1)));
+                request("marksheet.pdf", "application/pdf", 2L * 1024 * 1024 + 1)));
 
         verify(uploads, never()).saveAndFlush(any());
         verify(presignedStorage, never()).presignUpload(
@@ -181,7 +181,7 @@ class AdmissionDocumentPresignedTransferServiceTest {
                 .thenReturn(new PresignedObjectStorageService.ObjectMetadata(
                         1024, "application/pdf", SHA256_BASE64));
         when(documents.findByAdmissionFormIdAndDocumentTypeForUpdate(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.of(oldDocument));
         when(documents.saveAndFlush(oldDocument)).thenReturn(oldDocument);
         when(uploads.save(upload)).thenReturn(upload);
@@ -255,7 +255,7 @@ class AdmissionDocumentPresignedTransferServiceTest {
         document.setSha256Checksum(SHA256_HEX);
         document.setVerifiedAt(NOW);
         when(documents.findByAdmissionFormIdAndDocumentType(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.of(document));
         when(presignedStorage.presignDownload(
                 document.getStorageName(), "marksheet.pdf", "application/pdf", java.time.Duration.ofSeconds(120)))
@@ -295,7 +295,7 @@ class AdmissionDocumentPresignedTransferServiceTest {
         legacy.setContentType("application/pdf");
         legacy.setFileSize(1024L);
         when(documents.findByAdmissionFormIdAndDocumentType(
-                11L, AdmissionDocumentType.TENTH_MARKSHEET))
+                11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.of(legacy));
 
         assertThrows(BadRequestException.class,
