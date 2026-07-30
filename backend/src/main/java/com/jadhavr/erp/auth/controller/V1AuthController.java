@@ -40,7 +40,10 @@ public class V1AuthController {
     }
     @PostMapping("/logout")
     public ApiResponse<Void> logout(@AuthenticationPrincipal CustomUserDetails current, HttpServletRequest request, HttpServletResponse response) {
-        authentication.logout(current == null ? null : current.getId(), clientIp(request), request.getHeader("User-Agent")); cookies.clear(response);
+        authentication.logout(current == null ? null : current.getId(),
+                cookie(request, AuthCookieService.REFRESH_COOKIE),
+                clientIp(request), request.getHeader("User-Agent"));
+        cookies.clear(response);
         return ApiResponse.success("Logout successful", null);
     }
     @GetMapping("/me") @Transactional(readOnly = true)

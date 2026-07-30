@@ -41,6 +41,16 @@ production_database_secret_kms_key_arns = []
 # access_ready=true and desired_count=2 or higher.
 production_database_access_ready = false
 desired_count                    = 0
+backend_task_cpu                 = 1024
+backend_task_memory              = 2048
+backend_autoscaling_min_capacity = 2
+backend_autoscaling_max_capacity = 12
+backend_peak_schedule_enabled    = false
+backend_peak_capacity            = 8
+backend_requests_per_target      = 900
+backend_db_pool_max_size         = 12
+backend_db_pool_min_idle         = 2
+database_connection_budget      = 180
 
 temporary_domain = true
 domain_name      = ""

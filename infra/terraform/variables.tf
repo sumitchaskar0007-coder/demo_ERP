@@ -165,3 +165,75 @@ variable "desired_count" {
     error_message = "desired_count cannot be negative"
   }
 }
+
+variable "backend_task_cpu" {
+  type        = number
+  default     = 1024
+  description = "Fargate CPU units. Keep 1024 until staging load-test evidence approves 2048."
+}
+
+variable "backend_task_memory" {
+  type        = number
+  default     = 2048
+  description = "Fargate memory MiB. Keep 2048 until staging load-test evidence approves 4096."
+}
+
+variable "backend_autoscaling_min_capacity" {
+  type        = number
+  default     = 2
+  description = "Minimum backend tasks outside scheduled peak periods."
+}
+
+variable "backend_autoscaling_max_capacity" {
+  type        = number
+  default     = 12
+  description = "Maximum backend tasks permitted by target tracking."
+}
+
+variable "backend_peak_schedule_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable scheduled pre-scaling only after the institution confirms its login window."
+}
+
+variable "backend_peak_scale_out_schedule" {
+  type        = string
+  default     = "cron(45 7 ? * MON-SAT *)"
+  description = "Asia/Kolkata schedule for pre-scaling."
+}
+
+variable "backend_peak_scale_in_schedule" {
+  type        = string
+  default     = "cron(0 10 ? * MON-SAT *)"
+  description = "Asia/Kolkata schedule for returning to off-peak capacity."
+}
+
+variable "backend_peak_capacity" {
+  type        = number
+  default     = 8
+  description = "Tasks kept ready during the configured login window."
+}
+
+variable "backend_requests_per_target" {
+  type        = number
+  default     = 900
+  description = "ALB requests per target per minute target-tracking threshold."
+}
+
+variable "backend_db_pool_max_size" {
+  type        = number
+  default     = 12
+  description = "Maximum Hikari connections per backend task."
+}
+
+variable "backend_db_pool_min_idle" {
+  type        = number
+  default     = 2
+  description = "Minimum idle Hikari connections per backend task."
+}
+
+variable "database_connection_budget" {
+  type        = number
+  default     = 180
+  description = "Maximum aggregate application connections reserved for ECS; verify against the selected RDS class."
+}

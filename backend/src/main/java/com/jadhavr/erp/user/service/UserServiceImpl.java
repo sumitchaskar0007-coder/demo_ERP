@@ -24,6 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.jadhavr.erp.email.service.EmailNotificationService;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
@@ -41,9 +42,12 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper mapper;
     private EmailNotificationService emailNotifications;
+    private AuthorizationSnapshotService authorizationSnapshots;
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
+    @Autowired(required = false)
+    public void setAuthorizationSnapshots(AuthorizationSnapshotService service) { this.authorizationSnapshots = service; }
 
     public UserServiceImpl(UserRepository users, RoleRepository roles,
                            CollegeRepository colleges, PasswordEncoder passwordEncoder,
@@ -83,6 +87,7 @@ public class UserServiceImpl implements UserService {
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(principalRole));
         User saved = users.save(user);
+        evictAuthorization(saved.getId());
         if (emailNotifications != null) emailNotifications.queuePrincipalCreatedEmail(saved);
         return mapper.toResponse(saved);
     }
@@ -98,7 +103,9 @@ public class UserServiceImpl implements UserService {
         if (request.password() != null && !request.password().isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(request.password()));
         }
-        return mapper.toResponse(users.save(user));
+        User saved = users.save(user);
+        evictAuthorization(saved.getId());
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -127,6 +134,7 @@ public class UserServiceImpl implements UserService {
         }
         user.setStatus(UserStatus.ACTIVE);
         User saved = users.save(user);
+        evictAuthorization(saved.getId());
         if (emailNotifications != null) emailNotifications.queueAccountActivatedEmail(saved);
         return mapper.toResponse(saved);
     }
@@ -137,6 +145,7 @@ public class UserServiceImpl implements UserService {
         User user = findUser(id);
         user.setStatus(UserStatus.INACTIVE);
         User saved = users.save(user);
+        evictAuthorization(saved.getId());
         if (emailNotifications != null) emailNotifications.queueAccountDeactivatedEmail(saved);
         return mapper.toResponse(saved);
     }
@@ -187,5 +196,8 @@ public class UserServiceImpl implements UserService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+    private void evictAuthorization(Long userId) {
+        if (authorizationSnapshots != null) authorizationSnapshots.evict(userId);
     }
 }

@@ -1,0 +1,12 @@
+[
+  {
+    "email": "student-load-0001@example.invalid",
+    "password": "REPLACE_WITH_SYNTHETIC_PASSWORD",
+    "role": "STUDENT"
+  },
+  {
+    "email": "teacher-load-0001@example.invalid",
+    "password": "REPLACE_WITH_SYNTHETIC_PASSWORD",
+    "role": "SUBJECT_TEACHER"
+  }
+]

@@ -1,112 +1,294 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/features/auth/authStore";
-import { LoginPage } from "@/pages/auth/LoginPage";
-import {
-  ForgotPasswordPage,
-  ResetPasswordPage,
-  VerifyEmailPage,
-} from "@/pages/auth/PasswordRecoveryPages";
-import { ProfilePage } from "@/pages/auth/ProfilePage";
-import { ChangePasswordPage } from "@/pages/auth/ChangePasswordPage";
-import { CollegeDetailsPage } from "@/pages/colleges/CollegeDetailsPage";
-import { CollegeListPage } from "@/pages/colleges/CollegeListPage";
-import { AdmissionPrintPage } from "@/pages/admissions/AdmissionPrintPage";
-import { PrincipalAdmissionDetailPage } from "@/pages/admissions/PrincipalAdmissionDetailPage";
-import { PrincipalReviewQueuePage } from "@/pages/admissions/PrincipalReviewQueuePage";
-import { PublicAdmissionPage } from "@/pages/admissions/PublicAdmissionPage";
-import { StudentSectionAdmissionDetailPage } from "@/pages/admissions/StudentSectionAdmissionDetailPage";
-import { StudentSectionAdmissionListPage } from "@/pages/admissions/StudentSectionAdmissionListPage";
-import { StudentSectionDashboardPage } from "@/pages/admissions/StudentSectionDashboardPage";
-import { StudentDocumentsPage } from "@/pages/admissions/StudentDocumentsPage";
-import { DepartmentDetailsPage } from "@/pages/departments/DepartmentDetailsPage";
-import { DepartmentListPage } from "@/pages/departments/DepartmentListPage";
-import { CreateStudentSectionStaffPage } from "@/pages/staff/CreateStudentSectionStaffPage";
-import { CreateFeeSectionStaffPage } from "@/pages/staff/CreateFeeSectionStaffPage";
-import {
-  FeeStructureDetailsPage,
-  FeeStructureFormPage,
-  FeeStructureListPage,
-} from "@/pages/fees/FeeStructurePages";
-import {
-  MyFeeTransactionsPage,
-  MyPaymentsPage,
-  StudentFeesPage,
-  SubmitPaymentPage,
-} from "@/pages/fees/StudentFeePages";
-import {
-  FeeAccountDetailsPage,
-  FeeAccountsPage,
-  FeeSectionDashboardPage,
-  PaymentDetailsPage,
-  PaymentsPage,
-} from "@/pages/fees/FeeSectionPages";
-import { FeeOfficerWorkspacePage } from "@/pages/fees/FeeOfficerWorkspacePage";
-import { StaffListPage } from "@/pages/staff/StaffListPage";
-import { StaffDetailsPage } from "@/pages/staff/StaffDetailsPage";
-import { CreateStaffPage } from "@/pages/staff/CreateStaffPage";
-import { EditStaffPage } from "@/pages/staff/EditStaffPage";
-import {
-  CourseYearFormPage,
-  CourseYearListPage,
-  DivisionFormPage,
-  DivisionDetailsPage,
-  DivisionListPage,
-} from "@/pages/academic/CourseYearDivisionPages";
-import { StudentAdmissionPage } from "@/pages/student/StudentAdmissionPage";
-import { AdminStudentListPage } from "@/pages/student/AdminStudentListPage";
-import { StudentDashboardPage } from "@/pages/student/StudentDashboardPage";
-import { StudentProfilePage } from "@/pages/student/StudentProfilePage";
-import { CreatePrincipalPage } from "@/pages/users/CreatePrincipalPage";
-import { EditPrincipalPage } from "@/features/users/EditPrincipalPage";
-import { UserDetailsPage } from "@/pages/users/UserDetailsPage";
-import { UserListPage } from "@/pages/users/UserListPage";
-import { NoticesPage } from "@/features/notices/NoticesPage";
-import { AcademicSetupPage } from "@/features/academics/AcademicSetupPage";
-import { TimetablePage } from "@/features/academics/TimetablePage";
-import { AttendancePage } from "@/features/academics/AttendancePage";
 import { ROLES, ROUTES, defaultRouteForRoles } from "@/lib/constants";
-import { ForbiddenPage } from "@/pages/ForbiddenPage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
-import { ServerErrorPage } from "@/pages/ServerErrorPage";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { RoleRoute } from "@/routes/RoleRoute";
 import { StudentAdmissionGate } from "@/routes/StudentAdmissionGate";
-import { AccountPage } from "@/pages/account/AccountPage";
-import { RoleDashboardPage } from "@/pages/dashboard/RoleDashboardPage";
-const ReportPage = lazy(() =>
-  import("@/pages/reports/ReportPage").then((m) => ({ default: m.ReportPage })),
-);
-import { AuditLogPage } from "@/pages/audit/AuditLogPage";
-import {
-  AdminAnalyticsPage,
-  AdminDashboardPage,
-  AdminFeeSetupPage,
-  AdminMoneyPage,
-  AdminLectureLoadPage,
-} from "@/pages/admin/AdminPages";
-import {
-  AcademicCreatePage,
-  AcademicListPage,
-  StudentAcademicPage,
-  SubjectEditPage,
-} from "@/pages/academic/AcademicPages";
-import {
-  MyClassRosterPage,
-  StudentAllocationPage,
-  StudentClassPage,
-} from "@/pages/academic/ClassAllocationPages";
-import { SubjectTeacherAssignmentPage } from "@/pages/academic/SubjectTeacherAssignmentPage";
-import { TeacherTimetablePage } from "@/features/teacherTimetable/TeacherTimetablePage";
-import { TeacherAttendancePage } from "@/features/attendance/TeacherAttendancePage";
-import { StudentAttendancePage } from "@/features/attendance/StudentAttendancePage";
-import { AttendanceReportPage } from "@/features/attendance/AttendanceReportPage";
 import { StudentAcademicAccessProvider } from "@/features/academics/StudentAcademicAccessContext";
-import { HodWorkspacePage } from "@/pages/hod/HodWorkspacePage";
-import { TeacherWorkspacePage } from "@/pages/teacher/TeacherWorkspacePage";
-import { PrincipalWorkspacePage } from "@/pages/principal/PrincipalWorkspacePage";
-import { AdminWorkspacePage } from "@/pages/admin/AdminWorkspacePage";
+
+// Component props are inferred from each selected module export.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyComponent = ComponentType<any>;
+
+function lazyNamed<TModule, TKey extends keyof TModule>(
+  loader: () => Promise<TModule>,
+  exportName: TKey,
+): LazyExoticComponent<Extract<TModule[TKey], AnyComponent>> {
+  return lazy(async () => ({
+    default: (await loader())[exportName] as Extract<TModule[TKey], AnyComponent>,
+  }));
+}
+
+const LoginPage = lazyNamed(() => import("@/pages/auth/LoginPage"), "LoginPage");
+const ForgotPasswordPage = lazyNamed(
+  () => import("@/pages/auth/PasswordRecoveryPages"),
+  "ForgotPasswordPage",
+);
+const ResetPasswordPage = lazyNamed(
+  () => import("@/pages/auth/PasswordRecoveryPages"),
+  "ResetPasswordPage",
+);
+const VerifyEmailPage = lazyNamed(
+  () => import("@/pages/auth/PasswordRecoveryPages"),
+  "VerifyEmailPage",
+);
+const ProfilePage = lazyNamed(() => import("@/pages/auth/ProfilePage"), "ProfilePage");
+const ChangePasswordPage = lazyNamed(
+  () => import("@/pages/auth/ChangePasswordPage"),
+  "ChangePasswordPage",
+);
+const CollegeDetailsPage = lazyNamed(
+  () => import("@/pages/colleges/CollegeDetailsPage"),
+  "CollegeDetailsPage",
+);
+const CollegeListPage = lazyNamed(
+  () => import("@/pages/colleges/CollegeListPage"),
+  "CollegeListPage",
+);
+const AdmissionPrintPage = lazyNamed(
+  () => import("@/pages/admissions/AdmissionPrintPage"),
+  "AdmissionPrintPage",
+);
+const PrincipalAdmissionDetailPage = lazyNamed(
+  () => import("@/pages/admissions/PrincipalAdmissionDetailPage"),
+  "PrincipalAdmissionDetailPage",
+);
+const PrincipalReviewQueuePage = lazyNamed(
+  () => import("@/pages/admissions/PrincipalReviewQueuePage"),
+  "PrincipalReviewQueuePage",
+);
+const PublicAdmissionPage = lazyNamed(
+  () => import("@/pages/admissions/PublicAdmissionPage"),
+  "PublicAdmissionPage",
+);
+const StudentSectionAdmissionDetailPage = lazyNamed(
+  () => import("@/pages/admissions/StudentSectionAdmissionDetailPage"),
+  "StudentSectionAdmissionDetailPage",
+);
+const StudentSectionAdmissionListPage = lazyNamed(
+  () => import("@/pages/admissions/StudentSectionAdmissionListPage"),
+  "StudentSectionAdmissionListPage",
+);
+const StudentSectionDashboardPage = lazyNamed(
+  () => import("@/pages/admissions/StudentSectionDashboardPage"),
+  "StudentSectionDashboardPage",
+);
+const StudentDocumentsPage = lazyNamed(
+  () => import("@/pages/admissions/StudentDocumentsPage"),
+  "StudentDocumentsPage",
+);
+const DepartmentDetailsPage = lazyNamed(
+  () => import("@/pages/departments/DepartmentDetailsPage"),
+  "DepartmentDetailsPage",
+);
+const DepartmentListPage = lazyNamed(
+  () => import("@/pages/departments/DepartmentListPage"),
+  "DepartmentListPage",
+);
+const CreateStudentSectionStaffPage = lazyNamed(
+  () => import("@/pages/staff/CreateStudentSectionStaffPage"),
+  "CreateStudentSectionStaffPage",
+);
+const CreateFeeSectionStaffPage = lazyNamed(
+  () => import("@/pages/staff/CreateFeeSectionStaffPage"),
+  "CreateFeeSectionStaffPage",
+);
+const FeeStructureDetailsPage = lazyNamed(
+  () => import("@/pages/fees/FeeStructurePages"),
+  "FeeStructureDetailsPage",
+);
+const FeeStructureFormPage = lazyNamed(
+  () => import("@/pages/fees/FeeStructurePages"),
+  "FeeStructureFormPage",
+);
+const FeeStructureListPage = lazyNamed(
+  () => import("@/pages/fees/FeeStructurePages"),
+  "FeeStructureListPage",
+);
+const MyFeeTransactionsPage = lazyNamed(
+  () => import("@/pages/fees/StudentFeePages"),
+  "MyFeeTransactionsPage",
+);
+const MyPaymentsPage = lazyNamed(() => import("@/pages/fees/StudentFeePages"), "MyPaymentsPage");
+const StudentFeesPage = lazyNamed(() => import("@/pages/fees/StudentFeePages"), "StudentFeesPage");
+const SubmitPaymentPage = lazyNamed(
+  () => import("@/pages/fees/StudentFeePages"),
+  "SubmitPaymentPage",
+);
+const FeeAccountDetailsPage = lazyNamed(
+  () => import("@/pages/fees/FeeSectionPages"),
+  "FeeAccountDetailsPage",
+);
+const FeeAccountsPage = lazyNamed(() => import("@/pages/fees/FeeSectionPages"), "FeeAccountsPage");
+const FeeSectionDashboardPage = lazyNamed(
+  () => import("@/pages/fees/FeeSectionPages"),
+  "FeeSectionDashboardPage",
+);
+const PaymentDetailsPage = lazyNamed(
+  () => import("@/pages/fees/FeeSectionPages"),
+  "PaymentDetailsPage",
+);
+const PaymentsPage = lazyNamed(() => import("@/pages/fees/FeeSectionPages"), "PaymentsPage");
+const FeeOfficerWorkspacePage = lazyNamed(
+  () => import("@/pages/fees/FeeOfficerWorkspacePage"),
+  "FeeOfficerWorkspacePage",
+);
+const StaffListPage = lazyNamed(() => import("@/pages/staff/StaffListPage"), "StaffListPage");
+const StaffDetailsPage = lazyNamed(
+  () => import("@/pages/staff/StaffDetailsPage"),
+  "StaffDetailsPage",
+);
+const CreateStaffPage = lazyNamed(() => import("@/pages/staff/CreateStaffPage"), "CreateStaffPage");
+const EditStaffPage = lazyNamed(() => import("@/pages/staff/EditStaffPage"), "EditStaffPage");
+const CourseYearFormPage = lazyNamed(
+  () => import("@/pages/academic/CourseYearDivisionPages"),
+  "CourseYearFormPage",
+);
+const CourseYearListPage = lazyNamed(
+  () => import("@/pages/academic/CourseYearDivisionPages"),
+  "CourseYearListPage",
+);
+const DivisionFormPage = lazyNamed(
+  () => import("@/pages/academic/CourseYearDivisionPages"),
+  "DivisionFormPage",
+);
+const DivisionDetailsPage = lazyNamed(
+  () => import("@/pages/academic/CourseYearDivisionPages"),
+  "DivisionDetailsPage",
+);
+const DivisionListPage = lazyNamed(
+  () => import("@/pages/academic/CourseYearDivisionPages"),
+  "DivisionListPage",
+);
+const StudentAdmissionPage = lazyNamed(
+  () => import("@/pages/student/StudentAdmissionPage"),
+  "StudentAdmissionPage",
+);
+const AdminStudentListPage = lazyNamed(
+  () => import("@/pages/student/AdminStudentListPage"),
+  "AdminStudentListPage",
+);
+const StudentDashboardPage = lazyNamed(
+  () => import("@/pages/student/StudentDashboardPage"),
+  "StudentDashboardPage",
+);
+const StudentProfilePage = lazyNamed(
+  () => import("@/pages/student/StudentProfilePage"),
+  "StudentProfilePage",
+);
+const CreatePrincipalPage = lazyNamed(
+  () => import("@/pages/users/CreatePrincipalPage"),
+  "CreatePrincipalPage",
+);
+const EditPrincipalPage = lazyNamed(
+  () => import("@/features/users/EditPrincipalPage"),
+  "EditPrincipalPage",
+);
+const UserDetailsPage = lazyNamed(() => import("@/pages/users/UserDetailsPage"), "UserDetailsPage");
+const UserListPage = lazyNamed(() => import("@/pages/users/UserListPage"), "UserListPage");
+const NoticesPage = lazyNamed(() => import("@/features/notices/NoticesPage"), "NoticesPage");
+const AcademicSetupPage = lazyNamed(
+  () => import("@/features/academics/AcademicSetupPage"),
+  "AcademicSetupPage",
+);
+const TimetablePage = lazyNamed(
+  () => import("@/features/academics/TimetablePage"),
+  "TimetablePage",
+);
+const AttendancePage = lazyNamed(
+  () => import("@/features/academics/AttendancePage"),
+  "AttendancePage",
+);
+const ForbiddenPage = lazyNamed(() => import("@/pages/ForbiddenPage"), "ForbiddenPage");
+const NotFoundPage = lazyNamed(() => import("@/pages/NotFoundPage"), "NotFoundPage");
+const ServerErrorPage = lazyNamed(() => import("@/pages/ServerErrorPage"), "ServerErrorPage");
+const AccountPage = lazyNamed(() => import("@/pages/account/AccountPage"), "AccountPage");
+const RoleDashboardPage = lazyNamed(
+  () => import("@/pages/dashboard/RoleDashboardPage"),
+  "RoleDashboardPage",
+);
+const ReportPage = lazyNamed(() => import("@/pages/reports/ReportPage"), "ReportPage");
+const AuditLogPage = lazyNamed(() => import("@/pages/audit/AuditLogPage"), "AuditLogPage");
+const AdminAnalyticsPage = lazyNamed(
+  () => import("@/pages/admin/AdminPages"),
+  "AdminAnalyticsPage",
+);
+const AdminDashboardPage = lazyNamed(
+  () => import("@/pages/admin/AdminPages"),
+  "AdminDashboardPage",
+);
+const AdminFeeSetupPage = lazyNamed(() => import("@/pages/admin/AdminPages"), "AdminFeeSetupPage");
+const AdminMoneyPage = lazyNamed(() => import("@/pages/admin/AdminPages"), "AdminMoneyPage");
+const AdminLectureLoadPage = lazyNamed(
+  () => import("@/pages/admin/AdminPages"),
+  "AdminLectureLoadPage",
+);
+const AcademicCreatePage = lazyNamed(
+  () => import("@/pages/academic/AcademicPages"),
+  "AcademicCreatePage",
+);
+const AcademicListPage = lazyNamed(
+  () => import("@/pages/academic/AcademicPages"),
+  "AcademicListPage",
+);
+const StudentAcademicPage = lazyNamed(
+  () => import("@/pages/academic/AcademicPages"),
+  "StudentAcademicPage",
+);
+const SubjectEditPage = lazyNamed(
+  () => import("@/pages/academic/AcademicPages"),
+  "SubjectEditPage",
+);
+const MyClassRosterPage = lazyNamed(
+  () => import("@/pages/academic/ClassAllocationPages"),
+  "MyClassRosterPage",
+);
+const StudentAllocationPage = lazyNamed(
+  () => import("@/pages/academic/ClassAllocationPages"),
+  "StudentAllocationPage",
+);
+const StudentClassPage = lazyNamed(
+  () => import("@/pages/academic/ClassAllocationPages"),
+  "StudentClassPage",
+);
+const SubjectTeacherAssignmentPage = lazyNamed(
+  () => import("@/pages/academic/SubjectTeacherAssignmentPage"),
+  "SubjectTeacherAssignmentPage",
+);
+const TeacherTimetablePage = lazyNamed(
+  () => import("@/features/teacherTimetable/TeacherTimetablePage"),
+  "TeacherTimetablePage",
+);
+const TeacherAttendancePage = lazyNamed(
+  () => import("@/features/attendance/TeacherAttendancePage"),
+  "TeacherAttendancePage",
+);
+const StudentAttendancePage = lazyNamed(
+  () => import("@/features/attendance/StudentAttendancePage"),
+  "StudentAttendancePage",
+);
+const AttendanceReportPage = lazyNamed(
+  () => import("@/features/attendance/AttendanceReportPage"),
+  "AttendanceReportPage",
+);
+const HodWorkspacePage = lazyNamed(
+  () => import("@/pages/hod/HodWorkspacePage"),
+  "HodWorkspacePage",
+);
+const TeacherWorkspacePage = lazyNamed(
+  () => import("@/pages/teacher/TeacherWorkspacePage"),
+  "TeacherWorkspacePage",
+);
+const PrincipalWorkspacePage = lazyNamed(
+  () => import("@/pages/principal/PrincipalWorkspacePage"),
+  "PrincipalWorkspacePage",
+);
+const AdminWorkspacePage = lazyNamed(
+  () => import("@/pages/admin/AdminWorkspacePage"),
+  "AdminWorkspacePage",
+);
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();

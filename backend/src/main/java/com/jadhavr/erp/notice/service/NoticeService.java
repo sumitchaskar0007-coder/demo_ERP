@@ -13,6 +13,7 @@ public interface NoticeService {
     NoticeResponse createWorkflowNotice(String title, String message, NoticePriority priority,
                                         Set<RoleName> audienceRoles, College college, String actionPath);
     List<NoticeResponse> inbox();
+    long unreadCount();
     List<NoticeResponse> sent();
     void acknowledge(Long id);
     void markInboxSeen();

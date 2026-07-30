@@ -3,7 +3,13 @@ import { Bell, Clock3, LogOut, X } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/authStore";
-import { acknowledgeNotice, getNoticeInbox, markNoticeInboxSeen } from "@/features/notices/api";
+import {
+  acknowledgeNotice,
+  getNoticeInbox,
+  getUnreadNoticeCount,
+  markNoticeInboxSeen,
+  subscribeToNoticeChanges,
+} from "@/features/notices/api";
 import type { Notice } from "@/features/notices/types";
 import { DASHBOARD_NAVIGATION_VISIBILITY_EVENT, ROLES, ROUTES } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
@@ -20,6 +26,7 @@ export function DashboardLayout() {
     () => !user?.roles.includes(ROLES.STUDENT),
   );
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [popup, setPopup] = useState<Notice | null>(null);
   const [acknowledgeSeconds, setAcknowledgeSeconds] = useState(8);
   const [acknowledging, setAcknowledging] = useState(false);
@@ -44,20 +51,33 @@ export function DashboardLayout() {
 
   useEffect(() => {
     let active = true;
-    const refreshNotices = () => {
-      getNoticeInbox()
-        .then((rows) => {
+    let lastCount = -1;
+    const refreshCount = async () => {
+      if (!active || document.visibilityState === "hidden") return;
+      try {
+        const count = await getUnreadNoticeCount();
+        if (!active) return;
+        setUnreadCount(count);
+        if (count > 0 && count !== lastCount) {
+          const rows = await getNoticeInbox();
           if (active) setNotices(rows);
-        })
-        .catch(() => undefined);
+        } else if (count === 0) {
+          setNotices([]);
+        }
+        lastCount = count;
+      } catch {
+        // SSE reconnect and the low-frequency fallback will retry.
+      }
     };
-    refreshNotices();
-    const timer = window.setInterval(refreshNotices, 15_000);
+    void refreshCount();
+    const unsubscribe = subscribeToNoticeChanges(() => void refreshCount());
+    const timer = window.setInterval(() => void refreshCount(), 90_000);
     return () => {
       active = false;
+      unsubscribe();
       window.clearInterval(timer);
     };
-  }, [location.pathname, user?.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -85,6 +105,7 @@ export function DashboardLayout() {
       .then(() => {
         if (active) {
           setNotices((current) => current.map((notice) => ({ ...notice, seen: true })));
+          setUnreadCount(0);
         }
       })
       .catch(() => undefined);
@@ -169,7 +190,7 @@ export function DashboardLayout() {
         }
       >
         {navigationVisible && (
-          <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unread.length} />
+          <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unreadCount} />
         )}
         <main className={navigationVisible ? "min-w-0 pt-16 lg:pt-0" : "min-w-0"}>
           {priorityNotice ? (

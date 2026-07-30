@@ -4,6 +4,8 @@ import com.jadhavr.erp.auth.entity.SecurityAuditEvent;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.repository.SecurityAuditEventRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,9 +17,12 @@ public class SecurityEventService {
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final SecurityAuditEventRepository events;
+    private AuthorizationSnapshotService authorizationSnapshots;
     public SecurityEventService(UserRepository users, RefreshTokenRepository refreshTokens, SecurityAuditEventRepository events) {
         this.users = users; this.refreshTokens = refreshTokens; this.events = events;
     }
+    @Autowired(required = false)
+    public void setAuthorizationSnapshots(AuthorizationSnapshotService service) { this.authorizationSnapshots = service; }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void loginFailure(String email, String ip, String agent) {
         var user = users.findByEmail(email).orElse(null);
@@ -25,6 +30,7 @@ public class SecurityEventService {
             int failures = user.getFailedLoginAttempts() + 1; user.setFailedLoginAttempts(failures);
             if (failures >= MAX_FAILURES) user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
             users.save(user);
+            evict(user.getId());
         }
         record(user == null ? null : user.getId(), user == null || user.getCollege() == null ? null : user.getCollege().getId(),
                 "LOGIN_FAILURE", false, ip, agent, user == null ? "Unknown account" : "Invalid credentials or locked account");
@@ -32,7 +38,7 @@ public class SecurityEventService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void refreshReuse(Long userId, String ip, String agent) {
         var user = users.findById(userId).orElse(null);
-        if (user != null) { refreshTokens.revokeAllForUser(userId); user.setSessionVersion(user.getSessionVersion() + 1); users.save(user); }
+        if (user != null) { refreshTokens.revokeAllForUser(userId); user.setSessionVersion(user.getSessionVersion() + 1); users.save(user); evict(userId); }
         record(userId, user == null || user.getCollege() == null ? null : user.getCollege().getId(),
                 "REFRESH_TOKEN_REUSE", false, ip, agent, "All sessions revoked");
     }
@@ -46,4 +52,5 @@ public class SecurityEventService {
         event.setUserAgent(trim(agent, 300)); event.setDetails(trim(details, 300)); events.save(event);
     }
     private String trim(String value, int max) { return value == null ? null : value.substring(0, Math.min(value.length(), max)); }
+    private void evict(Long userId) { if (authorizationSnapshots != null) authorizationSnapshots.evict(userId); }
 }

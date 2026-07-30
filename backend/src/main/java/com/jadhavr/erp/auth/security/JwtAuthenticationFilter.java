@@ -10,18 +10,22 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
+    private final ObjectProvider<AuthorizationSnapshotService> authorizationSnapshots;
     private final CustomUserDetailsService userDetailsService;
 
     public JwtAuthenticationFilter(JwtService jwtService,
-            CustomUserDetailsService userDetailsService) {
+            CustomUserDetailsService userDetailsService,
+            ObjectProvider<AuthorizationSnapshotService> authorizationSnapshots) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.authorizationSnapshots = authorizationSnapshots;
     }
 
     @Override
@@ -40,7 +44,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String email = jwtService.extractUsername(token);
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails user = userDetailsService.loadUserByUsername(email);
+                AuthorizationSnapshotService snapshots = authorizationSnapshots.getIfAvailable();
+                UserDetails user = snapshots == null
+                        ? userDetailsService.loadUserByUsername(email)
+                        : snapshots.load(jwtService.extractUserId(token), email);
                 if (jwtService.isTokenValid(token, user)) {
                     var authentication = new UsernamePasswordAuthenticationToken(
                             user, null, user.getAuthorities());

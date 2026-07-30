@@ -187,10 +187,24 @@ locals {
     { name = "REDIS_SSL_ENABLED", value = "true" },
     { name = "AWS_REGION", value = var.aws_region },
     { name = "AWS_PRIVATE_UPLOAD_BUCKET", value = aws_s3_bucket.uploads.id },
+    { name = "EMAIL_QUEUE_URL", value = aws_sqs_queue.email.url },
+    { name = "REPORT_QUEUE_URL", value = aws_sqs_queue.report.url },
     { name = "AWS_SECRETS_NAME", value = aws_secretsmanager_secret.application.name },
     { name = "FRONTEND_URL", value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name}" },
     { name = "CORS_ALLOWED_ORIGINS", value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name},https://www.${var.domain_name}" },
     { name = "MAIL_ENABLED", value = tostring(var.mail_enabled) },
+    { name = "DB_POOL_MAX_SIZE", value = tostring(var.backend_db_pool_max_size) },
+    { name = "DB_POOL_MIN_IDLE", value = tostring(var.backend_db_pool_min_idle) },
+    { name = "DB_CONNECTION_TIMEOUT_MS", value = "5000" },
+    { name = "DB_QUERY_TIMEOUT_MS", value = "5000" },
+    { name = "DB_TRANSACTION_TIMEOUT_SECONDS", value = "30" },
+    { name = "SERVER_MAX_THREADS", value = "100" },
+    { name = "AUTHORIZATION_CACHE_ENABLED", value = "true" },
+    { name = "AUTHORIZATION_CACHE_TTL_SECONDS", value = "60" },
+    { name = "RATE_LIMIT_LOGIN_ACCOUNT_PER_MINUTE", value = "5" },
+    { name = "RATE_LIMIT_LOGIN_IP_PER_MINUTE", value = "1000" },
+    { name = "RATE_LIMIT_REFRESH_IP_PER_MINUTE", value = "1000" },
+    { name = "RATE_LIMIT_API_USER_PER_MINUTE", value = "600" },
     { name = "DB_SSL_ROOT_CERT", value = "/etc/ssl/certs/rds-ca-bundle.pem" }
   ]
 
@@ -228,8 +242,8 @@ resource "aws_ecs_task_definition" "backend" {
   family                   = "${local.name}-backend"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = var.backend_task_cpu
+  memory                   = var.backend_task_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
@@ -432,6 +446,95 @@ resource "aws_ecs_service" "backend" {
       )
       error_message = "Production requires desired_count=0 until production_database_access_ready=true; after approval it requires at least two tasks."
     }
+    precondition {
+      condition     = var.backend_autoscaling_max_capacity * var.backend_db_pool_max_size <= var.database_connection_budget
+      error_message = "Maximum ECS tasks multiplied by Hikari pool size exceeds database_connection_budget."
+    }
+  }
+}
+
+resource "aws_appautoscaling_target" "backend" {
+  max_capacity       = var.backend_autoscaling_max_capacity
+  min_capacity       = local.external_production && !var.production_database_access_ready ? 0 : var.backend_autoscaling_min_capacity
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.backend.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "backend_cpu" {
+  name               = "${local.name}-backend-cpu"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+  target_tracking_scaling_policy_configuration {
+    target_value       = 60
+    scale_out_cooldown = 60
+    scale_in_cooldown  = 300
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "backend_memory" {
+  name               = "${local.name}-backend-memory"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+  target_tracking_scaling_policy_configuration {
+    target_value       = 70
+    scale_out_cooldown = 60
+    scale_in_cooldown  = 300
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "backend_requests" {
+  name               = "${local.name}-backend-requests"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.backend_requests_per_target
+    scale_out_cooldown = 60
+    scale_in_cooldown  = 300
+    predefined_metric_specification {
+      predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${aws_lb.backend.arn_suffix}/${aws_lb_target_group.backend.arn_suffix}"
+    }
+  }
+}
+
+resource "aws_appautoscaling_scheduled_action" "backend_peak_start" {
+  count              = var.backend_peak_schedule_enabled ? 1 : 0
+  name               = "${local.name}-backend-peak-start"
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  schedule           = var.backend_peak_scale_out_schedule
+  timezone           = "Asia/Kolkata"
+  scalable_target_action {
+    min_capacity = var.backend_peak_capacity
+    max_capacity = var.backend_autoscaling_max_capacity
+  }
+}
+
+resource "aws_appautoscaling_scheduled_action" "backend_peak_end" {
+  count              = var.backend_peak_schedule_enabled ? 1 : 0
+  name               = "${local.name}-backend-peak-end"
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  schedule           = var.backend_peak_scale_in_schedule
+  timezone           = "Asia/Kolkata"
+  scalable_target_action {
+    min_capacity = var.backend_autoscaling_min_capacity
+    max_capacity = var.backend_autoscaling_max_capacity
   }
 }
 

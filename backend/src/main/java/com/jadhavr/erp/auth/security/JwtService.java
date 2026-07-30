@@ -48,6 +48,10 @@ public class JwtService {
     public String generateToken(CustomUserDetails user) { return generateAccessToken(user); }
 
     public String extractUsername(String token) { return claims(token).getSubject(); }
+    public Long extractUserId(String token) {
+        Object userId = claims(token).get("userId");
+        return userId instanceof Number number ? number.longValue() : Long.valueOf(userId.toString());
+    }
     public Date extractExpiration(String token) { return claims(token).getExpiration(); }
     public boolean isTokenValid(String token, UserDetails user) {
         Object versionClaim = claims(token).get("sessionVersion");

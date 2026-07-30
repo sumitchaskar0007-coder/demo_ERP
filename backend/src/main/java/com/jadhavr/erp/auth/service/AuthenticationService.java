@@ -15,7 +15,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import org.springframework.security.core.AuthenticationException;
@@ -30,18 +32,28 @@ public class AuthenticationService {
     private final UserMapper mapper;
     private final TokenHashUtil hashes;
     private final SecurityEventService securityEvents;
+    private final DistributedRateLimiter rateLimiter;
+    private final long loginAccountLimit;
 
     public AuthenticationService(AuthenticationManager authenticationManager, JwtService jwtService,
             RefreshTokenRepository refreshTokens, UserRepository users, UserMapper mapper, TokenHashUtil hashes,
-            SecurityEventService securityEvents) {
+            SecurityEventService securityEvents, DistributedRateLimiter rateLimiter,
+            @Value("${app.rate-limit.login-account-per-minute:5}") long loginAccountLimit) {
         this.authenticationManager = authenticationManager; this.jwtService = jwtService;
         this.refreshTokens = refreshTokens; this.users = users; this.mapper = mapper; this.hashes = hashes;
         this.securityEvents = securityEvents;
+        this.rateLimiter = rateLimiter;
+        this.loginAccountLimit = loginAccountLimit;
     }
 
     @Transactional
     public TokenPair login(LoginRequest request, String ip, String userAgent) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
+        if (!rateLimiter.tryAcquire("auth:login-account-ip", email + "|" + ip,
+                loginAccountLimit, Duration.ofMinutes(1))) {
+            throw new com.jadhavr.erp.common.exception.TooManyRequestsException(
+                    "Too many login attempts. Please retry after 60 seconds");
+        }
         org.springframework.security.core.Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
@@ -76,14 +88,15 @@ public class AuthenticationService {
     }
 
     @Transactional
-    public void logout(Long userId, String ip, String userAgent) {
+    public void logout(Long userId, String rawRefreshToken, String ip, String userAgent) {
         if (userId == null) return;
-        refreshTokens.revokeAllForUser(userId);
+        if (rawRefreshToken != null && !rawRefreshToken.isBlank()) {
+            refreshTokens.revokeCurrentSession(userId, hashes.hash(rawRefreshToken));
+        }
         User user = users.findById(userId).orElse(null);
         if (user != null) {
-            user.setSessionVersion(user.getSessionVersion() + 1); users.save(user);
             securityEvents.audit(userId, user.getCollege() == null ? null : user.getCollege().getId(),
-                    "LOGOUT", true, ip, userAgent, "All sessions revoked");
+                    "LOGOUT", true, ip, userAgent, "Current device session revoked");
         }
     }
 

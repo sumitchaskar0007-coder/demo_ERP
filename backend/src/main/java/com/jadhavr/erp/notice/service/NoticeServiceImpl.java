@@ -24,11 +24,15 @@ import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import java.time.LocalDateTime;
@@ -48,6 +52,12 @@ public class NoticeServiceImpl implements NoticeService {
     private final StudentProfileRepository studentProfiles;
     private final NoticeAcknowledgementRepository acknowledgements;
     private final NoticeViewRepository views;
+    private NoticeStreamService noticeStreams;
+
+    @Autowired(required = false)
+    public void setNoticeStreams(NoticeStreamService noticeStreams) {
+        this.noticeStreams = noticeStreams;
+    }
 
     public NoticeServiceImpl(NoticeRepository notices, UserRepository users, CollegeRepository colleges,
                              StaffProfileRepository staffProfiles, StudentProfileRepository studentProfiles,
@@ -91,7 +101,9 @@ public class NoticeServiceImpl implements NoticeService {
             throw new AccessDeniedException("Your role cannot send notices");
         }
         notice.setAudienceRoles(targets);
-        return map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
+        NoticeResponse response = map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
+        notifyAfterCommit();
+        return response;
     }
 
     @Override @Transactional
@@ -109,7 +121,9 @@ public class NoticeServiceImpl implements NoticeService {
         notice.setAudienceRoles(Set.copyOf(audienceRoles));
         notice.setColleges(Set.of(college));
         notice.setActionPath(actionPath);
-        return map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
+        NoticeResponse response = map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
+        notifyAfterCommit();
+        return response;
     }
 
     @Override
@@ -118,15 +132,24 @@ public class NoticeServiceImpl implements NoticeService {
         Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
         if (roles.isEmpty()) return List.of();
-        return mapNotices(notices.findInbox(current.getId(), current.getCollegeId(), departmentId, roles,
-                PageRequest.of(0, 100)));
+        List<Long> ids = notices.findInboxIds(current.getId(), current.getCollegeId(), departmentId, roles,
+                PageRequest.of(0, 100));
+        return mapNotices(loadDetailedNotices(ids));
+    }
+
+    @Override
+    public long unreadCount() {
+        CustomUserDetails current = SecurityUtils.requireCurrentUser();
+        Set<RoleName> roles = resolveRoles(current);
+        if (roles.isEmpty()) return 0;
+        return notices.countUnread(current.getId(), current.getCollegeId(),
+                currentDepartmentId(current, roles), roles);
     }
 
     @Override
     public List<NoticeResponse> sent() {
         Long id = SecurityUtils.getCurrentUserId();
-        return mapNotices(notices.findByCreatedByIdAndDeletedAtIsNullOrderByCreatedAtDesc(id,
-                PageRequest.of(0, 100)));
+        return mapNotices(loadDetailedNotices(notices.findSentIds(id, PageRequest.of(0, 100))));
     }
 
     @Override @Transactional
@@ -142,6 +165,7 @@ public class NoticeServiceImpl implements NoticeService {
         acknowledgement.setUser(users.getReferenceById(userId));
         acknowledgement.setAcknowledgedAt(LocalDateTime.now());
         acknowledgements.save(acknowledgement);
+        notifyAfterCommit();
     }
 
     @Override @Transactional
@@ -160,6 +184,7 @@ public class NoticeServiceImpl implements NoticeService {
                 })
                 .toList();
         if (!newViews.isEmpty()) views.saveAll(newViews);
+        if (!newViews.isEmpty()) notifyAfterCommit();
     }
 
     @Override @Transactional
@@ -173,6 +198,7 @@ public class NoticeServiceImpl implements NoticeService {
         notice.setDeletedAt(LocalDateTime.now());
         notice.setDeletedBy(admin);
         notices.save(notice);
+        notifyAfterCommit();
     }
 
     private Set<RoleName> resolveRoles(CustomUserDetails current) {
@@ -208,6 +234,16 @@ public class NoticeServiceImpl implements NoticeService {
         Set<Long> acknowledgedIds = acknowledgements.findNoticeIdsByUserId(SecurityUtils.getCurrentUserId());
         Set<Long> seenIds = views.findNoticeIdsByUserId(SecurityUtils.getCurrentUserId());
         return source.stream().map(notice -> map(notice, activeCollegeIds, acknowledgedIds, seenIds)).toList();
+    }
+
+    private List<Notice> loadDetailedNotices(List<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+        Map<Long, Notice> byId = notices.findDetailedByIdIn(ids).stream()
+                .collect(Collectors.toMap(Notice::getId, Function.identity()));
+        return ids.stream().map(byId::get).filter(Objects::nonNull).toList();
+    }
+    private void notifyAfterCommit() {
+        if (noticeStreams != null) noticeStreams.publishAfterCommit();
     }
 
     private NoticeResponse map(Notice n, Set<Long> activeCollegeIds, Set<Long> acknowledgedIds,

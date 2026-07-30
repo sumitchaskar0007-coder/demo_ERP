@@ -43,6 +43,27 @@ hostname for its HTTPS backend origin.
 
 ## Release order
 
+### 5,000-user hardening approval gate
+
+The changes under `docs/performance`, `load-tests/k6`, and the capacity
+Terraform resources are proposals until an isolated staging plan is reviewed.
+Before applying them:
+
+1. Stop using the AWS account root identity and assume the approved
+   least-privilege deployment role.
+2. Obtain an operator email for the SNS topic; do not deploy alarms with no
+   confirmed recipient.
+3. Produce a fresh `terraform plan` for the correct staging state and attach
+   the cost worksheet, resource list, downtime expectation and rollback plan.
+4. Obtain explicit staging approval before `terraform apply` or a deployment.
+5. Run the 500/1,000/2,500/5,000 k6 ladder only against isolated staging.
+6. Require two passing 5,000-user runs before requesting a separate
+   production approval.
+
+The `sumit` branch is verified by CI but does not automatically deploy.
+Production deployment remains restricted to a successful `Verify` run on
+`main` and the protected GitHub `production` environment.
+
 0. Apply only after the production RDS owner supplies the endpoint, port,
    database name, RDS security-group ID, and database secret ARNs. Confirm the
    Terraform plan creates no production VPC or RDS infrastructure. Use a new

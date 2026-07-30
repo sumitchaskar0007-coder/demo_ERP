@@ -8,6 +8,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Duration;
@@ -16,22 +19,35 @@ import java.time.LocalDateTime;
 @Component
 public class LoginRateLimitFilter extends OncePerRequestFilter {
     private final ObjectProvider<DistributedRateLimiter> limiter;
-    public LoginRateLimitFilter(ObjectProvider<DistributedRateLimiter> limiter) {
+    private final long loginIpLimit;
+    private final long refreshIpLimit;
+    private final long authenticatedUserLimit;
+    private final long anonymousIpLimit;
+
+    public LoginRateLimitFilter(ObjectProvider<DistributedRateLimiter> limiter,
+            @Value("${app.rate-limit.login-ip-per-minute:1000}") long loginIpLimit,
+            @Value("${app.rate-limit.refresh-ip-per-minute:1000}") long refreshIpLimit,
+            @Value("${app.rate-limit.api-user-per-minute:600}") long authenticatedUserLimit,
+            @Value("${app.rate-limit.api-anonymous-ip-per-minute:300}") long anonymousIpLimit) {
         this.limiter = limiter;
+        this.loginIpLimit = loginIpLimit;
+        this.refreshIpLimit = refreshIpLimit;
+        this.authenticatedUserLimit = authenticatedUserLimit;
+        this.anonymousIpLimit = anonymousIpLimit;
     }
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
         return !request.getRequestURI().startsWith("/api/");
     }
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        Limit limit = limitFor(request);
         DistributedRateLimiter rateLimiter = limiter.getIfAvailable();
         if (rateLimiter == null) {
             chain.doFilter(request, response);
             return;
         }
-        boolean allowed = rateLimiter.tryAcquire("http:" + limit.name(), request.getRemoteAddr(),
-                limit.requests, Duration.ofMinutes(1));
+        RequestLimit limit = limitFor(request);
+        boolean allowed = rateLimiter.tryAcquire(limit.namespace(), limit.subject(),
+                limit.requests(), Duration.ofMinutes(1));
         if (!allowed) {
             response.setStatus(429); response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setHeader("Retry-After", "60");
@@ -41,14 +57,22 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
         }
         chain.doFilter(request, response);
     }
-    private Limit limitFor(HttpServletRequest request) {
-        if ("POST".equals(request.getMethod()) && "/api/v1/auth/login".equals(request.getRequestURI())) return Limit.LOGIN;
-        if ("POST".equals(request.getMethod()) && "/api/v1/auth/refresh".equals(request.getRequestURI())) return Limit.REFRESH;
-        return Limit.API;
+
+    private RequestLimit limitFor(HttpServletRequest request) {
+        String ip = request.getRemoteAddr(); // RemoteIpValve accepts forwarding headers only from trusted proxies.
+        if ("POST".equals(request.getMethod()) && "/api/v1/auth/login".equals(request.getRequestURI())) {
+            return new RequestLimit("http:login-ip", ip, loginIpLimit);
+        }
+        if ("POST".equals(request.getMethod()) && "/api/v1/auth/refresh".equals(request.getRequestURI())) {
+            return new RequestLimit("http:refresh-ip", ip, refreshIpLimit);
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof com.jadhavr.erp.auth.security.CustomUserDetails user) {
+            return new RequestLimit("http:api-user", Long.toString(user.getId()), authenticatedUserLimit);
+        }
+        return new RequestLimit("http:api-anonymous-ip", ip, anonymousIpLimit);
     }
-    private enum Limit {
-        LOGIN(10), REFRESH(30), API(300);
-        private final int requests;
-        Limit(int requests) { this.requests = requests; }
-    }
+
+    private record RequestLimit(String namespace, String subject, long requests) {}
 }

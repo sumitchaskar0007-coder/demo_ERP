@@ -37,9 +37,24 @@ public class CustomUserDetails implements UserDetails {
                         permissions(role.getName()).stream().map(SimpleGrantedAuthority::new)))
                 .map(GrantedAuthority.class::cast).toList();
     }
+    public CustomUserDetails(AuthorizationSnapshot snapshot) {
+        id = snapshot.userId();
+        collegeId = snapshot.collegeId();
+        email = snapshot.email();
+        password = "";
+        fullName = snapshot.fullName();
+        status = snapshot.status();
+        lockedUntil = snapshot.lockedUntil();
+        sessionVersion = snapshot.sessionVersion();
+        mustChangePassword = snapshot.mustChangePassword();
+        authorities = snapshot.authorities().stream()
+                .map(SimpleGrantedAuthority::new).map(GrantedAuthority.class::cast).toList();
+    }
     public Long getId() { return id; }
     public Long getCollegeId() { return collegeId; }
     public String getFullName() { return fullName; }
+    public UserStatus getStatus() { return status; }
+    public LocalDateTime getLockedUntil() { return lockedUntil; }
     public long getSessionVersion() { return sessionVersion; }
     public boolean isMustChangePassword() { return mustChangePassword; }
     @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }

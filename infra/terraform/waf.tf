@@ -99,7 +99,9 @@ resource "aws_wafv2_web_acl" "main" {
     }
     statement {
       rate_based_statement {
-        limit              = 300
+        # The application separately rate-limits normalized account + trusted client IP.
+        # This edge limit prevents floods without blocking a normal campus NAT login wave.
+        limit              = 3000
         aggregate_key_type = "IP"
         scope_down_statement {
           regex_match_statement {
