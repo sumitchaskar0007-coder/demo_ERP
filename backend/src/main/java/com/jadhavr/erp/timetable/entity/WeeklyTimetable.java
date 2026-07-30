@@ -11,6 +11,7 @@ public class WeeklyTimetable extends BaseAuditEntity {
     public enum Status { DRAFT, ACTIVE, ARCHIVED }
     public enum ReviewStatus { DRAFT, SUBMITTED, APPROVED, REJECTED, CHANGES_REQUESTED }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @Version @Column(nullable = false) private long version;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "college_id", nullable = false) private College college;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "section_id", nullable = false) private Section section;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private Status status = Status.ACTIVE;

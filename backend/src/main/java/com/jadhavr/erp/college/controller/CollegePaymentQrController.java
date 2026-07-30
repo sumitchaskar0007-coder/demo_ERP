@@ -5,6 +5,7 @@ import com.jadhavr.erp.common.api.ApiResponse;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,10 +38,12 @@ public class CollegePaymentQrController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<CollegePaymentQrService.PaymentQrSettings> update(
             @RequestParam(required = false) Long collegeId,
+            @RequestParam("accountName") String accountName,
             @RequestParam("file") MultipartFile file) {
         return ApiResponse.success("Payment QR code updated",
-                service.update(collegeId, file));
+                service.update(collegeId, accountName, file));
     }
 }

@@ -149,6 +149,7 @@ export function SubmitPaymentPage() {
   };
   if (!a)
     return <div className="page-container text-sm text-slate-500">Loading fee account...</div>;
+  const qrAccountName = a.collegeQrAccountName || a.collegeName;
   return (
     <div className="page-container space-y-5 pb-10">
       <div>
@@ -206,8 +207,8 @@ export function SubmitPaymentPage() {
                 <h3 className="font-bold text-amber-950">Verify before you pay</h3>
                 <p className="mt-2 text-sm leading-6 text-amber-900">
                   Pay only if the account name shown after scanning the QR code is exactly
-                  <strong className="mx-1">Jadhavar Senior College</strong>. Do not continue if any
-                  other account name appears.
+                  <strong className="mx-1">{qrAccountName}</strong>. Do not continue if any other
+                  account name appears.
                 </p>
               </div>
             </div>
@@ -317,8 +318,7 @@ export function SubmitPaymentPage() {
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
             />
             <span>
-              I verified that the QR account name is <strong>Jadhavar Senior College</strong> before
-              paying.
+              I verified that the QR account name is <strong>{qrAccountName}</strong> before paying.
             </span>
           </label>
 

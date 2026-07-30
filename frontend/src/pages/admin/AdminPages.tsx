@@ -1515,8 +1515,12 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
           <h1 className="page-title">Analytics</h1>
           <p className="page-subtitle">Filtered institutional, admission and fee analytics.</p>
         </div>
-        {principal && (
-          <Button variant="secondary" onClick={() => setQrManagerOpen(true)}>
+        {!principal && (
+          <Button
+            variant="secondary"
+            disabled={!filters.collegeId}
+            onClick={() => setQrManagerOpen(true)}
+          >
             <QrCode className="h-4 w-4" /> Change Payment QR
           </Button>
         )}
@@ -1528,7 +1532,7 @@ export function AdminAnalyticsPage({ principal = false }: { principal?: boolean 
         description="This QR code is shown to students when they submit fee payment proof."
         size="xl"
       >
-        <PaymentQrManager />
+        <PaymentQrManager collegeId={Number(filters.collegeId)} />
       </Modal>
       <Card className="mt-6 p-4">
         <div

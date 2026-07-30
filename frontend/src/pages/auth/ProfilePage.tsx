@@ -1,10 +1,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, ImagePlus, Mail, Pencil, Phone, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  ImagePlus,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  RefreshCw,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Badge, StatusBadge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
@@ -18,12 +27,33 @@ import { API_BASE_URL } from "@/lib/apiClient";
 
 type ProfileForm = z.infer<typeof updateOwnProfileSchema>;
 
-function ProfileField({ label, value }: { label: string; value: string }) {
+function ProfileField({
+  label,
+  value,
+  icon: Icon,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  icon: typeof UserRound;
+  wide?: boolean;
+}) {
   return (
-    <div>
-      <p className="mb-2 text-sm font-semibold text-slate-700">{label}</p>
-      <div className="flex min-h-12 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
-        {value || "—"}
+    <div
+      className={`rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition-colors hover:border-brand-200 hover:bg-brand-50/30 ${
+        wide ? "md:col-span-2" : ""
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{label}</p>
+          <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-800">
+            {value || "—"}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -62,7 +92,6 @@ export function ProfilePage() {
       </div>
     );
 
-  const primaryRole = user.roles[0]?.replaceAll("_", " ") || "User";
   const openEditor = () => {
     reset({ phone: user.phone || "", address: user.address || "", bio: user.bio || "" });
     setPhoto(null);
@@ -93,19 +122,25 @@ export function ProfilePage() {
 
   return (
     <div className="page-container pb-10">
-      <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Profile</h1>
+          <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
           <p className="mt-2 text-sm text-slate-400">
             Dashboard&nbsp;&nbsp;/&nbsp;&nbsp;Settings&nbsp;&nbsp;/&nbsp;&nbsp;
             <span className="font-semibold text-slate-700">Profile</span>
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={refresh} loading={refreshing} className="h-11 px-3">
+        <div className="flex w-full gap-2 sm:w-auto">
+          <Button
+            variant="secondary"
+            onClick={refresh}
+            loading={refreshing}
+            className="h-11 px-3"
+            aria-label="Refresh profile"
+          >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={openEditor} className="h-11">
+          <Button onClick={openEditor} className="h-11 flex-1 sm:flex-none">
             <Pencil className="h-4 w-4" />
             Edit Profile
           </Button>
@@ -113,67 +148,86 @@ export function ProfilePage() {
       </div>
       <div className="mt-6 grid items-start gap-6 xl:grid-cols-[310px_1fr]">
         <Card className="overflow-hidden">
-          <div className="border-b px-6 py-5">
-            <h2 className="font-bold">Personal Information</h2>
-          </div>
-          <div className="p-6 text-center">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={user.fullName}
-                className="mx-auto h-28 w-28 rounded-full object-cover shadow-lg"
-              />
-            ) : (
-              <div className="mx-auto grid h-28 w-28 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-indigo-700 text-3xl font-bold text-white shadow-lg">
-                {initials(user.fullName)}
-              </div>
-            )}
-            <h3 className="mt-5 text-xl font-bold">{user.fullName}</h3>
-            <p className="mt-1 text-sm capitalize text-slate-500">{primaryRole.toLowerCase()}</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <StatusBadge status={user.status} />
-              {user.roles.map((role) => (
-                <Badge key={role} tone="info">
-                  {role.replaceAll("_", " ")}
-                </Badge>
-              ))}
+          <div className="h-24 bg-gradient-to-br from-brand-500 via-brand-600 to-indigo-700" />
+          <div className="-mt-14 px-6 pb-6 text-center">
+            <div className="mx-auto h-28 w-28 rounded-full bg-white p-1.5 shadow-xl ring-1 ring-slate-200">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={user.fullName}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                <div className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-brand-100 to-indigo-100 text-3xl font-bold text-brand-700">
+                  {initials(user.fullName)}
+                </div>
+              )}
             </div>
+            <h2 className="mt-4 text-xl font-bold text-slate-900">{user.fullName}</h2>
+            <p className="mt-1 text-sm text-slate-500">Personal profile</p>
             <div className="mt-6 border-t pt-6 text-left">
-              <div className="flex gap-3">
-                <Mail className="h-4 w-4 text-brand-600" />
-                <p className="break-all text-sm font-medium">{user.email}</p>
+              <div className="flex items-start gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+                  <Mail className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-400">Email</p>
+                  <p className="mt-0.5 break-all text-sm font-medium text-slate-700">
+                    {user.email}
+                  </p>
+                </div>
               </div>
-              <div className="mt-5 flex gap-3">
-                <Phone className="h-4 w-4 text-brand-600" />
-                <p className="text-sm font-medium">{user.phone || "Not provided"}</p>
+              <div className="mt-4 flex items-start gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+                  <Phone className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400">Phone</p>
+                  <p className="mt-0.5 text-sm font-medium text-slate-700">
+                    {user.phone || "Not provided"}
+                  </p>
+                </div>
               </div>
-              <div className="mt-5 flex gap-3">
-                <Building2 className="h-4 w-4 text-brand-600" />
-                <p className="text-sm font-medium">{user.collegeName || "System-wide"}</p>
+              <div className="mt-4 flex items-start gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+                  <Building2 className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400">College</p>
+                  <p className="mt-0.5 text-sm font-medium text-slate-700">
+                    {user.collegeName || "System-wide"}
+                  </p>
+                </div>
               </div>
             </div>
+            <Button variant="secondary" onClick={openEditor} className="mt-6 w-full">
+              <Pencil className="h-4 w-4" />
+              Update details
+            </Button>
           </div>
         </Card>
         <div className="space-y-6">
           <Card className="overflow-hidden">
             <div className="erp-panel-header">
               <div>
-                <h2 className="font-bold">Identity Information</h2>
+                <h2 className="font-bold text-slate-900">Profile Overview</h2>
                 <p className="mt-1 text-xs text-slate-400">
-                  Important identity fields are permanently protected
+                  Your essential personal and college information
                 </p>
               </div>
-              <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
-                Locked
+              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                Up to date
               </span>
             </div>
             <div className="grid gap-5 p-6 md:grid-cols-2">
-              <ProfileField label="Full Name" value={user.fullName} />
-              <ProfileField label="Email Address" value={user.email} />
-              <ProfileField label="User ID" value={String(user.id)} />
-              <ProfileField label="Primary Role" value={primaryRole} />
-              <ProfileField label="College" value={user.collegeName || "System-wide access"} />
-              <ProfileField label="Account Status" value={user.status} />
+              <ProfileField label="Full Name" value={user.fullName} icon={UserRound} />
+              <ProfileField label="Email Address" value={user.email} icon={Mail} />
+              <ProfileField
+                label="College"
+                value={user.collegeName || "System-wide access"}
+                icon={Building2}
+                wide
+              />
             </div>
           </Card>
           <Card className="overflow-hidden">
@@ -188,28 +242,40 @@ export function ProfilePage() {
               </Button>
             </div>
             <div className="grid gap-5 p-6 md:grid-cols-2">
-              <ProfileField label="Phone Number" value={user.phone || "Not provided"} />
               <ProfileField
-                label="Profile Image"
-                value={user.profileImageUrl ? "Custom image added" : "Not provided"}
+                label="Phone Number"
+                value={user.phone || "Not provided"}
+                icon={Phone}
               />
-              <div className="md:col-span-2">
-                <ProfileField label="Address" value={user.address || "Not provided"} />
-              </div>
-              <div className="md:col-span-2">
-                <ProfileField label="Short Bio" value={user.bio || "Not provided"} />
-              </div>
+              <ProfileField
+                label="Profile Photo"
+                value={user.profileImageUrl ? "Photo added" : "Add a photo"}
+                icon={ImagePlus}
+              />
+              <ProfileField
+                label="Address"
+                value={user.address || "Not provided"}
+                icon={MapPin}
+                wide
+              />
+              <ProfileField
+                label="Short Bio"
+                value={user.bio || "Tell people a little about yourself"}
+                icon={UserRound}
+                wide
+              />
             </div>
           </Card>
-          <Card className="p-6">
+          <Card className="border-brand-100 bg-gradient-to-r from-brand-50/70 to-indigo-50/60 p-6">
             <div className="flex gap-4">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-brand-100">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-semibold">Protected account</p>
+                <p className="font-semibold text-slate-900">Your information stays protected</p>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Name, email, college, roles and status cannot be edited from the profile page.
+                  Your name, email, and college are managed centrally. You can update your photo,
+                  phone number, address, and bio whenever needed.
                 </p>
               </div>
             </div>

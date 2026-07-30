@@ -47,6 +47,9 @@ public class College extends BaseAuditEntity {
     @Column(name = "qr_code_url")
     private String qrCodeUrl;
 
+    @Column(name = "payment_qr_account_name", length = 150)
+    private String paymentQrAccountName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CollegeStatus status = CollegeStatus.ACTIVE;
@@ -85,6 +88,10 @@ public class College extends BaseAuditEntity {
     public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
     public String getQrCodeUrl() { return qrCodeUrl; }
     public void setQrCodeUrl(String qrCodeUrl) { this.qrCodeUrl = qrCodeUrl; }
+    public String getPaymentQrAccountName() { return paymentQrAccountName; }
+    public void setPaymentQrAccountName(String paymentQrAccountName) {
+        this.paymentQrAccountName = paymentQrAccountName;
+    }
     public CollegeStatus getStatus() { return status; }
     public void setStatus(CollegeStatus status) { this.status = status; }
 }

@@ -64,6 +64,32 @@ class PaymentProofStorageServiceTest {
     }
 
     @Test
+    void infersContentTypeWhenBrowserSendsGenericBinaryType() {
+        byte[] png = new byte[] {
+                (byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3
+        };
+        MockMultipartFile file = new MockMultipartFile(
+                "proof", "phone-upload.PNG", MediaType.APPLICATION_OCTET_STREAM_VALUE, png);
+
+        String key = service.save(file);
+
+        assertTrue(key.endsWith(".png"));
+        verify(storage).put(key, png, MediaType.IMAGE_PNG_VALUE);
+    }
+
+    @Test
+    void normalizesCommonJpegAlias() {
+        byte[] jpeg = new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, 1, 2, 3};
+        MockMultipartFile file = new MockMultipartFile(
+                "proof", "camera.jpg", "image/jpg", jpeg);
+
+        String key = service.save(file);
+
+        assertTrue(key.endsWith(".jpg"));
+        verify(storage).put(key, jpeg, MediaType.IMAGE_JPEG_VALUE);
+    }
+
+    @Test
     void rejectsContentWhoseSignatureDoesNotMatchItsType() {
         MockMultipartFile file = new MockMultipartFile(
                 "proof", "proof.pdf", MediaType.APPLICATION_PDF_VALUE, new byte[] {1, 2, 3});

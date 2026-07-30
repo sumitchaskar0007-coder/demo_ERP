@@ -10,7 +10,6 @@ import {
   FileText,
   Filter,
   GraduationCap,
-  QrCode,
   RotateCcw,
   TrendingUp,
   UserCheck,
@@ -35,8 +34,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { Modal } from "@/components/common/Modal";
-import { PaymentQrManager } from "@/components/colleges/PaymentQrManager";
 import { Select as ResponsiveSelect } from "@/components/common/Select";
 import {
   getAdmissionAnalytics,
@@ -48,7 +45,6 @@ import { handleApiError } from "@/lib/handleApiError";
 import { exportCollegeExcel } from "@/lib/collegeExcel";
 import { localDateString } from "@/lib/date";
 import { useAuth } from "@/features/auth/authStore";
-import { ROLES } from "@/lib/constants";
 
 const date = localDateString;
 const CURRENT_ACADEMIC_YEAR = "2026-2027";
@@ -90,9 +86,7 @@ const pendingStatuses = [
 ];
 
 export function AdmissionAnalyticsDashboard() {
-  const { isRole, user } = useAuth();
-  const isPrincipal = isRole([ROLES.PRINCIPAL]);
-  const [qrManagerOpen, setQrManagerOpen] = useState(false);
+  const { user } = useAuth();
   const [draft, setDraft] = useState<Filters>(() => initial(user?.collegeId));
   const [applied, setApplied] = useState<Filters>(() => initial(user?.collegeId));
   const [data, setData] = useState<AdmissionAnalytics>();
@@ -332,24 +326,7 @@ export function AdmissionAnalyticsDashboard() {
             Monitor the admission pipeline, bottlenecks, outcomes and individual applications.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {isPrincipal && (
-            <Button variant="secondary" onClick={() => setQrManagerOpen(true)}>
-              <QrCode className="mr-2 h-4 w-4" />
-              Change Payment QR
-            </Button>
-          )}
-        </div>
       </header>
-      <Modal
-        open={qrManagerOpen}
-        onClose={() => setQrManagerOpen(false)}
-        title="Change College Payment QR"
-        description="This QR code is shown to students when they submit fee payment proof."
-        size="xl"
-      >
-        <PaymentQrManager />
-      </Modal>
       <Card className="sticky top-0 z-20 border-slate-200/80 bg-white/95 p-5 shadow-sm backdrop-blur print:hidden">
         <div className="mb-4 flex items-center gap-2 text-sm font-bold">
           <Filter className="h-4 w-4 text-brand-600" />

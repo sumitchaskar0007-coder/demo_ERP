@@ -1,7 +1,7 @@
 # Jadhavar ERP — AWS Deployment and Readiness Report
 
-**Audit date:** 27 July 2026  
-**Commit reviewed:** `cf694ec` (`main`) plus the corrections listed below  
+**Audit date:** 27 July 2026
+**Commit reviewed:** `cf694ec` (`main`) plus the corrections listed below
 **Current deployed staging target:** AWS `ap-south-1`, CloudFront + WAF + S3 frontend, ALB + ECS
 Fargate backend, RDS PostgreSQL, ElastiCache Valkey, Secrets Manager, Route 53, ACM, and CloudWatch.
 

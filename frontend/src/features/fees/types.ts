@@ -60,6 +60,7 @@ export interface StudentFeeAccountResponse {
   minimumAmountForAdmission: number;
   status: FeeAccountStatus;
   collegeQrCodeUrl?: string | null;
+  collegeQrAccountName: string;
   paymentInstructions: string;
   createdAt: string;
   updatedAt: string;

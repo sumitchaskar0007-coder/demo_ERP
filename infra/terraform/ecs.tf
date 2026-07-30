@@ -209,7 +209,11 @@ locals {
   async_worker_effective_count   = local.external_production && !var.production_database_access_ready ? 0 : var.async_worker_desired_count
 
   common_environment = [
-    { name = "SPRING_PROFILES_ACTIVE", value = "production" },
+    # Staging keeps its environment identity while inheriting every hardened
+    # production setting and validator. Production activates only production.
+    { name = "SPRING_PROFILES_ACTIVE", value = local.external_production ? "production" : "staging,production" },
+    # Keep private uploads on S3 even if profile composition changes later.
+    { name = "STORAGE_PROVIDER", value = "s3" },
     { name = "DB_URL", value = "jdbc:postgresql://${local.database_endpoint}:${local.database_port}/${local.database_name}?sslmode=verify-full" },
     { name = "REDIS_HOST", value = aws_elasticache_replication_group.redis.primary_endpoint_address },
     { name = "REDIS_PORT", value = tostring(aws_elasticache_replication_group.redis.port) },
