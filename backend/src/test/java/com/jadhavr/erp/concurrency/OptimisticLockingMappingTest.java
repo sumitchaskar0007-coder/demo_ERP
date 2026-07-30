@@ -7,6 +7,8 @@ import com.jadhavr.erp.fee.entity.FeePayment;
 import com.jadhavr.erp.fee.entity.FeeStructure;
 import com.jadhavr.erp.fee.entity.FeeTransaction;
 import com.jadhavr.erp.fee.entity.StudentFeeAccount;
+import com.jadhavr.erp.timetable.entity.WeeklyTimetable;
+import com.jadhavr.erp.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Version;
 import org.junit.jupiter.api.Test;
@@ -23,33 +25,41 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OptimisticLockingMappingTest {
 
     @Test
-    void versionsOnlyTheTwoMutableAggregateRoots() throws Exception {
+    void versionsAllMutableAggregateRoots() throws Exception {
         assertVersionField(AdmissionForm.class);
         assertVersionField(FeeStructure.class);
+        assertVersionField(StudentFeeAccount.class);
+        assertVersionField(FeePayment.class);
+        assertVersionField(WeeklyTimetable.class);
+        assertVersionField(User.class);
 
         assertNoDeclaredVersion(BaseAuditEntity.class);
         assertNoDeclaredVersion(AdmissionStatusHistory.class);
-        assertNoDeclaredVersion(StudentFeeAccount.class);
-        assertNoDeclaredVersion(FeePayment.class);
         assertNoDeclaredVersion(FeeTransaction.class);
     }
 
     @Test
-    void migrationAddsOnlyTheTwoRequiredVersionColumns() throws IOException {
-        String migration;
-        try (var stream = getClass().getResourceAsStream(
-                "/db/migration/V24__optimistic_lock_mutable_workflows.sql")) {
-            assertNotNull(stream);
-            migration = new String(stream.readAllBytes(), StandardCharsets.UTF_8)
-                    .toLowerCase();
-        }
+    void migrationsAddAllRequiredVersionColumns() throws IOException {
+        String coreMigration = readMigration(
+                "/db/migration/V27__optimistic_locking_and_hot_query_indexes.sql");
+        String workflowMigration = readMigration(
+                "/db/migration/V30__optimistic_lock_mutable_workflows.sql");
 
-        assertTrue(migration.contains("alter table admission_forms"));
-        assertTrue(migration.contains("alter table fee_structures"));
-        assertEquals(2, migration.split("add column if not exists version", -1).length - 1);
-        assertFalse(migration.contains("student_fee_accounts"));
-        assertFalse(migration.contains("fee_payments"));
-        assertFalse(migration.contains("fee_transactions"));
+        assertTrue(coreMigration.contains("alter table users"));
+        assertTrue(coreMigration.contains("alter table admission_forms"));
+        assertTrue(coreMigration.contains("alter table student_fee_accounts"));
+        assertTrue(coreMigration.contains("alter table fee_payments"));
+        assertTrue(coreMigration.contains("alter table weekly_timetables"));
+        assertTrue(workflowMigration.contains("alter table fee_structures"));
+        assertFalse(coreMigration.contains("fee_transactions"));
+        assertFalse(workflowMigration.contains("fee_transactions"));
+    }
+
+    private String readMigration(String path) throws IOException {
+        try (var stream = getClass().getResourceAsStream(path)) {
+            assertNotNull(stream);
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8).toLowerCase();
+        }
     }
 
     private static void assertVersionField(Class<?> entityType) throws Exception {
