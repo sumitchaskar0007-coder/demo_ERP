@@ -63,9 +63,10 @@ export async function getPaymentQrSettings(collegeId?: number) {
   return data.data;
 }
 
-export async function updatePaymentQr(file: File, collegeId?: number) {
+export async function updatePaymentQr(file: File, accountName: string, collegeId?: number) {
   const body = new FormData();
   body.append("file", file);
+  body.append("accountName", accountName);
   const { data } = await apiClient.post<ApiResponse<PaymentQrSettings>>(
     "/api/college-settings/payment-qr",
     body,

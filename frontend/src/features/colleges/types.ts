@@ -20,6 +20,7 @@ export interface College {
 export interface PaymentQrSettings {
   collegeId: number;
   collegeName: string;
+  accountName: string | null;
   qrCodeUrl: string | null;
 }
 

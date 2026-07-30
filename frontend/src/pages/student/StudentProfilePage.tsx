@@ -45,7 +45,6 @@ export function StudentProfilePage() {
           ["Phone", profile.phone],
           ["Date of Birth", formatDate(profile.dateOfBirth)],
           ["Gender", profile.gender],
-          ["Status", profile.status],
         ]}
       />
       <DetailSection

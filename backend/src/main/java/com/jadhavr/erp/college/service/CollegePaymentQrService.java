@@ -30,12 +30,29 @@ public class CollegePaymentQrService {
     }
 
     @Transactional
-    public PaymentQrSettings update(Long requestedCollegeId, MultipartFile file) {
+    public PaymentQrSettings update(Long requestedCollegeId, String accountName, MultipartFile file) {
+        if (!SecurityUtils.isSuperAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only Super Admin can configure payment QR settings");
+        }
+        String normalizedAccountName = normalizeAccountName(accountName);
         College college = college(requestedCollegeId);
         String pendingReference = images.storePending(file, "qr-code");
         college.setQrCodeUrl(images.claim(
                 pendingReference, college.getId(), "qr-code", college.getQrCodeUrl()));
+        college.setPaymentQrAccountName(normalizedAccountName);
         return response(colleges.saveAndFlush(college));
+    }
+
+    private String normalizeAccountName(String accountName) {
+        if (accountName == null || accountName.isBlank()) {
+            throw new BadRequestException("QR account name is required");
+        }
+        String normalized = accountName.trim().replaceAll("\\s+", " ");
+        if (normalized.length() > 150) {
+            throw new BadRequestException("QR account name must not exceed 150 characters");
+        }
+        return normalized;
     }
 
     private College college(Long requestedCollegeId) {
@@ -64,9 +81,14 @@ public class CollegePaymentQrService {
         return new PaymentQrSettings(
                 college.getId(),
                 college.getName(),
+                college.getPaymentQrAccountName(),
                 college.getQrCodeUrl() == null ? null
                         : "/api/college-settings/payment-qr/image?collegeId=" + college.getId());
     }
 
-    public record PaymentQrSettings(Long collegeId, String collegeName, String qrCodeUrl) {}
+    public record PaymentQrSettings(
+            Long collegeId,
+            String collegeName,
+            String accountName,
+            String qrCodeUrl) {}
 }

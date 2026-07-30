@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, QrCode, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
+import { Input } from "@/components/common/Input";
 import { handleApiError } from "@/lib/handleApiError";
 import type { PaymentQrSettings } from "@/features/colleges/types";
 import { getPaymentQrSettings, updatePaymentQr } from "@/features/colleges/api";
@@ -9,12 +10,16 @@ import { getPaymentQrSettings, updatePaymentQr } from "@/features/colleges/api";
 export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
   const [settings, setSettings] = useState<PaymentQrSettings | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [accountName, setAccountName] = useState("");
   const [saving, setSaving] = useState(false);
   const [previewVersion, setPreviewVersion] = useState(Date.now());
 
   useEffect(() => {
     getPaymentQrSettings(collegeId)
-      .then(setSettings)
+      .then((current) => {
+        setSettings(current);
+        setAccountName(current.accountName ?? "");
+      })
       .catch((error) => toast.error(handleApiError(error).message));
   }, [collegeId]);
 
@@ -33,10 +38,16 @@ export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
 
   const save = async () => {
     if (!file) return;
+    const normalizedAccountName = accountName.trim();
+    if (!normalizedAccountName) {
+      toast.error("Enter the exact account name shown after scanning the QR code");
+      return;
+    }
     setSaving(true);
     try {
-      const updated = await updatePaymentQr(file, collegeId);
+      const updated = await updatePaymentQr(file, normalizedAccountName, collegeId);
       setSettings(updated);
+      setAccountName(updated.accountName ?? normalizedAccountName);
       setFile(null);
       setPreviewVersion(Date.now());
       toast.success("Payment QR code updated successfully");
@@ -75,6 +86,17 @@ export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
             </p>
           </div>
         </div>
+        <Input
+          className="mt-5"
+          label="QR account name"
+          maxLength={150}
+          value={accountName}
+          onChange={(event) => setAccountName(event.target.value)}
+          placeholder="Exact name shown after scanning the QR code"
+        />
+        <p className="mt-1 text-xs text-amber-700">
+          Students will be warned to pay only when this exact account name appears.
+        </p>
         <label className="mt-5 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-7 text-center hover:border-blue-400">
           <Upload className="h-6 w-6 text-blue-600" />
           <span className="mt-2 text-sm font-bold">Choose new QR-code image</span>
@@ -92,7 +114,7 @@ export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
               <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
               <span className="truncate font-semibold">{file.name}</span>
             </div>
-            <Button loading={saving} onClick={() => void save()}>
+            <Button loading={saving} disabled={!accountName.trim()} onClick={() => void save()}>
               Update QR Code
             </Button>
           </div>
