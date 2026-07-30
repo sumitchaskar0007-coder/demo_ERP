@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,6 +26,12 @@ public class PaymentProofStorageService {
             MediaType.IMAGE_JPEG_VALUE, ".jpg",
             MediaType.IMAGE_PNG_VALUE, ".png",
             "image/webp", ".webp");
+    private static final Map<String, String> CONTENT_TYPES_BY_EXTENSION = Map.of(
+            ".pdf", MediaType.APPLICATION_PDF_VALUE,
+            ".jpg", MediaType.IMAGE_JPEG_VALUE,
+            ".jpeg", MediaType.IMAGE_JPEG_VALUE,
+            ".png", MediaType.IMAGE_PNG_VALUE,
+            ".webp", "image/webp");
     private final ObjectStorageService storage;
 
     public PaymentProofStorageService(ObjectStorageService storage) {
@@ -34,11 +41,8 @@ public class PaymentProofStorageService {
     public String save(MultipartFile file) {
         if (file == null || file.isEmpty()) throw new BadRequestException("Payment proof file is required");
         if (file.getSize() > MAX_BYTES) throw new BadRequestException("Payment proof must not exceed 5 MB");
-        String contentType = file.getContentType();
+        String contentType = resolveContentType(file);
         String extension = EXTENSIONS.get(contentType);
-        if (extension == null) {
-            throw new BadRequestException("Only PDF, JPEG, PNG, or WebP payment proofs are allowed");
-        }
         verifySignature(file, contentType);
         Long collegeId = SecurityUtils.requireCurrentUser().getCollegeId();
         Long userId = SecurityUtils.getCurrentUserId();
@@ -115,9 +119,37 @@ public class PaymentProofStorageService {
         }
     }
 
+    private String resolveContentType(MultipartFile file) {
+        String declaredType = file.getContentType();
+        if (declaredType != null) {
+            String normalized = declaredType.toLowerCase(Locale.ROOT).trim();
+            if ("image/jpg".equals(normalized)) {
+                return MediaType.IMAGE_JPEG_VALUE;
+            }
+            if (EXTENSIONS.containsKey(normalized)) {
+                return normalized;
+            }
+            if (!normalized.isBlank()
+                    && !MediaType.APPLICATION_OCTET_STREAM_VALUE.equals(normalized)) {
+                throw unsupportedType();
+            }
+        }
+
+        String inferredType = CONTENT_TYPES_BY_EXTENSION.get(extension(file.getOriginalFilename()));
+        if (inferredType == null) {
+            throw unsupportedType();
+        }
+        return inferredType;
+    }
+
+    private BadRequestException unsupportedType() {
+        return new BadRequestException("Only PDF, JPEG, PNG, or WebP payment proofs are allowed");
+    }
+
     private String extension(String storageName) {
+        if (storageName == null) return "";
         int dot = storageName.lastIndexOf('.');
-        return dot < 0 ? "" : storageName.substring(dot).toLowerCase(java.util.Locale.ROOT);
+        return dot < 0 ? "" : storageName.substring(dot).toLowerCase(Locale.ROOT);
     }
 
     public record PaymentProofResource(Resource resource, MediaType mediaType) {}
