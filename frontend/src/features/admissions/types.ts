@@ -260,6 +260,56 @@ export interface StudentAdmissionAccessResponse {
   accessGranted: boolean;
   rejectionReason?: string | null;
 }
+
+export type AdmissionDocumentTransferStage =
+  | "hashing"
+  | "requesting-upload"
+  | "uploading"
+  | "verifying"
+  | "multipart-fallback"
+  | "completed";
+
+export interface AdmissionDocumentTransferProgress {
+  stage: AdmissionDocumentTransferStage;
+}
+
+export interface AdmissionDocumentTransferOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: AdmissionDocumentTransferProgress) => void;
+  /**
+   * Overrides the build-time direct-transfer flag. Intended for controlled
+   * rollouts and tests; callers should normally leave this undefined.
+   */
+  directTransferEnabled?: boolean;
+}
+
+export interface AdmissionDocumentUploadResponse {
+  uploadId: string;
+  uploadUrl: string;
+  requiredHeaders: Record<string, string[]>;
+  uploadUrlExpiresAt: string;
+  completionDeadline: string;
+}
+
+export interface AdmissionDocumentCompletionResponse {
+  documentId: number;
+  documentType: AdmissionDocumentType;
+  originalFilename: string;
+  contentType: string;
+  fileSize: number;
+  sha256: string;
+  verifiedAt: string;
+}
+
+export interface AdmissionDocumentDownloadUrlResponse {
+  downloadUrl: string;
+  expiresAt: string;
+  originalFilename: string;
+  contentType: string;
+  fileSize: number;
+  sha256: string;
+}
+
 export interface AdmissionStatusHistoryResponse {
   id: number;
   admissionId: number;

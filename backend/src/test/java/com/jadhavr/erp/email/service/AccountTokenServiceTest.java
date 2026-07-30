@@ -2,6 +2,8 @@ package com.jadhavr.erp.email.service;
 
 import com.jadhavr.erp.email.config.MailProperties;
 import com.jadhavr.erp.auth.service.DistributedRateLimiter;
+import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.email.entity.EmailVerificationToken;
 import com.jadhavr.erp.email.entity.PasswordResetToken;
 import com.jadhavr.erp.email.repository.EmailVerificationTokenRepository;
@@ -39,6 +41,8 @@ class AccountTokenServiceTest {
     @Mock private EmailNotificationService emails;
     @Mock private PasswordEncoder encoder;
     @Mock private DistributedRateLimiter rateLimiter;
+    @Mock private RefreshTokenRepository refreshTokens;
+    @Mock private AuthorizationSnapshotService authorizationSnapshots;
 
     private AccountTokenService service;
     private User user;
@@ -47,7 +51,8 @@ class AccountTokenServiceTest {
     void setUp() {
         MailProperties properties = new MailProperties();
         properties.setTokenExpiryMinutes(30);
-        service = new AccountTokenService(users, resets, verifications, emails, encoder, properties, rateLimiter);
+        service = new AccountTokenService(users, resets, verifications, emails, encoder,
+                properties, rateLimiter, refreshTokens, authorizationSnapshots);
 
         user = new User();
         user.setId(42L);
@@ -91,6 +96,8 @@ class AccountTokenServiceTest {
 
         assertTrue(token.getUsedAt() != null);
         verify(users).save(user);
+        verify(refreshTokens).revokeAllForUser(42L);
+        verify(authorizationSnapshots).invalidateOrThrow(42L);
         verify(emails).queuePasswordChangedEmail(user);
         assertThrows(IllegalArgumentException.class,
                 () -> service.reset(rawToken, "Another@123"));

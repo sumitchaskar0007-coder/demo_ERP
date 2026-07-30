@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<body style="font-family:Arial;background:#eef4ff;padding:24px">
+<main style="max-width:600px;margin:auto;background:white;padding:28px;border-radius:16px">
+  <h2 style="color:#2563eb">Jadhavar ERP</h2>
+  <h3 th:text="${subject}">Admission form submitted successfully</h3>
+  <p>Hello <span th:text="${name}">Student</span>,</p>
+  <p>Your admission form and documents were submitted successfully and are now pending review.</p>
+  <p>Admission reference: <strong th:text="${admissionReferenceNumber}">ADM-REFERENCE</strong></p>
+  <p><a th:href="${url}" style="background:#2563eb;color:white;padding:12px 20px;text-decoration:none;border-radius:8px">View admission status</a></p>
+  <p style="font-size:12px" th:text="${url}"></p>
+  <hr>
+  <small>© <span th:text="${year}"></span> Jadhavar ERP</small>
+</main>
+</body>
+</html>

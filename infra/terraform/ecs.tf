@@ -77,6 +77,9 @@ resource "aws_iam_role" "ecs_task" {
 resource "aws_iam_role_policy" "ecs_uploads" {
   name = "private-upload-objects"
   role = aws_iam_role.ecs_task.id
+  # Every object key is generated under a server-enforced tenant prefix. S3
+  # object IAM resources cannot enumerate future tenant/UUID keys.
+  #tfsec:ignore:aws-iam-no-policy-wildcards
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -89,11 +92,24 @@ resource "aws_iam_role_policy" "ecs_uploads" {
         Effect   = "Allow"
         Action   = ["s3:GetBucketLocation", "s3:ListBucket"]
         Resource = aws_s3_bucket.uploads.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.uploads.arn
       }
     ]
   })
 }
 
+# CloudFront is the public edge. The ALB security group permits only the AWS
+# CloudFront origin-facing prefix list, and the listener requires a secret
+# origin-verification header before forwarding.
+#tfsec:ignore:aws-elb-alb-not-public
 resource "aws_lb" "backend" {
   name                       = substr(local.name, 0, 32)
   internal                   = false
@@ -179,19 +195,98 @@ resource "aws_lb_listener_rule" "cloudfront_only" {
 }
 
 locals {
+  fargate_memory_by_cpu = {
+    "256"   = [512, 1024, 2048]
+    "512"   = range(1024, 5120, 1024)
+    "1024"  = range(2048, 9216, 1024)
+    "2048"  = range(4096, 17408, 1024)
+    "4096"  = range(8192, 31744, 1024)
+    "8192"  = range(16384, 65536, 4096)
+    "16384" = range(32768, 131072, 8192)
+  }
+
+  backend_effective_min_capacity = local.external_production && !var.production_database_access_ready ? 0 : var.backend_autoscaling_min_capacity
+  async_worker_effective_count   = local.external_production && !var.production_database_access_ready ? 0 : var.async_worker_desired_count
+
   common_environment = [
     { name = "SPRING_PROFILES_ACTIVE", value = "production" },
     { name = "DB_URL", value = "jdbc:postgresql://${local.database_endpoint}:${local.database_port}/${local.database_name}?sslmode=verify-full" },
     { name = "REDIS_HOST", value = aws_elasticache_replication_group.redis.primary_endpoint_address },
     { name = "REDIS_PORT", value = tostring(aws_elasticache_replication_group.redis.port) },
     { name = "REDIS_SSL_ENABLED", value = "true" },
+    { name = "RATE_LIMIT_REDIS_ENABLED", value = "true" },
+    { name = "RATE_LIMIT_REQUIRED", value = "true" },
+    { name = "AUTHORIZATION_CACHE_ENABLED", value = "true" },
+    { name = "NOTICE_REDIS_ENABLED", value = "true" },
+    { name = "CACHE_ENVIRONMENT", value = local.name },
+    # The ALB security group accepts origin traffic only from CloudFront.
+    { name = "CLOUDFRONT_VIEWER_ADDRESS_ENABLED", value = "true" },
     { name = "AWS_REGION", value = var.aws_region },
     { name = "AWS_PRIVATE_UPLOAD_BUCKET", value = aws_s3_bucket.uploads.id },
     { name = "AWS_SECRETS_NAME", value = aws_secretsmanager_secret.application.name },
     { name = "FRONTEND_URL", value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name}" },
     { name = "CORS_ALLOWED_ORIGINS", value = var.temporary_domain ? "https://${aws_cloudfront_distribution.main.domain_name}" : "https://${var.domain_name},https://www.${var.domain_name}" },
-    { name = "MAIL_ENABLED", value = tostring(var.mail_enabled) },
     { name = "DB_SSL_ROOT_CERT", value = "/etc/ssl/certs/rds-ca-bundle.pem" }
+  ]
+
+  backend_pool_environment = [
+    { name = "DB_POOL_MAX_SIZE", value = tostring(var.backend_db_pool_max_size) },
+    { name = "DB_POOL_MIN_IDLE", value = tostring(var.backend_db_pool_min_idle) }
+  ]
+
+  migration_pool_environment = [
+    { name = "DB_POOL_MAX_SIZE", value = "2" },
+    { name = "DB_POOL_MIN_IDLE", value = "0" }
+  ]
+
+  async_worker_pool_environment = [
+    { name = "DB_POOL_MAX_SIZE", value = tostring(var.async_worker_db_pool_max_size) },
+    { name = "DB_POOL_MIN_IDLE", value = tostring(var.async_worker_db_pool_min_idle) }
+  ]
+
+  api_async_environment = [
+    # API replicas persist and publish email IDs but never perform SMTP delivery.
+    { name = "MAIL_ENABLED", value = tostring(var.async_queues_enabled ? false : var.mail_enabled) },
+    { name = "MAIL_TRANSPORT", value = var.async_queues_enabled && var.mail_enabled ? "sqs" : "database" },
+    { name = "EMAIL_SQS_PUBLISHER_ENABLED", value = tostring(var.async_queues_enabled && var.mail_enabled) },
+    { name = "EMAIL_SQS_CONSUMER_ENABLED", value = "false" },
+    { name = "EMAIL_SQS_RECOVERY_ENABLED", value = "false" },
+    { name = "EMAIL_SQS_QUEUE_URL", value = var.async_queues_enabled && var.mail_enabled ? try(aws_sqs_queue.email[0].url, "") : "" },
+    # API replicas create durable report jobs; only the worker consumes them.
+    { name = "REPORT_EXPORTS_ENABLED", value = tostring(var.async_queues_enabled) },
+    { name = "REPORT_DATABASE_POLL_ENABLED", value = "false" },
+    { name = "REPORT_SQS_PRODUCER_ENABLED", value = tostring(var.async_queues_enabled) },
+    { name = "REPORT_SQS_CONSUMER_ENABLED", value = "false" },
+    { name = "REPORT_SQS_QUEUE_URL", value = var.async_queues_enabled ? try(aws_sqs_queue.report[0].url, "") : "" }
+  ]
+
+  migration_async_environment = [
+    { name = "MAIL_ENABLED", value = "false" },
+    { name = "MAIL_TRANSPORT", value = "database" },
+    { name = "EMAIL_SQS_PUBLISHER_ENABLED", value = "false" },
+    { name = "EMAIL_SQS_CONSUMER_ENABLED", value = "false" },
+    { name = "EMAIL_SQS_RECOVERY_ENABLED", value = "false" },
+    { name = "EMAIL_SQS_QUEUE_URL", value = "" },
+    { name = "REPORT_EXPORTS_ENABLED", value = "false" },
+    { name = "REPORT_DATABASE_POLL_ENABLED", value = "false" },
+    { name = "REPORT_SQS_PRODUCER_ENABLED", value = "false" },
+    { name = "REPORT_SQS_CONSUMER_ENABLED", value = "false" },
+    { name = "REPORT_SQS_QUEUE_URL", value = "" }
+  ]
+
+  async_worker_environment = [
+    { name = "MAIL_ENABLED", value = tostring(var.mail_enabled) },
+    { name = "MAIL_TRANSPORT", value = var.mail_enabled ? "sqs" : "database" },
+    # Exactly one worker performs durable email recovery until leader election exists.
+    { name = "EMAIL_SQS_PUBLISHER_ENABLED", value = tostring(var.mail_enabled) },
+    { name = "EMAIL_SQS_CONSUMER_ENABLED", value = tostring(var.mail_enabled) },
+    { name = "EMAIL_SQS_RECOVERY_ENABLED", value = tostring(var.mail_enabled) },
+    { name = "EMAIL_SQS_QUEUE_URL", value = var.mail_enabled ? try(aws_sqs_queue.email[0].url, "") : "" },
+    { name = "REPORT_EXPORTS_ENABLED", value = "true" },
+    { name = "REPORT_DATABASE_POLL_ENABLED", value = "true" },
+    { name = "REPORT_SQS_PRODUCER_ENABLED", value = "false" },
+    { name = "REPORT_SQS_CONSUMER_ENABLED", value = "true" },
+    { name = "REPORT_SQS_QUEUE_URL", value = try(aws_sqs_queue.report[0].url, "") }
   ]
 
   database_runtime_secrets = local.manage_database ? [
@@ -215,7 +310,15 @@ locals {
     { name = "MAIL_FROM_ADDRESS", valueFrom = "${aws_secretsmanager_secret.mail.arn}:MAIL_FROM_ADDRESS::" }
   ]
 
-  runtime_secrets = concat(local.base_runtime_secrets, var.mail_enabled ? local.mail_runtime_secrets : [])
+  backend_runtime_secrets = concat(
+    local.base_runtime_secrets,
+    var.mail_enabled && !var.async_queues_enabled ? local.mail_runtime_secrets : []
+  )
+
+  async_worker_runtime_secrets = concat(
+    local.base_runtime_secrets,
+    var.mail_enabled ? local.mail_runtime_secrets : []
+  )
 
   migration_bootstrap_secrets = local.manage_database ? [
     { name = "SUPER_ADMIN_NAME", valueFrom = "${aws_secretsmanager_secret.application.arn}:SUPER_ADMIN_NAME::" },
@@ -228,10 +331,20 @@ resource "aws_ecs_task_definition" "backend" {
   family                   = "${local.name}-backend"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = var.backend_task_cpu
+  memory                   = var.backend_task_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
+
+  lifecycle {
+    precondition {
+      condition = try(
+        contains(local.fargate_memory_by_cpu[tostring(var.backend_task_cpu)], var.backend_task_memory),
+        false
+      )
+      error_message = "backend_task_cpu and backend_task_memory must form a supported Fargate task size."
+    }
+  }
 
   runtime_platform {
     operating_system_family = "LINUX"
@@ -243,11 +356,16 @@ resource "aws_ecs_task_definition" "backend" {
     image        = var.backend_image
     essential    = true
     portMappings = [{ containerPort = 8081, hostPort = 8081, protocol = "tcp" }]
-    environment = concat(local.common_environment, [
-      { name = "FLYWAY_ENABLED", value = "false" },
-      { name = "BOOTSTRAP_ENABLED", value = "false" }
-    ])
-    secrets                = local.runtime_secrets
+    environment = concat(
+      local.common_environment,
+      local.backend_pool_environment,
+      local.api_async_environment,
+      [
+        { name = "FLYWAY_ENABLED", value = "false" },
+        { name = "BOOTSTRAP_ENABLED", value = "false" }
+      ]
+    )
+    secrets                = local.backend_runtime_secrets
     readonlyRootFilesystem = true
     linuxParameters = {
       initProcessEnabled = true
@@ -289,17 +407,23 @@ resource "aws_ecs_task_definition" "migration" {
     image     = var.backend_image
     essential = true
     command   = ["--app.migration-task=true", "--server.port=0"]
-    environment = concat(local.common_environment, [
-      { name = "FLYWAY_ENABLED", value = "true" },
-      { name = "BOOTSTRAP_ENABLED", value = tostring(local.manage_database) }
-    ])
+    environment = concat(
+      local.common_environment,
+      local.migration_pool_environment,
+      local.migration_async_environment,
+      [
+        { name = "FLYWAY_ENABLED", value = "true" },
+        { name = "FLYWAY_POSTGRESQL_TRANSACTIONAL_LOCK", value = "false" },
+        { name = "BOOTSTRAP_ENABLED", value = tostring(local.manage_database) }
+      ]
+    )
     secrets = concat(
       [
         { name = "DB_USERNAME", valueFrom = "${local.migration_secret_arn}:username::" },
         { name = "DB_PASSWORD", valueFrom = "${local.migration_secret_arn}:password::" }
       ],
       local.migration_bootstrap_secrets,
-      [for secret in local.runtime_secrets : secret if !contains(["DB_USERNAME", "DB_PASSWORD"], secret.name)]
+      [for secret in local.base_runtime_secrets : secret if !contains(["DB_USERNAME", "DB_PASSWORD"], secret.name)]
     )
     readonlyRootFilesystem = true
     linuxParameters = {
@@ -316,6 +440,81 @@ resource "aws_ecs_task_definition" "migration" {
         awslogs-group         = aws_cloudwatch_log_group.backend.name
         awslogs-region        = var.aws_region
         awslogs-stream-prefix = "migration"
+      }
+    }
+  }])
+}
+
+resource "aws_ecs_task_definition" "async_worker" {
+  count                    = var.async_queues_enabled ? 1 : 0
+  family                   = "${local.name}-async-worker"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.async_worker_task_cpu
+  memory                   = var.async_worker_task_memory
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.async_worker[0].arn
+
+  lifecycle {
+    precondition {
+      condition = try(
+        contains(local.fargate_memory_by_cpu[tostring(var.async_worker_task_cpu)], var.async_worker_task_memory),
+        false
+      )
+      error_message = "async_worker_task_cpu and async_worker_task_memory must form a supported Fargate task size."
+    }
+    precondition {
+      condition     = var.async_worker_db_pool_min_idle <= var.async_worker_db_pool_max_size
+      error_message = "async_worker_db_pool_min_idle cannot exceed async_worker_db_pool_max_size."
+    }
+    precondition {
+      condition     = !var.mail_enabled || var.async_worker_desired_count == 1
+      error_message = "Email recovery currently requires exactly one async worker task."
+    }
+  }
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "X86_64"
+  }
+
+  container_definitions = jsonencode([{
+    name         = "worker"
+    image        = var.backend_image
+    essential    = true
+    portMappings = [{ containerPort = 8081, hostPort = 8081, protocol = "tcp" }]
+    environment = concat(
+      local.common_environment,
+      local.async_worker_pool_environment,
+      local.async_worker_environment,
+      [
+        { name = "FLYWAY_ENABLED", value = "false" },
+        { name = "BOOTSTRAP_ENABLED", value = "false" }
+      ]
+    )
+    secrets                = local.async_worker_runtime_secrets
+    readonlyRootFilesystem = true
+    linuxParameters = {
+      initProcessEnabled = true
+      tmpfs = [{
+        containerPath = "/app/tmp"
+        size          = 128
+        mountOptions  = ["rw", "nosuid", "nodev", "noexec", "mode=1777"]
+      }]
+    }
+    healthCheck = {
+      command     = ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8081/actuator/health/liveness || exit 1"]
+      interval    = 30
+      timeout     = 5
+      retries     = 3
+      startPeriod = 60
+    }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.backend.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "worker"
       }
     }
   }])
@@ -422,16 +621,183 @@ resource "aws_ecs_service" "backend" {
 
   depends_on = [
     aws_lb_listener_rule.cloudfront_only,
+    aws_iam_role_policy.ecs_api_async_queues,
     terraform_data.production_contract
   ]
 
   lifecycle {
+    # Application Auto Scaling owns desired_count after service creation. The
+    # production activation gate is enforced by the scalable target minimum.
+    ignore_changes = [desired_count]
+
     precondition {
       condition = !local.external_production || (
         var.production_database_access_ready ? var.desired_count >= 2 : var.desired_count == 0
       )
       error_message = "Production requires desired_count=0 until production_database_access_ready=true; after approval it requires at least two tasks."
     }
+    precondition {
+      condition     = var.desired_count <= var.backend_autoscaling_max_capacity
+      error_message = "desired_count cannot exceed backend_autoscaling_max_capacity."
+    }
+    precondition {
+      condition     = var.backend_db_pool_min_idle <= var.backend_db_pool_max_size
+      error_message = "backend_db_pool_min_idle cannot exceed backend_db_pool_max_size."
+    }
+    precondition {
+      condition = (
+        var.backend_autoscaling_max_capacity * var.backend_db_pool_max_size +
+        (var.async_queues_enabled ? var.async_worker_desired_count * var.async_worker_db_pool_max_size : 0)
+      ) <= var.database_connection_budget
+      error_message = "Maximum API and worker Hikari connections exceed database_connection_budget."
+    }
+    precondition {
+      condition = (
+        var.backend_peak_capacity >= var.backend_autoscaling_min_capacity &&
+        var.backend_peak_capacity <= var.backend_autoscaling_max_capacity
+      )
+      error_message = "backend_peak_capacity must be between the autoscaling minimum and maximum capacities."
+    }
+    precondition {
+      condition     = !local.external_production || var.production_database_access_ready || !var.backend_peak_schedule_enabled
+      error_message = "Production scheduled scaling must remain disabled until production_database_access_ready=true."
+    }
+    precondition {
+      condition     = !local.external_production || !var.mail_enabled || var.async_queues_enabled
+      error_message = "Production email requires async_queues_enabled=true so API replicas never perform SMTP delivery."
+    }
+  }
+}
+
+resource "aws_ecs_service" "async_worker" {
+  count           = var.async_queues_enabled ? 1 : 0
+  name            = "${local.name}-async-worker"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.async_worker[0].arn
+  desired_count   = local.async_worker_effective_count
+  launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+  enable_execute_command             = false
+
+  network_configuration {
+    subnets          = local.backend_subnet_ids
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = false
+  }
+
+  depends_on = [
+    aws_iam_role_policy.async_worker_queues,
+    aws_iam_role_policy.async_worker_storage,
+    terraform_data.production_contract
+  ]
+
+  lifecycle {
+    precondition {
+      condition = !local.external_production || (
+        var.production_database_access_ready ? var.async_worker_desired_count >= 1 : local.async_worker_effective_count == 0
+      )
+      error_message = "Production async workers remain at zero until production_database_access_ready=true."
+    }
+  }
+}
+
+resource "aws_appautoscaling_target" "backend" {
+  max_capacity       = var.backend_autoscaling_max_capacity
+  min_capacity       = local.backend_effective_min_capacity
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.backend.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "backend_cpu" {
+  name               = "${local.name}-backend-cpu"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.backend_autoscaling_cpu_target
+    scale_out_cooldown = 60
+    scale_in_cooldown  = 300
+
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "backend_memory" {
+  name               = "${local.name}-backend-memory"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.backend_autoscaling_memory_target
+    scale_out_cooldown = 60
+    scale_in_cooldown  = 300
+
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "backend_requests" {
+  name               = "${local.name}-backend-requests"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.backend_requests_per_target
+    scale_out_cooldown = 60
+    scale_in_cooldown  = 300
+
+    predefined_metric_specification {
+      predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${aws_lb.backend.arn_suffix}/${aws_lb_target_group.backend.arn_suffix}"
+    }
+  }
+}
+
+resource "aws_appautoscaling_scheduled_action" "backend_peak_start" {
+  count              = var.backend_peak_schedule_enabled ? 1 : 0
+  name               = "${local.name}-backend-peak-start"
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  schedule           = var.backend_peak_scale_out_schedule
+  timezone           = "Asia/Kolkata"
+
+  scalable_target_action {
+    min_capacity = var.backend_peak_capacity
+    max_capacity = var.backend_autoscaling_max_capacity
+  }
+}
+
+resource "aws_appautoscaling_scheduled_action" "backend_peak_end" {
+  count              = var.backend_peak_schedule_enabled ? 1 : 0
+  name               = "${local.name}-backend-peak-end"
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  schedule           = var.backend_peak_scale_in_schedule
+  timezone           = "Asia/Kolkata"
+
+  scalable_target_action {
+    min_capacity = local.backend_effective_min_capacity
+    max_capacity = var.backend_autoscaling_max_capacity
   }
 }
 

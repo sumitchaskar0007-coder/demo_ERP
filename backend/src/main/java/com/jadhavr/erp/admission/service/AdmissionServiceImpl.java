@@ -209,7 +209,9 @@ public class AdmissionServiceImpl implements AdmissionService {
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(studentRole));
         User savedUser = userRepository.save(user);
-        if (emailNotifications != null) emailNotifications.queueUserCreatedEmail(savedUser);
+        if (emailNotifications != null) {
+            emailNotifications.queueUserCreatedEmail(savedUser, temporaryPassword);
+        }
 
         StudentProfile profile = new StudentProfile();
         profile.setUser(savedUser);
@@ -338,6 +340,10 @@ public class AdmissionServiceImpl implements AdmissionService {
                 oldStatus == AdmissionStatus.SUBMITTED
                         ? "Detailed admission form submitted by student"
                         : "Rejected admission form corrected and resubmitted by student");
+        if (emailNotifications != null) {
+            emailNotifications.queueAdmissionCompletedEmail(
+                    saved.getStudentUser(), saved.getAdmissionReferenceNumber());
+        }
         return detailedAdmissionMapper.toResponse(saved);
     }
 

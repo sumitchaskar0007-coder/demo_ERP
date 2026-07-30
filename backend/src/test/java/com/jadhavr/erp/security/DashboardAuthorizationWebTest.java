@@ -21,7 +21,10 @@ import com.jadhavr.erp.student.repository.StudentProfileRepository;
 import com.jadhavr.erp.user.entity.RoleName;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetailsService;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.security.JwtService;
+import com.jadhavr.erp.auth.security.TrustedClientIpResolver;
+import com.jadhavr.erp.auth.service.DistributedRateLimiter;
 import com.jadhavr.erp.admission.filter.StudentAdmissionAccessFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.config.Customizer.withDefaults;
@@ -68,11 +72,17 @@ class DashboardAuthorizationWebTest {
     @MockBean private AttendanceSessionRepository attendance;
     @MockBean private StringRedisTemplate redis;
     @MockBean private JwtService jwtService;
+    @MockBean private AuthorizationSnapshotService authorizationSnapshotService;
     @MockBean private CustomUserDetailsService userDetailsService;
+    @MockBean private DistributedRateLimiter rateLimiter;
+    @MockBean private TrustedClientIpResolver clientIpResolver;
     @MockBean private StudentAdmissionAccessFilter studentAdmissionAccessFilter;
 
     @BeforeEach
     void setUpResponses() {
+        when(rateLimiter.check(anyString(), anyString(), anyLong(), any()))
+                .thenReturn(new DistributedRateLimiter.Decision(true, 0));
+        when(clientIpResolver.resolve(any())).thenReturn("127.0.0.1");
         try {
             doAnswer(invocation -> {
                 jakarta.servlet.ServletRequest request = invocation.getArgument(0);

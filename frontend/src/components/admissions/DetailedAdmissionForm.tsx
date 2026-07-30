@@ -1,5 +1,5 @@
 import { Check, CheckCircle2, Circle, FileCheck2, ImagePlus, UploadCloud, X } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
@@ -11,6 +11,7 @@ import type {
   AcademicRecord,
   AdmissionCourseYearOption,
   AdmissionDocumentType,
+  AdmissionDocumentTransferStage,
   DetailedAdmissionRequest,
   StudentSectionAdmissionResponse,
 } from "@/features/admissions/types";
@@ -40,6 +41,22 @@ const documentDefinitions: { type: AdmissionDocumentType; label: string; require
 ];
 
 const yearLabels = { FIRST_YEAR: "FY", SECOND_YEAR: "SY", THIRD_YEAR: "TY" } as const;
+
+type DocumentTransferState = {
+  stage: AdmissionDocumentTransferStage | "error" | "cancelled";
+  message?: string;
+};
+
+const documentTransferLabels: Record<DocumentTransferState["stage"], string> = {
+  hashing: "Checking file integrity…",
+  "requesting-upload": "Preparing secure upload…",
+  uploading: "Uploading directly to secure storage…",
+  verifying: "Verifying uploaded document…",
+  "multipart-fallback": "Uploading through the application…",
+  completed: "Upload verified",
+  error: "Upload failed",
+  cancelled: "Upload cancelled",
+};
 
 function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionRequest {
   const records = qualifications.map(
@@ -101,11 +118,23 @@ export function DetailedAdmissionForm({
   const [values, setValues] = useState(() => initialValues(admission));
   const [photo, setPhoto] = useState<File | null>(null);
   const [documents, setDocuments] = useState<Partial<Record<AdmissionDocumentType, File>>>({});
+  const [locallyUploadedDocuments, setLocallyUploadedDocuments] = useState<AdmissionDocumentType[]>(
+    [],
+  );
+  const [documentTransfers, setDocumentTransfers] = useState<
+    Partial<Record<AdmissionDocumentType, DocumentTransferState>>
+  >({});
   const [courseYears, setCourseYears] = useState<AdmissionCourseYearOption[]>([]);
   const [courseYearsLoading, setCourseYearsLoading] = useState(true);
   const [sameAddress, setSameAddress] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [canCancelUploads, setCanCancelUploads] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const uploadAbortController = useRef<AbortController | null>(null);
+  const uploadedDocumentTypes = useMemo(
+    () => new Set([...(admission.uploadedDocuments ?? []), ...locallyUploadedDocuments]),
+    [admission.uploadedDocuments, locallyUploadedDocuments],
+  );
   const aadhaarValid = /^\d{12}$/.test(values.aadhaarNumber);
   const permanentPinValid = /^\d{6}$/.test(values.pincode);
   const correspondencePinValid = /^\d{6}$/.test(values.correspondencePincode);
@@ -115,9 +144,7 @@ export function DetailedAdmissionForm({
       fields.every((field) => String(values[field] ?? "").trim().length > 0);
     const requiredDocumentsReady = documentDefinitions
       .filter((item) => item.required)
-      .every(
-        (item) => admission.uploadedDocuments?.includes(item.type) || Boolean(documents[item.type]),
-      );
+      .every((item) => uploadedDocumentTypes.has(item.type) || Boolean(documents[item.type]));
     const academicReady = values.academicRecords.some(
       (record) =>
         Boolean(record.instituteName?.trim()) &&
@@ -164,17 +191,27 @@ export function DetailedAdmissionForm({
   }, [
     aadhaarValid,
     admission.photoAvailable,
-    admission.uploadedDocuments,
     correspondencePinValid,
     documents,
     permanentPinValid,
     photo,
+    uploadedDocumentTypes,
     values,
   ]);
   const completedSteps = formSteps.filter((step) => step.complete).length;
   const completionPercentage = Math.round((completedSteps / formSteps.length) * 100);
 
   useEffect(() => setValues(initialValues(admission)), [admission]);
+  useEffect(() => {
+    setLocallyUploadedDocuments([]);
+    setDocumentTransfers({});
+  }, [admission.id]);
+  useEffect(
+    () => () => {
+      uploadAbortController.current?.abort();
+    },
+    [],
+  );
   useEffect(() => {
     let active = true;
     setCourseYearsLoading(true);
@@ -292,26 +329,60 @@ export function DetailedAdmissionForm({
       return;
     }
     const missing = documentDefinitions.filter(
-      (item) =>
-        item.required && !admission.uploadedDocuments?.includes(item.type) && !documents[item.type],
+      (item) => item.required && !uploadedDocumentTypes.has(item.type) && !documents[item.type],
     );
     if (missing.length) {
       toast.error(`Upload required documents: ${missing.map((item) => item.label).join(", ")}`);
       return;
     }
     setSaving(true);
+    const controller = new AbortController();
+    uploadAbortController.current = controller;
     try {
       if (photo) {
         if (studentOwned) await api.uploadMyAdmissionPhoto(photo);
         else await api.uploadAdmissionPhoto(admission.id, photo);
       }
-      await Promise.all(
-        Object.entries(documents).map(([type, file]) =>
-          studentOwned
-            ? api.uploadMyAdmissionDocument(type as AdmissionDocumentType, file)
-            : api.uploadAdmissionDocument(admission.id, type as AdmissionDocumentType, file),
-        ),
-      );
+      const selectedDocuments = Object.entries(documents) as [AdmissionDocumentType, File][];
+      setCanCancelUploads(selectedDocuments.length > 0);
+      for (const [type, file] of selectedDocuments) {
+        const onProgress = ({ stage }: { stage: AdmissionDocumentTransferStage }) =>
+          setDocumentTransfers((current) => ({ ...current, [type]: { stage } }));
+        try {
+          if (studentOwned) {
+            await api.uploadMyAdmissionDocument(type, file, {
+              signal: controller.signal,
+              onProgress,
+            });
+          } else {
+            await api.uploadAdmissionDocument(admission.id, type, file, {
+              signal: controller.signal,
+              onProgress,
+            });
+          }
+          setLocallyUploadedDocuments((current) =>
+            current.includes(type) ? current : [...current, type],
+          );
+          setDocuments((current) => {
+            const next = { ...current };
+            delete next[type];
+            return next;
+          });
+        } catch (error) {
+          const cancelled = controller.signal.aborted;
+          setDocumentTransfers((current) => ({
+            ...current,
+            [type]: {
+              stage: cancelled ? "cancelled" : "error",
+              message: cancelled
+                ? "Choose Submit again when you are ready to retry."
+                : handleApiError(error).message,
+            },
+          }));
+          throw error;
+        }
+      }
+      setCanCancelUploads(false);
       if (studentOwned) await api.submitMyAdmissionDetails(values);
       else await api.updateAdmissionDetails(admission.id, values);
       toast.success(
@@ -321,9 +392,15 @@ export function DetailedAdmissionForm({
       setDocuments({});
       await onSaved();
     } catch (error) {
-      const apiError = handleApiError(error);
-      toast.error(Object.values(apiError.fieldErrors)[0] ?? apiError.message);
+      if (controller.signal.aborted) {
+        toast.error("Document upload cancelled. No automatic retry was attempted.");
+      } else {
+        const apiError = handleApiError(error);
+        toast.error(Object.values(apiError.fieldErrors)[0] ?? apiError.message);
+      }
     } finally {
+      if (uploadAbortController.current === controller) uploadAbortController.current = null;
+      setCanCancelUploads(false);
       setSaving(false);
     }
   };
@@ -866,9 +943,18 @@ export function DetailedAdmissionForm({
               key={item.type}
               label={item.label}
               required={item.required}
-              available={admission.uploadedDocuments?.includes(item.type) ?? false}
+              available={uploadedDocumentTypes.has(item.type)}
               file={documents[item.type] ?? null}
-              onChange={(file) => setDocuments((current) => ({ ...current, [item.type]: file }))}
+              transfer={documentTransfers[item.type]}
+              disabled={saving}
+              onChange={(file) => {
+                setDocuments((current) => ({ ...current, [item.type]: file }));
+                setDocumentTransfers((current) => {
+                  const next = { ...current };
+                  delete next[item.type];
+                  return next;
+                });
+              }}
             />
           ))}
         </div>
@@ -902,14 +988,26 @@ export function DetailedAdmissionForm({
               </p>
             </div>
           </div>
-          <Button type="submit" loading={saving} className="w-full sm:w-auto">
-            {studentOwned
-              ? admission.status === "STUDENT_SECTION_REJECTED" ||
-                admission.status === "PRINCIPAL_REJECTED"
-                ? "Resubmit admission form"
-                : "Submit admission form"
-              : "Save detailed admission form"}
-          </Button>
+          <div className="flex w-full gap-2 sm:w-auto">
+            {canCancelUploads && (
+              <Button
+                type="button"
+                variant="danger"
+                className="flex-1 sm:flex-none"
+                onClick={() => uploadAbortController.current?.abort()}
+              >
+                Cancel upload
+              </Button>
+            )}
+            <Button type="submit" loading={saving} className="flex-1 sm:flex-none">
+              {studentOwned
+                ? admission.status === "STUDENT_SECTION_REJECTED" ||
+                  admission.status === "PRINCIPAL_REJECTED"
+                  ? "Resubmit admission form"
+                  : "Submit admission form"
+                : "Save detailed admission form"}
+            </Button>
+          </div>
         </div>
       </Card>
     </form>
@@ -1117,12 +1215,16 @@ function DocumentUpload({
   required,
   available,
   file,
+  transfer,
+  disabled,
   onChange,
 }: {
   label: string;
   required: boolean;
   available: boolean;
   file: File | null;
+  transfer?: DocumentTransferState;
+  disabled?: boolean;
   onChange: (file: File | null) => void;
 }) {
   const inputId = useId();
@@ -1175,6 +1277,22 @@ function DocumentUpload({
             {file?.name ?? (available ? "Uploaded successfully" : "No file attached yet")}
           </p>
           {file && <p className="mt-1 text-[11px] text-slate-500">{formatFileSize(file.size)}</p>}
+          {transfer && (
+            <p
+              role={
+                transfer.stage === "error" || transfer.stage === "cancelled" ? "alert" : "status"
+              }
+              className={cn(
+                "mt-2 text-xs font-semibold",
+                transfer.stage === "completed" && "text-emerald-700",
+                (transfer.stage === "error" || transfer.stage === "cancelled") && "text-rose-700",
+                !["completed", "error", "cancelled"].includes(transfer.stage) && "text-blue-700",
+              )}
+            >
+              {documentTransferLabels[transfer.stage]}
+              {transfer.message ? ` ${transfer.message}` : ""}
+            </p>
+          )}
         </div>
         {state !== "selected" && (
           <span
@@ -1193,13 +1311,18 @@ function DocumentUpload({
         type="file"
         accept="application/pdf,image/jpeg,image/png,image/webp"
         required={required && !available && !file}
+        disabled={disabled}
         className="sr-only"
         onChange={(event) => onChange(event.target.files?.[0] ?? null)}
       />
       <div className="mt-4 flex flex-wrap gap-2 border-t border-current/10 pt-3">
         <label
           htmlFor={inputId}
-          className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-white px-3 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+          aria-disabled={disabled}
+          className={cn(
+            "inline-flex h-9 items-center gap-2 rounded-lg bg-white px-3 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50",
+            disabled ? "pointer-events-none cursor-not-allowed opacity-60" : "cursor-pointer",
+          )}
         >
           <UploadCloud className="h-3.5 w-3.5" />
           {available || file ? "Replace file" : "Choose file"}
@@ -1207,8 +1330,9 @@ function DocumentUpload({
         {file && (
           <button
             type="button"
+            disabled={disabled}
             onClick={() => onChange(null)}
-            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-rose-600 hover:bg-rose-100"
+            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <X className="h-3.5 w-3.5" /> Clear
           </button>

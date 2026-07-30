@@ -12,23 +12,18 @@ import java.nio.file.Path;
 @Component("storage")
 @ConditionalOnProperty(name = "app.storage.provider", havingValue = "local", matchIfMissing = true)
 public class StorageHealthIndicator implements HealthIndicator {
-    private final Path uploadDirectory;
-    private final Path admissionPhotoDirectory;
+    private final Path objectDirectory;
 
-    public StorageHealthIndicator(
-            @Value("${app.upload-dir:uploads}") String uploadDirectory,
-            @Value("${app.storage.admission-photo-dir:uploads/admission-photos}") String admissionPhotoDirectory) {
-        this.uploadDirectory = Path.of(uploadDirectory).toAbsolutePath().normalize();
-        this.admissionPhotoDirectory = Path.of(admissionPhotoDirectory).toAbsolutePath().normalize();
+    public StorageHealthIndicator(@Value("${app.upload-dir:uploads}") String uploadDirectory) {
+        this.objectDirectory = Path.of(uploadDirectory).toAbsolutePath().normalize().resolve("objects");
     }
 
     @Override
     public Health health() {
         try {
-            Files.createDirectories(uploadDirectory);
-            Files.createDirectories(admissionPhotoDirectory);
-            if (!Files.isWritable(uploadDirectory) || !Files.isWritable(admissionPhotoDirectory)) {
-                return Health.down().withDetail("reason", "Shared storage is not writable").build();
+            Files.createDirectories(objectDirectory);
+            if (!Files.isWritable(objectDirectory)) {
+                return Health.down().withDetail("reason", "Object storage is not writable").build();
             }
             return Health.up().build();
         } catch (Exception exception) {

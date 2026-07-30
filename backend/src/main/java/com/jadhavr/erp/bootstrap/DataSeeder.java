@@ -6,6 +6,8 @@ import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.entity.UserStatus;
 import com.jadhavr.erp.user.repository.RoleRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,8 +34,12 @@ public class DataSeeder implements CommandLineRunner {
     private final String adminPhone;
     private final String adminPassword;
     private final boolean resetExistingPassword;
+    private final RefreshTokenRepository refreshTokens;
+    private final AuthorizationSnapshotService authorizationSnapshots;
 
     public DataSeeder(RoleRepository roles, UserRepository users, PasswordEncoder encoder,
+            RefreshTokenRepository refreshTokens,
+            AuthorizationSnapshotService authorizationSnapshots,
             @Value("${app.super-admin.name}") String adminName,
             @Value("${app.super-admin.email}") String adminEmail,
             @Value("${app.super-admin.phone}") String adminPhone,
@@ -42,6 +48,8 @@ public class DataSeeder implements CommandLineRunner {
         this.roles = roles;
         this.users = users;
         this.encoder = encoder;
+        this.refreshTokens = refreshTokens;
+        this.authorizationSnapshots = authorizationSnapshots;
         this.adminName = adminName;
         this.adminEmail = adminEmail;
         this.adminPhone = adminPhone;
@@ -68,7 +76,10 @@ public class DataSeeder implements CommandLineRunner {
                 User admin = users.findByEmail(email).orElseThrow();
                 admin.setPasswordHash(encoder.encode(adminPassword));
                 admin.setMustChangePassword(false);
+                admin.setSessionVersion(admin.getSessionVersion() + 1);
                 users.save(admin);
+                refreshTokens.revokeAllForUser(admin.getId());
+                authorizationSnapshots.invalidateOrThrow(admin.getId());
                 log.info("Existing administrator password synchronized for local bootstrap");
                 return;
             }

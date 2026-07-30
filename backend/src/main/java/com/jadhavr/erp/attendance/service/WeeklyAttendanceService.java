@@ -61,23 +61,19 @@ public class WeeklyAttendanceService {
         StaffProfile teacher = currentStaff();
         LocalDate date = LocalDate.now();
         LocalTime now = LocalTime.now();
-        return entries.findByTeacherId(teacher.getId()).stream()
-                .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
-                .filter(this::approved)
-                .filter(e -> e.getDayOfWeek() == date.getDayOfWeek())
+        return entries.findByTeacherIdAndTimetableStatusAndTimetableReviewStatusAndDayOfWeekOrderByPeriodStartTime(
+                        teacher.getId(), WeeklyTimetable.Status.ACTIVE,
+                        WeeklyTimetable.ReviewStatus.APPROVED, date.getDayOfWeek()).stream()
                 .filter(e -> isInWindow(e, now))
-                .sorted(Comparator.comparing(e -> e.getPeriod().getStartTime()))
                 .findFirst().map(e -> lecture(e, date)).orElse(null);
     }
 
     public List<LectureResponse> todayLectures() {
         StaffProfile teacher = currentStaff();
         LocalDate today = LocalDate.now();
-        return entries.findByTeacherId(teacher.getId()).stream()
-                .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
-                .filter(this::approved)
-                .filter(e -> e.getDayOfWeek() == today.getDayOfWeek())
-                .sorted(Comparator.comparing(e -> e.getPeriod().getStartTime()))
+        return entries.findByTeacherIdAndTimetableStatusAndTimetableReviewStatusAndDayOfWeekOrderByPeriodStartTime(
+                        teacher.getId(), WeeklyTimetable.Status.ACTIVE,
+                        WeeklyTimetable.ReviewStatus.APPROVED, today.getDayOfWeek()).stream()
                 .map(e -> lecture(e, today))
                 .toList();
     }
@@ -152,6 +148,7 @@ public class WeeklyAttendanceService {
     public ReportResponse classTeacherReport(LocalDate from, LocalDate to, Long divisionId, Long subjectId) {
         StaffProfile profile = currentStaff();
         return report(from, to, subjectId, divisionId, null, null,
+                profile.getId(),
                 s -> s.getClassTeacher() != null && s.getClassTeacher().getId().equals(profile.getId()));
     }
 
@@ -159,6 +156,7 @@ public class WeeklyAttendanceService {
             Long subjectId, Long teacherId) {
         StaffProfile profile = currentStaff();
         return report(from, to, subjectId, divisionId, departmentId, teacherId,
+                null,
                 s -> profile.belongsToDepartment(s.getDepartment().getId()));
     }
 
@@ -166,11 +164,12 @@ public class WeeklyAttendanceService {
             Long subjectId, Long teacherId) {
         Long college = SecurityUtils.requireCurrentUser().getCollegeId();
         return report(from, to, subjectId, divisionId, departmentId, teacherId,
+                null,
                 s -> SecurityUtils.isSuperAdmin() || Objects.equals(college, s.getCollege().getId()));
     }
 
     private ReportResponse report(LocalDate from, LocalDate to, Long subjectId, Long divisionId,
-            Long departmentId, Long teacherId, Predicate<Section> scope) {
+            Long departmentId, Long teacherId, Long classTeacherId, Predicate<Section> scope) {
         LocalDate end = to == null ? LocalDate.now() : to;
         LocalDate start = from == null ? end.minusMonths(1) : from;
         validateRange(start, end);
@@ -191,10 +190,11 @@ public class WeeklyAttendanceService {
         long present = count(all, WeeklyAttendanceRecord.Status.PRESENT), absent = count(all, WeeklyAttendanceRecord.Status.ABSENT);
         long late = count(all, WeeklyAttendanceRecord.Status.LATE), leave = count(all, WeeklyAttendanceRecord.Status.LEAVE);
 
-        List<StudentSectionEnrollment> active = enrollments.findAll().stream()
-                .filter(e -> e.getStatus() == AcademicStatus.ACTIVE).filter(e -> scope.test(e.getSection()))
-                .filter(e -> divisionId == null || divisionId.equals(e.getSection().getId()))
-                .filter(e -> departmentId == null || departmentId.equals(e.getSection().getDepartment().getId()))
+        List<StudentSectionEnrollment> active = enrollments.findForAttendanceReport(
+                        AcademicStatus.ACTIVE,
+                        SecurityUtils.isSuperAdmin() ? null : college,
+                        departmentId, divisionId, classTeacherId).stream()
+                .filter(e -> scope.test(e.getSection()))
                 .toList();
         Set<Long> allowedStudentIds = all.stream().map(r -> r.getStudent().getId()).collect(Collectors.toSet());
         if (subjectId != null || teacherId != null) active = active.stream()
@@ -211,14 +211,11 @@ public class WeeklyAttendanceService {
         Set<Long> absentToday = all.stream().filter(r -> r.getSession().getAttendanceDate().equals(today))
                 .filter(r -> r.getStatus() == WeeklyAttendanceRecord.Status.ABSENT)
                 .map(r -> r.getStudent().getId()).collect(Collectors.toSet());
-        List<WeeklyTimetableEntry> expectedEntries = entries.findAll().stream()
-                .filter(e -> e.getTimetable().getStatus() == WeeklyTimetable.Status.ACTIVE)
-                .filter(this::approved)
+        List<WeeklyTimetableEntry> expectedEntries = entries.findApprovedForAttendanceReport(
+                        SecurityUtils.isSuperAdmin() ? null : college,
+                        departmentId, divisionId, subjectId, teacherId, classTeacherId).stream()
                 .filter(e -> scope.test(e.getTimetable().getSection()))
-                .filter(e -> subjectId == null || subjectId.equals(e.getSubject().getId()))
-                .filter(e -> divisionId == null || divisionId.equals(e.getTimetable().getSection().getId()))
-                .filter(e -> departmentId == null || departmentId.equals(e.getTimetable().getSection().getDepartment().getId()))
-                .filter(e -> teacherId == null || teacherId.equals(e.getTeacher().getId())).toList();
+                .toList();
         List<WeeklyTimetableEntry> expectedToday = expectedEntries.stream()
                 .filter(e -> e.getDayOfWeek() == today.getDayOfWeek()).toList();
         List<WeeklyAttendanceSession> todaySessions = (SecurityUtils.isSuperAdmin() ? sessions.findByAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(today, today)

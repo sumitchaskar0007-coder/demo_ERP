@@ -90,9 +90,6 @@ services:
       CACHE_ENVIRONMENT: ${CACHE_ENVIRONMENT:-docker}
       STORAGE_PROVIDER: local
       UPLOAD_DIR: /app/uploads
-      ADMISSION_PHOTO_DIR: /app/uploads/admission-photos
-      ADMISSION_DOCUMENT_DIR: /app/uploads/admission-documents
-      PAYMENT_PROOF_DIR: /app/uploads/payment-proofs
       FRONTEND_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN, for example https://erp.example.com}
       CORS_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN, for example https://erp.example.com}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}

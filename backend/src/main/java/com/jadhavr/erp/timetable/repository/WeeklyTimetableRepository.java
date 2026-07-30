@@ -10,4 +10,6 @@ public interface WeeklyTimetableRepository extends JpaRepository<WeeklyTimetable
     List<WeeklyTimetable> findBySectionDepartmentId(Long departmentId);
     List<WeeklyTimetable> findBySectionDepartmentIdAndStatus(
             Long departmentId, WeeklyTimetable.Status status);
+    List<WeeklyTimetable> findBySectionDepartmentIdAndStatusNot(
+            Long departmentId, WeeklyTimetable.Status status);
 }

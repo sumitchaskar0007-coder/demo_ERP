@@ -1,0 +1,133 @@
+[
+  {
+    "email": "student-load-0001@example.invalid",
+    "password": "REPLACE_WITH_SYNTHETIC_PASSWORD",
+    "role": "STUDENT",
+    "expectedTenantId": 900001,
+    "journeys": {
+      "dashboard": {
+        "path": "/api/v1/auth/me",
+        "expectedStatuses": [200],
+        "captureBody": true,
+        "tenantJsonPath": "data.collegeId"
+      },
+      "unread": {
+        "path": "/api/notices/unread-count",
+        "expectedStatuses": [200]
+      },
+      "attendanceRead": {
+        "path": "/api/student/attendance",
+        "expectedStatuses": [200]
+      },
+      "feeRead": {
+        "path": "/api/student/fees/me",
+        "expectedStatuses": [200]
+      },
+      "fileTransfer": {
+        "safe": true,
+        "contentType": "application/pdf",
+        "initiate": {
+          "method": "POST",
+          "path": "/api/student/admissions/me/documents/GAP_CERTIFICATE/presign",
+          "body": {
+            "originalFilename": "k6-${RUN_ID}-${VU}-${ITER}.pdf",
+            "contentType": "${CONTENT_TYPE}",
+            "fileSize": "${FILE_SIZE}",
+            "sha256": "${FILE_SHA256}"
+          },
+          "expectedStatuses": [200]
+        },
+        "uploadUrlJsonPath": "data.uploadUrl",
+        "uploadIdJsonPath": "data.uploadId",
+        "requiredHeadersJsonPath": "data.requiredHeaders",
+        "complete": {
+          "method": "POST",
+          "path": "/api/student/admissions/me/documents/GAP_CERTIFICATE/complete",
+          "body": {
+            "uploadId": "${UPLOAD_ID}"
+          },
+          "expectedStatuses": [200]
+        },
+        "downloadRequest": {
+          "method": "GET",
+          "path": "/api/student/admissions/me/documents/GAP_CERTIFICATE/download-url"
+        },
+        "downloadUrlJsonPath": "data.downloadUrl"
+      }
+    }
+  },
+  {
+    "email": "principal-load-0001@example.invalid",
+    "password": "REPLACE_WITH_SYNTHETIC_PASSWORD",
+    "role": "PRINCIPAL",
+    "expectedTenantId": 900001,
+    "crossTenantStudentId": 990002,
+    "journeys": {
+      "dashboard": "/api/v1/auth/me",
+      "unread": "/api/notices/unread-count",
+      "studentSearch": "/api/principal/students/search?keyword=load&page=0&size=20",
+      "attendanceRead": "/api/principal/attendance/dashboard",
+      "feeRead": "/api/principal/fees/collections?page=0&size=20",
+      "tenantIsolationProbe": {
+        "path": "/api/principal/students/${CROSS_TENANT_STUDENT_ID}/details",
+        "expectedStatuses": [403, 404],
+        "tenantIsolationNegative": true
+      },
+      "report": {
+        "safe": true,
+        "initiate": {
+          "method": "POST",
+          "path": "/api/reports/students/jobs",
+          "body": {},
+          "expectedStatuses": [200, 202]
+        },
+        "jobIdJsonPath": "data.id",
+        "statusPathTemplate": "/api/reports/jobs/${JOB_ID}",
+        "statusJsonPath": "data.status",
+        "downloadRequest": {
+          "method": "GET",
+          "path": "/api/reports/jobs/${JOB_ID}/download"
+        },
+        "authorizedDownloadUrlJsonPath": "data.url",
+        "successStatuses": ["COMPLETED"],
+        "failureStatuses": ["FAILED", "CANCELLED", "EXPIRED"],
+        "pollSeconds": 2,
+        "maxPolls": 20
+      }
+    }
+  },
+  {
+    "email": "teacher-load-0001@example.invalid",
+    "password": "REPLACE_WITH_SYNTHETIC_PASSWORD",
+    "role": "SUBJECT_TEACHER",
+    "expectedTenantId": 900001,
+    "journeys": {
+      "dashboard": "/api/v1/auth/me",
+      "unread": "/api/notices/unread-count",
+      "attendanceRead": "/api/teacher/attendance/today-lectures"
+    }
+  },
+  {
+    "email": "fee-load-0001@example.invalid",
+    "password": "REPLACE_WITH_SYNTHETIC_PASSWORD",
+    "role": "FEE_SECTION",
+    "expectedTenantId": 900001,
+    "journeys": {
+      "dashboard": "/api/v1/auth/me",
+      "unread": "/api/notices/unread-count",
+      "feeRead": "/api/fee-section/workspace?page=0&size=25"
+    }
+  },
+  {
+    "email": "student-load-0002@example.invalid",
+    "password": "REPLACE_WITH_SYNTHETIC_PASSWORD",
+    "role": "STUDENT",
+    "expectedTenantId": 900002,
+    "journeys": {
+      "dashboard": "/api/v1/auth/me",
+      "unread": "/api/notices/unread-count",
+      "attendanceRead": "/api/student/attendance/subject-wise",
+      "feeRead": "/api/student/fees/transactions"
+    }
+  }
+]

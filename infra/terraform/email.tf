@@ -51,13 +51,19 @@ resource "aws_route53_record" "ses_dmarc" {
   records = ["v=DMARC1; p=quarantine; rua=mailto:admin@${var.domain_name}; adkim=s; aspf=s"]
 }
 
+# Historical staging behavior below creates SMTP credentials and therefore
+# stores them in encrypted Terraform state. Do not apply this credential path
+# from a separate production state. Production mail credentials are populated
+# directly in Secrets Manager only after SES production access is approved.
 resource "aws_iam_user" "ses_smtp" {
-  name = "${local.name}-ses-smtp"
+  count = local.external_production ? 0 : 1
+  name  = "${local.name}-ses-smtp"
 }
 
 resource "aws_iam_user_policy" "ses_smtp" {
-  name = "send-email-only"
-  user = aws_iam_user.ses_smtp.name
+  count = local.external_production ? 0 : 1
+  name  = "send-email-only"
+  user  = aws_iam_user.ses_smtp[0].name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -69,7 +75,8 @@ resource "aws_iam_user_policy" "ses_smtp" {
 }
 
 resource "aws_iam_access_key" "ses_smtp" {
-  user = aws_iam_user.ses_smtp.name
+  count = local.external_production ? 0 : 1
+  user  = aws_iam_user.ses_smtp[0].name
 }
 
 resource "aws_secretsmanager_secret" "mail" {
@@ -78,11 +85,34 @@ resource "aws_secretsmanager_secret" "mail" {
 }
 
 resource "aws_secretsmanager_secret_version" "mail" {
+  count     = local.external_production ? 0 : 1
   secret_id = aws_secretsmanager_secret.mail.id
   secret_string = jsonencode({
     MAIL_HOST         = "email-smtp.${var.aws_region}.amazonaws.com"
-    MAIL_USERNAME     = aws_iam_access_key.ses_smtp.id
-    MAIL_PASSWORD     = aws_iam_access_key.ses_smtp.ses_smtp_password_v4
+    MAIL_USERNAME     = aws_iam_access_key.ses_smtp[0].id
+    MAIL_PASSWORD     = aws_iam_access_key.ses_smtp[0].ses_smtp_password_v4
     MAIL_FROM_ADDRESS = local.mail_from_address
   })
+}
+
+# Preserve existing staging addresses while ensuring a separate production
+# state never creates SMTP credentials or writes secret values.
+moved {
+  from = aws_iam_user.ses_smtp
+  to   = aws_iam_user.ses_smtp[0]
+}
+
+moved {
+  from = aws_iam_user_policy.ses_smtp
+  to   = aws_iam_user_policy.ses_smtp[0]
+}
+
+moved {
+  from = aws_iam_access_key.ses_smtp
+  to   = aws_iam_access_key.ses_smtp[0]
+}
+
+moved {
+  from = aws_secretsmanager_secret_version.mail
+  to   = aws_secretsmanager_secret_version.mail[0]
 }

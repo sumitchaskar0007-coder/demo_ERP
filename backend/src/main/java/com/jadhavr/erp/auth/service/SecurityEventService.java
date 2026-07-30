@@ -4,6 +4,7 @@ import com.jadhavr.erp.auth.entity.SecurityAuditEvent;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.repository.SecurityAuditEventRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,16 +16,24 @@ public class SecurityEventService {
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final SecurityAuditEventRepository events;
-    public SecurityEventService(UserRepository users, RefreshTokenRepository refreshTokens, SecurityAuditEventRepository events) {
-        this.users = users; this.refreshTokens = refreshTokens; this.events = events;
+    private final AuthorizationSnapshotService authorizationSnapshots;
+    public SecurityEventService(UserRepository users, RefreshTokenRepository refreshTokens,
+            SecurityAuditEventRepository events,
+            AuthorizationSnapshotService authorizationSnapshots) {
+        this.users = users;
+        this.refreshTokens = refreshTokens;
+        this.events = events;
+        this.authorizationSnapshots = authorizationSnapshots;
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void loginFailure(String email, String ip, String agent) {
         var user = users.findByEmail(email).orElse(null);
         if (user != null) {
             int failures = user.getFailedLoginAttempts() + 1; user.setFailedLoginAttempts(failures);
-            if (failures >= MAX_FAILURES) user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
+            boolean locked = failures >= MAX_FAILURES;
+            if (locked) user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
             users.save(user);
+            if (locked) authorizationSnapshots.invalidateOrThrow(user.getId());
         }
         record(user == null ? null : user.getId(), user == null || user.getCollege() == null ? null : user.getCollege().getId(),
                 "LOGIN_FAILURE", false, ip, agent, user == null ? "Unknown account" : "Invalid credentials or locked account");
@@ -32,7 +41,12 @@ public class SecurityEventService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void refreshReuse(Long userId, String ip, String agent) {
         var user = users.findById(userId).orElse(null);
-        if (user != null) { refreshTokens.revokeAllForUser(userId); user.setSessionVersion(user.getSessionVersion() + 1); users.save(user); }
+        if (user != null) {
+            refreshTokens.revokeAllForUser(userId);
+            user.setSessionVersion(user.getSessionVersion() + 1);
+            users.save(user);
+            authorizationSnapshots.invalidateOrThrow(userId);
+        }
         record(userId, user == null || user.getCollege() == null ? null : user.getCollege().getId(),
                 "REFRESH_TOKEN_REUSE", false, ip, agent, "All sessions revoked");
     }

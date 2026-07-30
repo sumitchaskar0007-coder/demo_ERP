@@ -1,7 +1,9 @@
 package com.jadhavr.erp.student.repository;
 
+import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.fee.dto.CollegeCountPoint;
+import com.jadhavr.erp.student.enums.StudentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -23,6 +25,27 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     List<StudentProfile> findByDepartmentId(Long departmentId);
     long countByCollegeId(Long collegeId);
     long countByDepartmentId(Long departmentId);
+    long countByDepartmentIdAndStatus(Long departmentId, StudentStatus status);
+
+    @Query("""
+            select s
+            from StudentProfile s
+            where s.department.id = :departmentId
+              and s.status = :studentStatus
+              and not exists (
+                  select e.id
+                  from StudentSectionEnrollment e
+                  where e.student = s
+                    and e.academicYear = :academicYear
+                    and e.status = :enrollmentStatus
+              )
+            order by s.fullName, s.id
+            """)
+    List<StudentProfile> findEligibleForAcademicYear(
+            Long departmentId,
+            StudentStatus studentStatus,
+            String academicYear,
+            AcademicStatus enrollmentStatus);
 
     @Query("""
             select new com.jadhavr.erp.fee.dto.CollegeCountPoint(s.college.name, count(s.id))

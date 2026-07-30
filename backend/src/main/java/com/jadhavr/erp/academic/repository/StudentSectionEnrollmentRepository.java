@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface StudentSectionEnrollmentRepository
         extends JpaRepository<StudentSectionEnrollment, Long> {
@@ -31,6 +33,29 @@ public interface StudentSectionEnrollmentRepository
 
     List<StudentSectionEnrollment> findBySectionDepartmentIdAndStatus(
             Long departmentId, AcademicStatus status);
+
+    long countBySectionDepartmentIdAndStatus(
+            Long departmentId, AcademicStatus status);
+
+    @EntityGraph(attributePaths = {
+            "student", "section", "section.college", "section.department",
+            "section.academicClass", "section.classTeacher"
+    })
+    @Query("""
+            select enrollment
+            from StudentSectionEnrollment enrollment
+            where enrollment.status = :status
+              and (:collegeId is null or enrollment.section.college.id = :collegeId)
+              and (:departmentId is null or enrollment.section.department.id = :departmentId)
+              and (:sectionId is null or enrollment.section.id = :sectionId)
+              and (:classTeacherId is null or enrollment.section.classTeacher.id = :classTeacherId)
+            """)
+    List<StudentSectionEnrollment> findForAttendanceReport(
+            @Param("status") AcademicStatus status,
+            @Param("collegeId") Long collegeId,
+            @Param("departmentId") Long departmentId,
+            @Param("sectionId") Long sectionId,
+            @Param("classTeacherId") Long classTeacherId);
 
     boolean existsBySectionIdAndRollNumberIgnoreCaseAndStatusAndStudentIdNot(
             Long sectionId, String rollNumber, AcademicStatus status, Long studentId);

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dnf update -y
+dnf install -y docker jq git tar gzip
+
+systemctl enable --now docker
+systemctl enable --now amazon-ssm-agent
+
+install -d -m 0750 /opt/${project_name}
+install -d -m 0750 /var/lib/${project_name}/uploads
+install -d -m 0700 /run/${project_name}
+
+touch /var/log/${project_name}-bootstrap-complete

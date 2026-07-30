@@ -12,6 +12,7 @@ import com.jadhavr.erp.academic.mapper.DivisionMapper;
 import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.academic.repository.SectionRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.audit.enums.AuditAction;
 import com.jadhavr.erp.audit.enums.AuditModule;
 import com.jadhavr.erp.audit.service.AuditLogService;
@@ -54,6 +55,7 @@ public class DivisionServiceImpl implements DivisionService {
     private final UserRepository users;
     private final DivisionMapper mapper;
     private final StaffMapper staffMapper;
+    private final AuthorizationSnapshotService authorizationSnapshots;
     private AuditLogService auditLogs;
 
     @Autowired(required = false)
@@ -63,7 +65,8 @@ public class DivisionServiceImpl implements DivisionService {
 
     public DivisionServiceImpl(SectionRepository divisions, AcademicClassRepository courseYears,
             StaffProfileRepository staffProfiles, RoleRepository roles, UserRepository users,
-            DivisionMapper mapper, StaffMapper staffMapper) {
+            DivisionMapper mapper, StaffMapper staffMapper,
+            AuthorizationSnapshotService authorizationSnapshots) {
         this.divisions = divisions;
         this.courseYears = courseYears;
         this.staffProfiles = staffProfiles;
@@ -71,6 +74,7 @@ public class DivisionServiceImpl implements DivisionService {
         this.users = users;
         this.mapper = mapper;
         this.staffMapper = staffMapper;
+        this.authorizationSnapshots = authorizationSnapshots;
     }
 
     @Override
@@ -241,7 +245,10 @@ public class DivisionServiceImpl implements DivisionService {
         Set<Role> updated = new HashSet<>(teacher.getUser().getRoles());
         updated.add(role);
         teacher.getUser().setRoles(updated);
+        teacher.getUser().setSessionVersion(
+                teacher.getUser().getSessionVersion() + 1);
         users.save(teacher.getUser());
+        authorizationSnapshots.invalidateOrThrow(teacher.getUser().getId());
     }
 
     private Section findScoped(Long id) {

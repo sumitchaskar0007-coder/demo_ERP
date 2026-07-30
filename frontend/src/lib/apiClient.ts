@@ -60,13 +60,16 @@ apiClient.interceptors.request.use(async (config) => {
 
 async function refreshSession() {
   if (!refreshPromise) {
-    refreshPromise = authClient
-      .get("/api/v1/auth/csrf")
-      .then(() => authClient.post("/api/v1/auth/refresh"))
-      .then(() => undefined)
-      .finally(() => {
-        refreshPromise = null;
-      });
+    const rotate = () =>
+      authClient
+        .get("/api/v1/auth/csrf")
+        .then(() => authClient.post("/api/v1/auth/refresh"))
+        .then(() => undefined);
+    refreshPromise = (
+      navigator.locks ? navigator.locks.request("jadhavr-auth-refresh", rotate) : rotate()
+    ).finally(() => {
+      refreshPromise = null;
+    });
   }
   return refreshPromise;
 }

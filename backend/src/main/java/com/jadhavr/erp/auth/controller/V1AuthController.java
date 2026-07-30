@@ -4,6 +4,7 @@ import com.jadhavr.erp.auth.dto.AuthUserResponse;
 import com.jadhavr.erp.auth.dto.LoginRequest;
 import com.jadhavr.erp.auth.security.AuthCookieService;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.auth.security.TrustedClientIpResolver;
 import com.jadhavr.erp.auth.service.AuthenticationService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.user.mapper.UserMapper;
@@ -24,8 +25,14 @@ public class V1AuthController {
     private final AuthCookieService cookies;
     private final UserRepository users;
     private final UserMapper mapper;
-    public V1AuthController(AuthenticationService authentication, AuthCookieService cookies, UserRepository users, UserMapper mapper) {
-        this.authentication = authentication; this.cookies = cookies; this.users = users; this.mapper = mapper;
+    private final TrustedClientIpResolver clientIps;
+    public V1AuthController(AuthenticationService authentication, AuthCookieService cookies,
+            UserRepository users, UserMapper mapper, TrustedClientIpResolver clientIps) {
+        this.authentication = authentication;
+        this.cookies = cookies;
+        this.users = users;
+        this.mapper = mapper;
+        this.clientIps = clientIps;
     }
     @PostMapping("/login")
     public ApiResponse<AuthUserResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse response) {
@@ -40,7 +47,10 @@ public class V1AuthController {
     }
     @PostMapping("/logout")
     public ApiResponse<Void> logout(@AuthenticationPrincipal CustomUserDetails current, HttpServletRequest request, HttpServletResponse response) {
-        authentication.logout(current == null ? null : current.getId(), clientIp(request), request.getHeader("User-Agent")); cookies.clear(response);
+        authentication.logout(current == null ? null : current.getId(),
+                cookie(request, AuthCookieService.REFRESH_COOKIE),
+                clientIp(request), request.getHeader("User-Agent"));
+        cookies.clear(response);
         return ApiResponse.success("Logout successful", null);
     }
     @GetMapping("/me") @Transactional(readOnly = true)
@@ -58,7 +68,6 @@ public class V1AuthController {
         return null;
     }
     private String clientIp(HttpServletRequest request) {
-        // Forwarded headers are resolved by the container only for configured trusted proxies.
-        return request.getRemoteAddr();
+        return clientIps.resolve(request);
     }
 }

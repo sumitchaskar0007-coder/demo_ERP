@@ -1,0 +1,1154 @@
+name: Deploy production ECS
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY_PRODUCTION_ECS after the staging evidence and production approval are recorded
+        required: true
+        type: string
+      external_migration_approval:
+        description: External RDS/Flyway change or approval reference
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-ecs-deployment
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  ECS_MIGRATION_TASK_DEFINITION: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+  ECS_WORKER_SERVICE: ${{ vars.ECS_WORKER_SERVICE }}
+  FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+  APPLICATION_URL: ${{ vars.APPLICATION_URL }}
+  FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+  AWS_RETRY_MODE: standard
+  AWS_MAX_ATTEMPTS: "10"
+
+jobs:
+  deploy:
+    name: Verify and deploy immutable ECS release
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == 'DEPLOY_PRODUCTION_ECS' &&
+      inputs.external_migration_approval != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: production
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: college_erp
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U postgres -d college_erp"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    steps:
+      - name: Check out approved main commit
+        uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          MIGRATION_APPROVAL: ${{ inputs.external_migration_approval }}
+        run: |
+          set -euo pipefail
+          required=(
+            AWS_REGION
+            ECR_REPOSITORY
+            ECS_CLUSTER
+            ECS_SERVICE
+            ECS_MIGRATION_TASK_DEFINITION
+            FRONTEND_BUCKET
+            CLOUDFRONT_DISTRIBUTION_ID
+            APPLICATION_URL
+            FRONTEND_URL
+            AWS_DEPLOY_ROLE_ARN
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub production variable or secret: ${name}"
+              exit 1
+            fi
+          done
+          [[ "$AWS_REGION" =~ ^[a-z]{2}-[a-z]+-[0-9]+$ ]]
+          [[ "$ECR_REPOSITORY" =~ ^[a-z0-9][a-z0-9._/-]+$ ]]
+          [[ "$ECS_CLUSTER" =~ ^[A-Za-z0-9_-]+$ ]]
+          [[ "$ECS_SERVICE" =~ ^[A-Za-z0-9_-]+$ ]]
+          # A revision-qualified value makes the externally approved migration
+          # definition explicit; the release image itself is still replaced by
+          # its immutable ECR digest below.
+          [[ "$ECS_MIGRATION_TASK_DEFINITION" =~ ^([A-Za-z0-9_-]+:[1-9][0-9]*|arn:aws[a-z-]*:ecs:[a-z0-9-]+:[0-9]{12}:task-definition/[A-Za-z0-9_-]+:[1-9][0-9]*)$ ]]
+          if [ -n "${ECS_WORKER_SERVICE:-}" ]; then
+            [[ "$ECS_WORKER_SERVICE" =~ ^[A-Za-z0-9_-]+$ ]]
+            test "$ECS_WORKER_SERVICE" != "$ECS_SERVICE"
+          fi
+          [[ "$FRONTEND_BUCKET" =~ ^[a-z0-9][a-z0-9.-]+$ ]]
+          [[ "$CLOUDFRONT_DISTRIBUTION_ID" =~ ^[A-Z0-9]+$ ]]
+          [[ "$APPLICATION_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[^[:space:]]*)?$ ]]
+          [[ "$FRONTEND_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[^[:space:]]*)?$ ]]
+          [[ "$AWS_DEPLOY_ROLE_ARN" =~ ^arn:aws[a-z-]*:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]+$ ]]
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MIGRATION_APPROVAL" =~ [^[:space:]] ]]
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Verify backend
+        working-directory: backend
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/college_erp
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          FLYWAY_ENABLED: "true"
+          RATE_LIMIT_REDIS_ENABLED: "true"
+          REDIS_HOST: localhost
+          REDIS_PORT: "6379"
+        run: ./mvnw -B verify
+
+      - name: Apply and validate Flyway migrations on PostgreSQL
+        working-directory: backend
+        env:
+          SPRING_PROFILES_ACTIVE: docker
+          DB_URL: jdbc:postgresql://localhost:5432/college_erp
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_POOL_MAX_SIZE: "4"
+          DB_POOL_MIN_IDLE: "0"
+          FLYWAY_ENABLED: "true"
+          JWT_SECRET: ci-only-jwt-secret-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJK
+          RATE_LIMIT_KEY_SECRET: ci-only-rate-limit-key-0123456789-abcdefghijklmnopqrstuvwxyz
+          REDIS_HOST: localhost
+          REDIS_PORT: "6379"
+          REDIS_PASSWORD: ""
+          REDIS_SSL_ENABLED: "false"
+          CACHE_ENVIRONMENT: deployment-migration-validation
+          MAIL_ENABLED: "false"
+          REPORT_EXPORTS_ENABLED: "false"
+          REPORT_DATABASE_POLL_ENABLED: "false"
+          REPORT_SQS_PRODUCER_ENABLED: "false"
+          REPORT_SQS_CONSUMER_ENABLED: "false"
+          FRONTEND_URL: http://localhost
+          CORS_ALLOWED_ORIGINS: http://localhost
+        run: >-
+          timeout 120s java -jar target/college-erp-*.jar
+          --app.migration-task=true --server.port=0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify and build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ""
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm run format:check
+          npm run test:unit
+          npm run build
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Validate infrastructure definitions
+        run: |
+          set -euo pipefail
+          terraform fmt -check -recursive infra
+          terraform -chdir=infra/terraform init -backend=false -input=false
+          terraform -chdir=infra/terraform validate
+          terraform -chdir=infra/terraform-ec2 init -backend=false -input=false
+          terraform -chdir=infra/terraform-ec2 validate
+
+      - name: Configure least-privilege AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sign in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check for an existing immutable backend image
+        id: existing_image
+        run: |
+          set -euo pipefail
+          if aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=${GITHUB_SHA}" \
+            >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build backend image for scanning
+        if: steps.existing_image.outputs.exists != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          load: true
+          push: false
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Scan release image
+        if: steps.existing_image.outputs.exists != 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Push immutable backend image
+        if: steps.existing_image.outputs.exists != 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+
+      - name: Resolve immutable image digest
+        id: image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          image_digest="$(
+            aws ecr describe-images \
+              --repository-name "$ECR_REPOSITORY" \
+              --image-ids "imageTag=${GITHUB_SHA}" \
+              --query 'imageDetails[0].imageDigest' \
+              --output text
+          )"
+          if [[ ! "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::ECR did not return a valid immutable image digest"
+            exit 1
+          fi
+          echo "uri=${ECR_REGISTRY}/${ECR_REPOSITORY}@${image_digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Preflight ECS topology and derive migration network
+        id: topology
+        run: |
+          set -euo pipefail
+          api_service_json="${RUNNER_TEMP}/api-service.json"
+          migration_network_json="${RUNNER_TEMP}/migration-network.json"
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --output json > "$api_service_json"
+
+          if ! jq -e --arg service "$ECS_SERVICE" '
+            ((.failures // []) | length) == 0 and
+            (.services | length) == 1 and
+            .services[0].serviceName == $service and
+            .services[0].status == "ACTIVE" and
+            .services[0].launchType == "FARGATE" and
+            (.services[0].schedulingStrategy // "REPLICA") == "REPLICA" and
+            .services[0].deploymentController.type == "ECS" and
+            .services[0].desiredCount >= 2 and
+            .services[0].runningCount == .services[0].desiredCount and
+            .services[0].pendingCount == 0 and
+            (.services[0].taskDefinition | test("^arn:aws[a-z-]*:ecs:")) and
+            (.services[0].deployments | length) == 1 and
+            .services[0].deployments[0].taskDefinition == .services[0].taskDefinition and
+            (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED" and
+            (.services[0].networkConfiguration.awsvpcConfiguration.assignPublicIp // "DISABLED") == "DISABLED" and
+            ((.services[0].networkConfiguration.awsvpcConfiguration.subnets // []) | unique | length) >= 2 and
+            ((.services[0].networkConfiguration.awsvpcConfiguration.securityGroups // []) | unique | length) >= 1
+          ' "$api_service_json" >/dev/null; then
+            echo "::error::The API service is not an active, private, multi-AZ Fargate replica service"
+            jq '{
+              failures: (.failures // []),
+              services: [
+                .services[]? | {
+                  serviceName,
+                  status,
+                  launchType,
+                  schedulingStrategy,
+                  desiredCount,
+                  taskDefinition,
+                  deploymentController,
+                  networkConfiguration
+                }
+              ]
+            }' "$api_service_json"
+            exit 1
+          fi
+
+          jq '{
+            awsvpcConfiguration: {
+              subnets: (.services[0].networkConfiguration.awsvpcConfiguration.subnets | unique),
+              securityGroups: (.services[0].networkConfiguration.awsvpcConfiguration.securityGroups | unique),
+              assignPublicIp: "DISABLED"
+            }
+          }' "$api_service_json" > "$migration_network_json"
+
+          previous_api_task="$(jq -r '.services[0].taskDefinition' "$api_service_json")"
+          previous_worker_task=""
+          worker_desired_count=""
+          if [ -n "${ECS_WORKER_SERVICE:-}" ]; then
+            worker_service_json="${RUNNER_TEMP}/worker-service.json"
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_WORKER_SERVICE" \
+              --output json > "$worker_service_json"
+            if ! jq -e \
+              --arg service "$ECS_WORKER_SERVICE" \
+              --slurpfile api "$api_service_json" '
+              ((.failures // []) | length) == 0 and
+              (.services | length) == 1 and
+              .services[0].serviceName == $service and
+              .services[0].status == "ACTIVE" and
+              .services[0].launchType == "FARGATE" and
+              (.services[0].schedulingStrategy // "REPLICA") == "REPLICA" and
+              .services[0].deploymentController.type == "ECS" and
+              .services[0].desiredCount >= 1 and
+              .services[0].runningCount == .services[0].desiredCount and
+              .services[0].pendingCount == 0 and
+              (.services[0].taskDefinition | test("^arn:aws[a-z-]*:ecs:")) and
+              (.services[0].deployments | length) == 1 and
+              .services[0].deployments[0].taskDefinition == .services[0].taskDefinition and
+              (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED" and
+              (.services[0].networkConfiguration.awsvpcConfiguration.assignPublicIp // "DISABLED") == "DISABLED" and
+              ((.services[0].networkConfiguration.awsvpcConfiguration.subnets // []) | unique | length) >= 2 and
+              ((.services[0].networkConfiguration.awsvpcConfiguration.securityGroups // []) | unique | length) >= 1 and
+              (
+                ((.services[0].networkConfiguration.awsvpcConfiguration.subnets // []) | unique | sort) ==
+                (($api[0].services[0].networkConfiguration.awsvpcConfiguration.subnets // []) | unique | sort)
+              ) and
+              (
+                ((.services[0].networkConfiguration.awsvpcConfiguration.securityGroups // []) | unique | sort) ==
+                (($api[0].services[0].networkConfiguration.awsvpcConfiguration.securityGroups // []) | unique | sort)
+              )
+            ' "$worker_service_json" >/dev/null; then
+              echo "::error::ECS_WORKER_SERVICE is not an active private Fargate worker on the API network"
+              exit 1
+            fi
+            previous_worker_task="$(jq -r '.services[0].taskDefinition' "$worker_service_json")"
+            worker_desired_count="$(jq -r '.services[0].desiredCount' "$worker_service_json")"
+          fi
+
+          {
+            echo "api_previous_task=${previous_api_task}"
+            echo "worker_previous_task=${previous_worker_task}"
+            echo "worker_desired_count=${worker_desired_count}"
+            echo "migration_network=${migration_network_json}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Register immutable release migration task
+        id: migration_task
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+        run: |
+          set -euo pipefail
+          source_task_json="${RUNNER_TEMP}/migration-task-source.json"
+          release_task_json="${RUNNER_TEMP}/migration-task-release.json"
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_MIGRATION_TASK_DEFINITION" \
+            --query taskDefinition \
+            --output json > "$source_task_json"
+
+          jq -e '
+            .status == "ACTIVE" and
+            .networkMode == "awsvpc" and
+            ((.requiresCompatibilities // []) | index("FARGATE")) != null and
+            ([.containerDefinitions[] | select(.name == "migration")] | length) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "migration")
+                | (.command // [])[]
+                | select(. == "--app.migration-task=true")
+              ] | length
+            ) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "migration")
+                | (.environment // [])[]
+                | select(.name == "FLYWAY_ENABLED")
+              ] | length
+            ) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "migration")
+                | (.environment // [])[]
+                | select(.name == "FLYWAY_ENABLED")
+              ][0].value
+            ) == "true" and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "migration")
+                | (.environment // [])[]
+                | select(.name == "BOOTSTRAP_ENABLED")
+              ] | length
+            ) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "migration")
+                | (.environment // [])[]
+                | select(.name == "BOOTSTRAP_ENABLED")
+              ][0].value
+            ) == "false"
+          ' "$source_task_json" >/dev/null || {
+            echo "::error::The approved task definition is not a valid Fargate Flyway migration task"
+            exit 1
+          }
+
+          jq --arg image "$IMAGE_URI" --arg release "${GITHUB_SHA:0:12}" '
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )
+            | (.containerDefinitions[] | select(.name == "migration") | .image) = $image
+            | (.containerDefinitions[] | select(.name == "migration") | .environment) |=
+                ((. // [] | map(select(.name != "APP_RELEASE"))) +
+                [{"name": "APP_RELEASE", "value": $release}])
+          ' "$source_task_json" > "$release_task_json"
+
+          migration_family="$(jq -r '.family' "$source_task_json")"
+          [[ "$migration_family" =~ ^[A-Za-z0-9_-]+$ ]]
+          latest_task_json="${RUNNER_TEMP}/migration-task-latest.json"
+          aws ecs describe-task-definition \
+            --task-definition "$migration_family" \
+            --query taskDefinition \
+            --output json > "$latest_task_json"
+          if jq -e --slurpfile desired "$release_task_json" '
+            (
+              del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy,
+                .deregisteredAt
+              )
+            ) == $desired[0]
+          ' "$latest_task_json" >/dev/null; then
+            new_task="$(jq -r '.taskDefinitionArn' "$latest_task_json")"
+            echo "Reusing the existing immutable migration task definition ${new_task}"
+          else
+            new_task="$(
+              aws ecs register-task-definition \
+                --cli-input-json "file://${release_task_json}" \
+                --query 'taskDefinition.taskDefinitionArn' \
+                --output text
+            )"
+          fi
+          [[ "$new_task" =~ ^arn:aws[a-z-]*:ecs: ]]
+          approved_revision="$(jq -r '.revision' "$source_task_json")"
+          [[ "$approved_revision" =~ ^[1-9][0-9]*$ ]]
+          migration_client_token="migration-${GITHUB_SHA}-${approved_revision}"
+          migration_started_by="release-${GITHUB_SHA:0:16}-r${approved_revision}"
+          [ "${#migration_client_token}" -le 64 ]
+          [ "${#migration_started_by}" -le 36 ]
+          registered_task_json="${RUNNER_TEMP}/migration-task-registered.json"
+          aws ecs describe-task-definition \
+            --task-definition "$new_task" \
+            --query taskDefinition \
+            --output json > "$registered_task_json"
+          jq -e \
+            --arg task_definition "$new_task" \
+            --arg image "$IMAGE_URI" \
+            --arg release "${GITHUB_SHA:0:12}" '
+              .taskDefinitionArn == $task_definition and
+              (
+                [.containerDefinitions[] | select(
+                  .name == "migration" and
+                  .image == $image and
+                  (
+                    [(.environment // [])[] | select(
+                      .name == "APP_RELEASE" and .value == $release
+                    )] | length
+                  ) == 1
+                )] | length
+              ) == 1
+            ' "$registered_task_json" >/dev/null
+          {
+            echo "new=${new_task}"
+            echo "client_token=${migration_client_token}"
+            echo "started_by=${migration_started_by}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run and verify release migration
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+          MIGRATION_CLIENT_TOKEN: ${{ steps.migration_task.outputs.client_token }}
+          MIGRATION_NETWORK: ${{ steps.topology.outputs.migration_network }}
+          MIGRATION_STARTED_BY: ${{ steps.migration_task.outputs.started_by }}
+          MIGRATION_TASK: ${{ steps.migration_task.outputs.new }}
+        run: |
+          set -euo pipefail
+          expected_digest="${IMAGE_URI##*@}"
+          [[ "$expected_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          run_result="${RUNNER_TEMP}/migration-run.json"
+          final_result="${RUNNER_TEMP}/migration-final.json"
+          aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition "$MIGRATION_TASK" \
+            --launch-type FARGATE \
+            --count 1 \
+            --client-token "$MIGRATION_CLIENT_TOKEN" \
+            --network-configuration "file://${MIGRATION_NETWORK}" \
+            --started-by "$MIGRATION_STARTED_BY" \
+            --output json > "$run_result"
+
+          if ! jq -e '
+            ((.failures // []) | length) == 0 and
+            (.tasks | length) == 1 and
+            (.tasks[0].taskArn | test("^arn:aws[a-z-]*:ecs:"))
+          ' "$run_result" >/dev/null; then
+            echo "::error::ECS rejected the release migration task"
+            jq '{failures: (.failures // [])}' "$run_result"
+            exit 1
+          fi
+
+          migration_task_arn="$(jq -r '.tasks[0].taskArn' "$run_result")"
+          migration_stopped=false
+          # The built-in waiter stops after about ten minutes. Poll for up to
+          # thirty minutes so a valid large migration is not abandoned, while
+          # still leaving time in the job for release verification/rollback.
+          for attempt in {1..180}; do
+            if aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --tasks "$migration_task_arn" \
+              --output json > "$final_result"; then
+              task_status="$(
+                jq -r '
+                  if
+                    ((.failures // []) | length) == 0 and
+                    (.tasks | length) == 1
+                  then .tasks[0].lastStatus
+                  else "UNKNOWN"
+                  end
+                ' "$final_result"
+              )"
+              if [ "$task_status" = "STOPPED" ]; then
+                migration_stopped=true
+                break
+              fi
+              if (( attempt == 1 || attempt % 6 == 0 )); then
+                echo "Migration task status is ${task_status} (${attempt}/180)"
+              fi
+            elif (( attempt == 1 || attempt % 6 == 0 )); then
+              echo "::warning::Unable to reconcile migration task status (${attempt}/180)"
+            fi
+            sleep 10
+          done
+          if [ "$migration_stopped" != "true" ]; then
+            echo "::error::Migration task ${migration_task_arn} did not stop within 30 minutes."
+            echo "::error::Do not retry this commit until that task is confirmed STOPPED; the deterministic client token prevents an immediate duplicate run."
+            exit 1
+          fi
+
+          if ! jq -e \
+            --arg task_definition "$MIGRATION_TASK" \
+            --arg image_digest "$expected_digest" '
+            ((.failures // []) | length) == 0 and
+            (.tasks | length) == 1 and
+            .tasks[0].lastStatus == "STOPPED" and
+            .tasks[0].taskDefinitionArn == $task_definition and
+            (
+              [
+                .tasks[0].containers[]
+                | select(
+                  .name == "migration" and
+                  .lastStatus == "STOPPED" and
+                  .exitCode == 0 and
+                  .imageDigest == $image_digest
+                )
+              ] | length
+            ) == 1
+          ' "$final_result" >/dev/null; then
+            echo "::error::The release migration did not complete successfully"
+            jq '{
+              failures: (.failures // []),
+              tasks: [
+                .tasks[]? | {
+                  taskArn,
+                  taskDefinitionArn,
+                  lastStatus,
+                  stopCode,
+                  stoppedReason,
+                  containers: [
+                    .containers[]? | {name, lastStatus, exitCode, reason}
+                  ]
+                }
+              ]
+            }' "$final_result"
+            exit 1
+          fi
+
+      - name: Register immutable API task definition
+        id: api_task
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+          PREVIOUS_TASK: ${{ steps.topology.outputs.api_previous_task }}
+        run: |
+          set -euo pipefail
+          source_task_json="${RUNNER_TEMP}/api-task-source.json"
+          release_task_json="${RUNNER_TEMP}/api-task-release.json"
+          aws ecs describe-task-definition \
+            --task-definition "$PREVIOUS_TASK" \
+            --query taskDefinition \
+            --output json > "$source_task_json"
+          jq -e '
+            .status == "ACTIVE" and
+            .networkMode == "awsvpc" and
+            ((.requiresCompatibilities // []) | index("FARGATE")) != null and
+            ([.containerDefinitions[] | select(.name == "backend")] | length) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "backend")
+                | (.environment // [])[]
+                | select(.name == "FLYWAY_ENABLED")
+              ] | length
+            ) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "backend")
+                | (.environment // [])[]
+                | select(.name == "FLYWAY_ENABLED")
+              ][0].value
+            ) == "false" and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "backend")
+                | (.environment // [])[]
+                | select(.name == "BOOTSTRAP_ENABLED")
+              ] | length
+            ) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "backend")
+                | (.environment // [])[]
+                | select(.name == "BOOTSTRAP_ENABLED")
+              ][0].value
+            ) == "false"
+          ' "$source_task_json" >/dev/null || {
+            echo "::error::The API service task definition has no unique Fargate backend container"
+            exit 1
+          }
+          jq --arg image "$IMAGE_URI" --arg release "${GITHUB_SHA:0:12}" '
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )
+            | (.containerDefinitions[] | select(.name == "backend") | .image) = $image
+            | (.containerDefinitions[] | select(.name == "backend") | .environment) |=
+                ((. // [] | map(select(.name != "APP_RELEASE"))) +
+                [{"name": "APP_RELEASE", "value": $release}])
+          ' "$source_task_json" > "$release_task_json"
+          new_task="$(
+            aws ecs register-task-definition \
+              --cli-input-json "file://${release_task_json}" \
+              --query 'taskDefinition.taskDefinitionArn' \
+              --output text
+          )"
+          [[ "$new_task" =~ ^arn:aws[a-z-]*:ecs: ]]
+          registered_task_json="${RUNNER_TEMP}/api-task-registered.json"
+          aws ecs describe-task-definition \
+            --task-definition "$new_task" \
+            --query taskDefinition \
+            --output json > "$registered_task_json"
+          jq -e \
+            --arg task_definition "$new_task" \
+            --arg image "$IMAGE_URI" \
+            --arg release "${GITHUB_SHA:0:12}" '
+              .taskDefinitionArn == $task_definition and
+              (
+                [.containerDefinitions[] | select(
+                  .name == "backend" and
+                  .image == $image and
+                  (
+                    [(.environment // [])[] | select(
+                      .name == "APP_RELEASE" and .value == $release
+                    )] | length
+                  ) == 1
+                )] | length
+              ) == 1
+            ' "$registered_task_json" >/dev/null
+          {
+            echo "previous=${PREVIOUS_TASK}"
+            echo "new=${new_task}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Deploy and verify exact API release with rollback
+        id: api_deploy
+        env:
+          PREVIOUS_TASK: ${{ steps.api_task.outputs.previous }}
+          NEW_TASK: ${{ steps.api_task.outputs.new }}
+        run: |
+          set -euo pipefail
+          deployment_started=false
+          rollback_api() {
+            status="$1"
+            trap - ERR INT TERM EXIT
+            if [ "$deployment_started" = "true" ]; then
+              echo "::error::API release verification failed; restoring ${PREVIOUS_TASK}"
+              set +e
+              aws ecs update-service \
+                --cluster "$ECS_CLUSTER" \
+                --service "$ECS_SERVICE" \
+                --task-definition "$PREVIOUS_TASK" \
+                --force-new-deployment >/dev/null
+              rollback_update_status=$?
+              aws ecs wait services-stable \
+                --cluster "$ECS_CLUSTER" \
+                --services "$ECS_SERVICE"
+              rollback_wait_status=$?
+              rollback_result="${RUNNER_TEMP}/api-rollback-service.json"
+              aws ecs describe-services \
+                --cluster "$ECS_CLUSTER" \
+                --services "$ECS_SERVICE" \
+                --output json > "$rollback_result"
+              rollback_describe_status=$?
+              jq -e --arg task_definition "$PREVIOUS_TASK" '
+                ((.failures // []) | length) == 0 and
+                (.services | length) == 1 and
+                .services[0].taskDefinition == $task_definition and
+                .services[0].runningCount == .services[0].desiredCount and
+                .services[0].pendingCount == 0 and
+                (.services[0].deployments | length) == 1 and
+                .services[0].deployments[0].taskDefinition == $task_definition and
+                (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
+              ' "$rollback_result" >/dev/null
+              rollback_verify_status=$?
+              set -e
+              if [ "$rollback_update_status" -ne 0 ] ||
+                [ "$rollback_wait_status" -ne 0 ] ||
+                [ "$rollback_describe_status" -ne 0 ] ||
+                [ "$rollback_verify_status" -ne 0 ]; then
+                echo "::error::Automatic API rollback did not stabilize; operator action is required"
+              fi
+            fi
+            exit "$status"
+          }
+          trap 'rollback_api $?' ERR
+          trap 'rollback_api 130' INT
+          trap 'rollback_api 143' TERM
+          trap 'rollback_api $?' EXIT
+
+          current_task="$(
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_SERVICE" \
+              --query 'services[0].taskDefinition' \
+              --output text
+          )"
+          if [ "$current_task" != "$PREVIOUS_TASK" ]; then
+            echo "::error::The API service changed after preflight; refusing to overwrite it"
+            exit 1
+          fi
+
+          deployment_started=true
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$NEW_TASK" \
+            --force-new-deployment >/dev/null
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"
+
+          service_result="${RUNNER_TEMP}/api-release-service.json"
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --output json > "$service_result"
+          jq -e --arg task_definition "$NEW_TASK" '
+            ((.failures // []) | length) == 0 and
+            (.services | length) == 1 and
+            .services[0].taskDefinition == $task_definition and
+            .services[0].desiredCount >= 2 and
+            .services[0].runningCount == .services[0].desiredCount and
+            .services[0].pendingCount == 0 and
+            (.services[0].deployments | length) == 1 and
+            .services[0].deployments[0].taskDefinition == $task_definition and
+            (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
+          ' "$service_result" >/dev/null
+
+          health_body="${RUNNER_TEMP}/backend-health.json"
+          ready=false
+          for attempt in {1..24}; do
+            if curl --fail --silent --show-error \
+              --max-time 15 \
+              --output "$health_body" \
+              "${APPLICATION_URL%/}/api/health" &&
+              jq -e --arg release "${GITHUB_SHA:0:12}" \
+                '.success == true and .data.status == "UP" and .data.release == $release' \
+                "$health_body" >/dev/null; then
+              ready=true
+              break
+            fi
+            echo "Release health check failed (${attempt}/24); retrying in 10 seconds"
+            sleep 10
+          done
+          test "$ready" = "true"
+
+          deployment_started=false
+          trap - ERR INT TERM EXIT
+
+      - name: Register immutable worker task definition
+        if: env.ECS_WORKER_SERVICE != ''
+        id: worker_task
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+          PREVIOUS_TASK: ${{ steps.topology.outputs.worker_previous_task }}
+        run: |
+          set -euo pipefail
+          source_task_json="${RUNNER_TEMP}/worker-task-source.json"
+          release_task_json="${RUNNER_TEMP}/worker-task-release.json"
+          aws ecs describe-task-definition \
+            --task-definition "$PREVIOUS_TASK" \
+            --query taskDefinition \
+            --output json > "$source_task_json"
+          jq -e '
+            .status == "ACTIVE" and
+            .networkMode == "awsvpc" and
+            ((.requiresCompatibilities // []) | index("FARGATE")) != null and
+            ([.containerDefinitions[] | select(.name == "worker")] | length) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "worker")
+                | (.environment // [])[]
+                | select(.name == "FLYWAY_ENABLED")
+              ] | length
+            ) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "worker")
+                | (.environment // [])[]
+                | select(.name == "FLYWAY_ENABLED")
+              ][0].value
+            ) == "false" and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "worker")
+                | (.environment // [])[]
+                | select(.name == "BOOTSTRAP_ENABLED")
+              ] | length
+            ) == 1 and
+            (
+              [
+                .containerDefinitions[]
+                | select(.name == "worker")
+                | (.environment // [])[]
+                | select(.name == "BOOTSTRAP_ENABLED")
+              ][0].value
+            ) == "false"
+          ' "$source_task_json" >/dev/null || {
+            echo "::error::The worker service task definition has no unique Fargate worker container"
+            exit 1
+          }
+          jq --arg image "$IMAGE_URI" --arg release "${GITHUB_SHA:0:12}" '
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )
+            | (.containerDefinitions[] | select(.name == "worker") | .image) = $image
+            | (.containerDefinitions[] | select(.name == "worker") | .environment) |=
+                ((. // [] | map(select(.name != "APP_RELEASE"))) +
+                [{"name": "APP_RELEASE", "value": $release}])
+          ' "$source_task_json" > "$release_task_json"
+          new_task="$(
+            aws ecs register-task-definition \
+              --cli-input-json "file://${release_task_json}" \
+              --query 'taskDefinition.taskDefinitionArn' \
+              --output text
+          )"
+          [[ "$new_task" =~ ^arn:aws[a-z-]*:ecs: ]]
+          registered_task_json="${RUNNER_TEMP}/worker-task-registered.json"
+          aws ecs describe-task-definition \
+            --task-definition "$new_task" \
+            --query taskDefinition \
+            --output json > "$registered_task_json"
+          jq -e \
+            --arg task_definition "$new_task" \
+            --arg image "$IMAGE_URI" \
+            --arg release "${GITHUB_SHA:0:12}" '
+              .taskDefinitionArn == $task_definition and
+              (
+                [.containerDefinitions[] | select(
+                  .name == "worker" and
+                  .image == $image and
+                  (
+                    [(.environment // [])[] | select(
+                      .name == "APP_RELEASE" and .value == $release
+                    )] | length
+                  ) == 1
+                )] | length
+              ) == 1
+            ' "$registered_task_json" >/dev/null
+          {
+            echo "previous=${PREVIOUS_TASK}"
+            echo "new=${new_task}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Deploy and verify exact worker release with rollback
+        id: worker_deploy
+        if: env.ECS_WORKER_SERVICE != ''
+        env:
+          PREVIOUS_TASK: ${{ steps.worker_task.outputs.previous }}
+          NEW_TASK: ${{ steps.worker_task.outputs.new }}
+          EXPECTED_DESIRED_COUNT: ${{ steps.topology.outputs.worker_desired_count }}
+        run: |
+          set -euo pipefail
+          deployment_started=false
+          rollback_worker() {
+            status="$1"
+            trap - ERR INT TERM EXIT
+            if [ "$deployment_started" = "true" ]; then
+              echo "::error::Worker release verification failed; restoring ${PREVIOUS_TASK}"
+              set +e
+              aws ecs update-service \
+                --cluster "$ECS_CLUSTER" \
+                --service "$ECS_WORKER_SERVICE" \
+                --task-definition "$PREVIOUS_TASK" \
+                --force-new-deployment >/dev/null
+              rollback_update_status=$?
+              aws ecs wait services-stable \
+                --cluster "$ECS_CLUSTER" \
+                --services "$ECS_WORKER_SERVICE"
+              rollback_wait_status=$?
+              rollback_result="${RUNNER_TEMP}/worker-rollback-service.json"
+              aws ecs describe-services \
+                --cluster "$ECS_CLUSTER" \
+                --services "$ECS_WORKER_SERVICE" \
+                --output json > "$rollback_result"
+              rollback_describe_status=$?
+              jq -e --arg task_definition "$PREVIOUS_TASK" '
+                ((.failures // []) | length) == 0 and
+                (.services | length) == 1 and
+                .services[0].taskDefinition == $task_definition and
+                .services[0].runningCount == .services[0].desiredCount and
+                .services[0].pendingCount == 0 and
+                (.services[0].deployments | length) == 1 and
+                .services[0].deployments[0].taskDefinition == $task_definition and
+                (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
+              ' "$rollback_result" >/dev/null
+              rollback_verify_status=$?
+              set -e
+              if [ "$rollback_update_status" -ne 0 ] ||
+                [ "$rollback_wait_status" -ne 0 ] ||
+                [ "$rollback_describe_status" -ne 0 ] ||
+                [ "$rollback_verify_status" -ne 0 ]; then
+                echo "::error::Automatic worker rollback did not stabilize; operator action is required"
+              fi
+            fi
+            exit "$status"
+          }
+          trap 'rollback_worker $?' ERR
+          trap 'rollback_worker 130' INT
+          trap 'rollback_worker 143' TERM
+          trap 'rollback_worker $?' EXIT
+
+          worker_before="${RUNNER_TEMP}/worker-before-deploy.json"
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_WORKER_SERVICE" \
+            --output json > "$worker_before"
+          jq -e \
+            --arg task_definition "$PREVIOUS_TASK" \
+            --argjson desired "$EXPECTED_DESIRED_COUNT" '
+              ((.failures // []) | length) == 0 and
+              (.services | length) == 1 and
+              .services[0].taskDefinition == $task_definition and
+              .services[0].desiredCount == $desired
+            ' "$worker_before" >/dev/null || {
+              echo "::error::The worker service changed after preflight; refusing to overwrite it"
+              exit 1
+            }
+
+          deployment_started=true
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_WORKER_SERVICE" \
+            --task-definition "$NEW_TASK" \
+            --force-new-deployment >/dev/null
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_WORKER_SERVICE"
+
+          service_result="${RUNNER_TEMP}/worker-release-service.json"
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_WORKER_SERVICE" \
+            --output json > "$service_result"
+          jq -e \
+            --arg task_definition "$NEW_TASK" \
+            --argjson desired "$EXPECTED_DESIRED_COUNT" '
+              ((.failures // []) | length) == 0 and
+              (.services | length) == 1 and
+              .services[0].taskDefinition == $task_definition and
+              .services[0].desiredCount == $desired and
+              .services[0].runningCount == $desired and
+              .services[0].pendingCount == 0 and
+              (.services[0].deployments | length) == 1 and
+              .services[0].deployments[0].taskDefinition == $task_definition and
+              (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
+          ' "$service_result" >/dev/null
+
+          deployment_started=false
+          trap - ERR INT TERM EXIT
+
+      - name: Restore coherent backend release after worker failure
+        if: >-
+          always() &&
+          env.ECS_WORKER_SERVICE != '' &&
+          steps.api_deploy.outcome == 'success' &&
+          steps.worker_deploy.outcome != 'success'
+        env:
+          API_PREVIOUS_TASK: ${{ steps.topology.outputs.api_previous_task }}
+          WORKER_PREVIOUS_TASK: ${{ steps.topology.outputs.worker_previous_task }}
+        run: |
+          set -uo pipefail
+          restore_service() {
+            service="$1"
+            task_definition="$2"
+            result_file="$3"
+            aws ecs update-service \
+              --cluster "$ECS_CLUSTER" \
+              --service "$service" \
+              --task-definition "$task_definition" \
+              --force-new-deployment >/dev/null || return 1
+            aws ecs wait services-stable \
+              --cluster "$ECS_CLUSTER" \
+              --services "$service" || return 1
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$service" \
+              --output json > "$result_file" || return 1
+            jq -e --arg task_definition "$task_definition" '
+              ((.failures // []) | length) == 0 and
+              (.services | length) == 1 and
+              .services[0].taskDefinition == $task_definition and
+              .services[0].runningCount == .services[0].desiredCount and
+              .services[0].pendingCount == 0 and
+              (.services[0].deployments | length) == 1 and
+              .services[0].deployments[0].taskDefinition == $task_definition and
+              (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
+            ' "$result_file" >/dev/null
+          }
+
+          echo "::warning::Worker release failed; restoring the previous worker and API revisions"
+          restore_service \
+            "$ECS_WORKER_SERVICE" \
+            "$WORKER_PREVIOUS_TASK" \
+            "${RUNNER_TEMP}/worker-compensating-rollback.json"
+          worker_restore_status=$?
+          restore_service \
+            "$ECS_SERVICE" \
+            "$API_PREVIOUS_TASK" \
+            "${RUNNER_TEMP}/api-compensating-rollback.json"
+          api_restore_status=$?
+          if [ "$worker_restore_status" -ne 0 ] || [ "$api_restore_status" -ne 0 ]; then
+            echo "::error::The compensating backend rollback could not be fully verified; operator action is required"
+          else
+            echo "::error::Worker release failed; both API and worker were restored to their previous revisions"
+          fi
+          exit 1
+
+      - name: Deploy versioned frontend
+        run: |
+          set -euo pipefail
+          aws s3 sync frontend/dist "s3://${FRONTEND_BUCKET}" \
+            --delete \
+            --only-show-errors
+          invalidation_id="$(
+            aws cloudfront create-invalidation \
+              --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+              --paths '/*' \
+              --query Invalidation.Id \
+              --output text
+          )"
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --id "$invalidation_id"
+
+      - name: Verify frontend and same-origin API
+        run: |
+          set -euo pipefail
+          frontend_body="${RUNNER_TEMP}/frontend-index.html"
+          api_body="${RUNNER_TEMP}/frontend-api-health.json"
+          curl --fail --silent --show-error \
+            --max-time 20 \
+            --output "$frontend_body" \
+            "${FRONTEND_URL%/}/"
+          grep -Eiq '<!doctype html|<html' "$frontend_body"
+          curl --fail --silent --show-error \
+            --max-time 20 \
+            --output "$api_body" \
+            "${FRONTEND_URL%/}/api/health"
+          jq -e --arg release "${GITHUB_SHA:0:12}" \
+            '.success == true and .data.status == "UP" and .data.release == $release' \
+            "$api_body" >/dev/null

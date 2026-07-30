@@ -1,6 +1,8 @@
 package com.jadhavr.erp.staff.service;
 
 import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
+import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
@@ -67,6 +69,8 @@ class StaffServiceImplTest {
     @Mock private SubjectTeacherAssignmentRepository subjectAssignments;
     @Mock private WeeklyAttendanceSessionRepository attendanceSessions;
     @Mock private WeeklyAttendanceRecordRepository attendanceRecords;
+    @Mock private RefreshTokenRepository refreshTokens;
+    @Mock private AuthorizationSnapshotService authorizationSnapshots;
 
     private BCryptPasswordEncoder passwordEncoder;
     private StaffServiceImpl service;
@@ -75,7 +79,8 @@ class StaffServiceImplTest {
     void setUp() {
         passwordEncoder = new BCryptPasswordEncoder();
         service = new StaffServiceImpl(
-                staffProfiles, users, roles, colleges, passwordEncoder, new StaffMapper());
+                staffProfiles, users, roles, colleges, passwordEncoder, new StaffMapper(),
+                refreshTokens, authorizationSnapshots);
         service.setDepartments(departments);
         service.setStaffDetailRepositories(
                 sections, subjectAssignments, attendanceSessions, attendanceRecords);

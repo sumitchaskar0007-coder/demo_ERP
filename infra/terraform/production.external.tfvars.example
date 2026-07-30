@@ -6,21 +6,24 @@ aws_region   = "ap-south-1"
 # existing staging state, even if its historical key contains "production".
 
 # Existing production network. This stack creates no production VPC, subnets,
-# route tables, internet/NAT gateways, or RDS security group.
-production_vpc_id = "vpc-0d7999d87f213a1dc"
+# route tables, internet/NAT gateways, or RDS security group. These are
+# placeholders, not live resource IDs. The read-only inventory on 2026-07-28
+# found no external production VPC, so the network owner must supply current
+# values before planning this stack.
+production_vpc_id = "vpc-00000000000000000"
 production_public_subnet_ids = [
-  "subnet-0807ac140719e2c72",
-  "subnet-0d2cc076596e1b6d2",
+  "subnet-00000000000000001",
+  "subnet-00000000000000002",
 ]
 production_backend_subnet_ids = [
-  "subnet-0d280a8bd62b3a8ec",
-  "subnet-0b3d2046e0d815cb9",
+  "subnet-00000000000000003",
+  "subnet-00000000000000004",
 ]
 
 # Optional. When omitted, Valkey uses production_backend_subnet_ids.
 production_cache_subnet_ids = [
-  "subnet-0d280a8bd62b3a8ec",
-  "subnet-0b3d2046e0d815cb9",
+  "subnet-00000000000000003",
+  "subnet-00000000000000004",
 ]
 
 # Externally managed production database. Both secret JSON objects must contain
@@ -28,7 +31,7 @@ production_cache_subnet_ids = [
 production_rds_endpoint                  = "database.cluster-example.ap-south-1.rds.amazonaws.com"
 production_database_port                 = 5432
 production_database_name                 = "college_erp_prod"
-production_rds_security_group_id         = "sg-0b98a3468f8c04e2a"
+production_rds_security_group_id         = "sg-00000000000000000"
 production_runtime_database_secret_arn   = "arn:aws:secretsmanager:ap-south-1:814645955631:secret:replace-production-runtime-database"
 production_migration_database_secret_arn = "arn:aws:secretsmanager:ap-south-1:814645955631:secret:replace-production-migration-database"
 
@@ -41,12 +44,37 @@ production_database_secret_kms_key_arns = []
 # access_ready=true and desired_count=2 or higher.
 production_database_access_ready = false
 desired_count                    = 0
+backend_task_cpu                 = 1024
+backend_task_memory              = 2048
+backend_autoscaling_min_capacity = 2
+backend_autoscaling_max_capacity = 12
+backend_autoscaling_cpu_target   = 60
+backend_autoscaling_memory_target = 70
+backend_requests_per_target       = 900
+backend_peak_schedule_enabled     = false
+backend_peak_capacity             = 8
+backend_db_pool_max_size          = 12
+backend_db_pool_min_idle          = 2
+database_connection_budget        = 180
+waf_public_auth_edge_limit        = 10000
+async_queues_enabled              = false
+async_worker_desired_count        = 1
+async_worker_task_cpu             = 512
+async_worker_task_memory          = 1024
+async_worker_db_pool_max_size     = 4
+async_worker_db_pool_min_idle     = 1
+malware_protection_enabled        = false
 
-temporary_domain = true
-domain_name      = ""
-api_domain_name  = ""
-route53_zone_id  = ""
-backend_image    = "000000000000.dkr.ecr.ap-south-1.amazonaws.com/jadhavr-erp-production-backend:v1.0.0"
+# Approved production hostname. Before applying a separate production state,
+# move/import the existing staging-owned Route 53, ACM, CloudFront, WAF, and SES
+# domain resources; two Terraform states must never own the same records.
+temporary_domain = false
+domain_name      = "jadhavaredu.com"
+api_domain_name  = "api.jadhavaredu.com"
+route53_zone_id  = "Z06012413HNDFGVBFSYW7"
+backend_image    = "814645955631.dkr.ecr.ap-south-1.amazonaws.com/jadhavr-erp-production-backend:v1.0.0"
 alert_email      = ""
 mail_enabled     = false
 github_repository = "your-github-owner/Jadhavr-ERP"
+# The existing staging Terraform state owns the account-global provider.
+manage_github_oidc_provider = false

@@ -9,25 +9,28 @@ import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Value;
+import com.jadhavr.erp.storage.ObjectStorageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class AdmissionDocumentService {
+    private static final Logger log = LoggerFactory.getLogger(AdmissionDocumentService.class);
     private static final long MAX_BYTES = 5L * 1024 * 1024;
     private static final Map<String, String> EXTENSIONS = Map.of(
             MediaType.APPLICATION_PDF_VALUE, ".pdf",
@@ -42,14 +45,14 @@ public class AdmissionDocumentService {
 
     private final AdmissionFormRepository admissions;
     private final AdmissionDocumentRepository documents;
-    private final Path root;
+    private final ObjectStorageService storage;
 
     public AdmissionDocumentService(AdmissionFormRepository admissions,
             AdmissionDocumentRepository documents,
-            @Value("${app.storage.admission-document-dir:uploads/admission-documents}") String directory) {
+            ObjectStorageService storage) {
         this.admissions = admissions;
         this.documents = documents;
-        this.root = Path.of(directory).toAbsolutePath().normalize();
+        this.storage = storage;
     }
 
     @Transactional
@@ -71,31 +74,37 @@ public class AdmissionDocumentService {
         }
         if (file == null || file.isEmpty()) throw new BadRequestException("Document file is required");
         if (file.getSize() > MAX_BYTES) throw new BadRequestException("Document must not exceed 5 MB");
-        String contentType = file.getContentType();
+        String contentType = resolveContentType(file);
         String extension = EXTENSIONS.get(contentType);
         if (extension == null) throw new BadRequestException("Only PDF, JPEG, PNG, or WebP documents are allowed");
         verifySignature(file, contentType);
 
         AdmissionDocument document = documents
-                .findByAdmissionFormIdAndDocumentType(admission.getId(), type)
+                .findByAdmissionFormIdAndDocumentTypeForUpdate(admission.getId(), type)
                 .orElseGet(AdmissionDocument::new);
         String oldStorageName = document.getStorageName();
-        String storageName = admission.getId() + "-" + type.name().toLowerCase()
-                + "-" + UUID.randomUUID() + extension;
+        String storageName = "colleges/" + admission.getCollege().getId()
+                + "/admissions/" + admission.getId()
+                + "/documents/" + type.name().toLowerCase(Locale.ROOT)
+                + "/" + UUID.randomUUID() + extension;
         try {
-            Files.createDirectories(root);
-            Files.copy(file.getInputStream(), safePath(storageName), StandardCopyOption.REPLACE_EXISTING);
+            storage.put(storageName, file.getBytes(), contentType);
             document.setAdmissionForm(admission);
             document.setDocumentType(type);
             document.setStorageName(storageName);
             document.setOriginalFilename(safeOriginalFilename(file.getOriginalFilename(), type, extension));
             document.setContentType(contentType);
             document.setFileSize(file.getSize());
-            AdmissionDocument saved = documents.save(document);
-            if (oldStorageName != null) Files.deleteIfExists(safePath(oldStorageName));
+            document.setSha256Checksum(null);
+            document.setVerifiedAt(null);
+            AdmissionDocument saved = documents.saveAndFlush(document);
+            registerObjectCleanup(storageName, oldStorageName);
             return saved;
         } catch (IOException exception) {
             throw new BadRequestException("Unable to store the admission document");
+        } catch (RuntimeException exception) {
+            safeDelete(storageName);
+            throw exception;
         }
     }
 
@@ -115,16 +124,13 @@ public class AdmissionDocumentService {
     private DocumentResource load(AdmissionForm admission, AdmissionDocumentType type) {
         AdmissionDocument document = documents.findByAdmissionFormIdAndDocumentType(admission.getId(), type)
                 .orElseThrow(() -> new ResourceNotFoundException("Admission document not uploaded"));
-        try {
-            Resource resource = new UrlResource(safePath(document.getStorageName()).toUri());
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new ResourceNotFoundException("Admission document not found");
-            }
-            return new DocumentResource(resource, MediaType.parseMediaType(document.getContentType()),
-                    document.getOriginalFilename());
-        } catch (IOException exception) {
-            throw new ResourceNotFoundException("Admission document not found");
-        }
+        ObjectStorageService.StoredObject object = storage.get(document.getStorageName());
+        String contentType = document.getContentType();
+        if (contentType == null || contentType.isBlank()) contentType = object.contentType();
+        return new DocumentResource(
+                new ByteArrayResource(object.content()),
+                MediaType.parseMediaType(contentType),
+                document.getOriginalFilename());
     }
 
     private AdmissionForm findScoped(Long admissionId) {
@@ -141,18 +147,30 @@ public class AdmissionDocumentService {
         return admission;
     }
 
-    private Path safePath(String storageName) {
-        Path path = root.resolve(storageName).normalize();
-        if (!path.startsWith(root)) throw new BadRequestException("Invalid document path");
-        return path;
-    }
-
     private String safeOriginalFilename(String original, AdmissionDocumentType type, String extension) {
         if (original == null || original.isBlank()) return type.name().toLowerCase() + extension;
         String normalized = original.replace('\\', '/');
         String filename = normalized.substring(normalized.lastIndexOf('/') + 1).trim();
         return filename.isBlank() ? type.name().toLowerCase() + extension
                 : filename.substring(0, Math.min(filename.length(), 255));
+    }
+
+    private String resolveContentType(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType != null) {
+            contentType = contentType.trim().toLowerCase(Locale.ROOT);
+            if (EXTENSIONS.containsKey(contentType)) return contentType;
+        }
+        String filename = file.getOriginalFilename();
+        if (filename == null) return contentType;
+        String lowercase = filename.toLowerCase(Locale.ROOT);
+        if (lowercase.endsWith(".pdf")) return MediaType.APPLICATION_PDF_VALUE;
+        if (lowercase.endsWith(".jpg") || lowercase.endsWith(".jpeg")) {
+            return MediaType.IMAGE_JPEG_VALUE;
+        }
+        if (lowercase.endsWith(".png")) return MediaType.IMAGE_PNG_VALUE;
+        if (lowercase.endsWith(".webp")) return "image/webp";
+        return contentType;
     }
 
     private void verifySignature(MultipartFile file, String contentType) {
@@ -176,6 +194,32 @@ public class AdmissionDocumentService {
             if (!valid) throw new BadRequestException("Uploaded file content does not match its file type");
         } catch (IOException exception) {
             throw new BadRequestException("Unable to read the uploaded document");
+        }
+    }
+
+    private void registerObjectCleanup(String newKey, String oldKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            if (oldKey != null) safeDelete(oldKey);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                if (oldKey != null) safeDelete(oldKey);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) safeDelete(newKey);
+            }
+        });
+    }
+
+    private void safeDelete(String key) {
+        try {
+            storage.delete(key);
+        } catch (RuntimeException exception) {
+            log.warn("Unable to complete admission-document storage cleanup", exception);
         }
     }
 

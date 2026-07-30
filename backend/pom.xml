@@ -22,6 +22,8 @@
         <aws.sdk.version>2.48.4</aws.sdk.version>
         <netty.version>4.1.136.Final</netty.version>
         <postgresql.version>42.7.12</postgresql.version>
+        <mockito.version>5.15.2</mockito.version>
+        <argLine></argLine>
     </properties>
 
     <dependencies>
@@ -88,6 +90,11 @@
             <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.bucket4j</groupId>
             <artifactId>bucket4j-core</artifactId>
             <version>8.10.1</version>
@@ -120,9 +127,14 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.15.2</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -130,11 +142,6 @@
             <artifactId>cglib-nodep</artifactId>
             <version>3.3.0</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.bytebuddy</groupId>
-            <artifactId>byte-buddy</artifactId>
-            <version>1.15.11</version>
         </dependency>
     </dependencies>
 
@@ -154,8 +161,19 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <argLine>-Dnet.bytebuddy.experimental=true -XX:+EnableDynamicAgentLoading --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/sun.reflect=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED</argLine>
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Dnet.bytebuddy.experimental=true --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/sun.reflect=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED</argLine>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

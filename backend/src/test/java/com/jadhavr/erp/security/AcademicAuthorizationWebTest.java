@@ -5,7 +5,10 @@ import com.jadhavr.erp.academic.service.AcademicService;
 import com.jadhavr.erp.attendance.controller.AttendanceController;
 import com.jadhavr.erp.attendance.service.AttendanceService;
 import com.jadhavr.erp.auth.security.CustomUserDetailsService;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.security.JwtService;
+import com.jadhavr.erp.auth.security.TrustedClientIpResolver;
+import com.jadhavr.erp.auth.service.DistributedRateLimiter;
 import com.jadhavr.erp.admission.filter.StudentAdmissionAccessFilter;
 import com.jadhavr.erp.timetable.controller.TimetableController;
 import com.jadhavr.erp.timetable.controller.WeeklyTimetableController;
@@ -31,6 +34,8 @@ import java.util.List;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.config.Customizer.withDefaults;
@@ -54,11 +59,17 @@ class AcademicAuthorizationWebTest {
     @MockBean private AttendanceService attendanceService;
     @MockBean private StringRedisTemplate redis;
     @MockBean private JwtService jwtService;
+    @MockBean private AuthorizationSnapshotService authorizationSnapshotService;
     @MockBean private CustomUserDetailsService userDetailsService;
+    @MockBean private DistributedRateLimiter rateLimiter;
+    @MockBean private TrustedClientIpResolver clientIpResolver;
     @MockBean private StudentAdmissionAccessFilter studentAdmissionAccessFilter;
 
     @BeforeEach
     void passThroughAdmissionGateMock() throws Exception {
+        when(rateLimiter.check(anyString(), anyString(), anyLong(), any()))
+                .thenReturn(new DistributedRateLimiter.Decision(true, 0));
+        when(clientIpResolver.resolve(any())).thenReturn("127.0.0.1");
         doAnswer(invocation -> {
             jakarta.servlet.ServletRequest request = invocation.getArgument(0);
             jakarta.servlet.ServletResponse response = invocation.getArgument(1);

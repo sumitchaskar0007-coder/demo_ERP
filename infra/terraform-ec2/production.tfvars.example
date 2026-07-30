@@ -1,0 +1,42 @@
+project_name = "jadhavr-erp"
+environment  = "production"
+aws_region   = "ap-south-1"
+
+vpc_id = "vpc-replace-with-production-vpc-id"
+public_subnet_ids = [
+  "subnet-replace-with-first-public-subnet-id",
+  "subnet-replace-with-second-public-subnet-id",
+]
+
+# The external VPC currently has no NAT gateway or service endpoints. The EC2
+# instance therefore uses a public subnet/public IP but accepts no direct
+# inbound traffic; only the ALB security group can reach port 8081.
+instance_subnet_id = "subnet-replace-with-instance-subnet-id"
+
+# Phase one leaves this empty because the RDS owner has not supplied a current
+# production group. Set it only after confirming the group belongs to vpc_id.
+rds_security_group_id = ""
+
+# Phase one leaves this empty. The RDS owner supplies the separate runtime
+# secret ARN after creating the database role and completing Flyway.
+runtime_database_secret_arn          = ""
+runtime_database_secret_kms_key_arns = []
+
+documents_bucket_name = "replace-with-production-documents-bucket"
+documents_kms_key_arn = "arn:aws:kms:ap-south-1:123456789012:key/00000000-0000-0000-0000-000000000000"
+
+instance_type        = "t3.medium"
+root_volume_size_gib = 30
+
+frontend_origins = [
+  "https://jadhavaredu.com",
+  "https://www.jadhavaredu.com",
+]
+
+api_certificate_arn = "arn:aws:acm:ap-south-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+github_repository    = "your-github-owner/Jadhavr-ERP"
+
+# These are existing live frontend resources. This EC2 stack grants its
+# deployment role access to them but does not create, import, or modify them.
+frontend_bucket_name       = "your-existing-frontend-bucket"
+cloudfront_distribution_id = "EXAMPLE123456"

@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 @Service
 public class AuditLogService {
     private static final Logger log = LoggerFactory.getLogger(AuditLogService.class);
+    private static final int ANALYTICS_EVENT_LIMIT = 5_000;
     private final AuditLogRepository repo;
     private final UserRepository users;
     private final StaffProfileRepository staff;
@@ -82,17 +83,26 @@ public class AuditLogService {
             String role, Long userId, AuditAction action, LocalDate from, LocalDate to,
             String search, int page, int size, String sort) {
         Long collegeId = SecurityUtils.isSuperAdmin() ? null : SecurityUtils.requireCurrentUser().getCollegeId();
-        List<StaffProfile> staffRows = collegeId==null ? staff.findAll() : staff.findByCollegeId(collegeId);
-        Map<Long,StaffProfile> staffByUser = staffRows.stream().collect(Collectors.toMap(s->s.getUser().getId(), Function.identity(),(a,b)->a));
-        Set<Long> departmentActors = departmentId==null ? Set.of() : staffRows.stream()
+        List<StaffProfile> scopeStaffRows = collegeId!=null
+                ? staff.findByCollegeId(collegeId)
+                : departmentId!=null ? staff.findByAssignedDepartmentId(departmentId) : List.of();
+        Set<Long> departmentActors = departmentId==null ? Set.of() : scopeStaffRows.stream()
                 .filter(s->s.belongsToDepartment(departmentId)).map(s->s.getUser().getId()).collect(Collectors.toSet());
         Specification<AuditLog> spec=baseSpec(search,collegeId,module,action,userId,role,academicYear,from,to);
         if(departmentId!=null) spec=spec.and((r,q,c)->departmentActors.isEmpty()?c.disjunction():r.get("actorUser").get("id").in(departmentActors));
-        spec=applyRoleScope(spec,staffRows);
+        spec=applyRoleScope(spec,scopeStaffRows);
         Sort ordering="oldest".equals(sort)?Sort.by("createdAt").ascending():Sort.by("createdAt").descending();
         int safeSize=Math.min(Math.max(size,10),100),safePage=Math.max(page,0);
         Page<AuditLog> result=repo.findAll(spec,PageRequest.of(safePage,safeSize,ordering));
-        List<AuditLog> all=repo.findAll(spec,Sort.by("createdAt").ascending());
+        Page<AuditLog> analyticsResult=repo.findAll(spec,
+                PageRequest.of(0,ANALYTICS_EVENT_LIMIT,Sort.by(Sort.Direction.DESC,"createdAt")));
+        List<AuditLog> all=analyticsResult.getContent();
+        Set<Long> actorIds=java.util.stream.Stream.concat(result.getContent().stream(),all.stream())
+                .map(AuditLog::getActorUser).filter(Objects::nonNull).map(User::getId)
+                .collect(Collectors.toSet());
+        List<StaffProfile> staffRows=collegeId==null&&departmentId==null&&!actorIds.isEmpty()
+                ? staff.findByUserIdIn(actorIds) : scopeStaffRows;
+        Map<Long,StaffProfile> staffByUser = staffRows.stream().collect(Collectors.toMap(s->s.getUser().getId(), Function.identity(),(a,b)->a));
         List<ActivityRow> rows=result.getContent().stream().map(x->businessRow(x,staffByUser)).toList();
         LocalDate today=LocalDate.now(),week=today.minusDays(6),month=today.withDayOfMonth(1);
         long pendingApprovals=pendingApprovals(collegeId,departmentId);
@@ -119,6 +129,7 @@ public class AuditLogService {
                 new AlertItem("fees","Fee Structures Modified",feeChanges,"Fees","UPDATE"),
                 new AlertItem("timetable","Timetable Changes",timetableChanges,"Academic","UPDATE"));
         List<String> insights=insights(summary,modules,departments,pendingAttendance,pendingApprovals);
+        if(analyticsResult.hasNext())insights.add("Dashboard analytics summarize the latest "+ANALYTICS_EVENT_LIMIT+" matching audit events; use the paged activity table for the complete result set.");
         List<TeacherEngagementRow> teacherRows=teacherEngagement(
                 collegeId,departmentId,staffRows,today);
         TeacherEngagementSummary teacherSummary=new TeacherEngagementSummary(
@@ -244,8 +255,8 @@ public class AuditLogService {
     private ActivityRow businessRow(AuditLog x,Map<Long,StaffProfile> staffByUser){StaffProfile s=x.getActorUser()==null?null:staffByUser.get(x.getActorUser().getId());String department=s!=null&&s.getDepartment()!=null?s.getDepartment().getName():defaultDepartment(x);return new ActivityRow(x.getId(),x.getCreatedAt(),x.getActorUser()==null?null:x.getActorUser().getId(),x.getActorName(),primaryRole(x.getActorRoles()),s==null||s.getDepartment()==null?null:s.getDepartment().getId(),department,moduleLabel(x.getModule()),actionLabel(x.getAction()),activityTitle(x),x.getDescription(),activityStatus(x),x.getEntityType()==null?"—":x.getEntityType()+(x.getEntityId()==null?"":" #"+x.getEntityId()),x.getDescription(),null,null);}
     private List<DepartmentAnalytics> departmentAnalytics(List<AuditLog> all,Map<Long,StaffProfile> staffByUser){Map<String,List<AuditLog>> groups=all.stream().collect(Collectors.groupingBy(x->{StaffProfile s=x.getActorUser()==null?null:staffByUser.get(x.getActorUser().getId());return s!=null&&s.getDepartment()!=null?s.getDepartment().getName():defaultDepartment(x);},LinkedHashMap::new,Collectors.toList()));return groups.entrySet().stream().map(e->{List<AuditLog> g=e.getValue();Map<String,Long> actors=g.stream().collect(Collectors.groupingBy(AuditLog::getActorName,Collectors.counting()));String active=actors.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse("System");StaffProfile profile=g.stream().map(x->x.getActorUser()==null?null:staffByUser.get(x.getActorUser().getId())).filter(Objects::nonNull).filter(x->x.getDepartment()!=null).findFirst().orElse(null);return new DepartmentAnalytics(profile==null?null:profile.getDepartment().getId(),e.getKey(),g.size(),g.stream().map(AuditLog::getCreatedAt).max(LocalDateTime::compareTo).orElse(null),active,g.size()>=20?"HIGH":g.size()>=5?"ACTIVE":"NORMAL");}).sorted(Comparator.comparing(DepartmentAnalytics::activities).reversed()).toList();}
     private List<String> insights(Summary summary,List<ModuleAnalytics> modules,List<DepartmentAnalytics> departments,long pendingAttendance,long pendingApprovals){List<String> result=new ArrayList<>();modules.stream().max(Comparator.comparing(ModuleAnalytics::today)).ifPresent(x->result.add(x.module()+" had the highest module activity today with "+x.today()+" activities."));departments.stream().findFirst().ifPresent(x->result.add(x.department()+" was the most active department with "+x.activities()+" activities."));result.add(pendingAttendance+" attendance entries are still pending.");result.add(pendingApprovals+" admissions are awaiting approval.");result.add(summary.criticalChanges()+" important record changes were made today.");return result;}
-    private long pendingApprovals(Long collegeId,Long departmentId){List<AdmissionForm> rows=collegeId==null?admissions.findAll():admissions.findByCollegeId(collegeId);return rows.stream().filter(a->departmentId==null||a.getDepartment().getId().equals(departmentId)).filter(a->a.getStatus()==AdmissionStatus.PRINCIPAL_REVIEW_PENDING||a.getStatus()==AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING).count();}
-    private long pendingAttendance(Long collegeId,Long departmentId,LocalDate day){List<WeeklyAttendanceSession> rows=collegeId==null?attendanceSessions.findAll():attendanceSessions.findByCollegeIdAndAttendanceDateBetweenOrderByAttendanceDateDescStartTimeDesc(collegeId,day,day);return rows.stream().filter(x->departmentId==null||x.getSection().getDepartment().getId().equals(departmentId)).filter(x->x.getStatus()==WeeklyAttendanceSession.Status.DRAFT).count();}
+    private long pendingApprovals(Long collegeId,Long departmentId){Set<AdmissionStatus> statuses=EnumSet.of(AdmissionStatus.PRINCIPAL_REVIEW_PENDING,AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);if(collegeId==null)return admissions.countByStatusIn(statuses);if(departmentId==null)return admissions.countByCollegeIdAndStatusIn(collegeId,statuses);return admissions.countByCollegeIdAndDepartmentIdAndStatusIn(collegeId,departmentId,statuses);}
+    private long pendingAttendance(Long collegeId,Long departmentId,LocalDate day){if(collegeId==null)return attendanceSessions.countByStatusAndAttendanceDate(WeeklyAttendanceSession.Status.DRAFT,day);if(departmentId==null)return attendanceSessions.countByCollegeIdAndStatusAndAttendanceDate(collegeId,WeeklyAttendanceSession.Status.DRAFT,day);return attendanceSessions.countByCollegeIdAndSectionDepartmentIdAndStatusAndAttendanceDate(collegeId,departmentId,WeeklyAttendanceSession.Status.DRAFT,day);}
     private long countOn(List<AuditLog> rows,LocalDate day){return rows.stream().filter(x->sameDay(x,day)).count();}private long countModule(List<AuditLog> rows,AuditModule module){return rows.stream().filter(x->x.getModule()==module).count();}private boolean sameDay(AuditLog x,LocalDate d){return x.getCreatedAt().toLocalDate().equals(d);}private boolean critical(AuditLog x){return Set.of(AuditAction.UPDATE,AuditAction.REJECT,AuditAction.DEACTIVATE).contains(x.getAction());}
     private boolean businessModule(AuditModule m){return !Set.of(AuditModule.AUTH,AuditModule.ACCOUNT,AuditModule.SYSTEM).contains(m);}private String moduleLabel(AuditModule m){return switch(m){case ADMISSION,STUDENT_SECTION->"Admissions";case FEE->"Fees";case ACADEMIC->"Academic";case ATTENDANCE->"Attendance";case STAFF,USER->"Staff";case REPORT->"Reports";case DEPARTMENT->"Departments";case COLLEGE->"College";default->title(m.name());};}private String defaultDepartment(AuditLog x){return x.getModule()==AuditModule.FEE?"Finance":x.getModule()==AuditModule.ADMISSION||x.getModule()==AuditModule.STUDENT_SECTION?"Admissions":"Administration";}private String primaryRole(String roles){if(roles==null||roles.isBlank())return"System";return title(roles.split(",")[0]);}private String actionLabel(AuditAction a){return title(a.name());}private String actionGroup(AuditAction a){return switch(a){case CREATE,SUBMIT->"Create";case UPDATE,ACTIVATE,DEACTIVATE,ASSIGN,MARK_ATTENDANCE->"Update";case APPROVE,VERIFY->"Approve";case REJECT->"Reject";case VIEW_REPORT,PRINT,EXPORT->"View / Export";default->title(a.name());};}private String activityStatus(AuditLog x){return x.getAction()==AuditAction.REJECT||x.getAction()==AuditAction.DEACTIVATE?"CANCELLED":x.getAction()==AuditAction.SUBMIT?"PENDING":x.getAction()==AuditAction.UPDATE?"WARNING":"SUCCESS";}private String activityTitle(AuditLog x){return actionLabel(x.getAction())+" "+(x.getEntityType()==null?moduleLabel(x.getModule()):title(x.getEntityType()));}private String title(String s){return Arrays.stream(s.toLowerCase().split("[_ ]")).filter(x->!x.isBlank()).map(x->Character.toUpperCase(x.charAt(0))+x.substring(1)).collect(Collectors.joining(" "));}
 }
