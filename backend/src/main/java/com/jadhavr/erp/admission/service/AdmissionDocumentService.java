@@ -80,7 +80,7 @@ public class AdmissionDocumentService {
         verifySignature(file, contentType);
 
         AdmissionDocument document = documents
-                .findByAdmissionFormIdAndDocumentType(admission.getId(), type)
+                .findByAdmissionFormIdAndDocumentTypeForUpdate(admission.getId(), type)
                 .orElseGet(AdmissionDocument::new);
         String oldStorageName = document.getStorageName();
         String storageName = "colleges/" + admission.getCollege().getId()
@@ -95,6 +95,8 @@ public class AdmissionDocumentService {
             document.setOriginalFilename(safeOriginalFilename(file.getOriginalFilename(), type, extension));
             document.setContentType(contentType);
             document.setFileSize(file.getSize());
+            document.setSha256Checksum(null);
+            document.setVerifiedAt(null);
             AdmissionDocument saved = documents.saveAndFlush(document);
             registerObjectCleanup(storageName, oldStorageName);
             return saved;

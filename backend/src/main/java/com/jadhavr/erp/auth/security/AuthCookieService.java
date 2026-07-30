@@ -20,10 +20,14 @@ public class AuthCookieService {
     }
     public void setTokens(HttpServletResponse response, String access, String refresh) {
         add(response, ACCESS_COOKIE, access, "/", Duration.ofMinutes(15));
-        add(response, REFRESH_COOKIE, refresh, "/api/v1/auth/refresh", Duration.ofDays(7));
+        // Make the refresh token available only to refresh/logout endpoints, not the full application.
+        expire(response, REFRESH_COOKIE, "/api/v1/auth/refresh", true);
+        add(response, REFRESH_COOKIE, refresh, "/api/v1/auth", Duration.ofDays(7));
     }
     public void clear(HttpServletResponse response) {
         expire(response, ACCESS_COOKIE, "/", true);
+        expire(response, REFRESH_COOKIE, "/api/v1/auth", true);
+        // Remove refresh cookies issued by the previous refresh-only path.
         expire(response, REFRESH_COOKIE, "/api/v1/auth/refresh", true);
         // Remove refresh cookies issued by older versions that used the root path.
         expire(response, REFRESH_COOKIE, "/", true);

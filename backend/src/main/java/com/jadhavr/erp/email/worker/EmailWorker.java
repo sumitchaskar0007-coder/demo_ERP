@@ -14,16 +14,15 @@ import com.jadhavr.erp.email.template.EmailTemplateRenderer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Component
 public class EmailWorker {
+
     private final EmailNotificationRepository repository;
     private final EmailProvider provider;
     private final MailProperties properties;
@@ -54,25 +53,17 @@ public class EmailWorker {
 
     @Scheduled(fixedDelayString = "${app.mail.poll-delay-ms:10000}")
     public void poll() {
-        if (!properties.isEnabled()) return;
+        if (!properties.isEnabled() || !properties.isDatabaseTransport()) {
+            return;
+        }
         claims.recoverStale();
         for (EmailNotification notification : claims.claim(properties.getBatchSize())) {
             executor.execute(() -> process(notification));
         }
     }
 
-    @Transactional
-    protected List<EmailNotification> claim() {
-        List<EmailNotification> notifications =
-                repository.lockEligible(properties.getBatchSize());
-        notifications.forEach(notification -> {
-            notification.setStatus(EmailStatus.PROCESSING);
-            notification.setProcessingStartedAt(LocalDateTime.now());
-        });
-        return repository.saveAll(notifications);
-    }
-
-    protected void process(EmailNotification notification) {
+    public EmailDeliveryOutcome process(EmailNotification notification) {
+        EmailProviderResult result;
         try {
             Map<String, String> data = objectMapper.readValue(
                     cipher.decrypt(notification.getTemplateData()),
@@ -86,43 +77,51 @@ public class EmailWorker {
                     + "\n\nJadhavar ERP";
             String html = renderer.render(
                     notification.getTemplateName(), data, notification.getSubject());
-            EmailProviderResult result = provider.send(new EmailMessage(
+            result = provider.send(new EmailMessage(
                     notification.getRecipientEmail(),
                     name,
                     notification.getSubject(),
                     html,
                     text));
-            sent(notification, result);
         } catch (Exception exception) {
-            failed(notification, exception);
+            return markFailed(notification);
         }
+        // Persist outside the delivery catch. A database failure must leave the queue
+        // message unacknowledged instead of pretending that the provider send failed.
+        markSent(notification, result);
+        return new EmailDeliveryOutcome(EmailStatus.SENT, 0);
     }
 
-    @Transactional
-    protected void sent(EmailNotification notification, EmailProviderResult result) {
+    protected void markSent(
+            EmailNotification notification, EmailProviderResult result) {
         notification.setStatus(EmailStatus.SENT);
         notification.setProvider("SMTP");
         notification.setProviderMessageId(result.providerMessageId());
         notification.setSentAt(LocalDateTime.now());
         notification.setFailureReason(null);
+        notification.setProcessingStartedAt(null);
+        notification.setNextRetryAt(null);
         repository.save(notification);
     }
 
-    @Transactional
-    protected void failed(EmailNotification notification, Exception exception) {
-        int count = notification.getRetryCount() + 1;
-        notification.setRetryCount(count);
+    protected EmailDeliveryOutcome markFailed(EmailNotification notification) {
+        int retryCount = notification.getRetryCount() + 1;
+        notification.setRetryCount(retryCount);
         notification.setFailureReason("Email delivery failed");
-        if (count >= notification.getMaxRetries()) {
+        notification.setProcessingStartedAt(null);
+        if (retryCount >= notification.getMaxRetries()) {
             notification.setStatus(EmailStatus.FAILED);
-        } else {
-            notification.setStatus(EmailStatus.RETRY_PENDING);
-            long delay = (long) properties.getRetryDelaySeconds()
-                    * (1L << Math.min(count - 1, 4))
-                    + new Random().nextInt(15);
-            notification.setNextRetryAt(LocalDateTime.now().plusSeconds(delay));
+            notification.setNextRetryAt(null);
+            repository.save(notification);
+            return new EmailDeliveryOutcome(EmailStatus.FAILED, 0);
         }
+
+        int retryAfterSeconds = retryDelaySeconds(retryCount);
+        notification.setStatus(EmailStatus.RETRY_PENDING);
+        notification.setNextRetryAt(LocalDateTime.now().plusSeconds(retryAfterSeconds));
         repository.save(notification);
+        return new EmailDeliveryOutcome(
+                EmailStatus.RETRY_PENDING, retryAfterSeconds);
     }
 
     private String credentialText(Map<String, String> data) {
@@ -147,5 +146,12 @@ public class EmailWorker {
             result.append("\nAdmission number: ").append(admissionNumber);
         }
         return result.toString();
+    }
+
+    private int retryDelaySeconds(int retryCount) {
+        long exponentialDelay = (long) properties.getRetryDelaySeconds()
+                * (1L << Math.min(retryCount - 1, 4));
+        long withJitter = exponentialDelay + ThreadLocalRandom.current().nextInt(15);
+        return (int) Math.min(withJitter, 43_200);
     }
 }

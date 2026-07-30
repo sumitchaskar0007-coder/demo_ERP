@@ -1,5 +1,7 @@
 package com.jadhavr.erp.auth.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jadhavr.erp.common.api.ErrorResponse;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -9,6 +11,9 @@ import jakarta.servlet.http.Cookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
@@ -16,12 +21,15 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
-    private final CustomUserDetailsService userDetailsService;
+    private final AuthorizationSnapshotService authorizationSnapshots;
+    private final ObjectMapper objectMapper;
 
     public JwtAuthenticationFilter(JwtService jwtService,
-            CustomUserDetailsService userDetailsService) {
+            AuthorizationSnapshotService authorizationSnapshots,
+            ObjectMapper objectMapper) {
         this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
+        this.authorizationSnapshots = authorizationSnapshots;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -40,7 +48,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String email = jwtService.extractUsername(token);
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails user = userDetailsService.loadUserByUsername(email);
+                UserDetails user = authorizationSnapshots.load(
+                        jwtService.extractUserId(token), email);
                 if (jwtService.isTokenValid(token, user)) {
                     var authentication = new UsernamePasswordAuthenticationToken(
                             user, null, user.getAuthorities());
@@ -48,11 +57,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
             chain.doFilter(request, response);
-        } catch (JwtException | IllegalArgumentException exception) {
+        } catch (JwtException | IllegalArgumentException | AuthenticationException exception) {
             // Continue unauthenticated so the public refresh endpoint can rotate an
             // expired access token. Protected endpoints are rejected by Spring Security.
             SecurityContextHolder.clearContext();
             chain.doFilter(request, response);
+        } catch (DataAccessException exception) {
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getWriter(),
+                    new ErrorResponse("Authentication service is temporarily unavailable",
+                            request.getRequestURI()));
         }
     }
 

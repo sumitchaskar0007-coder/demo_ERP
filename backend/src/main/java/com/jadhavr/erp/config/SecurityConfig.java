@@ -7,6 +7,7 @@ import com.jadhavr.erp.auth.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import com.jadhavr.erp.auth.filter.LoginRateLimitFilter;
 import com.jadhavr.erp.admission.filter.StudentAdmissionAccessFilter;
@@ -120,8 +121,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(loginRateLimitFilter, JwtAuthenticationFilter.class)
                 .addFilterAfter(studentAdmissionAccessFilter, JwtAuthenticationFilter.class)
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) ->
@@ -132,6 +133,36 @@ public class SecurityConfig {
                                         "Access denied", request.getRequestURI()))
                 )
                 .build();
+    }
+
+    /*
+     * These filters are positioned explicitly inside Spring Security above.
+     * Disable servlet-container auto-registration so they cannot execute once
+     * before the security chain (where the authenticated principal is not yet
+     * available) and then a second time inside it.
+     */
+    @Bean
+    FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration() {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration =
+                new FilterRegistrationBean<>(jwtAuthenticationFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    FilterRegistrationBean<LoginRateLimitFilter> loginRateLimitFilterRegistration() {
+        FilterRegistrationBean<LoginRateLimitFilter> registration =
+                new FilterRegistrationBean<>(loginRateLimitFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    FilterRegistrationBean<StudentAdmissionAccessFilter> studentAdmissionAccessFilterRegistration() {
+        FilterRegistrationBean<StudentAdmissionAccessFilter> registration =
+                new FilterRegistrationBean<>(studentAdmissionAccessFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

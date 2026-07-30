@@ -99,8 +99,15 @@ resource "aws_wafv2_web_acl" "main" {
     }
     statement {
       rate_based_statement {
-        limit              = 300
-        aggregate_key_type = "IP"
+        # This is intentionally a coarse edge flood ceiling, not the primary
+        # login control. The application separately limits normalized account
+        # identifiers and authenticated user IDs in Redis, so legitimate users
+        # sharing a campus NAT address are not governed only by this IP bucket.
+        # Tune the ceiling from sampled staging traffic before enabling a
+        # production WAF change.
+        limit                 = var.waf_public_auth_edge_limit
+        evaluation_window_sec = 300
+        aggregate_key_type    = "IP"
         scope_down_statement {
           regex_match_statement {
             regex_string = "^/api/(v1/auth/login|auth/password/(forgot|reset)|auth/email-verification/confirm|public/admissions/)"

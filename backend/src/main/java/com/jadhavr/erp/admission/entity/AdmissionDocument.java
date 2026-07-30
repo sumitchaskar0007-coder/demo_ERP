@@ -15,6 +15,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "admission_documents", uniqueConstraints =
         @UniqueConstraint(name = "uk_admission_document_type", columnNames = {"admission_form_id", "document_type"}))
@@ -43,6 +45,12 @@ public class AdmissionDocument extends BaseAuditEntity {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
+    @Column(name = "sha256_checksum", length = 64)
+    private String sha256Checksum;
+
+    @Column(name = "verified_at")
+    private Instant verifiedAt;
+
     public Long getId() { return id; }
     public AdmissionForm getAdmissionForm() { return admissionForm; }
     public void setAdmissionForm(AdmissionForm admissionForm) { this.admissionForm = admissionForm; }
@@ -56,4 +64,8 @@ public class AdmissionDocument extends BaseAuditEntity {
     public void setContentType(String contentType) { this.contentType = contentType; }
     public Long getFileSize() { return fileSize; }
     public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
+    public String getSha256Checksum() { return sha256Checksum; }
+    public void setSha256Checksum(String sha256Checksum) { this.sha256Checksum = sha256Checksum; }
+    public Instant getVerifiedAt() { return verifiedAt; }
+    public void setVerifiedAt(Instant verifiedAt) { this.verifiedAt = verifiedAt; }
 }

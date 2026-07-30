@@ -8,6 +8,15 @@ import java.util.Optional;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, String> {
     Optional<RefreshToken> findByTokenHash(String tokenHash);
+    @Modifying
+    @Query("""
+            update RefreshToken t
+            set t.revoked = true
+            where t.user.id = :userId
+              and t.tokenHash = :tokenHash
+              and t.revoked = false
+            """)
+    int revokeCurrentSession(Long userId, String tokenHash);
     @Modifying @Query("update RefreshToken t set t.revoked = true where t.user.id = :userId and t.revoked = false")
     int revokeAllForUser(Long userId);
 }

@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Clock3, LogOut, X } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/authStore";
-import { acknowledgeNotice, getNoticeInbox, markNoticeInboxSeen } from "@/features/notices/api";
+import {
+  acknowledgeNotice,
+  getNoticeInbox,
+  getUnreadNoticeCount,
+  markNoticeInboxSeen,
+  subscribeToNoticeChanges,
+} from "@/features/notices/api";
 import type { Notice } from "@/features/notices/types";
 import { DASHBOARD_NAVIGATION_VISIBILITY_EVENT, ROLES, ROUTES } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
@@ -20,6 +26,8 @@ export function DashboardLayout() {
     () => !user?.roles.includes(ROLES.STUDENT),
   );
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCountRef = useRef(0);
   const [popup, setPopup] = useState<Notice | null>(null);
   const [acknowledgeSeconds, setAcknowledgeSeconds] = useState(8);
   const [acknowledging, setAcknowledging] = useState(false);
@@ -31,6 +39,11 @@ export function DashboardLayout() {
     notices
       .filter((notice) => notice.priority !== "NORMAL" && !notice.acknowledged)
       .sort((a, b) => Number(b.priority === "URGENT") - Number(a.priority === "URGENT"))[0] ?? null;
+  const priorityNoticeId = priorityNotice?.id;
+
+  useEffect(() => {
+    unreadCountRef.current = unreadCount;
+  }, [unreadCount]);
 
   useEffect(() => {
     const updateVisibility = (event: Event) => {
@@ -44,20 +57,87 @@ export function DashboardLayout() {
 
   useEffect(() => {
     let active = true;
-    const refreshNotices = () => {
-      getNoticeInbox()
-        .then((rows) => {
-          if (active) setNotices(rows);
-        })
-        .catch(() => undefined);
+    let inboxRequest: Promise<void> | null = null;
+    let inboxRefreshTimer: number | undefined;
+
+    const updateCount = (count: number) => {
+      unreadCountRef.current = count;
+      setUnreadCount(count);
     };
-    refreshNotices();
-    const timer = window.setInterval(refreshNotices, 15_000);
+    const refreshInbox = () => {
+      if (inboxRequest) return inboxRequest;
+      inboxRequest = getNoticeInbox()
+        .then((rows) => {
+          if (!active) return;
+          setNotices(rows);
+          const visibleUnread = rows.filter((notice) => !notice.seen).length;
+          if (visibleUnread > unreadCountRef.current) updateCount(visibleUnread);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          inboxRequest = null;
+        });
+      return inboxRequest;
+    };
+    const scheduleInboxRefresh = () => {
+      if (!active || document.visibilityState === "hidden" || inboxRefreshTimer !== undefined)
+        return;
+      inboxRefreshTimer = window.setTimeout(() => {
+        inboxRefreshTimer = undefined;
+        void refreshInbox();
+      }, 250);
+    };
+    const refreshCount = async () => {
+      if (!active || document.visibilityState === "hidden") return;
+      try {
+        const count = await getUnreadNoticeCount();
+        if (!active) return;
+        const changed = count !== unreadCountRef.current;
+        updateCount(count);
+        if (count === 0) {
+          setNotices((current) => current.map((notice) => ({ ...notice, seen: true })));
+        } else if (changed) {
+          scheduleInboxRefresh();
+        }
+      } catch {
+        // The stream reconnect and next low-frequency fallback will retry.
+      }
+    };
+
+    void refreshInbox();
+    const unsubscribe = subscribeToNoticeChanges({
+      onUnreadCount: (count) => {
+        const changed = count !== unreadCountRef.current;
+        updateCount(count);
+        if (count > 0 && changed) scheduleInboxRefresh();
+      },
+      onChange: (change) => {
+        if (change.type === "NOTICE_CREATED") {
+          updateCount(unreadCountRef.current + 1);
+          scheduleInboxRefresh();
+        } else if (change.type === "NOTICE_DELETED") {
+          setNotices((current) => current.filter((notice) => notice.id !== change.noticeId));
+          void refreshCount();
+        } else if (change.type === "UNREAD_COUNT" && change.unreadCount !== undefined) {
+          updateCount(change.unreadCount);
+        } else if (change.type === "NOTICE_ACKNOWLEDGED") {
+          setNotices((current) =>
+            current.map((notice) =>
+              notice.id === change.noticeId ? { ...notice, acknowledged: true } : notice,
+            ),
+          );
+        }
+      },
+      onReconnect: () => void refreshCount(),
+    });
+    const timer = window.setInterval(() => void refreshCount(), 90_000);
     return () => {
       active = false;
+      unsubscribe();
       window.clearInterval(timer);
+      if (inboxRefreshTimer !== undefined) window.clearTimeout(inboxRefreshTimer);
     };
-  }, [location.pathname, user?.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -69,14 +149,14 @@ export function DashboardLayout() {
   }, [mobileOpen]);
 
   useEffect(() => {
-    if (!priorityNotice) return;
+    if (!priorityNoticeId) return;
     setAcknowledgeSeconds(8);
     const timer = window.setInterval(
       () => setAcknowledgeSeconds((value) => (value > 0 ? value - 1 : 0)),
       1000,
     );
     return () => window.clearInterval(timer);
-  }, [priorityNotice?.id]);
+  }, [priorityNoticeId]);
 
   useEffect(() => {
     if (location.pathname !== ROUTES.notices || unread.length === 0) return;
@@ -85,13 +165,14 @@ export function DashboardLayout() {
       .then(() => {
         if (active) {
           setNotices((current) => current.map((notice) => ({ ...notice, seen: true })));
+          setUnreadCount(0);
         }
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, [location.pathname, unreadIds]);
+  }, [location.pathname, unread.length, unreadIds]);
 
   useEffect(() => {
     if (priorityNotice || location.pathname === ROUTES.notices || unread.length === 0) {
@@ -101,7 +182,7 @@ export function DashboardLayout() {
     setPopup(unread[0]);
     const timer = window.setTimeout(() => setPopup(null), 5000);
     return () => window.clearTimeout(timer);
-  }, [location.pathname, unreadIds, priorityNotice?.id]);
+  }, [location.pathname, priorityNotice, unread, unreadIds]);
 
   async function acceptPriorityNotice() {
     if (!priorityNotice || acknowledgeSeconds > 0) return;
@@ -169,7 +250,7 @@ export function DashboardLayout() {
         }
       >
         {navigationVisible && (
-          <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unread.length} />
+          <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unreadCount} />
         )}
         <main className={navigationVisible ? "min-w-0 pt-16 lg:pt-0" : "min-w-0"}>
           {priorityNotice ? (

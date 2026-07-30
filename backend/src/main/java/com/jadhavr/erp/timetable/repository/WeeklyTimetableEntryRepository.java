@@ -8,6 +8,42 @@ public interface WeeklyTimetableEntryRepository extends JpaRepository<WeeklyTime
  }
  List<WeeklyTimetableEntry> findByTimetableId(Long id); List<WeeklyTimetableEntry> findByPeriodId(Long id); Optional<WeeklyTimetableEntry> findByTimetableIdAndDayOfWeekAndPeriodId(Long id,DayOfWeek day,Long periodId);
  List<WeeklyTimetableEntry> findByTeacherId(Long teacherId);
+ long countByTimetableId(Long timetableId);
+ long countByTeacherIdAndTimetableStatusAndTimetableReviewStatus(
+  Long teacherId,com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status status,
+  com.jadhavr.erp.timetable.entity.WeeklyTimetable.ReviewStatus reviewStatus);
+ @EntityGraph(attributePaths={"period","subject","teacher","timetable","timetable.section","timetable.section.department"})
+ List<WeeklyTimetableEntry> findByTeacherIdAndTimetableStatusAndTimetableReviewStatusAndDayOfWeekOrderByPeriodStartTime(
+  Long teacherId,com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status status,
+  com.jadhavr.erp.timetable.entity.WeeklyTimetable.ReviewStatus reviewStatus,DayOfWeek dayOfWeek);
+ @EntityGraph(attributePaths={"period","subject","teacher","timetable","timetable.section","timetable.section.department","timetable.section.classTeacher"})
+ @Query("""
+  select entry from WeeklyTimetableEntry entry
+  where entry.timetable.status=com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status.ACTIVE
+    and entry.timetable.reviewStatus=com.jadhavr.erp.timetable.entity.WeeklyTimetable.ReviewStatus.APPROVED
+    and (:collegeId is null or entry.timetable.college.id=:collegeId)
+    and (:departmentId is null or entry.timetable.section.department.id=:departmentId)
+    and (:divisionId is null or entry.timetable.section.id=:divisionId)
+    and (:subjectId is null or entry.subject.id=:subjectId)
+    and (:teacherId is null or entry.teacher.id=:teacherId)
+    and (:classTeacherId is null or entry.timetable.section.classTeacher.id=:classTeacherId)
+  """)
+ List<WeeklyTimetableEntry> findApprovedForAttendanceReport(
+  @Param("collegeId")Long collegeId,@Param("departmentId")Long departmentId,
+  @Param("divisionId")Long divisionId,@Param("subjectId")Long subjectId,
+  @Param("teacherId")Long teacherId,@Param("classTeacherId")Long classTeacherId);
+ @Query("""
+  select count(distinct entry.timetable.id) from WeeklyTimetableEntry entry
+  where entry.timetable.section.department.id=:departmentId
+    and entry.timetable.status=:status
+    and entry.timetable.reviewStatus=:reviewStatus
+    and entry.dayOfWeek=:dayOfWeek
+  """)
+ long countDistinctTimetablesByDepartmentAndDay(
+  @Param("departmentId")Long departmentId,
+  @Param("status")com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status status,
+  @Param("reviewStatus")com.jadhavr.erp.timetable.entity.WeeklyTimetable.ReviewStatus reviewStatus,
+  @Param("dayOfWeek")DayOfWeek dayOfWeek);
  @EntityGraph(attributePaths={"teacher","timetable","timetable.section","timetable.section.department"})
  List<WeeklyTimetableEntry> findByTimetableCollegeIdAndDayOfWeekAndTimetableStatusNot(
   Long collegeId,DayOfWeek day,com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status status);

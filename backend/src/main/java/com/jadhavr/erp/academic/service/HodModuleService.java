@@ -12,6 +12,7 @@ import com.jadhavr.erp.attendance.repository.WeeklyAttendanceRecordRepository;
 import com.jadhavr.erp.audit.enums.*;
 import com.jadhavr.erp.audit.service.AuditLogService;
 import com.jadhavr.erp.auth.security.SecurityUtils;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.common.exception.*;
 import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.staff.enums.*;
@@ -56,6 +57,7 @@ public class HodModuleService {
     private final AdmissionFormRepository admissions;
     private final RoleRepository roles;
     private final UserRepository users;
+    private final AuthorizationSnapshotService authorizationSnapshots;
 
     public HodModuleService(StudentProfileRepository students,StaffProfileRepository staff,SectionRepository sections,
             SubjectRepository subjects,StudentSectionEnrollmentRepository enrollments,
@@ -63,11 +65,13 @@ public class HodModuleService {
             WeeklyTimetableEntryRepository timetableEntries,WeeklyAttendanceRecordRepository attendance,
             StudentDivisionTransferRepository transfers,ClassTeacherAssignmentHistoryRepository classTeacherHistory,
             AuditLogService audit,TeacherNotificationService notifications,AdmissionFormRepository admissions,
-            RoleRepository roles,UserRepository users){
+            RoleRepository roles,UserRepository users,
+            AuthorizationSnapshotService authorizationSnapshots){
         this.students=students;this.staff=staff;this.sections=sections;this.subjects=subjects;this.enrollments=enrollments;
         this.subjectAssignments=subjectAssignments;this.timetables=timetables;this.timetableEntries=timetableEntries;
         this.attendance=attendance;this.transfers=transfers;this.classTeacherHistory=classTeacherHistory;this.audit=audit;this.notifications=notifications;
         this.admissions=admissions;this.roles=roles;this.users=users;
+        this.authorizationSnapshots=authorizationSnapshots;
     }
 
     @Transactional(readOnly=true)
@@ -87,13 +91,13 @@ public class HodModuleService {
         List<StudentRow> allStudents=departmentStudents.stream()
                 .filter(r->matches(r,search,courseYearId,divisionId,allocationStatus)).toList();
         int safeSize=Math.min(Math.max(size,1),100),safePage=Math.max(page,0),from=Math.min(safePage*safeSize,allStudents.size()),to=Math.min(from+safeSize,allStudents.size());
-        List<StaffProfile> teachers=staff.findByCollegeId(scope.collegeId()).stream()
-                .filter(s->s.getStatus()==StaffStatus.ACTIVE&&s.belongsToDepartment(departmentId)&&TEACHING_TYPES.contains(s.getStaffType())).toList();
+        List<StaffProfile> teachers=staff.findTeachingByCollegeAndDepartment(
+                scope.collegeId(),departmentId,StaffStatus.ACTIVE,TEACHING_TYPES);
         Map<Long,List<SubjectTeacherAssignment>> assignments=subjectAssignments.findBySubjectDepartmentIdAndStatus(departmentId,AcademicStatus.ACTIVE)
                 .stream().collect(Collectors.groupingBy(a->a.getSubject().getId()));
         List<WeeklyTimetable> activeTableRows=timetables.findBySectionDepartmentIdAndStatus(departmentId,WeeklyTimetable.Status.ACTIVE);
-        Map<Long,WeeklyTimetable> workingTables=timetables.findBySectionDepartmentId(departmentId).stream()
-                .filter(table->table.getStatus()!=WeeklyTimetable.Status.ARCHIVED)
+        Map<Long,WeeklyTimetable> workingTables=timetables.findBySectionDepartmentIdAndStatusNot(
+                        departmentId,WeeklyTimetable.Status.ARCHIVED).stream()
                 .collect(Collectors.toMap(table->table.getSection().getId(),Function.identity(),
                         (first,second)->first.getStatus()==WeeklyTimetable.Status.DRAFT?first:second));
         List<WeeklyTimetable> tableRows=new ArrayList<>(workingTables.values());
@@ -108,12 +112,12 @@ public class HodModuleService {
                 allStudents.subList(from,to),allStudents.size(),safePage,(int)Math.ceil(allStudents.size()/(double)safeSize),
                 teachers.stream().map(t->teacherRow(t,assignments)).toList(),
                 eligibleClassTeachers,
-                subjects.findAll().stream().filter(s->s.getDepartment().getId().equals(departmentId)&&s.getStatus()==SubjectStatus.ACTIVE).map(s->subjectRow(s,assignments.getOrDefault(s.getId(),List.of()))).toList(),
+                subjects.findByDepartmentIdAndStatus(departmentId,SubjectStatus.ACTIVE).stream().map(s->subjectRow(s,assignments.getOrDefault(s.getId(),List.of()))).toList(),
                 tableRows.stream().map(this::timetableRow).toList(),activity);
     }
 
     @Transactional(readOnly=true)
-    public Summary dashboard(Long requestedDepartmentId){Scope s=scope(requestedDepartmentId);List<Section>d=sections.findByDepartmentIdAndStatus(s.departmentId(),SectionStatus.ACTIVE);List<StaffProfile>t=staff.findByCollegeId(s.collegeId()).stream().filter(x->x.getStatus()==StaffStatus.ACTIVE&&x.belongsToDepartment(s.departmentId())&&TEACHING_TYPES.contains(x.getStaffType())).toList();long studentCount=students.findByDepartmentId(s.departmentId()).stream().filter(x->x.getStatus()==StudentStatus.ACTIVE).count();return summary(s.departmentId(),t,d,timetables.findBySectionDepartmentIdAndStatus(s.departmentId(),WeeklyTimetable.Status.ACTIVE),studentCount);}
+    public Summary dashboard(Long requestedDepartmentId){Scope s=scope(requestedDepartmentId);List<Section>d=sections.findByDepartmentIdAndStatus(s.departmentId(),SectionStatus.ACTIVE);List<StaffProfile>t=staff.findTeachingByCollegeAndDepartment(s.collegeId(),s.departmentId(),StaffStatus.ACTIVE,TEACHING_TYPES);long studentCount=students.countByDepartmentIdAndStatus(s.departmentId(),StudentStatus.ACTIVE);return summary(s.departmentId(),t,d,timetables.findBySectionDepartmentIdAndStatus(s.departmentId(),WeeklyTimetable.Status.ACTIVE),studentCount);}
 
     public int bulkAllocate(BulkAllocationRequest request){Section target=section(request.sectionId());Set<Long> unique=new LinkedHashSet<>(request.studentIds());ensureCapacity(target,unique.size(),Set.of());int count=0;for(Long id:unique){allocate(student(id),target);count++;}notifications.notifyDivision(target,"STUDENT_ALLOCATED",count+" new student(s) added to "+target.getName());audit.log(AuditModule.ACADEMIC,AuditAction.ASSIGN,"Section",target.getId(),"Allocated "+count+" students to "+target.getName());return count;}
 
@@ -122,7 +126,7 @@ public class HodModuleService {
     public int transfer(TransferRequest request){Section target=section(request.targetSectionId());List<StudentSectionEnrollment> moving=new ArrayList<>();for(Long id:new LinkedHashSet<>(request.studentIds())){StudentProfile student=student(id);StudentSectionEnrollment e=enrollments.findFirstByStudentAndStatus(student,AcademicStatus.ACTIVE).orElseThrow(()->new BadRequestException(student.getFullName()+" is not allocated"));if(!e.getAcademicClass().getId().equals(target.getAcademicClass().getId())||!e.getAcademicYear().equals(target.getAcademicYear()))throw new BadRequestException("Transfers must stay in the same course year and academic year");if(e.getSection().getId().equals(target.getId()))throw new BadRequestException(student.getFullName()+" is already in "+target.getName());moving.add(e);}ensureCapacity(target,moving.size(),moving.stream().map(e->e.getStudent().getId()).collect(Collectors.toSet()));StaffProfile actor=currentStaff();for(StudentSectionEnrollment e:moving){Section previous=e.getSection();e.setSection(target);e.setAcademicClass(target.getAcademicClass());enrollments.save(e);StudentDivisionTransfer h=new StudentDivisionTransfer();h.setStudent(e.getStudent());h.setFromSection(previous);h.setToSection(target);h.setChangedBy(actor);transfers.save(h);}notifications.notifyDivision(target,"STUDENT_TRANSFERRED",moving.size()+" student(s) transferred to "+target.getName());audit.log(AuditModule.ACADEMIC,AuditAction.UPDATE,"Section",target.getId(),"Transferred "+moving.size()+" students to "+target.getName()+"; historical attendance preserved");return moving.size();}
 
     @Transactional(readOnly=true)
-    public void allocateSubject(Long subjectId,SubjectAllocationRequest request){Subject subject=subject(subjectId);StaffProfile teacher=teacher(request.teacherId(),subject.getDepartment().getId());List<Section> divisions=request.divisionIds().stream().distinct().map(this::section).toList();for(Section s:divisions)if(!s.getAcademicClass().getId().equals(subject.getAcademicClass().getId())||!s.getAcademicYear().equals(subject.getAcademicYear()))throw new BadRequestException("Every division must match the subject course and academic year");long existing=timetableEntries.findByTeacherId(teacher.getId()).stream().filter(e->e.getTimetable().getStatus()==WeeklyTimetable.Status.ACTIVE&&e.getTimetable().getReviewStatus()==WeeklyTimetable.ReviewStatus.APPROVED).count();long requested=Math.max(1,Optional.ofNullable(subject.getCredits()).orElse(1))*divisions.size();if(existing+requested>MAX_WEEKLY_LECTURES)throw new BadRequestException("Assignment exceeds the "+MAX_WEEKLY_LECTURES+" lecture weekly workload limit");SubjectTeacherAssignment row=subjectAssignments.findBySubjectIdAndTeacherIdAndStatus(subjectId,teacher.getId(),AcademicStatus.ACTIVE).orElseGet(SubjectTeacherAssignment::new);row.setSubject(subject);row.setTeacher(teacher);row.setAcademicYear(subject.getAcademicYear());row.setSections(divisions);subjectAssignments.save(row);notifications.notifyTeacher(teacher,"TEACHING_ASSIGNMENT_UPDATED","You are assigned to "+subject.getName()+" for "+divisions.size()+" division(s)");audit.log(AuditModule.ACADEMIC,AuditAction.ASSIGN,"Subject",subjectId,"Assigned "+teacher.getFullName()+" to "+subject.getName()+" for "+divisions.size()+" divisions");}
+    public void allocateSubject(Long subjectId,SubjectAllocationRequest request){Subject subject=subject(subjectId);StaffProfile teacher=teacher(request.teacherId(),subject.getDepartment().getId());List<Section> divisions=request.divisionIds().stream().distinct().map(this::section).toList();for(Section s:divisions)if(!s.getAcademicClass().getId().equals(subject.getAcademicClass().getId())||!s.getAcademicYear().equals(subject.getAcademicYear()))throw new BadRequestException("Every division must match the subject course and academic year");long existing=timetableEntries.countByTeacherIdAndTimetableStatusAndTimetableReviewStatus(teacher.getId(),WeeklyTimetable.Status.ACTIVE,WeeklyTimetable.ReviewStatus.APPROVED);long requested=Math.max(1,Optional.ofNullable(subject.getCredits()).orElse(1))*divisions.size();if(existing+requested>MAX_WEEKLY_LECTURES)throw new BadRequestException("Assignment exceeds the "+MAX_WEEKLY_LECTURES+" lecture weekly workload limit");SubjectTeacherAssignment row=subjectAssignments.findBySubjectIdAndTeacherIdAndStatus(subjectId,teacher.getId(),AcademicStatus.ACTIVE).orElseGet(SubjectTeacherAssignment::new);row.setSubject(subject);row.setTeacher(teacher);row.setAcademicYear(subject.getAcademicYear());row.setSections(divisions);subjectAssignments.save(row);notifications.notifyTeacher(teacher,"TEACHING_ASSIGNMENT_UPDATED","You are assigned to "+subject.getName()+" for "+divisions.size()+" division(s)");audit.log(AuditModule.ACADEMIC,AuditAction.ASSIGN,"Subject",subjectId,"Assigned "+teacher.getFullName()+" to "+subject.getName()+" for "+divisions.size()+" divisions");}
 
     public void assignClassTeacher(Long sectionId,ClassTeacherRequest request){
         Section section=section(sectionId);
@@ -147,10 +151,10 @@ public class HodModuleService {
     private void ensureCapacity(Section section,int incoming,Set<Long> ignoredStudentIds){long current=enrollments.findBySectionIdAndStatus(section.getId(),AcademicStatus.ACTIVE).stream().filter(e->!ignoredStudentIds.contains(e.getStudent().getId())).count();if(current+incoming>section.getCapacity())throw new BadRequestException(section.getName()+" has only "+Math.max(0,section.getCapacity()-current)+" seats available");}
     private StudentRow studentRow(StudentProfile s,StudentSectionEnrollment e,AdmissionForm admission){var course=e!=null?e.getAcademicClass():admission==null?null:admission.getCourseYear();String academicYear=e!=null?e.getAcademicYear():admission==null?null:admission.getAcademicYear();return new StudentRow(s.getId(),null,s.getFullName(),s.getPrn(),s.getAdmissionNumber(),s.getGender(),s.getStatus().name(),e==null?null:e.getId(),course==null?null:course.getId(),course==null?null:course.getName(),academicYear,e==null?null:e.getSection().getId(),e==null?null:e.getSection().getName(),e==null||pending(e.getRollNumber())?null:e.getRollNumber(),e==null?"UNALLOCATED":"ALLOCATED");}
     private boolean matches(StudentRow r,String search,Long courseYearId,Long divisionId,String allocation){String q=search==null?"":search.trim().toLowerCase(Locale.ROOT);return(q.isEmpty()||List.of(r.name(),r.admissionNumber(),Optional.ofNullable(r.rollNumber()).orElse("")).stream().anyMatch(v->v.toLowerCase(Locale.ROOT).contains(q)))&&(courseYearId==null||Objects.equals(courseYearId,r.courseYearId()))&&(divisionId==null||Objects.equals(divisionId,r.divisionId()))&&(allocation==null||allocation.isBlank()||allocation.equalsIgnoreCase(r.allocationStatus()));}
-    private TeacherRow teacherRow(StaffProfile t,Map<Long,List<SubjectTeacherAssignment>> bySubject){List<SubjectTeacherAssignment>a=bySubject.values().stream().flatMap(Collection::stream).filter(x->x.getTeacher().getId().equals(t.getId())).toList();long lectures=timetableEntries.findByTeacherId(t.getId()).stream().filter(e->e.getTimetable().getStatus()==WeeklyTimetable.Status.ACTIVE&&e.getTimetable().getReviewStatus()==WeeklyTimetable.ReviewStatus.APPROVED).count();long divisions=a.stream().flatMap(x->x.getSections().stream()).map(Section::getId).distinct().count();return new TeacherRow(t.getId(),t.getEmployeeCode(),t.getFullName(),t.getEmail(),t.getStaffType().name(),a.stream().map(x->x.getSubject().getId()).distinct().count(),divisions,lectures,Math.max(0,MAX_WEEKLY_LECTURES-lectures),lectures>=MAX_WEEKLY_LECTURES?"RED":lectures>=MAX_WEEKLY_LECTURES*.75?"YELLOW":"GREEN");}
+    private TeacherRow teacherRow(StaffProfile t,Map<Long,List<SubjectTeacherAssignment>> bySubject){List<SubjectTeacherAssignment>a=bySubject.values().stream().flatMap(Collection::stream).filter(x->x.getTeacher().getId().equals(t.getId())).toList();long lectures=timetableEntries.countByTeacherIdAndTimetableStatusAndTimetableReviewStatus(t.getId(),WeeklyTimetable.Status.ACTIVE,WeeklyTimetable.ReviewStatus.APPROVED);long divisions=a.stream().flatMap(x->x.getSections().stream()).map(Section::getId).distinct().count();return new TeacherRow(t.getId(),t.getEmployeeCode(),t.getFullName(),t.getEmail(),t.getStaffType().name(),a.stream().map(x->x.getSubject().getId()).distinct().count(),divisions,lectures,Math.max(0,MAX_WEEKLY_LECTURES-lectures),lectures>=MAX_WEEKLY_LECTURES?"RED":lectures>=MAX_WEEKLY_LECTURES*.75?"YELLOW":"GREEN");}
     private SubjectRow subjectRow(Subject s,List<SubjectTeacherAssignment>a){return new SubjectRow(s.getId(),s.getCode(),s.getName(),s.getAcademicClass().getId(),s.getAcademicClass().getName(),s.getAcademicYear(),Optional.ofNullable(s.getCredits()).orElse(0),a.stream().map(x->x.getTeacher().getId()).distinct().toList(),a.stream().map(x->x.getTeacher().getFullName()).distinct().toList(),a.stream().flatMap(x->x.getSections().stream()).map(Section::getId).distinct().toList());}
-    private TimetableReviewRow timetableRow(WeeklyTimetable t){Section s=t.getSection();return new TimetableReviewRow(t.getId(),s.getId(),s.getName(),s.getAcademicClass().getName(),s.getAcademicYear(),t.getReviewStatus().name(),t.getReviewComment(),t.getSubmittedAt(),t.getReviewedAt(),timetableEntries.findByTimetableId(t.getId()).size());}
-    private Summary summary(Long departmentId,List<StaffProfile> teachers,List<Section> divisions,List<WeeklyTimetable> tables,long studentCount){long subjectCount=subjects.findAll().stream().filter(s->s.getDepartment().getId().equals(departmentId)&&s.getStatus()==SubjectStatus.ACTIVE).count();DayOfWeek today=LocalDate.now().getDayOfWeek();long classes=tables.stream().flatMap(t->timetableEntries.findByTimetableId(t.getId()).stream()).filter(e->e.getDayOfWeek()==today).map(e->e.getTimetable().getId()).distinct().count();List<WeeklyAttendanceRecord> records=attendance.findBySessionSectionDepartmentIdAndSessionStatus(departmentId,WeeklyAttendanceSession.Status.SUBMITTED);double average=records.isEmpty()?0:records.stream().filter(r->r.getStatus()==WeeklyAttendanceRecord.Status.PRESENT||r.getStatus()==WeeklyAttendanceRecord.Status.LATE).count()*100.0/records.size();long allocated=enrollments.findBySectionDepartmentIdAndStatus(departmentId,AcademicStatus.ACTIVE).size();long pending=Math.max(0,studentCount-allocated)+tables.stream().filter(t->t.getReviewStatus()==WeeklyTimetable.ReviewStatus.SUBMITTED).count();return new Summary(studentCount,teachers.size(),divisions.size(),subjectCount,classes,Math.round(average*10)/10.0,pending);}
+    private TimetableReviewRow timetableRow(WeeklyTimetable t){Section s=t.getSection();return new TimetableReviewRow(t.getId(),s.getId(),s.getName(),s.getAcademicClass().getName(),s.getAcademicYear(),t.getReviewStatus().name(),t.getReviewComment(),t.getSubmittedAt(),t.getReviewedAt(),timetableEntries.countByTimetableId(t.getId()));}
+    private Summary summary(Long departmentId,List<StaffProfile> teachers,List<Section> divisions,List<WeeklyTimetable> tables,long studentCount){long subjectCount=subjects.countByDepartmentIdAndStatus(departmentId,SubjectStatus.ACTIVE);DayOfWeek today=LocalDate.now().getDayOfWeek();long classes=timetableEntries.countDistinctTimetablesByDepartmentAndDay(departmentId,WeeklyTimetable.Status.ACTIVE,WeeklyTimetable.ReviewStatus.APPROVED,today);long totalAttendance=attendance.countBySessionSectionDepartmentIdAndSessionStatus(departmentId,WeeklyAttendanceSession.Status.SUBMITTED);long attended=attendance.countBySessionSectionDepartmentIdAndSessionStatusAndStatusIn(departmentId,WeeklyAttendanceSession.Status.SUBMITTED,List.of(WeeklyAttendanceRecord.Status.PRESENT,WeeklyAttendanceRecord.Status.LATE));double average=totalAttendance==0?0:attended*100.0/totalAttendance;long allocated=enrollments.countBySectionDepartmentIdAndStatus(departmentId,AcademicStatus.ACTIVE);long pending=Math.max(0,studentCount-allocated)+tables.stream().filter(t->t.getReviewStatus()==WeeklyTimetable.ReviewStatus.SUBMITTED).count();return new Summary(studentCount,teachers.size(),divisions.size(),subjectCount,classes,Math.round(average*10)/10.0,pending);}
     private List<ActivityItem> activity(Long departmentId){List<ActivityItem> result=new ArrayList<>();transfers.findTop20ByToSectionDepartmentIdOrderByTransferredAtDesc(departmentId).forEach(x->result.add(new ActivityItem("TRANSFER",x.getStudent().getFullName()+" moved to "+x.getToSection().getName(),x.getTransferredAt())));classTeacherHistory.findTop20BySectionDepartmentIdOrderByAssignedAtDesc(departmentId).forEach(x->result.add(new ActivityItem("CLASS_TEACHER",x.getNewTeacher().getFullName()+" assigned to "+x.getSection().getName(),x.getAssignedAt())));return result.stream().sorted(Comparator.comparing(ActivityItem::occurredAt).reversed()).toList();}
     private Scope scope(Long requested){StaffProfile profile=currentStaff();Long assigned=profile.getDepartment()==null?null:profile.getDepartment().getId();Long departmentId;if(SecurityUtils.hasRole("HOD")){if(assigned==null)throw new AccessDeniedException("No department is assigned to this HOD");departmentId=assigned;if(requested!=null&&!requested.equals(assigned))throw new AccessDeniedException("Department is outside your scope");}else{departmentId=requested!=null?requested:assigned;if(departmentId==null)throw new BadRequestException("Select a department");}String name=profile.getDepartments().stream().filter(d->d.getId().equals(departmentId)).map(d->d.getName()).findFirst().orElseGet(()->sections.findByDepartmentIdAndStatus(departmentId,SectionStatus.ACTIVE).stream().findFirst().map(s->s.getDepartment().getName()).orElse("Department"));return new Scope(profile.getCollege().getId(),departmentId,name);}
     private StaffProfile currentStaff(){return staff.findByUserId(SecurityUtils.getCurrentUserId()).orElseThrow(()->new AccessDeniedException("Staff profile is required"));}
@@ -167,14 +171,20 @@ public class HodModuleService {
         Role role=roles.findByName(RoleName.CLASS_TEACHER)
                 .orElseThrow(()->new ResourceNotFoundException("CLASS_TEACHER role not found"));
         Set<Role> updated=new HashSet<>(teacher.getUser().getRoles());updated.add(role);
-        teacher.getUser().setRoles(updated);users.save(teacher.getUser());
+        teacher.getUser().setRoles(updated);
+        teacher.getUser().setSessionVersion(teacher.getUser().getSessionVersion()+1);
+        users.save(teacher.getUser());
+        authorizationSnapshots.invalidateOrThrow(teacher.getUser().getId());
     }
     private void removeClassTeacherRoleIfUnassigned(StaffProfile teacher){
         if(!sections.findByClassTeacherIdAndStatus(teacher.getId(),SectionStatus.ACTIVE).isEmpty())return;
         Set<Role> updated=teacher.getUser().getRoles().stream()
                 .filter(role->role.getName()!=RoleName.CLASS_TEACHER)
                 .collect(Collectors.toCollection(HashSet::new));
-        teacher.getUser().setRoles(updated);users.save(teacher.getUser());
+        teacher.getUser().setRoles(updated);
+        teacher.getUser().setSessionVersion(teacher.getUser().getSessionVersion()+1);
+        users.save(teacher.getUser());
+        authorizationSnapshots.invalidateOrThrow(teacher.getUser().getId());
     }
     private boolean pending(String roll){return roll==null||roll.isBlank()||roll.startsWith("PENDING-");}
     private String academicYearKey(String value){return value==null?"":value.replaceAll("[^0-9]","");}

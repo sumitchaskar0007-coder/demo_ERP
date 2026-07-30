@@ -17,6 +17,8 @@ import com.jadhavr.erp.user.entity.UserStatus;
 import com.jadhavr.erp.user.mapper.UserMapper;
 import com.jadhavr.erp.user.repository.RoleRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -40,6 +42,8 @@ public class UserServiceImpl implements UserService {
     private final CollegeRepository colleges;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper mapper;
+    private final RefreshTokenRepository refreshTokens;
+    private final AuthorizationSnapshotService authorizationSnapshots;
     private EmailNotificationService emailNotifications;
 
     @Autowired(required = false)
@@ -47,12 +51,15 @@ public class UserServiceImpl implements UserService {
 
     public UserServiceImpl(UserRepository users, RoleRepository roles,
                            CollegeRepository colleges, PasswordEncoder passwordEncoder,
-                           UserMapper mapper) {
+                           UserMapper mapper, RefreshTokenRepository refreshTokens,
+                           AuthorizationSnapshotService authorizationSnapshots) {
         this.users = users;
         this.roles = roles;
         this.colleges = colleges;
         this.passwordEncoder = passwordEncoder;
         this.mapper = mapper;
+        this.refreshTokens = refreshTokens;
+        this.authorizationSnapshots = authorizationSnapshots;
     }
 
     @Override
@@ -97,10 +104,19 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Only Principal accounts can be updated through this endpoint");
         }
         user.setPhone(trimToNull(request.phone()));
+        boolean passwordChanged = false;
         if (request.password() != null && !request.password().isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(request.password()));
+            user.setMustChangePassword(false);
+            user.setSessionVersion(user.getSessionVersion() + 1);
+            passwordChanged = true;
         }
-        return mapper.toResponse(users.save(user));
+        User saved = users.save(user);
+        if (passwordChanged) {
+            refreshTokens.revokeAllForUser(saved.getId());
+            authorizationSnapshots.invalidateOrThrow(saved.getId());
+        }
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -129,6 +145,7 @@ public class UserServiceImpl implements UserService {
         }
         user.setStatus(UserStatus.ACTIVE);
         User saved = users.save(user);
+        authorizationSnapshots.invalidateOrThrow(saved.getId());
         if (emailNotifications != null) emailNotifications.queueAccountActivatedEmail(saved);
         return mapper.toResponse(saved);
     }
@@ -138,7 +155,10 @@ public class UserServiceImpl implements UserService {
     public UserResponse deactivateUser(Long id) {
         User user = findUser(id);
         user.setStatus(UserStatus.INACTIVE);
+        user.setSessionVersion(user.getSessionVersion() + 1);
         User saved = users.save(user);
+        refreshTokens.revokeAllForUser(saved.getId());
+        authorizationSnapshots.invalidateOrThrow(saved.getId());
         if (emailNotifications != null) emailNotifications.queueAccountDeactivatedEmail(saved);
         return mapper.toResponse(saved);
     }

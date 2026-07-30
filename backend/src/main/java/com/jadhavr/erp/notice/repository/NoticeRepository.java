@@ -20,6 +20,10 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             """)
     List<Long> findSentIds(@Param("userId") Long userId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
+    @Query("select distinct n from Notice n where n.id in :ids")
+    List<Notice> findDetailedByIdIn(@Param("ids") Collection<Long> ids);
+
     @Query("""
             select n.id from Notice n
             join n.audienceRoles role
@@ -39,7 +43,23 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             @Param("roles") Collection<RoleName> roles,
             Pageable pageable);
 
-    @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
-    @Query("select distinct n from Notice n where n.id in :ids")
-    List<Notice> findDetailedByIdIn(@Param("ids") Collection<Long> ids);
+    @Query("""
+            select count(distinct n.id) from Notice n
+            join n.audienceRoles role
+            left join n.colleges college
+            where n.createdBy.id <> :userId
+              and n.deletedAt is null
+              and role in :roles
+              and (college is null or college.id = :collegeId)
+              and (n.department is null or n.department.id = :departmentId)
+              and not exists (
+                  select v.id from NoticeView v
+                  where v.notice.id = n.id and v.user.id = :userId
+              )
+            """)
+    long countUnread(
+            @Param("userId") Long userId,
+            @Param("collegeId") Long collegeId,
+            @Param("departmentId") Long departmentId,
+            @Param("roles") Collection<RoleName> roles);
 }

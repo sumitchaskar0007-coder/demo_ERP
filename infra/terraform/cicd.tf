@@ -1,4 +1,10 @@
+# State-ownership warning: the existing GitHub OIDC provider is account-global
+# and is currently owned by the historical staging state. A separate production
+# state must consume/import that provider deliberately before apply; never let
+# two Terraform states claim or try to create the same provider.
 resource "aws_iam_openid_connect_provider" "github" {
+  count = var.manage_github_oidc_provider ? 1 : 0
+
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = []
@@ -6,6 +12,24 @@ resource "aws_iam_openid_connect_provider" "github" {
   lifecycle {
     ignore_changes = [thumbprint_list]
   }
+}
+
+moved {
+  from = aws_iam_openid_connect_provider.github
+  to   = aws_iam_openid_connect_provider.github[0]
+}
+
+data "aws_iam_openid_connect_provider" "github" {
+  count = var.manage_github_oidc_provider ? 0 : 1
+  url   = "https://token.actions.githubusercontent.com"
+}
+
+locals {
+  github_oidc_provider_arn = (
+    var.manage_github_oidc_provider
+    ? aws_iam_openid_connect_provider.github[0].arn
+    : data.aws_iam_openid_connect_provider.github[0].arn
+  )
 }
 
 resource "aws_iam_role" "github_deploy" {
@@ -16,7 +40,7 @@ resource "aws_iam_role" "github_deploy" {
     Statement = [{
       Effect = "Allow"
       Principal = {
-        Federated = aws_iam_openid_connect_provider.github.arn
+        Federated = local.github_oidc_provider_arn
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {

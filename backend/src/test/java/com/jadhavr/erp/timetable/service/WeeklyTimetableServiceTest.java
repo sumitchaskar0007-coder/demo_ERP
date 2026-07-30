@@ -192,8 +192,6 @@ class WeeklyTimetableServiceTest {
         when(entries.findByTimetableId(1L))
                 .thenReturn(List.of(new com.jadhavr.erp.timetable.entity.WeeklyTimetableEntry()))
                 .thenReturn(Collections.emptyList());
-        when(subjects.findAll()).thenReturn(Collections.emptyList());
-        when(staff.findByCollegeId(10L)).thenReturn(Collections.emptyList());
         when(periods.findByTimetableIdOrderByPosition(1L)).thenReturn(Collections.emptyList());
 
         service.submitForReview(1L);
@@ -246,8 +244,6 @@ class WeeklyTimetableServiceTest {
         when(tables.findById(2L)).thenReturn(Optional.of(revision));
         when(tables.findFirstBySectionIdAndStatusOrderByIdDesc(
                 40L, WeeklyTimetable.Status.ACTIVE)).thenReturn(Optional.of(live));
-        when(subjects.findAll()).thenReturn(Collections.emptyList());
-        when(staff.findByCollegeId(10L)).thenReturn(Collections.emptyList());
         when(entries.findByTimetableId(2L)).thenReturn(Collections.emptyList());
         when(periods.findByTimetableIdOrderByPosition(2L)).thenReturn(Collections.emptyList());
 
@@ -325,8 +321,6 @@ class WeeklyTimetableServiceTest {
         when(periods.findByTimetableIdOrderByPosition(1L)).thenReturn(List.of(period));
         when(entries.findByPeriodId(2L)).thenReturn(List.of(assignment));
         when(entries.findByTimetableId(1L)).thenReturn(Collections.emptyList());
-        when(subjects.findAll()).thenReturn(Collections.emptyList());
-        when(staff.findByCollegeId(10L)).thenReturn(Collections.emptyList());
 
         service.updatePeriods(1L, new UpdatePeriodsRequest(List.of(
                 new PeriodItem(2L, "Period 1", LocalTime.of(14, 0),
@@ -335,6 +329,19 @@ class WeeklyTimetableServiceTest {
         verify(entries).deleteAll(List.of(assignment));
         assertEquals(LocalTime.of(14, 0), period.getStartTime());
         assertEquals(LocalTime.of(15, 0), period.getEndTime());
+    }
+
+    @Test
+    void divisionsUsesPrincipalCollegeScopeInsteadOfLoadingEveryDivision() {
+        setSecurityRole(RoleName.PRINCIPAL);
+        when(sections.findByCollegeIdAndStatus(10L,
+                com.jadhavr.erp.academic.enums.SectionStatus.ACTIVE))
+                .thenReturn(Collections.emptyList());
+
+        assertEquals(List.of(), service.divisions());
+
+        verify(sections).findByCollegeIdAndStatus(10L,
+                com.jadhavr.erp.academic.enums.SectionStatus.ACTIVE);
     }
 
     private void setId(Object target, Long id) {

@@ -12,6 +12,7 @@ import com.jadhavr.erp.academic.mapper.DivisionMapper;
 import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.academic.repository.SectionRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.common.exception.BadRequestException;
@@ -43,8 +44,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class DivisionServiceImplTest {
     @Mock SectionRepository divisions; @Mock AcademicClassRepository years; @Mock StaffProfileRepository staff;
-    @Mock RoleRepository roles; @Mock UserRepository users; DivisionServiceImpl service;
-    @BeforeEach void setup(){service=new DivisionServiceImpl(divisions,years,staff,roles,users,new DivisionMapper(),new StaffMapper());authenticate();}
+    @Mock RoleRepository roles; @Mock UserRepository users;
+    @Mock AuthorizationSnapshotService authorizationSnapshots; DivisionServiceImpl service;
+    @BeforeEach void setup(){service=new DivisionServiceImpl(divisions,years,staff,roles,users,new DivisionMapper(),new StaffMapper(),authorizationSnapshots);authenticate();}
     @AfterEach void clear(){SecurityContextHolder.clearContext();}
 
     @Test void principalCreatesDivision(){AcademicClass year=year();when(years.findById(3L)).thenReturn(Optional.of(year));when(divisions.save(any())).thenAnswer(i->{Section s=i.getArgument(0);s.setId(4L);return s;});var result=service.create(new CreateDivisionRequest(3L,"Division A","a",60));assertEquals("A",result.code());assertEquals(60,result.capacity());}

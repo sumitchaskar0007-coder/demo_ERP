@@ -11,6 +11,9 @@ import com.jadhavr.erp.user.entity.*;
 import com.jadhavr.erp.user.mapper.UserMapper;
 import com.jadhavr.erp.user.repository.RoleRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
+import com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,12 +38,15 @@ class UserServiceImplTest {
     @Mock RoleRepository roles;
     @Mock CollegeRepository colleges;
     @Mock PasswordEncoder encoder;
+    @Mock RefreshTokenRepository refreshTokens;
+    @Mock AuthorizationSnapshotService authorizationSnapshots;
     UserServiceImpl service;
     College college;
     Role principalRole;
 
     @BeforeEach void setup() {
-        service = new UserServiceImpl(users, roles, colleges, encoder, new UserMapper());
+        service = new UserServiceImpl(users, roles, colleges, encoder, new UserMapper(),
+                refreshTokens, authorizationSnapshots);
         college = college(CollegeStatus.ACTIVE);
         principalRole = new Role();
         principalRole.setName(RoleName.PRINCIPAL);
@@ -84,6 +90,22 @@ class UserServiceImplTest {
         when(users.findById(2L)).thenReturn(Optional.of(user));
         when(users.save(user)).thenReturn(user);
         assertEquals(UserStatus.INACTIVE, service.deactivateUser(2L).status());
+    }
+
+    @Test void authorizationInvalidationFailureAbortsDeactivationPath() {
+        User user = principal(UserStatus.ACTIVE);
+        when(users.findById(2L)).thenReturn(Optional.of(user));
+        when(users.save(user)).thenReturn(user);
+        doThrow(new AuthorizationStateUnavailableException(
+                "unavailable", new IllegalStateException("redis unavailable")))
+                .when(authorizationSnapshots).invalidateOrThrow(2L);
+
+        assertThrows(
+                AuthorizationStateUnavailableException.class,
+                () -> service.deactivateUser(2L));
+
+        verify(refreshTokens).revokeAllForUser(2L);
+        assertEquals(1L, user.getSessionVersion());
     }
 
     @Test void activatingPrincipalPreventsDuplicate() {

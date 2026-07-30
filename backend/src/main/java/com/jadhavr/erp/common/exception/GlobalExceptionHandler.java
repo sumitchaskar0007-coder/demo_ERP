@@ -1,9 +1,12 @@
 package com.jadhavr.erp.common.exception;
 
 import com.jadhavr.erp.common.api.ErrorResponse;
+import jakarta.persistence.OptimisticLockException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -39,9 +42,35 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(exception.getMessage()));
     }
 
+    @ExceptionHandler({OptimisticLockingFailureException.class, OptimisticLockException.class})
+    public ResponseEntity<ErrorResponse> handleOptimisticLocking(RuntimeException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(
+                        "This record was changed by another request. Reload it and try again."));
+    }
+
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException exception) {
         return ResponseEntity.badRequest().body(new ErrorResponse(exception.getMessage()));
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyRequests(
+            TooManyRequestsException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER,
+                        Long.toString(exception.getRetryAfterSeconds()))
+                .body(new ErrorResponse(exception.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleAuthorizationStateUnavailable(
+            com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse(
+                        "Authorization state is temporarily unavailable",
+                        request.getRequestURI()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -134,11 +134,63 @@ resource "aws_security_group" "ecs" {
     security_groups = [aws_security_group.alb.id]
   }
 
+  # Until the externally owned production VPC supplies interface/gateway
+  # endpoints, tasks need HTTPS through its approved NAT path for ECR,
+  # Secrets Manager, CloudWatch Logs, S3 and SQS. All other internet protocols
+  # remain blocked except conditional TLS SMTP below.
+  #tfsec:ignore:aws-ec2-no-public-egress-sgr
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "HTTPS to AWS APIs through the VPC egress path"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Amazon SES SMTP does not expose a VPC prefix list. Restrict this exception
+  # to TLS submission port 587 and create it only when email delivery is enabled.
+  #tfsec:ignore:aws-ec2-no-public-egress-sgr
+  dynamic "egress" {
+    for_each = var.mail_enabled ? [1] : []
+    content {
+      description = "TLS SMTP submission through the approved NAT path"
+      from_port   = 587
+      to_port     = 587
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+
+  egress {
+    description = "PostgreSQL inside the production VPC"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr]
+  }
+
+  egress {
+    description = "Valkey TLS inside the production VPC"
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr]
+  }
+
+  egress {
+    description = "VPC DNS over UDP"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [local.vpc_cidr]
+  }
+
+  egress {
+    description = "VPC DNS over TCP"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr]
   }
 }
 

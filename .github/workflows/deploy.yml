@@ -1,11 +1,12 @@
 name: Deploy production
 
 on:
-  workflow_run:
-    workflows: ["Verify"]
-    branches: [main]
-    types: [completed]
   workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY_PRODUCTION_EC2 after the verified commit and production approval are recorded
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,8 +19,19 @@ concurrency:
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
-  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+  TARGET_GROUP_ARN: ${{ vars.TARGET_GROUP_ARN }}
+  ARTIFACT_BUCKET: ${{ vars.ARTIFACT_BUCKET }}
+  APPLICATION_SECRET_ID: ${{ vars.APPLICATION_SECRET_ID }}
+  MAIL_SECRET_ID: ${{ vars.MAIL_SECRET_ID }}
+  RUNTIME_DATABASE_SECRET_ID: ${{ vars.RUNTIME_DATABASE_SECRET_ID }}
+  DB_ENDPOINT: ${{ vars.DB_ENDPOINT }}
+  DB_PORT: ${{ vars.DB_PORT }}
+  DB_NAME: ${{ vars.DB_NAME }}
+  DOCUMENTS_BUCKET: ${{ vars.DOCUMENTS_BUCKET }}
+  REDIS_IMAGE: ${{ vars.REDIS_IMAGE }}
+  FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+  CORS_ALLOWED_ORIGINS: ${{ vars.CORS_ALLOWED_ORIGINS }}
   FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
   CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
   APPLICATION_URL: ${{ vars.APPLICATION_URL }}
@@ -28,20 +40,18 @@ jobs:
   deploy:
     name: Build and deploy
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == 'DEPLOY_PRODUCTION_EC2'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment: production
 
     steps:
       - name: Resolve release commit
         id: release
-        env:
-          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          release_sha="${VERIFIED_SHA:-${GITHUB_SHA}}"
+          release_sha="${GITHUB_SHA}"
           echo "sha=${release_sha}" >> "$GITHUB_OUTPUT"
           echo "tag=${release_sha:0:12}" >> "$GITHUB_OUTPUT"
 
@@ -58,8 +68,18 @@ jobs:
           required=(
             AWS_REGION
             ECR_REPOSITORY
-            ECS_CLUSTER
-            ECS_SERVICE
+            EC2_INSTANCE_ID
+            TARGET_GROUP_ARN
+            ARTIFACT_BUCKET
+            APPLICATION_SECRET_ID
+            RUNTIME_DATABASE_SECRET_ID
+            DB_ENDPOINT
+            DB_PORT
+            DB_NAME
+            DOCUMENTS_BUCKET
+            REDIS_IMAGE
+            FRONTEND_URL
+            CORS_ALLOWED_ORIGINS
             FRONTEND_BUCKET
             CLOUDFRONT_DISTRIBUTION_ID
             APPLICATION_URL
@@ -71,6 +91,17 @@ jobs:
               exit 1
             fi
           done
+
+          [[ "$AWS_REGION" =~ ^[a-z]{2}-[a-z]+-[0-9]+$ ]]
+          [[ "$ECR_REPOSITORY" =~ ^[a-z0-9][a-z0-9._/-]+$ ]]
+          [[ "$EC2_INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]
+          [[ "$TARGET_GROUP_ARN" =~ ^arn:aws[a-z-]*:elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:targetgroup/[A-Za-z0-9-]+/[0-9a-f]+$ ]]
+          [[ "$ARTIFACT_BUCKET" =~ ^[a-z0-9][a-z0-9.-]+$ ]]
+          [[ "$DB_ENDPOINT" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$DB_PORT" = "5432" ]]
+          [[ "$DB_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]
+          [[ "$FRONTEND_URL" =~ ^https:// ]]
+          [[ "$APPLICATION_URL" =~ ^https:// ]]
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -85,8 +116,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Check for an existing immutable backend image
+        id: backend_image
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=${RELEASE_TAG}" \
+            >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Reusing existing immutable image tag ${RELEASE_TAG}"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build and push backend image
-        id: image
+        if: steps.backend_image.outputs.exists != 'true'
         uses: docker/build-push-action@v6
         with:
           context: backend
@@ -95,6 +142,26 @@ jobs:
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.release.outputs.tag }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
+
+      - name: Resolve immutable backend image digest
+        id: resolved_image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          image_digest="$(
+            aws ecr describe-images \
+              --repository-name "$ECR_REPOSITORY" \
+              --image-ids "imageTag=${RELEASE_TAG}" \
+              --query 'imageDetails[0].imageDigest' \
+              --output text
+          )"
+          if [[ ! "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::ECR did not return a valid immutable image digest"
+            exit 1
+          fi
+          echo "uri=${ECR_REGISTRY}/${ECR_REPOSITORY}@${image_digest}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -112,72 +179,133 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      - name: Create backend task revision
-        id: tasks
+      - name: Upload EC2 deployment bundle
+        id: bundle
         env:
-          IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.release.outputs.tag }}
+          IMAGE_URI: ${{ steps.resolved_image.outputs.uri }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
+          script_key="releases/${RELEASE_TAG}/deploy-backend.sh"
+          config_key="releases/${RELEASE_TAG}/deployment.json"
+          script_checksum="$(sha256sum scripts/ec2/deploy-backend.sh | awk '{print $1}')"
 
-          current_backend_task="$(
-            aws ecs describe-services \
-              --cluster "$ECS_CLUSTER" \
-              --services "$ECS_SERVICE" \
-              --query 'services[0].taskDefinition' \
-              --output text
-          )"
+          jq -n \
+            --arg aws_region "$AWS_REGION" \
+            --arg image_uri "$IMAGE_URI" \
+            --arg release "$RELEASE_TAG" \
+            --arg application_secret_id "$APPLICATION_SECRET_ID" \
+            --arg mail_secret_id "$MAIL_SECRET_ID" \
+            --arg runtime_database_secret_id "$RUNTIME_DATABASE_SECRET_ID" \
+            --arg db_endpoint "$DB_ENDPOINT" \
+            --argjson db_port "$DB_PORT" \
+            --arg db_name "$DB_NAME" \
+            --arg documents_bucket "$DOCUMENTS_BUCKET" \
+            --arg frontend_url "$FRONTEND_URL" \
+            --arg cors_allowed_origins "$CORS_ALLOWED_ORIGINS" \
+            --arg redis_image "$REDIS_IMAGE" \
+            '{
+              aws_region: $aws_region,
+              image_uri: $image_uri,
+              release: $release,
+              application_secret_id: $application_secret_id,
+              mail_secret_id: $mail_secret_id,
+              runtime_database_secret_id: $runtime_database_secret_id,
+              db_endpoint: $db_endpoint,
+              db_port: $db_port,
+              db_name: $db_name,
+              documents_bucket: $documents_bucket,
+              frontend_url: $frontend_url,
+              cors_allowed_origins: $cors_allowed_origins,
+              redis_image: $redis_image
+            }' > deployment.json
+          config_checksum="$(sha256sum deployment.json | awk '{print $1}')"
 
-          if [ -z "$current_backend_task" ] || [ "$current_backend_task" = "None" ]; then
-            echo "::error::Unable to resolve the current ECS backend task definition"
-            exit 1
-          fi
+          aws s3 cp scripts/ec2/deploy-backend.sh \
+            "s3://${ARTIFACT_BUCKET}/${script_key}" \
+            --sse AES256 --only-show-errors
+          aws s3 cp deployment.json \
+            "s3://${ARTIFACT_BUCKET}/${config_key}" \
+            --sse AES256 --only-show-errors
 
-          aws ecs describe-task-definition \
-            --task-definition "$current_backend_task" \
-            --query taskDefinition \
-            --output json > backend-task-current.json
+          echo "script_key=${script_key}" >> "$GITHUB_OUTPUT"
+          echo "config_key=${config_key}" >> "$GITHUB_OUTPUT"
+          echo "script_checksum=${script_checksum}" >> "$GITHUB_OUTPUT"
+          echo "config_checksum=${config_checksum}" >> "$GITHUB_OUTPUT"
 
-          jq --arg image "$IMAGE_URI" '
-            .containerDefinitions |= map(
-              if .name == "backend" then .image = $image else . end
-            )
-            | del(
-                .taskDefinitionArn,
-                .revision,
-                .status,
-                .requiresAttributes,
-                .compatibilities,
-                .registeredAt,
-                .registeredBy,
-                .deregisteredAt
-              )
-          ' backend-task-current.json > backend-task-release.json
-
-          backend_task_arn="$(
-            aws ecs register-task-definition \
-              --cli-input-json file://backend-task-release.json \
-              --query 'taskDefinition.taskDefinitionArn' \
-              --output text
-          )"
-
-          echo "backend=${backend_task_arn}" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy backend
+      - name: Deploy backend through Systems Manager
         env:
-          BACKEND_TASK_ARN: ${{ steps.tasks.outputs.backend }}
+          SCRIPT_KEY: ${{ steps.bundle.outputs.script_key }}
+          CONFIG_KEY: ${{ steps.bundle.outputs.config_key }}
+          SCRIPT_CHECKSUM: ${{ steps.bundle.outputs.script_checksum }}
+          CONFIG_CHECKSUM: ${{ steps.bundle.outputs.config_checksum }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
-          aws ecs update-service \
-            --cluster "$ECS_CLUSTER" \
-            --service "$ECS_SERVICE" \
-            --task-definition "$BACKEND_TASK_ARN" \
-            --force-new-deployment \
-            --query 'service.serviceArn' \
-            --output text
+          remote_script="/opt/jadhavr-erp/releases/${RELEASE_TAG}/deploy-backend.sh"
+          remote_config="/opt/jadhavr-erp/releases/${RELEASE_TAG}/deployment.json"
+          remote_command="$(
+            printf '%s\n' \
+              'set -euo pipefail' \
+              "install -d -m 0750 /opt/jadhavr-erp/releases/${RELEASE_TAG}" \
+              "aws s3 cp s3://${ARTIFACT_BUCKET}/${SCRIPT_KEY} ${remote_script} --region ${AWS_REGION} --only-show-errors" \
+              "echo '${SCRIPT_CHECKSUM}  ${remote_script}' | sha256sum -c -" \
+              "chmod 0700 ${remote_script}" \
+              "aws s3 cp s3://${ARTIFACT_BUCKET}/${CONFIG_KEY} ${remote_config} --region ${AWS_REGION} --only-show-errors" \
+              "echo '${CONFIG_CHECKSUM}  ${remote_config}' | sha256sum -c -" \
+              "chmod 0600 ${remote_config}" \
+              "${remote_script} ${remote_config}"
+          )"
+          ssm_parameters="$(
+            jq -n --arg command "$remote_command" '{commands: [$command]}'
+          )"
+          command_id="$(
+            aws ssm send-command \
+              --region "$AWS_REGION" \
+              --instance-ids "$EC2_INSTANCE_ID" \
+              --document-name AWS-RunShellScript \
+              --timeout-seconds 1800 \
+              --comment "Deploy Jadhavr ERP ${RELEASE_TAG}" \
+              --parameters "$ssm_parameters" \
+              --query Command.CommandId \
+              --output text
+          )"
+          echo "SSM command: ${command_id}"
 
-          aws ecs wait services-stable \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_SERVICE"
+          for attempt in {1..360}; do
+            status="$(
+              aws ssm get-command-invocation \
+                --region "$AWS_REGION" \
+                --command-id "$command_id" \
+                --instance-id "$EC2_INSTANCE_ID" \
+                --query Status \
+                --output text 2>/dev/null || true
+            )"
+            case "$status" in
+              Success)
+                aws ssm get-command-invocation \
+                  --region "$AWS_REGION" \
+                  --command-id "$command_id" \
+                  --instance-id "$EC2_INSTANCE_ID" \
+                  --query StandardOutputContent \
+                  --output text
+                exit 0
+                ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation \
+                  --region "$AWS_REGION" \
+                  --command-id "$command_id" \
+                  --instance-id "$EC2_INSTANCE_ID" \
+                  --query '{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}' \
+                  --output json
+                exit 1
+                ;;
+            esac
+            echo "Deployment status: ${status:-Pending} (${attempt}/360)"
+            sleep 5
+          done
+          echo "::error::SSM deployment did not finish within 30 minutes"
+          exit 1
 
       - name: Deploy frontend
         run: |
@@ -186,23 +314,82 @@ jobs:
             --delete \
             --only-show-errors
 
-          aws cloudfront create-invalidation \
+          invalidation_id="$(
+            aws cloudfront create-invalidation \
+              --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+              --paths '/*' \
+              --query Invalidation.Id \
+              --output text
+          )"
+          aws cloudfront wait invalidation-completed \
             --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
-            --paths '/*' \
-            --query 'Invalidation.Id' \
-            --output text
+            --id "$invalidation_id"
 
-      - name: Verify production health
+      - name: Verify backend, frontend, and same-origin API routing
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
+          target_healthy=false
+          for attempt in {1..18}; do
+            target_state="$(
+              aws elbv2 describe-target-health \
+                --target-group-arn "$TARGET_GROUP_ARN" \
+                --targets "Id=${EC2_INSTANCE_ID},Port=8081" \
+                --query 'TargetHealthDescriptions[0].TargetHealth.State' \
+                --output text
+            )"
+            if [ "$target_state" = "healthy" ]; then
+              target_healthy=true
+              break
+            fi
+            echo "Target health is ${target_state} (${attempt}/18); retrying in 10 seconds"
+            sleep 10
+          done
+          if [ "$target_healthy" != "true" ]; then
+            echo "::error::The new EC2 target did not become healthy"
+            exit 1
+          fi
+
+          public_ready=false
           for attempt in {1..18}; do
             if curl --fail --silent --show-error \
               --max-time 15 \
               "${APPLICATION_URL%/}/actuator/health/readiness"; then
-              exit 0
+              public_ready=true
+              break
             fi
             echo "Health check attempt ${attempt}/18 failed; retrying in 10 seconds"
             sleep 10
           done
-          echo "::error::Production health check did not become ready"
-          exit 1
+          if [ "$public_ready" != "true" ]; then
+            echo "::error::Production readiness did not become healthy"
+            exit 1
+          fi
+
+          frontend_body="${RUNNER_TEMP}/frontend-index.html"
+          api_headers="${RUNNER_TEMP}/frontend-api-headers.txt"
+          api_body="${RUNNER_TEMP}/frontend-api-body.json"
+          api_health_body="${RUNNER_TEMP}/frontend-api-health-body.json"
+
+          curl --fail --silent --show-error \
+            --max-time 20 \
+            --output "$frontend_body" \
+            "${FRONTEND_URL%/}/"
+          grep -Eiq '<!doctype html|<html' "$frontend_body"
+
+          curl --fail --silent --show-error \
+            --max-time 20 \
+            --dump-header "$api_headers" \
+            --output "$api_body" \
+            "${FRONTEND_URL%/}/api/v1/auth/csrf"
+          jq -e '.success == true' "$api_body" >/dev/null
+          grep -Eiq '^set-cookie: XSRF-TOKEN=' "$api_headers"
+
+          curl --fail --silent --show-error \
+            --max-time 20 \
+            --output "$api_health_body" \
+            "${FRONTEND_URL%/}/api/health"
+          jq -e --arg release "$RELEASE_TAG" \
+            '.success == true and .data.status == "UP" and .data.release == $release' \
+            "$api_health_body" >/dev/null

@@ -14,9 +14,12 @@ import java.util.Map;
 public class HealthController {
 
     private final int serverPort;
+    private final String release;
 
-    public HealthController(@Value("${server.port}") int serverPort) {
+    public HealthController(@Value("${server.port}") int serverPort,
+                            @Value("${app.release:development}") String release) {
         this.serverPort = serverPort;
+        this.release = release;
     }
 
     @GetMapping
@@ -25,6 +28,7 @@ public class HealthController {
         data.put("status", "UP");
         data.put("service", "College ERP Backend");
         data.put("port", serverPort);
+        data.put("release", release);
         return ApiResponse.success("College ERP backend is running", data);
     }
 }

@@ -6,7 +6,7 @@ locals {
   production_cache_subnet_ids = length(var.production_cache_subnet_ids) > 0 ? var.production_cache_subnet_ids : var.production_backend_subnet_ids
 
   vpc_id               = local.manage_network ? aws_vpc.main[0].id : var.production_vpc_id
-  vpc_cidr             = local.manage_network ? aws_vpc.main[0].cidr_block : try(data.aws_vpc.production[0].cidr_block, "0.0.0.0/0")
+  vpc_cidr             = local.manage_network ? aws_vpc.main[0].cidr_block : data.aws_vpc.production[0].cidr_block
   public_subnet_ids    = local.manage_network ? aws_subnet.public[*].id : var.production_public_subnet_ids
   backend_subnet_ids   = local.manage_network ? aws_subnet.application[*].id : var.production_backend_subnet_ids
   cache_subnet_ids     = local.manage_network ? aws_subnet.data[*].id : local.production_cache_subnet_ids

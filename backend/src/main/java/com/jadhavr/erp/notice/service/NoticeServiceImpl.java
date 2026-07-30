@@ -28,11 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import java.time.LocalDateTime;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 @Transactional(readOnly = true)
@@ -49,15 +52,18 @@ public class NoticeServiceImpl implements NoticeService {
     private final StudentProfileRepository studentProfiles;
     private final NoticeAcknowledgementRepository acknowledgements;
     private final NoticeViewRepository views;
+    private final NoticeStreamService streams;
 
     public NoticeServiceImpl(NoticeRepository notices, UserRepository users, CollegeRepository colleges,
                              StaffProfileRepository staffProfiles, StudentProfileRepository studentProfiles,
                              NoticeAcknowledgementRepository acknowledgements,
-                             NoticeViewRepository views) {
+                             NoticeViewRepository views,
+                             NoticeStreamService streams) {
         this.notices = notices; this.users = users; this.colleges = colleges;
         this.staffProfiles = staffProfiles; this.studentProfiles = studentProfiles;
         this.acknowledgements = acknowledgements;
         this.views = views;
+        this.streams = streams;
     }
 
     @Override @Transactional
@@ -92,7 +98,9 @@ public class NoticeServiceImpl implements NoticeService {
             throw new AccessDeniedException("Your role cannot send notices");
         }
         notice.setAudienceRoles(targets);
-        return map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
+        Notice saved = notices.save(notice);
+        streams.publishAfterCommit(createdEvent(saved));
+        return map(saved, activeCollegeIds(), Set.of(), Set.of());
     }
 
     @Override @Transactional
@@ -110,7 +118,9 @@ public class NoticeServiceImpl implements NoticeService {
         notice.setAudienceRoles(Set.copyOf(audienceRoles));
         notice.setColleges(Set.of(college));
         notice.setActionPath(actionPath);
-        return map(notices.save(notice), activeCollegeIds(), Set.of(), Set.of());
+        Notice saved = notices.save(notice);
+        streams.publishAfterCommit(createdEvent(saved));
+        return map(saved, activeCollegeIds(), Set.of(), Set.of());
     }
 
     @Override
@@ -119,9 +129,29 @@ public class NoticeServiceImpl implements NoticeService {
         Set<RoleName> roles = resolveRoles(current);
         Long departmentId = currentDepartmentId(current, roles);
         if (roles.isEmpty()) return List.of();
-        List<Long> noticeIds = notices.findInboxIds(current.getId(), current.getCollegeId(), departmentId, roles,
+        List<Long> ids = notices.findInboxIds(current.getId(), current.getCollegeId(), departmentId, roles,
                 PageRequest.of(0, 100));
-        return mapNotices(loadDetailedNotices(noticeIds));
+        return mapNotices(loadDetailedNotices(ids));
+    }
+
+    @Override
+    public long unreadCount() {
+        CustomUserDetails current = SecurityUtils.requireCurrentUser();
+        Set<RoleName> roles = resolveRoles(current);
+        if (roles.isEmpty()) return 0;
+        return notices.countUnread(current.getId(), current.getCollegeId(),
+                currentDepartmentId(current, roles), roles);
+    }
+
+    @Override
+    public SseEmitter stream() {
+        CustomUserDetails current = SecurityUtils.requireCurrentUser();
+        Set<RoleName> roles = resolveRoles(current);
+        Long departmentId = currentDepartmentId(current, roles);
+        long count = roles.isEmpty() ? 0 : notices.countUnread(
+                current.getId(), current.getCollegeId(), departmentId, roles);
+        return streams.subscribe(new NoticeStreamSubscriber(
+                current.getId(), current.getCollegeId(), departmentId, roles), count);
     }
 
     @Override
@@ -143,6 +173,7 @@ public class NoticeServiceImpl implements NoticeService {
         acknowledgement.setUser(users.getReferenceById(userId));
         acknowledgement.setAcknowledgedAt(LocalDateTime.now());
         acknowledgements.save(acknowledgement);
+        streams.publishAfterCommit(NoticeStreamEvent.acknowledged(userId, id));
     }
 
     @Override @Transactional
@@ -160,7 +191,10 @@ public class NoticeServiceImpl implements NoticeService {
                     return view;
                 })
                 .toList();
-        if (!newViews.isEmpty()) views.saveAll(newViews);
+        if (!newViews.isEmpty()) {
+            views.saveAll(newViews);
+            streams.publishAfterCommit(NoticeStreamEvent.unreadCount(userId, unreadCount()));
+        }
     }
 
     @Override @Transactional
@@ -169,11 +203,13 @@ public class NoticeServiceImpl implements NoticeService {
         Notice notice = notices.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Notice not found"));
         if (notice.getDeletedAt() != null) return;
+        NoticeStreamEvent deleted = deletedEvent(notice, SecurityUtils.getCurrentUserId());
         User admin = users.findById(SecurityUtils.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         notice.setDeletedAt(LocalDateTime.now());
         notice.setDeletedBy(admin);
         notices.save(notice);
+        streams.publishAfterCommit(deleted);
     }
 
     private Set<RoleName> resolveRoles(CustomUserDetails current) {
@@ -211,14 +247,29 @@ public class NoticeServiceImpl implements NoticeService {
         return source.stream().map(notice -> map(notice, activeCollegeIds, acknowledgedIds, seenIds)).toList();
     }
 
-    private List<Notice> loadDetailedNotices(List<Long> noticeIds) {
-        if (noticeIds.isEmpty()) return List.of();
-        Map<Long, Notice> noticesById = notices.findDetailedByIdIn(noticeIds).stream()
-                .collect(Collectors.toMap(Notice::getId, notice -> notice, (first, duplicate) -> first));
-        return noticeIds.stream()
-                .map(noticesById::get)
-                .filter(java.util.Objects::nonNull)
-                .toList();
+    private List<Notice> loadDetailedNotices(List<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+        Map<Long, Notice> byId = notices.findDetailedByIdIn(ids).stream()
+                .collect(Collectors.toMap(Notice::getId, Function.identity()));
+        return ids.stream().map(byId::get).filter(Objects::nonNull).toList();
+    }
+
+    private NoticeStreamEvent createdEvent(Notice notice) {
+        return NoticeStreamEvent.created(
+                notice.getCreatedBy().getId(),
+                notice.getId(),
+                notice.getColleges().stream().map(College::getId).collect(Collectors.toSet()),
+                notice.getDepartment() == null ? null : notice.getDepartment().getId(),
+                notice.getAudienceRoles());
+    }
+
+    private NoticeStreamEvent deletedEvent(Notice notice, Long actorUserId) {
+        return NoticeStreamEvent.deleted(
+                actorUserId,
+                notice.getId(),
+                notice.getColleges().stream().map(College::getId).collect(Collectors.toSet()),
+                notice.getDepartment() == null ? null : notice.getDepartment().getId(),
+                notice.getAudienceRoles());
     }
 
     private NoticeResponse map(Notice n, Set<Long> activeCollegeIds, Set<Long> acknowledgedIds,

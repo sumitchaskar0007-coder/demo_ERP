@@ -6,7 +6,9 @@ import com.jadhavr.erp.notice.dto.NoticeResponse;
 import com.jadhavr.erp.notice.service.NoticeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,6 +26,16 @@ public class NoticeController {
     @GetMapping("/inbox")
     @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
     public ApiResponse<List<NoticeResponse>> inbox() { return ApiResponse.success("Notices retrieved successfully", service.inbox()); }
+    @GetMapping("/unread-count")
+    @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
+    public ApiResponse<Long> unreadCount() {
+        return ApiResponse.success("Unread notice count retrieved", service.unreadCount());
+    }
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
+    public SseEmitter stream() {
+        return service.stream();
+    }
     @PostMapping("/inbox/seen")
     @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")
     public ApiResponse<Void> markInboxSeen() {

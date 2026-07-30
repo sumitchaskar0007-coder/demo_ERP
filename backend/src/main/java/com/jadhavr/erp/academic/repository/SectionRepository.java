@@ -26,6 +26,23 @@ public interface SectionRepository extends JpaRepository<Section, Long>, JpaSpec
     @EntityGraph(attributePaths = {"college", "department", "academicClass", "classTeacher"})
     List<Section> findByCollegeIdAndStatus(Long collegeId, SectionStatus status);
     @EntityGraph(attributePaths = {"college", "department", "academicClass", "classTeacher"})
+    List<Section> findByCollegeIdAndDepartmentIdInAndStatus(
+            Long collegeId, Collection<Long> departmentIds, SectionStatus status);
+    @EntityGraph(attributePaths = {"college", "department", "academicClass", "classTeacher"})
+    @Query("""
+            select section
+            from Section section
+            where section.college.id = :collegeId
+              and (:allDepartments = true or section.department.id in :departmentIds)
+              and (:academicClassId is null or section.academicClass.id = :academicClassId)
+            order by section.name
+            """)
+    List<Section> findScoped(
+            @Param("collegeId") Long collegeId,
+            @Param("departmentIds") Collection<Long> departmentIds,
+            @Param("allDepartments") boolean allDepartments,
+            @Param("academicClassId") Long academicClassId);
+    @EntityGraph(attributePaths = {"college", "department", "academicClass", "classTeacher"})
     List<Section> findByDepartmentIdAndStatus(Long departmentId, SectionStatus status);
     @EntityGraph(attributePaths = {"college", "department", "academicClass", "classTeacher"})
     List<Section> findByClassTeacherIdAndStatus(Long staffId, SectionStatus status);

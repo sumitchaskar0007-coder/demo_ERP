@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
 import type {
+  AdmissionDocumentTransferOptions,
   AdmissionPrintResponse,
   AdmissionResponse,
   AdmissionStatus,
@@ -11,6 +12,10 @@ import type {
   SubmitAdmissionRequest,
   SubmitAdmissionResponse,
 } from "./types";
+import {
+  resolveAdmissionDocumentDownload,
+  uploadAdmissionDocumentWithFallback,
+} from "./documentTransfer";
 
 export async function getPublicAdmissionInfo(collegeCode: string) {
   const { data } = await apiClient.get<ApiResponse<PublicAdmissionInfoResponse>>(
@@ -79,21 +84,32 @@ export async function getMyAdmissionPhoto() {
 export async function uploadMyAdmissionDocument(
   type: import("./types").AdmissionDocumentType,
   file: File,
+  options: AdmissionDocumentTransferOptions = {},
 ) {
-  const body = new FormData();
-  body.append("file", file);
-  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
-    `/api/student/admissions/me/documents/${type}`,
-    body,
-    { headers: { "Content-Type": "multipart/form-data" } },
+  const endpoint = `/api/student/admissions/me/documents/${type}`;
+  return uploadAdmissionDocumentWithFallback(
+    endpoint,
+    file,
+    { upload: (signal) => uploadAdmissionDocumentMultipart(endpoint, file, signal) },
+    options,
   );
-  return data.data;
 }
-export async function getMyAdmissionDocument(type: import("./types").AdmissionDocumentType) {
-  const response = await apiClient.get<Blob>(`/api/student/admissions/me/documents/${type}`, {
-    responseType: "blob",
-  });
-  return URL.createObjectURL(response.data);
+export async function getMyAdmissionDocument(
+  type: import("./types").AdmissionDocumentType,
+  options: Pick<AdmissionDocumentTransferOptions, "signal" | "directTransferEnabled"> = {},
+) {
+  const endpoint = `/api/student/admissions/me/documents/${type}`;
+  const result = await resolveAdmissionDocumentDownload(
+    endpoint,
+    {
+      download: async (signal) => {
+        const response = await getAdmissionDocumentBlob(endpoint, signal);
+        return URL.createObjectURL(response.data);
+      },
+    },
+    options,
+  );
+  return result.direct ? result.value.downloadUrl : result.value;
 }
 export async function getStudentProfile() {
   const { data } =
@@ -237,37 +253,78 @@ export async function uploadAdmissionDocument(
   id: number,
   type: import("./types").AdmissionDocumentType,
   file: File,
+  options: AdmissionDocumentTransferOptions = {},
 ) {
-  const body = new FormData();
-  body.append("file", file);
-  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
-    `/api/student-section/admissions/${id}/documents/${type}`,
-    body,
-    { headers: { "Content-Type": "multipart/form-data" } },
+  const endpoint = `/api/student-section/admissions/${id}/documents/${type}`;
+  return uploadAdmissionDocumentWithFallback(
+    endpoint,
+    file,
+    { upload: (signal) => uploadAdmissionDocumentMultipart(endpoint, file, signal) },
+    options,
   );
-  return data.data;
 }
 
 export async function getAdmissionDocument(
   id: number,
   type: import("./types").AdmissionDocumentType,
+  options: Pick<AdmissionDocumentTransferOptions, "signal" | "directTransferEnabled"> = {},
 ) {
-  const response = await apiClient.get<Blob>(
-    `/api/student-section/admissions/${id}/documents/${type}`,
-    { responseType: "blob" },
+  const endpoint = `/api/student-section/admissions/${id}/documents/${type}`;
+  const result = await resolveAdmissionDocumentDownload(
+    endpoint,
+    {
+      download: async (signal) => {
+        const response = await getAdmissionDocumentBlob(endpoint, signal);
+        return URL.createObjectURL(response.data);
+      },
+    },
+    options,
   );
-  return URL.createObjectURL(response.data);
+  return result.direct ? result.value.downloadUrl : result.value;
 }
 
 export async function downloadAdmissionDocument(
   id: number,
   type: import("./types").AdmissionDocumentType,
+  options: Pick<AdmissionDocumentTransferOptions, "signal" | "directTransferEnabled"> = {},
 ) {
-  const response = await apiClient.get<Blob>(
-    `/api/student-section/admissions/${id}/documents/${type}`,
-    { responseType: "blob" },
+  const endpoint = `/api/student-section/admissions/${id}/documents/${type}`;
+  const result = await resolveAdmissionDocumentDownload(
+    endpoint,
+    {
+      download: async (signal) => {
+        const response = await getAdmissionDocumentBlob(endpoint, signal);
+        return {
+          blob: response.data,
+          contentDisposition: String(response.headers["content-disposition"] || ""),
+        };
+      },
+    },
+    options,
   );
-  let blob = response.data;
+
+  let blob: Blob;
+  let originalFilename: string | undefined;
+  if (result.direct) {
+    const response = await fetch(result.value.downloadUrl, {
+      method: "GET",
+      signal: options.signal,
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+    });
+    if (!response.ok) {
+      throw new Error(`Document storage download failed with status ${response.status}`);
+    }
+    blob = await response.blob();
+    if (blob.size !== result.value.fileSize) {
+      throw new Error("The downloaded document size did not match the verified document");
+    }
+    originalFilename = result.value.originalFilename;
+  } else {
+    blob = result.value.blob;
+    originalFilename = filenameFromContentDisposition(result.value.contentDisposition);
+  }
+
   let extension =
     blob.type === "application/pdf" ? ".pdf" : blob.type === "image/png" ? ".png" : ".jpg";
 
@@ -278,16 +335,7 @@ export async function downloadAdmissionDocument(
     extension = ".png";
   }
 
-  const disposition = String(response.headers["content-disposition"] || "");
-  const matchedName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
-  let originalName = `${type.toLowerCase().replaceAll("_", "-")}${extension}`;
-  if (matchedName) {
-    try {
-      originalName = decodeURIComponent(matchedName.replace(/^"|"$/g, ""));
-    } catch {
-      originalName = matchedName.replace(/^"|"$/g, "");
-    }
-  }
+  const originalName = originalFilename ?? `${type.toLowerCase().replaceAll("_", "-")}${extension}`;
   const baseName = originalName.replace(/\.[^.]+$/, "");
   const hasMatchingExtension =
     (extension === ".pdf" && /\.pdf$/i.test(originalName)) ||
@@ -295,6 +343,35 @@ export async function downloadAdmissionDocument(
     (extension === ".jpg" && /\.jpe?g$/i.test(originalName));
   const filename = hasMatchingExtension ? originalName : `${baseName}${extension}`;
   return { blob, filename, format: extension.slice(1).toUpperCase() };
+}
+
+async function uploadAdmissionDocumentMultipart(
+  endpoint: string,
+  file: File,
+  signal?: AbortSignal,
+) {
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
+    endpoint,
+    body,
+    { headers: { "Content-Type": "multipart/form-data" }, signal },
+  );
+  return data.data;
+}
+
+function getAdmissionDocumentBlob(endpoint: string, signal?: AbortSignal) {
+  return apiClient.get<Blob>(endpoint, { responseType: "blob", signal });
+}
+
+function filenameFromContentDisposition(disposition: string) {
+  const matchedName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
+  if (!matchedName) return undefined;
+  try {
+    return decodeURIComponent(matchedName.replace(/^"|"$/g, ""));
+  } catch {
+    return matchedName.replace(/^"|"$/g, "");
+  }
 }
 
 async function convertImageToPng(source: Blob) {

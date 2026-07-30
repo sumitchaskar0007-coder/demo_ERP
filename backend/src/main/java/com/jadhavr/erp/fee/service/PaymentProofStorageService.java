@@ -1,34 +1,34 @@
 package com.jadhavr.erp.fee.service;
 
+import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Value;
+import com.jadhavr.erp.storage.ObjectStorageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class PaymentProofStorageService {
+    private static final Logger log = LoggerFactory.getLogger(PaymentProofStorageService.class);
     private static final long MAX_BYTES = 5L * 1024 * 1024;
     private static final Map<String, String> EXTENSIONS = Map.of(
             MediaType.APPLICATION_PDF_VALUE, ".pdf",
             MediaType.IMAGE_JPEG_VALUE, ".jpg",
             MediaType.IMAGE_PNG_VALUE, ".png",
             "image/webp", ".webp");
-    private final Path root;
+    private final ObjectStorageService storage;
 
-    public PaymentProofStorageService(
-            @Value("${app.storage.payment-proof-dir:uploads/payment-proofs}") String directory) {
-        this.root = Path.of(directory).toAbsolutePath().normalize();
+    public PaymentProofStorageService(ObjectStorageService storage) {
+        this.storage = storage;
     }
 
     public String save(MultipartFile file) {
@@ -40,42 +40,54 @@ public class PaymentProofStorageService {
             throw new BadRequestException("Only PDF, JPEG, PNG, or WebP payment proofs are allowed");
         }
         verifySignature(file, contentType);
-        String storageName = UUID.randomUUID() + extension;
+        Long collegeId = SecurityUtils.requireCurrentUser().getCollegeId();
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (collegeId == null) throw new BadRequestException("A college is required for payment proof storage");
+        String storageName = "colleges/" + collegeId
+                + "/students/" + userId
+                + "/fee-payment-proofs/" + UUID.randomUUID() + extension;
         try {
-            Files.createDirectories(root);
-            Files.copy(file.getInputStream(), safePath(storageName), StandardCopyOption.REPLACE_EXISTING);
+            storage.put(storageName, file.getBytes(), contentType);
             return storageName;
         } catch (IOException exception) {
             throw new BadRequestException("Unable to store the payment proof");
+        } catch (RuntimeException exception) {
+            safeDelete(storageName);
+            throw exception;
         }
     }
 
     public PaymentProofResource load(String storageName) {
-        try {
-            Path path = safePath(storageName);
-            Resource resource = new UrlResource(path.toUri());
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new ResourceNotFoundException("Payment proof file not found");
-            }
-            String mediaType = switch (extension(storageName)) {
+        if (storageName == null || storageName.isBlank()) {
+            throw new ResourceNotFoundException("Payment proof file not found");
+        }
+        ObjectStorageService.StoredObject object = storage.get(storageName);
+        String contentType = object.contentType();
+        if (contentType == null || contentType.isBlank()
+                || MediaType.APPLICATION_OCTET_STREAM_VALUE.equals(contentType)) {
+            contentType = switch (extension(storageName)) {
                 case ".pdf" -> MediaType.APPLICATION_PDF_VALUE;
                 case ".jpg" -> MediaType.IMAGE_JPEG_VALUE;
                 case ".png" -> MediaType.IMAGE_PNG_VALUE;
                 case ".webp" -> "image/webp";
                 default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
             };
-            return new PaymentProofResource(resource, MediaType.parseMediaType(mediaType));
-        } catch (IOException exception) {
-            throw new ResourceNotFoundException("Payment proof file not found");
         }
+        return new PaymentProofResource(
+                new ByteArrayResource(object.content()),
+                MediaType.parseMediaType(contentType));
     }
 
     public void delete(String storageName) {
         if (storageName == null || storageName.isBlank()) return;
+        safeDelete(storageName);
+    }
+
+    private void safeDelete(String storageName) {
         try {
-            Files.deleteIfExists(safePath(storageName));
-        } catch (IOException ignored) {
-            // Best-effort cleanup after a rejected database operation.
+            storage.delete(storageName);
+        } catch (RuntimeException exception) {
+            log.warn("Unable to complete payment-proof storage cleanup", exception);
         }
     }
 
@@ -103,18 +115,9 @@ public class PaymentProofStorageService {
         }
     }
 
-    private Path safePath(String storageName) {
-        if (storageName == null || storageName.isBlank() || storageName.contains("://")) {
-            throw new ResourceNotFoundException("Payment proof file not found");
-        }
-        Path path = root.resolve(storageName).normalize();
-        if (!path.startsWith(root)) throw new BadRequestException("Invalid payment proof path");
-        return path;
-    }
-
     private String extension(String storageName) {
         int dot = storageName.lastIndexOf('.');
-        return dot < 0 ? "" : storageName.substring(dot).toLowerCase();
+        return dot < 0 ? "" : storageName.substring(dot).toLowerCase(java.util.Locale.ROOT);
     }
 
     public record PaymentProofResource(Resource resource, MediaType mediaType) {}

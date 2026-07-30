@@ -4,6 +4,8 @@ import com.jadhavr.erp.user.entity.Role;
 import com.jadhavr.erp.user.entity.RoleName;
 import com.jadhavr.erp.user.repository.RoleRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
+import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +27,8 @@ class DataSeederTest {
     @Mock private RoleRepository roles;
     @Mock private UserRepository users;
     @Mock private PasswordEncoder encoder;
+    @Mock private RefreshTokenRepository refreshTokens;
+    @Mock private AuthorizationSnapshotService authorizationSnapshots;
 
     @Test
     void repeatedBootstrapDoesNotCreateDuplicateAdministrator() {
@@ -64,6 +68,8 @@ class DataSeederTest {
                 roles,
                 users,
                 encoder,
+                refreshTokens,
+                authorizationSnapshots,
                 "Platform Owner",
                 "owner@example.com",
                 "",

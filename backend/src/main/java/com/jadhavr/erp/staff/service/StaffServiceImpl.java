@@ -10,6 +10,8 @@ import com.jadhavr.erp.attendance.entity.WeeklyAttendanceSession;
 import com.jadhavr.erp.attendance.repository.WeeklyAttendanceRecordRepository;
 import com.jadhavr.erp.attendance.repository.WeeklyAttendanceSessionRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
+import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
@@ -77,6 +79,8 @@ public class StaffServiceImpl implements StaffService {
     private WeeklyAttendanceRecordRepository attendanceRecords;
     private final PasswordEncoder passwordEncoder;
     private final StaffMapper mapper;
+    private final RefreshTokenRepository refreshTokens;
+    private final AuthorizationSnapshotService authorizationSnapshots;
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
 
@@ -89,13 +93,17 @@ public class StaffServiceImpl implements StaffService {
             RoleRepository roles,
             CollegeRepository colleges,
             PasswordEncoder passwordEncoder,
-            StaffMapper mapper) {
+            StaffMapper mapper,
+            RefreshTokenRepository refreshTokens,
+            AuthorizationSnapshotService authorizationSnapshots) {
         this.staffProfiles = staffProfiles;
         this.users = users;
         this.roles = roles;
         this.colleges = colleges;
         this.passwordEncoder = passwordEncoder;
         this.mapper = mapper;
+        this.refreshTokens = refreshTokens;
+        this.authorizationSnapshots = authorizationSnapshots;
     }
 
     @Autowired
@@ -302,6 +310,7 @@ public class StaffServiceImpl implements StaffService {
         user.setRoles(assignedRoles);
         user.setSessionVersion(user.getSessionVersion() + 1);
         users.save(user);
+        authorizationSnapshots.invalidateOrThrow(user.getId());
 
         profile.setStaffType(primaryStaffType(null, staffTypes));
         profile.setDepartment(null);
@@ -466,6 +475,7 @@ public class StaffServiceImpl implements StaffService {
         profile.setStatus(StaffStatus.ACTIVE);
         profile.getUser().setStatus(UserStatus.ACTIVE);
         users.save(profile.getUser());
+        authorizationSnapshots.invalidateOrThrow(profile.getUser().getId());
         return mapper.toResponse(staffProfiles.save(profile));
     }
 
@@ -476,7 +486,11 @@ public class StaffServiceImpl implements StaffService {
         ensureStaffVisible(profile);
         profile.setStatus(StaffStatus.INACTIVE);
         profile.getUser().setStatus(UserStatus.INACTIVE);
+        profile.getUser().setSessionVersion(
+                profile.getUser().getSessionVersion() + 1);
         users.save(profile.getUser());
+        refreshTokens.revokeAllForUser(profile.getUser().getId());
+        authorizationSnapshots.invalidateOrThrow(profile.getUser().getId());
         return mapper.toResponse(staffProfiles.save(profile));
     }
 

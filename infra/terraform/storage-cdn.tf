@@ -1,7 +1,25 @@
+# Public access and default encryption are enforced by the shared for_each
+# resources below; tfsec cannot associate those separate resources reliably.
+# The frontend contains public static build artifacts, not private application
+# data. SSE-S3 avoids a paid CMK and CloudFront KMS-policy coupling.
+#tfsec:ignore:aws-s3-block-public-acls
+#tfsec:ignore:aws-s3-block-public-policy
+#tfsec:ignore:aws-s3-ignore-public-acls
+#tfsec:ignore:aws-s3-no-public-buckets
+#tfsec:ignore:aws-s3-enable-bucket-encryption
+#tfsec:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket" "frontend" {
   bucket = "${local.name}-frontend-${data.aws_caller_identity.current.account_id}"
 }
 
+# Public access and customer-managed KMS encryption are enforced by the shared
+# for_each resources below; tfsec cannot associate them with this bucket.
+#tfsec:ignore:aws-s3-block-public-acls
+#tfsec:ignore:aws-s3-block-public-policy
+#tfsec:ignore:aws-s3-ignore-public-acls
+#tfsec:ignore:aws-s3-no-public-buckets
+#tfsec:ignore:aws-s3-enable-bucket-encryption
+#tfsec:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket" "uploads" {
   bucket = "${local.name}-uploads-${data.aws_caller_identity.current.account_id}"
 
@@ -11,6 +29,21 @@ resource "aws_s3_bucket" "uploads" {
 }
 
 data "aws_caller_identity" "current" {}
+
+resource "aws_kms_key" "uploads" {
+  description             = "Private ${local.name} upload objects only; never use for RDS"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_kms_alias" "uploads" {
+  name          = "alias/${local.name}-uploads"
+  target_key_id = aws_kms_key.uploads.key_id
+}
 
 resource "aws_s3_bucket_public_access_block" "buckets" {
   for_each = {
@@ -25,19 +58,83 @@ resource "aws_s3_bucket_public_access_block" "buckets" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_ownership_controls" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_s3_bucket_cors_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+
+  cors_rule {
+    allowed_methods = ["GET", "HEAD", "PUT"]
+    allowed_origins = var.temporary_domain ? [
+      "https://${aws_cloudfront_distribution.main.domain_name}"
+      ] : [
+      "https://${var.domain_name}",
+      "https://www.${var.domain_name}"
+    ]
+    allowed_headers = [
+      "content-type",
+      "x-amz-checksum-sha256"
+    ]
+    expose_headers = [
+      "ETag",
+      "x-amz-checksum-sha256"
+    ]
+    max_age_seconds = 300
+  }
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "buckets" {
   for_each = {
-    frontend = aws_s3_bucket.frontend.id
-    uploads  = aws_s3_bucket.uploads.id
+    frontend = {
+      bucket     = aws_s3_bucket.frontend.id
+      algorithm  = "AES256"
+      kms_key_id = null
+    }
+    uploads = {
+      bucket     = aws_s3_bucket.uploads.id
+      algorithm  = "aws:kms"
+      kms_key_id = aws_kms_key.uploads.arn
+    }
   }
 
-  bucket = each.value
+  bucket = each.value.bucket
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = each.value.algorithm
+      kms_master_key_id = each.value.kms_key_id
     }
-    bucket_key_enabled = true
+    bucket_key_enabled = each.key == "uploads"
   }
+}
+
+resource "aws_s3_bucket_policy" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "DenyInsecureTransport"
+      Effect    = "Deny"
+      Principal = "*"
+      Action    = "s3:*"
+      Resource = [
+        aws_s3_bucket.uploads.arn,
+        "${aws_s3_bucket.uploads.arn}/*"
+      ]
+      Condition = {
+        Bool = {
+          "aws:SecureTransport" = "false"
+        }
+      }
+    }]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.buckets]
 }
 
 resource "aws_s3_bucket_versioning" "uploads" {
@@ -45,6 +142,27 @@ resource "aws_s3_bucket_versioning" "uploads" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+resource "aws_s3_bucket_versioning" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  rule {
+    id     = "expire-noncurrent-releases"
+    status = "Enabled"
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.frontend]
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
@@ -187,7 +305,15 @@ resource "aws_cloudfront_origin_request_policy" "api" {
   headers_config {
     header_behavior = "whitelist"
     headers {
-      items = ["Origin", "Referer", "Content-Type", "Authorization", "X-XSRF-TOKEN", "Accept"]
+      items = [
+        "Origin",
+        "Referer",
+        "Content-Type",
+        "Authorization",
+        "X-XSRF-TOKEN",
+        "Accept",
+        "CloudFront-Viewer-Address"
+      ]
     }
   }
 }

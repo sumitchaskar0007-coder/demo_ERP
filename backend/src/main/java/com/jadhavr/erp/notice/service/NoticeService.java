@@ -7,12 +7,15 @@ import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.user.entity.RoleName;
 import java.util.List;
 import java.util.Set;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 public interface NoticeService {
     NoticeResponse create(CreateNoticeRequest request);
     NoticeResponse createWorkflowNotice(String title, String message, NoticePriority priority,
                                         Set<RoleName> audienceRoles, College college, String actionPath);
     List<NoticeResponse> inbox();
+    long unreadCount();
+    SseEmitter stream();
     List<NoticeResponse> sent();
     void acknowledge(Long id);
     void markInboxSeen();
