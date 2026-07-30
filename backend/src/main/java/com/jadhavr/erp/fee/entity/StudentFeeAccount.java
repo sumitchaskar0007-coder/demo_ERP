@@ -17,6 +17,7 @@ import java.math.BigDecimal;
         uniqueConstraints = @UniqueConstraint(name = "uk_fee_account_admission", columnNames = "admission_form_id"))
 public class StudentFeeAccount extends BaseAuditEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @Version @Column(nullable = false) private long version;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "student_id", nullable = false) private StudentProfile student;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "student_user_id", nullable = false) private User studentUser;
     @OneToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "admission_form_id", nullable = false) private AdmissionForm admissionForm;
