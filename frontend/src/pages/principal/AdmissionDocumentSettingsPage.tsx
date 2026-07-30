@@ -4,12 +4,17 @@ import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
+import { Select } from "@/components/common/Select";
 import * as api from "@/features/admissions/api";
 import type { AdmissionDocumentRequirement } from "@/features/admissions/types";
+import { searchDepartments } from "@/features/departments/api";
+import type { Department } from "@/features/departments/types";
 import { handleApiError } from "@/lib/handleApiError";
 
 export function AdmissionDocumentSettingsPage() {
   const [items, setItems] = useState<AdmissionDocumentRequirement[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentId, setDepartmentId] = useState<number | "">("");
   const [name, setName] = useState("");
   const [required, setRequired] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -19,8 +24,14 @@ export function AdmissionDocumentSettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
+    if (!departmentId) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      setItems(await api.getAdmissionDocumentSettings());
+      setItems(await api.getAdmissionDocumentSettings(departmentId));
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -29,8 +40,18 @@ export function AdmissionDocumentSettingsPage() {
   };
 
   useEffect(() => {
-    void load();
+    searchDepartments({ status: "ACTIVE", page: 0, size: 100, sortBy: "name", sortDir: "asc" })
+      .then((result) => {
+        setDepartments(result.content);
+        setDepartmentId(result.content[0]?.id ?? "");
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
   }, []);
+
+  useEffect(() => {
+    setEditingId(null);
+    void load();
+  }, [departmentId]);
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,7 +61,11 @@ export function AdmissionDocumentSettingsPage() {
     }
     setSaving(true);
     try {
-      await api.createAdmissionDocumentSetting({ documentName: name.trim(), required });
+      if (!departmentId) return;
+      await api.createAdmissionDocumentSetting(
+        { documentName: name.trim(), required },
+        departmentId,
+      );
       setName("");
       setRequired(true);
       await load();
@@ -53,12 +78,13 @@ export function AdmissionDocumentSettingsPage() {
   };
 
   const saveEdit = async (item: AdmissionDocumentRequirement) => {
+    if (!departmentId) return;
     setSaving(true);
     try {
       await api.updateAdmissionDocumentSetting(item.id, {
         documentName: editingName.trim(),
         required: editingRequired,
-      });
+      }, departmentId);
       setEditingId(null);
       await load();
       toast.success("Admission document updated");
@@ -70,9 +96,10 @@ export function AdmissionDocumentSettingsPage() {
   };
 
   const toggle = async (item: AdmissionDocumentRequirement) => {
+    if (!departmentId) return;
     setSaving(true);
     try {
-      await api.setAdmissionDocumentSettingActive(item.id, !item.active);
+      await api.setAdmissionDocumentSettingActive(item.id, !item.active, departmentId);
       await load();
       toast.success(item.active ? "Document hidden from admission form" : "Document enabled");
     } catch (error) {
@@ -92,10 +119,32 @@ export function AdmissionDocumentSettingsPage() {
           Required documents
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600">
-          Configure which file inputs students see in your college admission form. Uploads accept
+          Configure which file inputs students see for each department. Uploads accept
           PDF, JPEG, PNG, or WebP files with a maximum size of 2 MB.
         </p>
       </div>
+
+      <Card className="p-5">
+        <Select
+          label="Department"
+          value={departmentId}
+          onChange={(event) =>
+            setDepartmentId(event.target.value ? Number(event.target.value) : "")
+          }
+          options={[
+            { label: "Select department", value: "" },
+            ...departments.map((department) => ({
+              label: `${department.name} (${department.code})`,
+              value: department.id,
+            })),
+          ]}
+        />
+        {!departments.length && (
+          <p className="mt-2 text-sm text-amber-700">
+            Create an active department before configuring admission documents.
+          </p>
+        )}
+      </Card>
 
       <Card className="p-5">
         <form onSubmit={create} className="grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
@@ -123,7 +172,11 @@ export function AdmissionDocumentSettingsPage() {
 
       <Card className="overflow-hidden">
         <div className="border-b border-slate-100 px-5 py-4">
-          <h2 className="font-bold text-slate-900">Admission form documents</h2>
+          <h2 className="font-bold text-slate-900">
+            {departmentId
+              ? `${departments.find((department) => department.id === departmentId)?.name ?? ""} admission documents`
+              : "Admission form documents"}
+          </h2>
           <p className="mt-1 text-xs text-slate-500">
             Disabled items are preserved for existing admissions but hidden from new edits.
           </p>

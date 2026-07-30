@@ -12,6 +12,8 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
+import com.jadhavr.erp.department.entity.Department;
+import com.jadhavr.erp.department.repository.DepartmentRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,29 +47,33 @@ public class AdmissionDocumentRequirementService {
             new DefaultRequirement("FORM_O_MINORITY", "Form O / Minority Certificate", false));
     private final AdmissionDocumentRequirementRepository requirements;
     private final CollegeRepository colleges;
+    private final DepartmentRepository departments;
     private final AdmissionFormRepository admissions;
 
     public AdmissionDocumentRequirementService(
             AdmissionDocumentRequirementRepository requirements,
             CollegeRepository colleges,
+            DepartmentRepository departments,
             AdmissionFormRepository admissions) {
         this.requirements = requirements;
         this.colleges = colleges;
+        this.departments = departments;
         this.admissions = admissions;
     }
 
-    public List<AdmissionDocumentRequirementResponse> settings(Long requestedCollegeId) {
-        College college = managedCollege(requestedCollegeId);
-        seedDefaults(college);
-        return requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId())
+    public List<AdmissionDocumentRequirementResponse> settings(
+            Long requestedCollegeId, Long departmentId) {
+        Department department = managedDepartment(requestedCollegeId, departmentId);
+        seedDefaults(department);
+        return requirements.findByDepartmentIdOrderByDisplayOrderAscIdAsc(department.getId())
                 .stream().map(this::response).toList();
     }
 
-    public List<AdmissionDocumentRequirementResponse> activeForCollege(Long collegeId) {
-        College college = colleges.findById(collegeId)
-                .orElseThrow(() -> new ResourceNotFoundException("College not found"));
-        seedDefaults(college);
-        return requirements.findByCollegeIdAndActiveTrueOrderByDisplayOrderAscIdAsc(collegeId)
+    public List<AdmissionDocumentRequirementResponse> activeForDepartment(Long departmentId) {
+        Department department = departments.findById(departmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        seedDefaults(department);
+        return requirements.findByDepartmentIdAndActiveTrueOrderByDisplayOrderAscIdAsc(departmentId)
                 .stream().map(this::response).toList();
     }
 
@@ -75,7 +81,7 @@ public class AdmissionDocumentRequirementService {
         AdmissionForm admission = admissions
                 .findTopByStudentUserIdOrderByCreatedAtDesc(SecurityUtils.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
-        return activeForCollege(admission.getCollege().getId());
+        return activeForDepartment(admission.getDepartment().getId());
     }
 
     public List<AdmissionDocumentRequirementResponse> activeForAdmission(Long admissionId) {
@@ -90,25 +96,27 @@ public class AdmissionDocumentRequirementService {
                         SecurityUtils.requireCurrentUser().getCollegeId())) {
             throw new AccessDeniedException("Admission is outside your college");
         }
-        return activeForCollege(admission.getCollege().getId());
+        return activeForDepartment(admission.getDepartment().getId());
     }
 
     @Transactional
     public AdmissionDocumentRequirementResponse create(
-            Long requestedCollegeId, AdmissionDocumentRequirementRequest request) {
-        College college = managedCollege(requestedCollegeId);
+            Long requestedCollegeId, Long departmentId,
+            AdmissionDocumentRequirementRequest request) {
+        Department department = managedDepartment(requestedCollegeId, departmentId);
         String name = normalizeName(request.documentName());
-        if (requirements.existsByCollegeIdAndDocumentNameIgnoreCase(college.getId(), name)) {
+        if (requirements.existsByDepartmentIdAndDocumentNameIgnoreCase(department.getId(), name)) {
             throw new DuplicateResourceException("Admission document name already exists");
         }
         AdmissionDocumentRequirement requirement = new AdmissionDocumentRequirement();
-        requirement.setCollege(college);
+        requirement.setCollege(department.getCollege());
+        requirement.setDepartment(department);
         requirement.setDocumentKey("CUSTOM_" + UUID.randomUUID().toString()
                 .replace("-", "").substring(0, 24).toUpperCase(Locale.ROOT));
         requirement.setDocumentName(name);
         requirement.setRequired(request.required());
         requirement.setActive(true);
-        int nextOrder = requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId())
+        int nextOrder = requirements.findByDepartmentIdOrderByDisplayOrderAscIdAsc(department.getId())
                 .stream().mapToInt(AdmissionDocumentRequirement::getDisplayOrder)
                 .max().orElse(0) + 10;
         requirement.setDisplayOrder(nextOrder);
@@ -117,11 +125,12 @@ public class AdmissionDocumentRequirementService {
 
     @Transactional
     public AdmissionDocumentRequirementResponse update(
-            Long id, Long requestedCollegeId, AdmissionDocumentRequirementRequest request) {
-        College college = managedCollege(requestedCollegeId);
-        AdmissionDocumentRequirement requirement = scoped(id, college.getId());
+            Long id, Long requestedCollegeId, Long departmentId,
+            AdmissionDocumentRequirementRequest request) {
+        Department department = managedDepartment(requestedCollegeId, departmentId);
+        AdmissionDocumentRequirement requirement = scoped(id, department.getId());
         String name = normalizeName(request.documentName());
-        requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId()).stream()
+        requirements.findByDepartmentIdOrderByDisplayOrderAscIdAsc(department.getId()).stream()
                 .filter(item -> !item.getId().equals(id))
                 .filter(item -> item.getDocumentName().equalsIgnoreCase(name))
                 .findAny()
@@ -135,29 +144,31 @@ public class AdmissionDocumentRequirementService {
 
     @Transactional
     public AdmissionDocumentRequirementResponse setActive(
-            Long id, Long requestedCollegeId, boolean active) {
-        College college = managedCollege(requestedCollegeId);
-        AdmissionDocumentRequirement requirement = scoped(id, college.getId());
+            Long id, Long requestedCollegeId, Long departmentId, boolean active) {
+        Department department = managedDepartment(requestedCollegeId, departmentId);
+        AdmissionDocumentRequirement requirement = scoped(id, department.getId());
         requirement.setActive(active);
         return response(requirements.save(requirement));
     }
 
-    public Set<String> requiredKeys(Long collegeId) {
-        College college = colleges.findById(collegeId)
-                .orElseThrow(() -> new ResourceNotFoundException("College not found"));
-        seedDefaults(college);
-        return requirements.findRequiredKeys(collegeId);
+    public Set<String> requiredKeys(Long departmentId) {
+        Department department = departments.findById(departmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        seedDefaults(department);
+        return requirements.findRequiredKeys(departmentId);
     }
 
     @Transactional
-    public void seedDefaults(College college) {
-        if (!requirements.findByCollegeIdOrderByDisplayOrderAscIdAsc(college.getId()).isEmpty()) {
+    public void seedDefaults(Department department) {
+        if (!requirements.findByDepartmentIdOrderByDisplayOrderAscIdAsc(
+                department.getId()).isEmpty()) {
             return;
         }
         for (int index = 0; index < DEFAULTS.size(); index++) {
             DefaultRequirement item = DEFAULTS.get(index);
             AdmissionDocumentRequirement requirement = new AdmissionDocumentRequirement();
-            requirement.setCollege(college);
+            requirement.setCollege(department.getCollege());
+            requirement.setDepartment(department);
             requirement.setDocumentKey(item.key());
             requirement.setDocumentName(item.name());
             requirement.setRequired(item.required());
@@ -169,11 +180,11 @@ public class AdmissionDocumentRequirementService {
 
     public void requireActive(AdmissionForm admission, String rawKey) {
         String key = normalizeKey(rawKey);
-        seedDefaults(admission.getCollege());
-        requirements.findByCollegeIdAndDocumentKeyAndActiveTrue(
-                        admission.getCollege().getId(), key)
+        seedDefaults(admission.getDepartment());
+        requirements.findByDepartmentIdAndDocumentKeyAndActiveTrue(
+                        admission.getDepartment().getId(), key)
                 .orElseThrow(() -> new BadRequestException(
-                        "This admission document is not configured for the college"));
+                        "This admission document is not configured for the department"));
     }
 
     public static String normalizeKey(String key) {
@@ -201,8 +212,19 @@ public class AdmissionDocumentRequirementService {
                 .orElseThrow(() -> new ResourceNotFoundException("College not found"));
     }
 
-    private AdmissionDocumentRequirement scoped(Long id, Long collegeId) {
-        return requirements.findByIdAndCollegeId(id, collegeId)
+    private Department managedDepartment(Long requestedCollegeId, Long departmentId) {
+        if (departmentId == null) throw new BadRequestException("Department is required");
+        College college = managedCollege(requestedCollegeId);
+        Department department = departments.findById(departmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        if (!department.getCollege().getId().equals(college.getId())) {
+            throw new AccessDeniedException("Department is outside your college");
+        }
+        return department;
+    }
+
+    private AdmissionDocumentRequirement scoped(Long id, Long departmentId) {
+        return requirements.findByIdAndDepartmentId(id, departmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Admission document setting not found"));
     }
@@ -218,7 +240,8 @@ public class AdmissionDocumentRequirementService {
 
     private AdmissionDocumentRequirementResponse response(AdmissionDocumentRequirement item) {
         return new AdmissionDocumentRequirementResponse(
-                item.getId(), item.getDocumentKey(), item.getDocumentName(),
+                item.getId(), item.getDepartment().getId(), item.getDepartment().getName(),
+                item.getDocumentKey(), item.getDocumentName(),
                 item.isRequired(), item.isActive(), item.getDisplayOrder());
     }
 

@@ -290,7 +290,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
             Set<String> missing = documentRequirements == null
                     ? AdmissionDocumentType.requiredTypes().stream().map(Enum::name)
                             .collect(java.util.stream.Collectors.toSet())
-                    : documentRequirements.findRequiredKeys(admission.getCollege().getId());
+                    : documentRequirements.findRequiredKeys(admission.getDepartment().getId());
             missing.removeAll(documents.findTypesByAdmissionId(admission.getId()));
             if (!missing.isEmpty()) {
                 throw new BadRequestException("All required admission documents must be uploaded before approval");

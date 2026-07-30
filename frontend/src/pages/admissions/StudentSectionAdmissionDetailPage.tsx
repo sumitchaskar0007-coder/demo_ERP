@@ -28,6 +28,7 @@ import type {
   AdmissionStatusHistoryResponse,
   StudentSectionAdmissionResponse,
 } from "@/features/admissions/types";
+import type { AdmissionFeeSummaryResponse } from "@/features/fees/types";
 import { useAuth } from "@/features/auth/authStore";
 import { ROLES } from "@/lib/constants";
 
@@ -38,18 +39,21 @@ export function StudentSectionAdmissionDetailPage() {
   const id = Number(admissionId);
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [history, setHistory] = useState<AdmissionStatusHistoryResponse[]>([]);
+  const [fees, setFees] = useState<AdmissionFeeSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [modal, setModal] = useState<"approve" | "reject" | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [detail, timeline] = await Promise.all([
+      const [detail, timeline, feeSummary] = await Promise.all([
         api.getStudentSectionAdmission(id),
         api.getAdmissionHistory(id),
+        api.getStudentSectionAdmissionFees(id),
       ]);
       setAdmission(detail);
       setHistory(timeline);
+      setFees(feeSummary);
     } catch (err) {
       toast.error(handleApiError(err).message);
     } finally {
@@ -172,6 +176,24 @@ export function StudentSectionAdmissionDetailPage() {
           ["Last Printed By", admission.lastPrintedByName],
         ]}
       />
+      <DetailSection
+        title="Fee and Scholarship"
+        rows={
+          fees?.account
+            ? [
+                ["Total Fee", money(fees.account.totalFee)],
+                ["Paid Amount", money(fees.account.paidAmount)],
+                ["Scholarship Reduction", money(fees.account.scholarshipAmount)],
+                [
+                  "Payable After Scholarship",
+                  money(fees.account.totalFee - fees.account.scholarshipAmount),
+                ],
+                ["Remaining Amount", money(fees.account.remainingAmount)],
+                ["Fee Status", fees.account.status.replaceAll("_", " ")],
+              ]
+            : [["Fee Account", "Not generated yet"]]
+        }
+      />
       <HistoryTimeline history={history} />
       <ActionModal
         modal={modal}
@@ -183,6 +205,10 @@ export function StudentSectionAdmissionDetailPage() {
       />
     </div>
   );
+}
+
+function money(value: number) {
+  return `₹${Number(value).toLocaleString("en-IN")}`;
 }
 
 function ActionModal({

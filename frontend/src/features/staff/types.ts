@@ -13,7 +13,6 @@ export interface CreateStudentSectionStaffRequest {
   fullName: string;
   email: string;
   phone: string;
-  joiningDate?: string;
 }
 export type CreateFeeSectionStaffRequest = CreateStudentSectionStaffRequest;
 export interface CreateStaffRequest {
@@ -48,7 +47,6 @@ export interface StaffResponse {
   staffTypes: StaffType[];
   status: StaffStatus;
   roles: string[];
-  joiningDate?: string | null;
   assignedClassTeacherDivisions: string[];
   createdAt: string;
   updatedAt: string;

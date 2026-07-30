@@ -123,6 +123,31 @@ public class NoticeServiceImpl implements NoticeService {
         return map(saved, activeCollegeIds(), Set.of(), Set.of());
     }
 
+    @Override @Transactional
+    public NoticeResponse createUserWorkflowNotice(
+            String title, String message, NoticePriority priority, RoleName audienceRole,
+            College college, User recipient, String actionPath) {
+        CustomUserDetails current = SecurityUtils.requireCurrentUser();
+        User sender = users.findById(current.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (recipient == null || recipient.getCollege() == null
+                || !recipient.getCollege().getId().equals(college.getId())) {
+            throw new BadRequestException("Notice recipient is outside the college");
+        }
+        Notice notice = new Notice();
+        notice.setTitle(title.trim());
+        notice.setMessage(message.trim());
+        notice.setPriority(priority);
+        notice.setCreatedBy(sender);
+        notice.setRecipient(recipient);
+        notice.setAudienceRoles(Set.of(audienceRole));
+        notice.setColleges(Set.of(college));
+        notice.setActionPath(actionPath);
+        Notice saved = notices.save(notice);
+        streams.publishAfterCommit(createdEvent(saved));
+        return map(saved, activeCollegeIds(), Set.of(), Set.of());
+    }
+
     @Override
     public List<NoticeResponse> inbox() {
         CustomUserDetails current = SecurityUtils.requireCurrentUser();
@@ -255,6 +280,10 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     private NoticeStreamEvent createdEvent(Notice notice) {
+        if (notice.getRecipient() != null) {
+            return NoticeStreamEvent.createdForUser(
+                    notice.getCreatedBy().getId(), notice.getRecipient().getId(), notice.getId());
+        }
         return NoticeStreamEvent.created(
                 notice.getCreatedBy().getId(),
                 notice.getId(),

@@ -30,7 +30,7 @@ export function CreateStudentSectionStaffPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(createStudentSectionStaffSchema),
-    defaultValues: { collegeId: user?.collegeId || 0, phone: "", joiningDate: "" },
+    defaultValues: { collegeId: user?.collegeId || 0, phone: "" },
   });
   useEffect(() => {
     if (admin)
@@ -83,12 +83,6 @@ export function CreateStudentSectionStaffPage() {
               First password: the staff member's phone number. A password change is required at
               first login.
             </p>
-            <Input
-              label="Joining date"
-              type="date"
-              error={errors.joiningDate?.message}
-              {...register("joiningDate")}
-            />
             <div className="md:col-span-2">
               <Button type="submit" loading={isSubmitting}>
                 Create Staff

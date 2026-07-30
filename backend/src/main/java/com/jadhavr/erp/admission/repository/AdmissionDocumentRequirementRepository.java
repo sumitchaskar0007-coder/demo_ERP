@@ -11,20 +11,21 @@ import java.util.Set;
 
 public interface AdmissionDocumentRequirementRepository
         extends JpaRepository<AdmissionDocumentRequirement, Long> {
-    List<AdmissionDocumentRequirement> findByCollegeIdOrderByDisplayOrderAscIdAsc(Long collegeId);
-    List<AdmissionDocumentRequirement> findByCollegeIdAndActiveTrueOrderByDisplayOrderAscIdAsc(
-            Long collegeId);
-    Optional<AdmissionDocumentRequirement> findByIdAndCollegeId(Long id, Long collegeId);
-    Optional<AdmissionDocumentRequirement> findByCollegeIdAndDocumentKeyAndActiveTrue(
-            Long collegeId, String documentKey);
-    boolean existsByCollegeIdAndDocumentNameIgnoreCase(Long collegeId, String documentName);
+    List<AdmissionDocumentRequirement> findByDepartmentIdOrderByDisplayOrderAscIdAsc(
+            Long departmentId);
+    List<AdmissionDocumentRequirement> findByDepartmentIdAndActiveTrueOrderByDisplayOrderAscIdAsc(
+            Long departmentId);
+    Optional<AdmissionDocumentRequirement> findByIdAndDepartmentId(Long id, Long departmentId);
+    Optional<AdmissionDocumentRequirement> findByDepartmentIdAndDocumentKeyAndActiveTrue(
+            Long departmentId, String documentKey);
+    boolean existsByDepartmentIdAndDocumentNameIgnoreCase(Long departmentId, String documentName);
 
     @Query("""
             select requirement.documentKey
             from AdmissionDocumentRequirement requirement
-            where requirement.college.id = :collegeId
+            where requirement.department.id = :departmentId
               and requirement.active = true
               and requirement.required = true
             """)
-    Set<String> findRequiredKeys(@Param("collegeId") Long collegeId);
+    Set<String> findRequiredKeys(@Param("departmentId") Long departmentId);
 }

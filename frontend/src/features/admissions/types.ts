@@ -40,6 +40,8 @@ export type AdmissionDocumentType = string;
 
 export interface AdmissionDocumentRequirement {
   id: number;
+  departmentId: number;
+  departmentName: string;
   documentKey: AdmissionDocumentType;
   documentName: string;
   required: boolean;

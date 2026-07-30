@@ -1,6 +1,5 @@
 import {
   Building2,
-  CalendarDays,
   ChevronRight,
   Mail,
   Pencil,
@@ -165,11 +164,10 @@ export function StaffListPage() {
               <table className="erp-table table-fixed">
                 <thead>
                   <tr className="border-b bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className={`${admin ? "w-[29%]" : "w-[22%]"} px-5 py-4`}>Staff Member</th>
-                    <th className={`${admin ? "w-[21%]" : "w-[18%]"} px-5 py-4`}>Contact</th>
-                    <th className={`${admin ? "w-[27%]" : "w-[22%]"} px-5 py-4`}>Assignment</th>
-                    <th className={`${admin ? "w-[11%]" : "w-[10%]"} px-5 py-4`}>Status</th>
-                    <th className={`${admin ? "w-[12%]" : "w-[10%]"} px-5 py-4`}>Joined</th>
+                    <th className={`${admin ? "w-[32%]" : "w-[25%]"} px-5 py-4`}>Staff Member</th>
+                    <th className={`${admin ? "w-[24%]" : "w-[20%]"} px-5 py-4`}>Contact</th>
+                    <th className={`${admin ? "w-[30%]" : "w-[25%]"} px-5 py-4`}>Assignment</th>
+                    <th className={`${admin ? "w-[14%]" : "w-[12%]"} px-5 py-4`}>Status</th>
                     {!admin && <th className="w-[18%] px-5 py-4 text-right">Action</th>}
                   </tr>
                 </thead>
@@ -231,15 +229,6 @@ export function StaffListPage() {
       />
     </div>
   );
-}
-
-function joiningDate(value?: string | null) {
-  if (!value) return "Not provided";
-  return new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function StaffAvatar({ name }: { name: string }) {
@@ -316,7 +305,6 @@ function StaffTableRow({
       <td className="px-5 py-4">
         <StatusBadge status={row.status} />
       </td>
-      <td className="px-5 py-4 text-sm text-slate-600">{joiningDate(row.joiningDate)}</td>
       {!admin && (
         <td className="px-5 py-4 text-right">
           <div className="flex justify-end gap-2">
@@ -409,10 +397,6 @@ function StaffCard({
         <p className="flex items-start gap-2">
           <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{departmentLabels(row)}</span>
-        </p>
-        <p className="flex items-center gap-2">
-          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-          Joined {joiningDate(row.joiningDate)}
         </p>
       </div>
       <div className="mt-4 flex gap-2">

@@ -24,6 +24,9 @@ public class Notice extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private User createdBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_user_id")
+    private User recipient;
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "notice_colleges", joinColumns = @JoinColumn(name = "notice_id"),
             inverseJoinColumns = @JoinColumn(name = "college_id"))
@@ -52,6 +55,8 @@ public class Notice extends BaseAuditEntity {
     public void setPriority(NoticePriority value) { priority = value == null ? NoticePriority.NORMAL : value; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
+    public User getRecipient() { return recipient; }
+    public void setRecipient(User recipient) { this.recipient = recipient; }
     public Set<com.jadhavr.erp.college.entity.College> getColleges() { return colleges; }
     public void setColleges(Set<com.jadhavr.erp.college.entity.College> colleges) { this.colleges = colleges; }
     public Department getDepartment() { return department; }

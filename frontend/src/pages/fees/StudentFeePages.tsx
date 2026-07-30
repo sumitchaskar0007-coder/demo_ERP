@@ -44,7 +44,8 @@ export function StudentFeesPage() {
       </div>
     );
   if (!a) return <div className="page-container">Loading fee account…</div>;
-  const pct = a.totalFee ? Math.round((a.paidAmount / a.totalFee) * 100) : 0;
+  const payableFee = Math.max(0, a.totalFee - a.scholarshipAmount);
+  const pct = payableFee ? Math.round((a.paidAmount / payableFee) * 100) : 100;
   return (
     <div className="page-container space-y-5">
       <div className="flex justify-between">
@@ -58,12 +59,13 @@ export function StudentFeesPage() {
           <Button>Submit Payment Proof</Button>
         </Link>
       </div>
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {[
           ["Total Fee", a.totalFee],
+          ["Scholarship", a.scholarshipAmount],
+          ["Payable Fee", payableFee],
           ["Paid", a.paidAmount],
           ["Remaining", a.remainingAmount],
-          ["Minimum Required", a.minimumAmountForAdmission],
         ].map(([k, v]) => (
           <Card key={String(k)} className="p-5">
             <p className="text-xs font-bold uppercase text-slate-400">{k}</p>

@@ -1,6 +1,11 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
-import type { AdminStudentDetails, StudentProfileResponse, StudentStatus } from "./types";
+import type {
+  AdminStudentDetails,
+  ScholarshipResponse,
+  StudentProfileResponse,
+  StudentStatus,
+} from "./types";
 
 export async function searchStudents(
   params: {
@@ -25,6 +30,17 @@ export async function searchStudents(
 export async function getStudentDetails(id: number, principal = false) {
   const { data } = await apiClient.get<ApiResponse<AdminStudentDetails>>(
     `/api/${principal ? "principal" : "super-admin"}/students/${id}/details`,
+  );
+  return data.data;
+}
+
+export async function approveScholarship(
+  studentId: number,
+  values: { amount: number; remarks?: string },
+) {
+  const { data } = await apiClient.post<ApiResponse<ScholarshipResponse>>(
+    `/api/principal/students/${studentId}/scholarship/approve`,
+    values,
   );
   return data.data;
 }

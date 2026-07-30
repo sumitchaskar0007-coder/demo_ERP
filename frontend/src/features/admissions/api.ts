@@ -64,36 +64,42 @@ export async function getAdmissionDocumentRequirements(id: number) {
   >(`/api/admission-document-requirements/admission/${id}`);
   return data.data;
 }
-export async function getAdmissionDocumentSettings() {
+export async function getAdmissionDocumentSettings(departmentId: number) {
   const { data } = await apiClient.get<
     ApiResponse<import("./types").AdmissionDocumentRequirement[]>
-  >("/api/college-settings/admission-documents");
+  >("/api/college-settings/admission-documents", { params: { departmentId } });
   return data.data;
 }
 export async function createAdmissionDocumentSetting(values: {
   documentName: string;
   required: boolean;
-}) {
+}, departmentId: number) {
   const { data } = await apiClient.post<
     ApiResponse<import("./types").AdmissionDocumentRequirement>
-  >("/api/college-settings/admission-documents", values);
+  >("/api/college-settings/admission-documents", values, { params: { departmentId } });
   return data.data;
 }
 export async function updateAdmissionDocumentSetting(
   id: number,
   values: { documentName: string; required: boolean },
+  departmentId: number,
 ) {
   const { data } = await apiClient.put<ApiResponse<import("./types").AdmissionDocumentRequirement>>(
     `/api/college-settings/admission-documents/${id}`,
     values,
+    { params: { departmentId } },
   );
   return data.data;
 }
-export async function setAdmissionDocumentSettingActive(id: number, active: boolean) {
+export async function setAdmissionDocumentSettingActive(
+  id: number,
+  active: boolean,
+  departmentId: number,
+) {
   const { data } = await apiClient.patch<
     ApiResponse<import("./types").AdmissionDocumentRequirement>
   >(`/api/college-settings/admission-documents/${id}/active`, undefined, {
-    params: { active },
+    params: { active, departmentId },
   });
   return data.data;
 }
@@ -291,6 +297,13 @@ export async function getPrincipalAdmissionFees(id: number) {
   const { data } = await apiClient.get<
     ApiResponse<import("@/features/fees/types").AdmissionFeeSummaryResponse>
   >(`/api/principal/admissions/${id}/fees`);
+  return data.data;
+}
+
+export async function getStudentSectionAdmissionFees(id: number) {
+  const { data } = await apiClient.get<
+    ApiResponse<import("@/features/fees/types").AdmissionFeeSummaryResponse>
+  >(`/api/student-section/admissions/${id}/fees`);
   return data.data;
 }
 

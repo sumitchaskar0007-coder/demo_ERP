@@ -39,6 +39,15 @@ export interface AdminStudentDetails {
     submittedAt?: string;
   };
   academic?: { courseYear: string; division: string; academicYear: string; rollNumber: string };
+  fees?: {
+    feeAccountId: number;
+    totalFee: number;
+    paidAmount: number;
+    scholarshipAmount: number;
+    remainingAmount: number;
+    minimumAmountForAdmission: number;
+    status: string;
+  };
   attendance: {
     totalLectures: number;
     present: number;
@@ -47,4 +56,18 @@ export interface AdminStudentDetails {
     leave: number;
     percentage: number;
   };
+}
+
+export interface ScholarshipResponse {
+  feeAccountId: number;
+  studentId: number;
+  studentName: string;
+  admissionNumber: string;
+  totalFee: number;
+  paidAmount: number;
+  scholarshipAmount: number;
+  remainingAmount: number;
+  status: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
 }

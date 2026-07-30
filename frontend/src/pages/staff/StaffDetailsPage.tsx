@@ -3,7 +3,6 @@ import {
   BookOpen,
   Building2,
   CalendarCheck2,
-  CalendarDays,
   CheckCircle2,
   Clock3,
   GraduationCap,
@@ -114,7 +113,6 @@ export function StaffDetailsPage() {
             label="Department"
             value={staff.departmentNames.join(", ") || staff.departmentName || "Not assigned"}
           />
-          <Info icon={CalendarDays} label="Joining date" value={displayDate(staff.joiningDate)} />
           <Info icon={UserRound} label="Staff type" value={staff.staffType.replaceAll("_", " ")} />
         </div>
       </Card>

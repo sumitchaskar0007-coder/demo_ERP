@@ -15,6 +15,8 @@ import com.jadhavr.erp.admission.service.AdmissionDocumentService;
 import com.jadhavr.erp.admission.service.StudentSectionAdmissionService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
+import com.jadhavr.erp.fee.dto.AdmissionFeeSummaryResponse;
+import com.jadhavr.erp.fee.service.FeeService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -42,14 +44,17 @@ public class StudentSectionAdmissionController {
     private final StudentSectionAdmissionService admissionService;
     private final AdmissionPhotoService photoService;
     private final AdmissionDocumentService documentService;
+    private final FeeService feeService;
 
     public StudentSectionAdmissionController(
             StudentSectionAdmissionService admissionService,
             AdmissionPhotoService photoService,
-            AdmissionDocumentService documentService) {
+            AdmissionDocumentService documentService,
+            FeeService feeService) {
         this.admissionService = admissionService;
         this.photoService = photoService;
         this.documentService = documentService;
+        this.feeService = feeService;
     }
 
     @GetMapping
@@ -74,6 +79,13 @@ public class StudentSectionAdmissionController {
                 "Admission retrieved successfully",
                 admissionService.getAdmissionForStudentSection(admissionId)
         );
+    }
+
+    @GetMapping("/{admissionId}/fees")
+    public ApiResponse<AdmissionFeeSummaryResponse> getFees(@PathVariable Long admissionId) {
+        admissionService.getAdmissionForStudentSection(admissionId);
+        return ApiResponse.success("Admission fee information retrieved",
+                feeService.getAdmissionFeeSummary(admissionId));
     }
 
     @GetMapping("/{admissionId}/course-years")

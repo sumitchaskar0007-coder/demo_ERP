@@ -93,7 +93,6 @@ export const createStudentSectionStaffSchema = z.object({
   fullName: z.string().trim().min(2).max(150),
   email: z.string().email("Enter a valid email").max(150),
   phone: z.string().min(1, "Phone is required").max(20),
-  joiningDate: z.string().optional().default(""),
 });
 
 const departmentStaffTypes = ["HOD", "TEACHER", "SUBJECT_TEACHER"];

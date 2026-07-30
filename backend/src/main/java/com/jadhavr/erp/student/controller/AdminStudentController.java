@@ -14,6 +14,7 @@ import com.jadhavr.erp.student.repository.StudentProfileRepository;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.academic.repository.StudentSectionEnrollmentRepository;
 import com.jadhavr.erp.attendance.repository.WeeklyAttendanceRecordRepository;
+import com.jadhavr.erp.fee.repository.StudentFeeAccountRepository;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,15 +29,18 @@ public class AdminStudentController {
     private final AdmissionFormRepository admissions;
     private final StudentSectionEnrollmentRepository enrollments;
     private final WeeklyAttendanceRecordRepository attendance;
+    private final StudentFeeAccountRepository feeAccounts;
 
     public AdminStudentController(AdminStudentService adminStudentService, StudentProfileRepository students,
             AdmissionFormRepository admissions, StudentSectionEnrollmentRepository enrollments,
-            WeeklyAttendanceRecordRepository attendance) {
+            WeeklyAttendanceRecordRepository attendance,
+            StudentFeeAccountRepository feeAccounts) {
         this.adminStudentService = adminStudentService;
         this.students = students;
         this.admissions = admissions;
         this.enrollments = enrollments;
         this.attendance = attendance;
+        this.feeAccounts = feeAccounts;
     }
 
     @GetMapping("/search")
@@ -67,6 +71,15 @@ public class AdminStudentController {
         var student = students.findById(id).orElseThrow(() -> new ResourceNotFoundException("Student not found"));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("profile", adminStudentService.getStudentById(id));
+        feeAccounts.findTopByStudentIdOrderByCreatedAtDesc(id).ifPresent(account ->
+                result.put("fees", Map.of(
+                        "feeAccountId", account.getId(),
+                        "totalFee", account.getTotalFee(),
+                        "paidAmount", account.getPaidAmount(),
+                        "scholarshipAmount", account.getDiscountAmount(),
+                        "remainingAmount", account.getRemainingAmount(),
+                        "minimumAmountForAdmission", account.getMinimumAmountForAdmission(),
+                        "status", account.getStatus())));
         admissions.findTopByStudentIdOrderByCreatedAtDesc(id).ifPresent(a -> {
             Map<String, Object> admission = new LinkedHashMap<>();
             admission.put("id", a.getId());

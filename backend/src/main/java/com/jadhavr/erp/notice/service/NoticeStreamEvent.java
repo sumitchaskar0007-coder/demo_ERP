@@ -32,6 +32,12 @@ public record NoticeStreamEvent(
                 collegeIds, departmentId, audienceRoles, null);
     }
 
+    public static NoticeStreamEvent createdForUser(
+            Long actorUserId, Long subjectUserId, Long noticeId) {
+        return new NoticeStreamEvent(Type.NOTICE_CREATED, actorUserId, subjectUserId, noticeId,
+                Set.of(), null, Set.of(), null);
+    }
+
     public static NoticeStreamEvent deleted(Long actorUserId, Long noticeId, Set<Long> collegeIds,
                                             Long departmentId, Set<RoleName> audienceRoles) {
         return new NoticeStreamEvent(Type.NOTICE_DELETED, actorUserId, null, noticeId,

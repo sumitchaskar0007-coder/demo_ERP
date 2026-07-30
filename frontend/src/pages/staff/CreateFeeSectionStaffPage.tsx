@@ -13,7 +13,6 @@ export function CreateFeeSectionStaffPage() {
     fullName: "",
     email: "",
     phone: "",
-    joiningDate: "",
   });
   const submit = async () => {
     try {
@@ -45,11 +44,6 @@ export function CreateFeeSectionStaffPage() {
             onChange={(e) => setV({ ...v, email: e.target.value })}
           />
           <Input label="Phone" onChange={(e) => setV({ ...v, phone: e.target.value })} />
-          <Input
-            label="Joining Date"
-            type="date"
-            onChange={(e) => setV({ ...v, joiningDate: e.target.value })}
-          />
         </div>
         <Button className="mt-6" onClick={submit}>
           Create Fee Staff

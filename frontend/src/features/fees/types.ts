@@ -6,6 +6,7 @@ export type FeeTransactionType =
   | "PAYMENT_VERIFIED"
   | "PAYMENT_REJECTED"
   | "DISCOUNT_APPLIED"
+  | "SCHOLARSHIP_APPROVED"
   | "FEE_ADJUSTMENT"
   | "REFUND";
 export interface CreateFeeStructureRequest {
@@ -57,6 +58,7 @@ export interface StudentFeeAccountResponse {
   paidAmount: number;
   remainingAmount: number;
   discountAmount: number;
+  scholarshipAmount: number;
   minimumAmountForAdmission: number;
   status: FeeAccountStatus;
   collegeQrCodeUrl?: string | null;

@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "LEAVE";
+export type AttendanceStatus = "PRESENT" | "ABSENT";
 export interface Lecture {
   lectureId: number;
   sessionId?: number;

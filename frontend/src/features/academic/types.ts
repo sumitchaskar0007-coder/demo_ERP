@@ -53,7 +53,7 @@ export type TimetableDay =
   | "FRIDAY"
   | "SATURDAY"
   | "SUNDAY";
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
+export type AttendanceStatus = "PRESENT" | "ABSENT";
 export interface AcademicClass {
   id: number;
   college: { id: number; name: string };

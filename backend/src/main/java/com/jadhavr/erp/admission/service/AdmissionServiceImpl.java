@@ -319,7 +319,7 @@ public class AdmissionServiceImpl implements AdmissionService {
             Set<String> missingDocuments = documentRequirements == null
                     ? AdmissionDocumentType.requiredTypes().stream().map(Enum::name)
                             .collect(Collectors.toSet())
-                    : documentRequirements.findRequiredKeys(admission.getCollege().getId());
+                    : documentRequirements.findRequiredKeys(admission.getDepartment().getId());
             missingDocuments.removeAll(documents.findTypesByAdmissionId(admission.getId()));
             if (!missingDocuments.isEmpty()) {
                 throw new BadRequestException("Upload all required admission documents before submitting");

@@ -20,7 +20,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             """)
     List<Long> findSentIds(@Param("userId") Long userId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"createdBy", "colleges", "department", "audienceRoles"})
+    @EntityGraph(attributePaths = {"createdBy", "recipient", "colleges", "department", "audienceRoles"})
     @Query("select distinct n from Notice n where n.id in :ids")
     List<Notice> findDetailedByIdIn(@Param("ids") Collection<Long> ids);
 
@@ -31,6 +31,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             where n.createdBy.id <> :userId
               and n.deletedAt is null
               and role in :roles
+              and (n.recipient is null or n.recipient.id = :userId)
               and (college is null or college.id = :collegeId)
               and (n.department is null or n.department.id = :departmentId)
             group by n.id, n.createdAt
@@ -50,6 +51,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             where n.createdBy.id <> :userId
               and n.deletedAt is null
               and role in :roles
+              and (n.recipient is null or n.recipient.id = :userId)
               and (college is null or college.id = :collegeId)
               and (n.department is null or n.department.id = :departmentId)
               and not exists (

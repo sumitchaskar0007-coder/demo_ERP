@@ -28,33 +28,38 @@ public class AdmissionDocumentRequirementController {
 
     @GetMapping
     public ApiResponse<List<AdmissionDocumentRequirementResponse>> list(
-            @RequestParam(required = false) Long collegeId) {
+            @RequestParam(required = false) Long collegeId,
+            @RequestParam Long departmentId) {
         return ApiResponse.success("Admission document settings fetched",
-                service.settings(collegeId));
+                service.settings(collegeId, departmentId));
     }
 
     @PostMapping
     public ApiResponse<AdmissionDocumentRequirementResponse> create(
             @RequestParam(required = false) Long collegeId,
+            @RequestParam Long departmentId,
             @Valid @RequestBody AdmissionDocumentRequirementRequest request) {
-        return ApiResponse.success("Admission document added", service.create(collegeId, request));
+        return ApiResponse.success("Admission document added",
+                service.create(collegeId, departmentId, request));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<AdmissionDocumentRequirementResponse> update(
             @PathVariable Long id,
             @RequestParam(required = false) Long collegeId,
+            @RequestParam Long departmentId,
             @Valid @RequestBody AdmissionDocumentRequirementRequest request) {
         return ApiResponse.success("Admission document updated",
-                service.update(id, collegeId, request));
+                service.update(id, collegeId, departmentId, request));
     }
 
     @PatchMapping("/{id}/active")
     public ApiResponse<AdmissionDocumentRequirementResponse> setActive(
             @PathVariable Long id,
             @RequestParam(required = false) Long collegeId,
+            @RequestParam Long departmentId,
             @RequestParam boolean active) {
         return ApiResponse.success("Admission document status updated",
-                service.setActive(id, collegeId, active));
+                service.setActive(id, collegeId, departmentId, active));
     }
 }

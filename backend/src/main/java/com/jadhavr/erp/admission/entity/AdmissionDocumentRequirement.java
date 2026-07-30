@@ -2,6 +2,7 @@ package com.jadhavr.erp.admission.entity;
 
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
+import com.jadhavr.erp.department.entity.Department;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -17,7 +18,7 @@ import jakarta.persistence.Version;
 @Entity
 @Table(name = "admission_document_requirements", uniqueConstraints =
         @UniqueConstraint(name = "uk_admission_document_requirement_key",
-                columnNames = {"college_id", "document_key"}))
+                columnNames = {"department_id", "document_key"}))
 public class AdmissionDocumentRequirement extends BaseAuditEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,6 +27,10 @@ public class AdmissionDocumentRequirement extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "college_id", nullable = false)
     private College college;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
 
     @Column(name = "document_key", nullable = false, length = 60)
     private String documentKey;
@@ -49,6 +54,8 @@ public class AdmissionDocumentRequirement extends BaseAuditEntity {
     public Long getId() { return id; }
     public College getCollege() { return college; }
     public void setCollege(College college) { this.college = college; }
+    public Department getDepartment() { return department; }
+    public void setDepartment(Department department) { this.department = department; }
     public String getDocumentKey() { return documentKey; }
     public void setDocumentKey(String documentKey) { this.documentKey = documentKey; }
     public String getDocumentName() { return documentName; }

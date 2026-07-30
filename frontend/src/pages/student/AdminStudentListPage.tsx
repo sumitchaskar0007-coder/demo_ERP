@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Award,
   Building2,
   CalendarDays,
   Eye,
@@ -21,6 +22,7 @@ import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Pagination } from "@/components/common/Pagination";
 import { Select } from "@/components/common/Select";
+import { Textarea } from "@/components/common/Textarea";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { DataTable, type Column } from "@/components/table/DataTable";
@@ -351,15 +353,32 @@ export function AdminStudentListPage() {
         {detailsLoading ? (
           <Loader label="Loading complete student record…" />
         ) : (
-          details && <StudentDetailContent details={details} />
+          details && (
+            <StudentDetailContent
+              details={details}
+              principal={principal}
+              onScholarshipApproved={() => void openDetails(details.profile.id)}
+            />
+          )
         )}
       </Modal>
     </div>
   );
 }
 
-function StudentDetailContent({ details }: { details: AdminStudentDetails }) {
+function StudentDetailContent({
+  details,
+  principal,
+  onScholarshipApproved,
+}: {
+  details: AdminStudentDetails;
+  principal: boolean;
+  onScholarshipApproved: () => void;
+}) {
   const p = details.profile;
+  const [scholarshipAmount, setScholarshipAmount] = useState("");
+  const [scholarshipRemarks, setScholarshipRemarks] = useState("");
+  const [approvingScholarship, setApprovingScholarship] = useState(false);
   const attendanceTone =
     details.attendance.percentage >= 75
       ? "bg-emerald-500"
@@ -371,6 +390,38 @@ function StudentDetailContent({ details }: { details: AdminStudentDetails }) {
     : p.status === "UNDER_REVIEW"
       ? "warning"
       : "success";
+  const approveScholarship = async () => {
+    const amount = Number(scholarshipAmount);
+    if (!details.fees || !Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid scholarship amount");
+      return;
+    }
+    if (amount > details.fees.remainingAmount) {
+      toast.error("Scholarship cannot exceed the remaining fee");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Approve ₹${amount.toLocaleString("en-IN")} scholarship for ${p.fullName}?`,
+      )
+    )
+      return;
+    setApprovingScholarship(true);
+    try {
+      await api.approveScholarship(p.id, {
+        amount,
+        remarks: scholarshipRemarks.trim() || undefined,
+      });
+      setScholarshipAmount("");
+      setScholarshipRemarks("");
+      toast.success("Scholarship approved and student notified");
+      onScholarshipApproved();
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setApprovingScholarship(false);
+    }
+  };
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -561,6 +612,85 @@ function StudentDetailContent({ details }: { details: AdminStudentDetails }) {
           </div>
         </Card>
       </div>
+
+      <Card className="overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-emerald-50/60 px-4 py-4 sm:px-5">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-700">
+            <Award className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="font-bold text-slate-900">Fee & scholarship</h3>
+            <p className="text-xs text-slate-500">
+              Scholarship reduces the payable balance without changing verified payments.
+            </p>
+          </div>
+        </div>
+        {details.fees ? (
+          <div className="space-y-4 p-4 sm:p-5">
+            <div className="grid gap-3 sm:grid-cols-4">
+              <FeeMetric label="Total fee" value={details.fees.totalFee} />
+              <FeeMetric label="Paid" value={details.fees.paidAmount} tone="text-blue-700" />
+              <FeeMetric
+                label="Scholarship"
+                value={details.fees.scholarshipAmount}
+                tone="text-emerald-700"
+              />
+              <FeeMetric
+                label="Remaining"
+                value={details.fees.remainingAmount}
+                tone="text-rose-700"
+              />
+            </div>
+            {principal && details.fees.remainingAmount > 0 && (
+              <div className="grid gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 md:grid-cols-[220px_1fr_auto] md:items-end">
+                <Input
+                  label="Scholarship amount"
+                  type="number"
+                  min={1}
+                  max={details.fees.remainingAmount}
+                  step="0.01"
+                  value={scholarshipAmount}
+                  onChange={(event) => setScholarshipAmount(event.target.value)}
+                />
+                <Textarea
+                  label="Remarks (optional)"
+                  rows={2}
+                  maxLength={500}
+                  value={scholarshipRemarks}
+                  onChange={(event) => setScholarshipRemarks(event.target.value)}
+                />
+                <Button
+                  loading={approvingScholarship}
+                  onClick={() => void approveScholarship()}
+                >
+                  Confirm scholarship
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="p-5 text-sm text-slate-500">
+            Fee account has not been generated for this student.
+          </p>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function FeeMetric({
+  label,
+  value,
+  tone = "text-slate-900",
+}: {
+  label: string;
+  value: number;
+  tone?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+      <p className={`text-xl font-black ${tone}`}>₹{Number(value).toLocaleString("en-IN")}</p>
+      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );
 }
