@@ -1,6 +1,7 @@
 package com.jadhavr.erp.admission.controller;
 
 import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
+import com.jadhavr.erp.admission.dto.AdmissionPrintResponse;
 import com.jadhavr.erp.admission.dto.AdmissionCourseYearOptionResponse;
 import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.admission.dto.StudentAdmissionAccessResponse;
@@ -46,6 +47,13 @@ public class StudentAdmissionController {
                 "Admission retrieved successfully",
                 admissionService.getMyDetailedAdmission()
         );
+    }
+
+    @GetMapping("/me/print-data")
+    public ApiResponse<AdmissionPrintResponse> getMyPrintData() {
+        return ApiResponse.success(
+                "Admission print data retrieved successfully",
+                admissionService.getMyAdmissionPrintData());
     }
 
     @GetMapping("/access-state")

@@ -300,6 +300,12 @@ export async function getPrincipalAdmissionFees(id: number) {
   >(`/api/principal/admissions/${id}/fees`);
   return data.data;
 }
+export async function getMyAdmissionPrintData() {
+  const { data } = await apiClient.get<ApiResponse<AdmissionPrintResponse>>(
+    "/api/student/admissions/me/print-data",
+  );
+  return data.data;
+}
 export async function getDocumentCustody(id: number) {
   const { data } = await apiClient.get<ApiResponse<import("./types").AdmissionDocumentCustody[]>>(
     `/api/student-section/admissions/${id}/document-custody`);

@@ -7,29 +7,54 @@ import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/admissions/api";
-import type { AdmissionPrintResponse } from "@/features/admissions/types";
+import type {
+  AdmissionDocumentCustody,
+  AdmissionDocumentRequirement,
+  AdmissionPrintResponse,
+  StudentSectionAdmissionResponse,
+} from "@/features/admissions/types";
 
 export function AdmissionPrintPage() {
   const { admissionId = "" } = useParams();
   const id = Number(admissionId);
+  const studentOwned = !admissionId;
   const [data, setData] = useState<AdmissionPrintResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
+  const [requirements, setRequirements] = useState<AdmissionDocumentRequirement[]>([]);
+  const [custody, setCustody] = useState<AdmissionDocumentCustody[]>([]);
 
   const load = useCallback(() => {
     setLoading(true);
-    api
-      .getAdmissionPrintData(id)
+    (studentOwned ? api.getMyAdmissionPrintData() : api.getAdmissionPrintData(id))
       .then(setData)
       .catch((err) => toast.error(handleApiError(err).message))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, studentOwned]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const admissionRequest = studentOwned
+      ? api.getMyAdmission()
+      : api.getStudentSectionAdmission(id);
+    const requirementsRequest = studentOwned
+      ? api.getMyAdmissionDocumentRequirements()
+      : api.getAdmissionDocumentRequirements(id);
+    const custodyRequest = studentOwned ? Promise.resolve([]) : api.getDocumentCustody(id);
+    Promise.all([admissionRequest, requirementsRequest, custodyRequest])
+      .then(([admissionData, requirementData, custodyData]) => {
+        setAdmission(admissionData);
+        setRequirements(requirementData.filter((item) => item.active));
+        setCustody(custodyData);
+      })
+      .catch((error) => toast.error(handleApiError(error).message));
+  }, [id, studentOwned]);
 
   useEffect(() => {
     if (!data?.student.hasPhoto) {
@@ -39,8 +64,7 @@ export function AdmissionPrintPage() {
     let active = true;
     let objectUrl: string | null = null;
     setPhotoLoading(true);
-    api
-      .getAdmissionPhoto(id)
+    (studentOwned ? api.getMyAdmissionPhoto() : api.getAdmissionPhoto(id))
       .then((url) => {
         objectUrl = url;
         if (active) setPhotoUrl(url);
@@ -55,24 +79,43 @@ export function AdmissionPrintPage() {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [data?.student.hasPhoto, id]);
+  }, [data?.student.hasPhoto, id, studentOwned]);
 
   const downloadPdf = async () => {
     if (!data) return;
     setDownloading(true);
     try {
+      await document.fonts.ready;
+      const printablePages = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-admission-pdf-page]"),
+      );
+      await Promise.all(
+        printablePages.flatMap((page) =>
+          Array.from(page.querySelectorAll("img")).map(async (image) => {
+            if (image.complete) {
+              await image.decode().catch(() => undefined);
+              return;
+            }
+            await new Promise<void>((resolve) => {
+              image.addEventListener("load", () => resolve(), { once: true });
+              image.addEventListener("error", () => resolve(), { once: true });
+            });
+          }),
+        ),
+      );
       const [{ default: JsPdf }, { default: html2canvas }] = await Promise.all([
         import("jspdf"),
         import("html2canvas"),
       ]);
-      const pages = Array.from(document.querySelectorAll<HTMLElement>("[data-admission-pdf-page]"));
       const pdf = new JsPdf({ orientation: "portrait", unit: "mm", format: "a4" });
-      for (let index = 0; index < pages.length; index += 1) {
-        const canvas = await html2canvas(pages[index], {
-          scale: 2,
+      for (let index = 0; index < printablePages.length; index += 1) {
+        const canvas = await html2canvas(printablePages[index], {
+          scale: 3,
           backgroundColor: "#ffffff",
           useCORS: true,
           logging: false,
+          scrollX: 0,
+          scrollY: -window.scrollY,
         });
         if (index > 0) pdf.addPage("a4", "portrait");
         const maxWidth = 190;
@@ -81,8 +124,8 @@ export function AdmissionPrintPage() {
         const width = canvas.width * ratio;
         const height = canvas.height * ratio;
         pdf.addImage(
-          canvas.toDataURL("image/jpeg", 0.96),
-          "JPEG",
+          canvas.toDataURL("image/png"),
+          "PNG",
           (210 - width) / 2,
           10,
           width,
@@ -90,7 +133,9 @@ export function AdmissionPrintPage() {
         );
       }
       pdf.save(`admission-${data.admissionReferenceNumber}.pdf`);
-      await api.markAdmissionPrinted(id, { remarks: "Admission PDF downloaded" });
+      if (!studentOwned) {
+        await api.markAdmissionPrinted(id, { remarks: "Admission PDF downloaded" });
+      }
       toast.success("Admission PDF downloaded");
     } catch (err) {
       toast.error(handleApiError(err).message);
@@ -126,7 +171,7 @@ export function AdmissionPrintPage() {
   return (
     <div className="page-container print-page-bg">
       <div className="no-print mb-4 flex flex-wrap gap-2">
-        <Link to={`/student-section/admissions/${id}`}>
+        <Link to={studentOwned ? "/student/admission" : `/student-section/admissions/${id}`}>
           <Button variant="secondary">
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -175,9 +220,10 @@ export function AdmissionPrintPage() {
         </div>
 
         <section className="mt-3 text-[11px] leading-4">
-          <h3 className="mb-1.5 border-b border-black pb-1 text-xs font-bold uppercase tracking-wide">
-            Personal Information
-          </h3>
+          <div className="mb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wide">Personal Information</h3>
+            <div className="mt-1 h-px bg-black" />
+          </div>
           <div className="space-y-1.5">
             <FormRow number={1}>
               <FormField
@@ -331,6 +377,17 @@ export function AdmissionPrintPage() {
         data-admission-pdf-page
         className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[14mm] text-black"
       >
+        <DocumentChecklist
+          admission={admission}
+          requirements={requirements}
+          custody={custody}
+        />
+      </Card>
+
+      <Card
+        data-admission-pdf-page
+        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[14mm] text-black"
+      >
         <DeclarationSection declarations={data.declarations} />
         <UndertakingSection />
       </Card>
@@ -378,7 +435,8 @@ function DeclarationSection({ declarations }: { declarations: string[] }) {
       ];
   return (
     <section className="text-[13px] leading-6">
-      <h3 className="mb-4 border-b border-black pb-1 text-base font-bold">Declaration</h3>
+      <h3 className="text-base font-bold">Declaration</h3>
+      <div className="mb-4 mt-1 h-px bg-black" />
       <StatementList items={items} />
       <p className="ml-auto mt-20 w-56 border-t border-black pt-1 text-center font-semibold">
         Signature of Applicant
@@ -390,7 +448,8 @@ function DeclarationSection({ declarations }: { declarations: string[] }) {
 function UndertakingSection() {
   return (
     <section className="mt-12 text-[13px] leading-6">
-      <h3 className="mb-4 border-b border-black pb-1 text-base font-bold">Undertaking</h3>
+      <h3 className="text-base font-bold">Undertaking</h3>
+      <div className="mb-4 mt-1 h-px bg-black" />
       <StatementList
         items={[
           "I undertake to observe full attendance as per the University/Institute Rules and failing which I am aware that my terms will not be granted.",
@@ -448,7 +507,7 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
             "Obtained Marks",
             "Percentage",
           ].map((head) => (
-            <th key={head} className="border border-black px-1 py-1.5 font-semibold">
+            <th key={head} className="h-9 border border-black px-1 py-2 font-semibold leading-3">
               {head}
             </th>
           ))}
@@ -458,7 +517,7 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
         {rows.map((row, index) => (
           <tr key={index}>
             {row.map((cell, cellIndex) => (
-              <td key={cellIndex} className="h-6 border border-black px-1 py-1">
+              <td key={cellIndex} className="h-7 border border-black px-1 py-1.5 leading-3">
                 {cell}
               </td>
             ))}
@@ -488,8 +547,8 @@ function FormRow({ number, children }: { number: number; children: ReactNode }) 
 
 function FormField({ label, value }: { label: string; value?: unknown }) {
   return (
-    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-end gap-1.5">
-      <b className="whitespace-nowrap">{label}:</b>
+    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1.5">
+      <b className="whitespace-nowrap pt-px">{label}:</b>
       <ValueLine value={value} />
     </div>
   );
@@ -497,10 +556,145 @@ function FormField({ label, value }: { label: string; value?: unknown }) {
 
 function ValueLine({ value }: { value?: unknown }) {
   return (
-    <span className="min-h-4 min-w-0 border-b border-black px-1 font-medium">
-      {value !== null && value !== undefined && value !== "" ? String(value) : "\u00a0"}
+    <span className="relative block min-h-6 min-w-0 px-1 pb-2 font-medium leading-4">
+      <span className="relative z-10 block">
+        {value !== null && value !== undefined && value !== "" ? String(value) : "\u00a0"}
+      </span>
+      <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-black" />
     </span>
   );
+}
+
+function DocumentChecklist({
+  admission,
+  requirements,
+  custody,
+}: {
+  admission: StudentSectionAdmissionResponse | null;
+  requirements: AdmissionDocumentRequirement[];
+  custody: AdmissionDocumentCustody[];
+}) {
+  const custodyByType = new Map(custody.map((item) => [item.documentType, item]));
+  const required = requirements.filter((item) => item.required);
+  const optional = requirements.filter((item) => !item.required);
+  const submittedRequired = required.filter((item) =>
+    admission?.uploadedDocuments.includes(item.documentKey),
+  ).length;
+  const pending = required.filter(
+    (item) => !admission?.uploadedDocuments.includes(item.documentKey),
+  );
+  return (
+    <section className="text-[10px] leading-4">
+      <h2 className="text-center text-lg font-extrabold uppercase">
+        Department Document Checklist
+      </h2>
+      <div className="mt-2 h-0.5 bg-black" />
+      <p className="mt-2 text-center text-xs font-semibold">
+        {admission?.departmentName || "Department"} · {admission?.academicYear || ""}
+      </p>
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        {[
+          ["Total documents", requirements.length],
+          ["Required", required.length],
+          ["Optional", optional.length],
+          ["Required submitted", submittedRequired],
+          ["Required pending", pending.length],
+          ["Verification", pending.length ? "Pending" : "Complete"],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="border border-black p-2">
+            <b>{label}:</b> {value}
+          </div>
+        ))}
+      </div>
+      <table className="mt-5 w-full table-fixed border-collapse text-[9px] leading-3">
+        <thead>
+          <tr>
+            {["No.", "Document", "Requirement", "Submitted", "Original", "Xerox", "Verified", "Remark"].map(
+              (heading) => (
+                <th key={heading} className="h-9 border border-black px-1 py-2">
+                  {heading}
+                </th>
+              ),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {requirements.map((requirement, index) => {
+            const documentCustody = custodyByType.get(requirement.documentKey);
+            const submitted = Boolean(
+              admission?.uploadedDocuments.includes(requirement.documentKey),
+            );
+            return (
+              <tr key={requirement.documentKey} className="break-inside-avoid">
+                <td className="border border-black p-2 text-center">{index + 1}</td>
+                <td className="border border-black p-2 font-semibold">
+                  {requirement.documentName}
+                </td>
+                <td className="border border-black p-2 text-center">
+                  {requirement.required ? "Required" : "Optional"}
+                </td>
+                <CheckCell checked={submitted} />
+                <CheckCell checked={documentCustody?.originalReceived} />
+                <CheckCell checked={documentCustody?.xeroxReceived} />
+                <CheckCell checked={documentVerified(admission, requirement.documentKey)} />
+                <td className="border border-black p-2">
+                  {documentCustody?.returnedToStudent ? "Returned to student" : ""}
+                </td>
+              </tr>
+            );
+          })}
+          {!requirements.length && (
+            <tr>
+              <td colSpan={8} className="border border-black p-6 text-center">
+                No admission documents are configured for this department.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      {pending.length > 0 && (
+        <div className="mt-5 border border-black p-3">
+          <h3 className="font-bold uppercase">Pending Required Documents</h3>
+          <ul className="mt-2 list-inside list-disc">
+            {pending.map((item) => <li key={item.documentKey}>{item.documentName}</li>)}
+          </ul>
+        </div>
+      )}
+      <div className="mt-14 grid grid-cols-2 gap-x-16 gap-y-12">
+        {["Document verification officer", "Admission officer", "Head of department", "Principal / authorized officer"].map(
+          (label) => <div key={label} className="border-t border-black pt-1 text-center">{label}</div>,
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CheckCell({ checked }: { checked?: boolean }) {
+  return (
+    <td className="border border-black p-2 text-center text-sm font-bold">
+      {checked ? "✓" : "☐"}
+    </td>
+  );
+}
+
+function documentVerified(
+  admission: StudentSectionAdmissionResponse | null,
+  key: string,
+) {
+  if (!admission) return false;
+  const fields: Record<string, boolean> = {
+    TENTH_MARKSHEET: admission.tenthMarksheetVerified,
+    TWELFTH_MARKSHEET: admission.twelfthMarksheetVerified,
+    LEAVING_CERTIFICATE: admission.leavingCertificateVerified,
+    AADHAAR_CARD: admission.aadhaarCardVerified,
+    GRADUATION_PG_CERTIFICATE: admission.graduationPgCertificateVerified,
+    MIGRATION_CERTIFICATE: admission.migrationCertificateVerified,
+    GAP_AFFIDAVIT: admission.gapAffidavitVerified,
+    CASTE_CERTIFICATE: admission.casteCertificateVerified,
+    INCOME_PROOF: admission.incomeProofVerified,
+    NAME_CHANGE_CERTIFICATE: admission.nameChangeCertificateVerified,
+  };
+  return Boolean(fields[key]);
 }
 
 function StatementList({ items }: { items: string[] }) {

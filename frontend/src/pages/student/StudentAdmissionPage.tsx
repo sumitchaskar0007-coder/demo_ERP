@@ -93,13 +93,23 @@ export function StudentAdmissionPage() {
             Your application is pending Student Section review. It is read-only while under review.
           </p>
         )}
-        {admission.detailsCompletedAt &&
-          !rejected &&
-          !studentSectionApprovedStatuses.has(admission.status) && (
-          <Button className="mt-4" onClick={() => navigate(ROUTES.studentFees)}>
-            Open admission form payment
-          </Button>
-          )}
+        {admission.detailsCompletedAt && !rejected && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            {!studentSectionApprovedStatuses.has(admission.status) ? (
+              <Button onClick={() => navigate(ROUTES.studentFees)}>
+                Open admission form payment
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/student/admission/print")}
+            >
+              Download admission form
+            </Button>
+          </div>
+        )}
         {rejected && (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             <p className="font-semibold">Your application was rejected.</p>

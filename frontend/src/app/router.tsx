@@ -545,6 +545,7 @@ export function AppRouter() {
                 <Route path={ROUTES.studentDashboard} element={<StudentDashboardPage />} />
                 <Route path={ROUTES.studentProfile} element={<StudentProfilePage />} />
                 <Route path={ROUTES.studentAdmission} element={<StudentAdmissionPage />} />
+                <Route path="/student/admission/print" element={<AdmissionPrintPage />} />
                 <Route path={ROUTES.studentFees} element={<StudentFeesPage />} />
                 <Route path={ROUTES.studentPayments} element={<MyPaymentsPage />} />
                 <Route path="/student/fees/payments/new" element={<SubmitPaymentPage />} />

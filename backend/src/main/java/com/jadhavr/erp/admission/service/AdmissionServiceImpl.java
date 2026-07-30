@@ -3,6 +3,7 @@ package com.jadhavr.erp.admission.service;
 import com.jadhavr.erp.admission.dto.AdmissionDepartmentOptionResponse;
 import com.jadhavr.erp.admission.dto.AdmissionCourseYearOptionResponse;
 import com.jadhavr.erp.admission.dto.AdmissionResponse;
+import com.jadhavr.erp.admission.dto.AdmissionPrintResponse;
 import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.dto.PublicAdmissionInfoResponse;
 import com.jadhavr.erp.admission.dto.StudentAdmissionAccessResponse;
@@ -16,6 +17,7 @@ import com.jadhavr.erp.admission.enums.AdmissionAction;
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.mapper.AdmissionMapper;
+import com.jadhavr.erp.admission.mapper.AdmissionPrintMapper;
 import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
@@ -90,6 +92,7 @@ public class AdmissionServiceImpl implements AdmissionService {
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
     private FeeService feeService;
+    private AdmissionPrintMapper printMapper;
     @Autowired(required = false)
     public void setFeeService(FeeService service) { this.feeService = service; }
 
@@ -99,6 +102,11 @@ public class AdmissionServiceImpl implements AdmissionService {
     @Autowired(required = false)
     public void setDocumentRequirements(AdmissionDocumentRequirementRepository repository) {
         this.documentRequirements = repository;
+    }
+
+    @Autowired
+    public void setPrintMapper(AdmissionPrintMapper mapper) {
+        this.printMapper = mapper;
     }
 
     @Autowired
@@ -372,6 +380,16 @@ public class AdmissionServiceImpl implements AdmissionService {
                     "Admission does not belong to the current student");
         }
         return admission;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdmissionPrintResponse getMyAdmissionPrintData() {
+        AdmissionForm admission = findMyAdmission();
+        if (admission.getDetailsCompletedAt() == null) {
+            throw new BadRequestException("Submit the detailed admission form before downloading it");
+        }
+        return printMapper.toResponse(admission);
     }
 
     private boolean studentCanEdit(AdmissionForm admission) {

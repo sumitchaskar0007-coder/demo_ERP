@@ -1,6 +1,7 @@
 package com.jadhavr.erp.admission.service;
 
 import com.jadhavr.erp.admission.dto.AdmissionResponse;
+import com.jadhavr.erp.admission.dto.AdmissionPrintResponse;
 import com.jadhavr.erp.admission.dto.AdmissionCourseYearOptionResponse;
 import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
 import com.jadhavr.erp.admission.dto.PublicAdmissionInfoResponse;
@@ -17,4 +18,5 @@ public interface AdmissionService {
     StudentAdmissionAccessResponse getMyAdmissionAccess();
     java.util.List<AdmissionCourseYearOptionResponse> getMyCourseYearOptions();
     StudentSectionAdmissionResponse submitMyAdmissionDetails(DetailedAdmissionRequest request);
+    AdmissionPrintResponse getMyAdmissionPrintData();
 }
