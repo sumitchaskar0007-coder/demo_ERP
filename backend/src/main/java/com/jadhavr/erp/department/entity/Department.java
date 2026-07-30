@@ -15,8 +15,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.Locale;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "departments", uniqueConstraints = {
@@ -44,6 +46,10 @@ public class Department extends BaseAuditEntity {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "admission_form_fee", nullable = false, precision = 12, scale = 2)
+    @ColumnDefault("0")
+    private BigDecimal admissionFormFee = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private DepartmentStatus status = DepartmentStatus.ACTIVE;
@@ -66,6 +72,8 @@ public class Department extends BaseAuditEntity {
     public void setCode(String code) { this.code = code; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public BigDecimal getAdmissionFormFee() { return admissionFormFee; }
+    public void setAdmissionFormFee(BigDecimal admissionFormFee) { this.admissionFormFee = admissionFormFee; }
     public DepartmentStatus getStatus() { return status; }
     public void setStatus(DepartmentStatus status) { this.status = status; }
 }

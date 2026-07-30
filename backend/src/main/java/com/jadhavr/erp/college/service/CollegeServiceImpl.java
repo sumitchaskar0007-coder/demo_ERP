@@ -52,6 +52,7 @@ public class CollegeServiceImpl implements CollegeService {
         College saved = collegeRepository.saveAndFlush(college);
         saved.setLogoUrl(imageStorage.claim(request.logoUrl(), saved.getId(), "logo", null));
         saved.setQrCodeUrl(imageStorage.claim(request.qrCodeUrl(), saved.getId(), "qr-code", null));
+        saved.setPaymentQrAccountName(paymentQrName(request.paymentQrAccountName(), request.qrCodeUrl()));
         return toResponse(collegeRepository.saveAndFlush(saved));
     }
 
@@ -91,6 +92,7 @@ public class CollegeServiceImpl implements CollegeService {
                 "logo", college.getLogoUrl()));
         college.setQrCodeUrl(imageStorage.claim(request.qrCodeUrl(), college.getId(),
                 "qr-code", college.getQrCodeUrl()));
+        college.setPaymentQrAccountName(paymentQrName(request.paymentQrAccountName(), request.qrCodeUrl()));
         return toResponse(collegeRepository.saveAndFlush(college));
     }
 
@@ -177,6 +179,14 @@ public class CollegeServiceImpl implements CollegeService {
         return code.trim().toUpperCase(Locale.ROOT);
     }
 
+    private String paymentQrName(String value, String qrCodeUrl) {
+        String name = value == null ? "" : value.trim();
+        if (qrCodeUrl != null && !qrCodeUrl.isBlank() && name.isBlank()) {
+            throw new BadRequestException("QR account name is required when a payment QR code is configured");
+        }
+        return name.isBlank() ? null : name;
+    }
+
     private void applyCreateFields(College college, CreateCollegeRequest request) {
         college.setName(request.name().trim());
         college.setAddress(request.address());
@@ -200,6 +210,7 @@ public class CollegeServiceImpl implements CollegeService {
                 college.getContactPhone(),
                 college.getLogoUrl() == null ? null : imageStorage.responseUrl(college.getId(), "logo"),
                 college.getQrCodeUrl() == null ? null : imageStorage.responseUrl(college.getId(), "qr-code"),
+                college.getPaymentQrAccountName(),
                 college.getStatus(),
                 college.getCreatedAt(),
                 college.getUpdatedAt()

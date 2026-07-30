@@ -25,6 +25,7 @@ const defaults: CreateForm = {
   contactPhone: "",
   logoUrl: "",
   qrCodeUrl: "",
+  paymentQrAccountName: "",
 };
 
 export function CollegeForm({
@@ -78,6 +79,7 @@ export function CollegeForm({
       contactPhone: college.contactPhone || "",
       logoUrl: college.logoUrl || "",
       qrCodeUrl: college.qrCodeUrl || "",
+      paymentQrAccountName: college.paymentQrAccountName || "",
     });
   }, [college, reset]);
   return (
@@ -118,7 +120,7 @@ export function CollegeForm({
           onFile={(file) => void upload(file, "logo")}
         />
         <ImageUpload
-          label="Admission QR code"
+          label="Payment QR code"
           value={qrCodeUrl}
           loading={uploading === "qr-code"}
           onFile={(file) => void upload(file, "qr-code")}
@@ -126,6 +128,12 @@ export function CollegeForm({
         <input type="hidden" {...register("logoUrl")} />
         <input type="hidden" {...register("qrCodeUrl")} />
       </div>
+      <Input
+        label="QR account name"
+        placeholder="Exact account name shown after scanning the QR code"
+        error={errors.paymentQrAccountName?.message}
+        {...register("paymentQrAccountName")}
+      />
       <div className="flex justify-end gap-3 border-t pt-5">
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel

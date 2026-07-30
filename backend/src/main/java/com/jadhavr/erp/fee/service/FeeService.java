@@ -19,6 +19,7 @@ public interface FeeService {
             String academicYear, StudentCategory category, FeeStructureStatus status,
             int page, int size, String sort, String direction);
     void createAccountForAdmission(AdmissionForm admission);
+    void createRegularFeeAccount(AdmissionForm admission);
     StudentFeeAccountResponse myAccount();
     String myCollegeQrStorageName();
     PaymentResponse submitPayment(SubmitPaymentRequest request, String proofStorageName);

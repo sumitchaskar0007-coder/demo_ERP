@@ -252,7 +252,7 @@ export function DashboardLayout() {
         {navigationVisible && (
           <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unreadCount} />
         )}
-        <main className={navigationVisible ? "min-w-0 pt-16 lg:pt-0" : "min-w-0"}>
+        <main className={navigationVisible ? "min-w-0 pt-16 lg:pt-0" : "min-w-0 pt-20"}>
           {priorityNotice ? (
             <div className="relative grid min-h-[calc(100vh-4rem)] place-items-center overflow-hidden bg-slate-50 p-4 sm:p-8">
               <div

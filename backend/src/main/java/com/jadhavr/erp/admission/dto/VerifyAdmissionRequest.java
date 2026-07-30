@@ -3,6 +3,7 @@ package com.jadhavr.erp.admission.dto;
 import com.jadhavr.erp.fee.enums.StudentCategory;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
 public record VerifyAdmissionRequest(
         @NotNull StudentCategory studentCategory,
@@ -17,6 +18,8 @@ public record VerifyAdmissionRequest(
         @NotNull Boolean casteCertificateVerified,
         @NotNull Boolean incomeProofVerified,
         @NotNull Boolean nameChangeCertificateVerified,
+        List<DocumentCustody> documentCustody,
         @Size(max = 500) String remarks
 ) {
+    public record DocumentCustody(String documentType, boolean originalReceived, boolean xeroxReceived) {}
 }

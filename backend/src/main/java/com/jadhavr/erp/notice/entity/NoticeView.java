@@ -20,6 +20,8 @@ public class NoticeView {
     @Column(name = "seen_at", nullable = false)
     private LocalDateTime seenAt;
 
+    public User getUser() { return user; }
+    public LocalDateTime getSeenAt() { return seenAt; }
     public void setNotice(Notice notice) { this.notice = notice; }
     public void setUser(User user) { this.user = user; }
     public void setSeenAt(LocalDateTime seenAt) { this.seenAt = seenAt; }

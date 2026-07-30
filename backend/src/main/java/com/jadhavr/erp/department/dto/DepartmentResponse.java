@@ -3,6 +3,7 @@ package com.jadhavr.erp.department.dto;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 public record DepartmentResponse(
         Long id,
@@ -12,6 +13,7 @@ public record DepartmentResponse(
         String name,
         String code,
         String description,
+        BigDecimal admissionFormFee,
         DepartmentStatus status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

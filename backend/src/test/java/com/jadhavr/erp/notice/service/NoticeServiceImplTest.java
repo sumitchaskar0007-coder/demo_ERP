@@ -2,6 +2,7 @@ package com.jadhavr.erp.notice.service;
 
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.college.repository.CollegeRepository;
+import com.jadhavr.erp.department.repository.DepartmentRepository;
 import com.jadhavr.erp.notice.entity.Notice;
 import com.jadhavr.erp.notice.entity.NoticePriority;
 import com.jadhavr.erp.notice.repository.NoticeAcknowledgementRepository;
@@ -39,6 +40,7 @@ class NoticeServiceImplTest {
     @Mock private NoticeRepository notices;
     @Mock private UserRepository users;
     @Mock private CollegeRepository colleges;
+    @Mock private DepartmentRepository departments;
     @Mock private StaffProfileRepository staffProfiles;
     @Mock private StudentProfileRepository studentProfiles;
     @Mock private NoticeAcknowledgementRepository acknowledgements;
@@ -50,7 +52,7 @@ class NoticeServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new NoticeServiceImpl(notices, users, colleges, staffProfiles, studentProfiles,
+        service = new NoticeServiceImpl(notices, users, colleges, departments, staffProfiles, studentProfiles,
                 acknowledgements, views, streams);
         currentUser = authenticatedHod();
         lenient().when(colleges.findByStatus(com.jadhavr.erp.college.entity.CollegeStatus.ACTIVE))

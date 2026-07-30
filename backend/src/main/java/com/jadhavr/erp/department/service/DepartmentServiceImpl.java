@@ -67,6 +67,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         department.setName(request.name().trim());
         department.setCode(normalizedCode);
         department.setDescription(request.description());
+        department.setAdmissionFormFee(request.admissionFormFee());
         department.setStatus(DepartmentStatus.ACTIVE);
         return departmentMapper.toResponse(departmentRepository.save(department));
     }
@@ -118,6 +119,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         Department department = findDepartment(id);
         department.setName(request.name().trim());
         department.setDescription(request.description());
+        department.setAdmissionFormFee(request.admissionFormFee());
         return departmentMapper.toResponse(departmentRepository.save(department));
     }
 

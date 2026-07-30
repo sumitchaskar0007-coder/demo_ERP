@@ -43,7 +43,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 export function ChangePasswordPage() {
-  const { user, refreshProfile } = useAuth();
+  const { user, login } = useAuth();
   const isStudent = Boolean(user?.roles.includes(ROLES.STUDENT));
   const navigate = useNavigate();
   const [showPasswords, setShowPasswords] = useState(false);
@@ -63,9 +63,10 @@ export function ChangePasswordPage() {
   const submit = async ({ currentPassword, newPassword, confirmPassword }: FormValues) => {
     try {
       await api.changePassword({ currentPassword, newPassword, confirmPassword });
-      await refreshProfile();
+      if (!user?.email) throw new Error("Signed-in account could not be identified");
+      const authenticatedUser = await login({ email: user.email, password: newPassword });
       toast.success("Password changed successfully");
-      navigate(defaultRouteForRoles(user?.roles), { replace: true });
+      navigate(defaultRouteForRoles(authenticatedUser.roles), { replace: true });
     } catch (error) {
       toast.error(handleApiError(error).message);
     }

@@ -30,10 +30,12 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
     @Query("select a from StudentFeeAccount a where a.id = :id")
     Optional<StudentFeeAccount> findByIdForUpdate(@Param("id") Long id);
 
-    Optional<StudentFeeAccount> findByAdmissionFormId(Long id);
+    Optional<StudentFeeAccount> findFirstByAdmissionFormIdAndFeeStructureIsNullOrderByCreatedAtDesc(Long id);
+    Optional<StudentFeeAccount> findFirstByAdmissionFormIdAndFeeStructureIsNotNullOrderByCreatedAtDesc(Long id);
     List<StudentFeeAccount> findByAdmissionFormIdIn(Collection<Long> ids);
 
-    boolean existsByAdmissionFormId(Long id);
+    boolean existsByAdmissionFormIdAndFeeStructureIsNull(Long id);
+    boolean existsByAdmissionFormIdAndFeeStructureIsNotNull(Long id);
 
     boolean existsByFeeStructureId(Long id);
 

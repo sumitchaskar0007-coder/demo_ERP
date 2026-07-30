@@ -16,6 +16,7 @@ public class DepartmentMapper {
                 department.getName(),
                 department.getCode(),
                 department.getDescription(),
+                department.getAdmissionFormFee(),
                 department.getStatus(),
                 department.getCreatedAt(),
                 department.getUpdatedAt()

@@ -61,6 +61,7 @@ export interface StudentFeeAccountResponse {
   scholarshipAmount: number;
   minimumAmountForAdmission: number;
   status: FeeAccountStatus;
+  admissionFeeAccount: boolean;
   collegeQrCodeUrl?: string | null;
   collegeQrAccountName: string;
   paymentInstructions: string;

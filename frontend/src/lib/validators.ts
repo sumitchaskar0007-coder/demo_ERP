@@ -27,15 +27,44 @@ export const createCollegeSchema = z.object({
   contactPhone: z.string().max(20).optional().default(""),
   logoUrl: z.string().max(500).optional().default(""),
   qrCodeUrl: z.string().max(500).optional().default(""),
+  paymentQrAccountName: z.string().trim().max(150).optional().default(""),
+}).superRefine((value, context) => {
+  if (value.qrCodeUrl && !value.paymentQrAccountName) {
+    context.addIssue({
+      code: "custom",
+      path: ["paymentQrAccountName"],
+      message: "QR account name is required when a QR code is uploaded",
+    });
+  }
 });
 
-export const updateCollegeSchema = createCollegeSchema.omit({ code: true });
+export const updateCollegeSchema = z.object({
+  name: z.string().trim().min(2, "Name must contain at least 2 characters").max(150),
+  address: z.string().max(500).optional().default(""),
+  city: z.string().max(100).optional().default(""),
+  state: z.string().max(100).optional().default(""),
+  pincode: z.string().max(10).optional().default(""),
+  contactEmail: optionalEmail.optional().default(""),
+  contactPhone: z.string().max(20).optional().default(""),
+  logoUrl: z.string().max(500).optional().default(""),
+  qrCodeUrl: z.string().max(500).optional().default(""),
+  paymentQrAccountName: z.string().trim().max(150).optional().default(""),
+}).superRefine((value, context) => {
+  if (value.qrCodeUrl && !value.paymentQrAccountName) {
+    context.addIssue({
+      code: "custom",
+      path: ["paymentQrAccountName"],
+      message: "QR account name is required when a QR code is uploaded",
+    });
+  }
+});
 
 export const createDepartmentSchema = z.object({
   collegeId: z.coerce.number().positive("College is required"),
   name: z.string().trim().min(2, "Name must contain at least 2 characters").max(150),
   code,
   description: z.string().max(500).optional().default(""),
+  admissionFormFee: z.coerce.number().positive("Admission form fee must be greater than zero"),
 });
 
 export const updateDepartmentSchema = createDepartmentSchema.omit({
@@ -180,21 +209,6 @@ export const divisionSchema = z.object({
 export const approveAdmissionSchema = z.object({
   studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
   photoVerified: z.boolean().refine(Boolean, "Verify the passport photo"),
-  tenthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 10th marksheet"),
-  twelfthMarksheetVerified: z.boolean().refine(Boolean, "Verify the 12th marksheet"),
-  provisionalCertificateVerified: z.boolean().refine(Boolean, "Verify the provisional certificate"),
-  leavingCertificateVerified: z.boolean().refine(Boolean, "Verify the leaving certificate"),
-  nationalityCertificateVerified: z.boolean().refine(Boolean, "Verify the nationality certificate"),
-  domicileCertificateVerified: z.boolean().refine(Boolean, "Verify the domicile certificate"),
-  aadhaarCardVerified: z.boolean().refine(Boolean, "Verify the Aadhaar card"),
-  // Disabled checkboxes are omitted by the browser. Missing optional documents
-  // therefore resolve to false instead of blocking the entire approval form.
-  graduationPgCertificateVerified: z.boolean().optional().default(false),
-  migrationCertificateVerified: z.boolean().optional().default(false),
-  gapAffidavitVerified: z.boolean().optional().default(false),
-  casteCertificateVerified: z.boolean().optional().default(false),
-  incomeProofVerified: z.boolean().optional().default(false),
-  nameChangeCertificateVerified: z.boolean().optional().default(false),
   remarks: z.string().max(500).optional().default(""),
 });
 

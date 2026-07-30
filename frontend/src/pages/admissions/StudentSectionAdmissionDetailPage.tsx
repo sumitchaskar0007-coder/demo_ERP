@@ -27,6 +27,8 @@ import * as api from "@/features/admissions/api";
 import type {
   AdmissionStatusHistoryResponse,
   StudentSectionAdmissionResponse,
+  AdmissionDocumentRequirement,
+  AdmissionDocumentCustody,
 } from "@/features/admissions/types";
 import type { AdmissionFeeSummaryResponse } from "@/features/fees/types";
 import { useAuth } from "@/features/auth/authStore";
@@ -40,20 +42,26 @@ export function StudentSectionAdmissionDetailPage() {
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [history, setHistory] = useState<AdmissionStatusHistoryResponse[]>([]);
   const [fees, setFees] = useState<AdmissionFeeSummaryResponse | null>(null);
+  const [requirements, setRequirements] = useState<AdmissionDocumentRequirement[]>([]);
+  const [custody, setCustody] = useState<AdmissionDocumentCustody[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [modal, setModal] = useState<"approve" | "reject" | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [detail, timeline, feeSummary] = await Promise.all([
+      const [detail, timeline, feeSummary, configuredDocuments, custodyRows] = await Promise.all([
         api.getStudentSectionAdmission(id),
         api.getAdmissionHistory(id),
         api.getStudentSectionAdmissionFees(id),
+        api.getAdmissionDocumentRequirements(id),
+        api.getDocumentCustody(id),
       ]);
       setAdmission(detail);
       setHistory(timeline);
       setFees(feeSummary);
+      setRequirements(configuredDocuments.filter((item) => item.active));
+      setCustody(custodyRows);
     } catch (err) {
       toast.error(handleApiError(err).message);
     } finally {
@@ -201,8 +209,31 @@ export function StudentSectionAdmissionDetailPage() {
         id={id}
         requestedCategory={admission.studentCategory}
         admission={admission}
+        requirements={requirements}
         reload={load}
       />
+      {custody.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-lg font-bold">Physical document custody</h2>
+          <div className="mt-4 space-y-3">
+            {custody.map((item) => (
+              <div key={item.documentType} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
+                <div><p className="font-semibold">{requirements.find(r => r.documentKey === item.documentType)?.documentName ?? item.documentType}</p>
+                  <p className="text-xs text-slate-500">{[item.originalReceived && "Original", item.xeroxReceived && "Xerox"].filter(Boolean).join(" + ")}</p></div>
+                <label className="flex items-center gap-2 text-sm font-semibold">
+                  <input type="checkbox" checked={item.returnedToStudent} onChange={async (e) => {
+                    const remarks = e.target.checked
+                      ? window.prompt("Return remarks (optional)", item.returnRemarks ?? "") ?? ""
+                      : "";
+                    await api.markDocumentReturned(id, item.documentType, e.target.checked, remarks);
+                    await load();
+                  }} /> Returned to student
+                </label>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -217,6 +248,7 @@ function ActionModal({
   id,
   requestedCategory,
   admission,
+  requirements,
   reload,
 }: {
   modal: "approve" | "reject" | null;
@@ -224,6 +256,7 @@ function ActionModal({
   id: number;
   requestedCategory: StudentSectionAdmissionResponse["studentCategory"];
   admission: StudentSectionAdmissionResponse;
+  requirements: AdmissionDocumentRequirement[];
   reload: () => Promise<void>;
 }) {
   const approveForm = useForm<z.infer<typeof approveAdmissionSchema>>({
@@ -231,19 +264,6 @@ function ActionModal({
     defaultValues: {
       studentCategory: requestedCategory,
       photoVerified: false,
-      tenthMarksheetVerified: false,
-      twelfthMarksheetVerified: false,
-      provisionalCertificateVerified: false,
-      leavingCertificateVerified: false,
-      nationalityCertificateVerified: false,
-      domicileCertificateVerified: false,
-      aadhaarCardVerified: false,
-      graduationPgCertificateVerified: false,
-      migrationCertificateVerified: false,
-      gapAffidavitVerified: false,
-      casteCertificateVerified: false,
-      incomeProofVerified: false,
-      nameChangeCertificateVerified: false,
       remarks: "",
     },
   });
@@ -251,8 +271,13 @@ function ActionModal({
     resolver: zodResolver(rejectAdmissionSchema),
     defaultValues: { rejectionReason: "" },
   });
+  const [documentCustody, setDocumentCustody] = useState<Record<string, { originalReceived: boolean; xeroxReceived: boolean }>>({});
   const submit = async (values: Record<string, string | boolean>) => {
     try {
+      if (modal === "approve")
+        if (requirements.some((item) => item.required && !documentCustody[item.documentKey])) {
+          throw new Error("Select Original, Xerox, or both for every required document");
+        }
       if (modal === "approve")
         await api.approveAdmission(id, {
           studentCategory:
@@ -268,6 +293,9 @@ function ActionModal({
           casteCertificateVerified: Boolean(values.casteCertificateVerified),
           incomeProofVerified: Boolean(values.incomeProofVerified),
           nameChangeCertificateVerified: Boolean(values.nameChangeCertificateVerified),
+          documentCustody: requirements
+            .filter((item) => documentCustody[item.documentKey])
+            .map((item) => ({ documentType: item.documentKey, ...documentCustody[item.documentKey] })),
           remarks: String(values.remarks || ""),
         });
       if (modal === "reject")
@@ -313,83 +341,28 @@ function ActionModal({
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
             <div>
               <p className="text-sm font-bold">Required document verification</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Verify the passport photo and all 7 required documents.
-              </p>
+              <p className="mt-1 text-xs text-slate-500">Only documents configured for this department are shown.</p>
             </div>
             <VerificationCheckbox
               label="Passport photo"
               available={admission.photoAvailable}
               {...approveForm.register("photoVerified")}
             />
-            <VerificationCheckbox
-              label="10th marksheet"
-              available={admission.tenthMarksheetAvailable}
-              {...approveForm.register("tenthMarksheetVerified")}
-            />
-            <VerificationCheckbox
-              label="12th marksheet"
-              available={admission.twelfthMarksheetAvailable}
-              {...approveForm.register("twelfthMarksheetVerified")}
-            />
-            <VerificationCheckbox
-              label="Provisional certificate"
-              available={admission.uploadedDocuments.includes("PROVISIONAL_CERTIFICATE")}
-              {...approveForm.register("provisionalCertificateVerified")}
-            />
-            <VerificationCheckbox
-              label="Transfer / leaving certificate"
-              available={admission.leavingCertificateAvailable}
-              {...approveForm.register("leavingCertificateVerified")}
-            />
-            <VerificationCheckbox
-              label="Nationality certificate"
-              available={admission.uploadedDocuments.includes("NATIONALITY_CERTIFICATE")}
-              {...approveForm.register("nationalityCertificateVerified")}
-            />
-            <VerificationCheckbox
-              label="Domicile certificate"
-              available={admission.uploadedDocuments.includes("DOMICILE_CERTIFICATE")}
-              {...approveForm.register("domicileCertificateVerified")}
-            />
-            <VerificationCheckbox
-              label="Aadhaar card"
-              available={admission.aadhaarCardAvailable}
-              {...approveForm.register("aadhaarCardVerified")}
-            />
+            {requirements.filter(item => item.required).map(item => (
+              <CustodyChoice key={item.documentKey} requirement={item}
+                available={admission.uploadedDocuments.includes(item.documentKey)}
+                value={documentCustody[item.documentKey]}
+                onChange={(value) => setDocumentCustody(current => ({...current, [item.documentKey]: value}))} />
+            ))}
           </div>
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
             <p className="text-sm font-bold">Optional document verification</p>
-            <VerificationCheckbox
-              label="Graduation / PG certificate"
-              available={admission.graduationPgCertificateAvailable}
-              {...approveForm.register("graduationPgCertificateVerified")}
-            />
-            <VerificationCheckbox
-              label="Migration certificate"
-              available={admission.migrationCertificateAvailable}
-              {...approveForm.register("migrationCertificateVerified")}
-            />
-            <VerificationCheckbox
-              label="Gap affidavit"
-              available={admission.gapAffidavitAvailable}
-              {...approveForm.register("gapAffidavitVerified")}
-            />
-            <VerificationCheckbox
-              label="Caste certificate"
-              available={admission.casteCertificateAvailable}
-              {...approveForm.register("casteCertificateVerified")}
-            />
-            <VerificationCheckbox
-              label="Income proof"
-              available={admission.incomeProofAvailable}
-              {...approveForm.register("incomeProofVerified")}
-            />
-            <VerificationCheckbox
-              label="Name-change certificate"
-              available={admission.nameChangeCertificateAvailable}
-              {...approveForm.register("nameChangeCertificateVerified")}
-            />
+            {requirements.filter(item => !item.required).map(item => (
+              <CustodyChoice key={item.documentKey} requirement={item}
+                available={admission.uploadedDocuments.includes(item.documentKey)}
+                value={documentCustody[item.documentKey]}
+                onChange={(value) => setDocumentCustody(current => ({...current, [item.documentKey]: value}))} />
+            ))}
           </div>
           <Textarea
             label="Remarks"
@@ -433,3 +406,41 @@ const VerificationCheckbox = forwardRef<
     </label>
   );
 });
+
+function CustodyChoice({
+  requirement,
+  available,
+  value,
+  onChange,
+}: {
+  requirement: AdmissionDocumentRequirement;
+  available: boolean;
+  value?: { originalReceived: boolean; xeroxReceived: boolean };
+  onChange: (value: { originalReceived: boolean; xeroxReceived: boolean }) => void;
+}) {
+  const current = value ?? { originalReceived: false, xeroxReceived: false };
+  return (
+    <div className="rounded-lg border bg-white p-3 text-sm">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-semibold">{requirement.documentName}</span>
+        <span className={available ? "text-emerald-700" : "text-rose-600"}>
+          {available ? "Uploaded" : "Missing"}
+        </span>
+      </div>
+      {available && (
+        <div className="mt-2 flex gap-5">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={current.originalReceived}
+              onChange={(event) => onChange({ ...current, originalReceived: event.target.checked })} />
+            Original
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={current.xeroxReceived}
+              onChange={(event) => onChange({ ...current, xeroxReceived: event.target.checked })} />
+            Xerox
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}

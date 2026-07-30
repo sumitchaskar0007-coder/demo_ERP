@@ -35,7 +35,7 @@ export function DepartmentForm({
     formState: { errors, isSubmitting },
   } = useForm<CreateForm>({
     resolver: zodResolver(editing ? updateDepartmentSchema : createDepartmentSchema),
-    defaultValues: { collegeId: user.collegeId || 0, name: "", code: "", description: "" },
+    defaultValues: { collegeId: user.collegeId || 0, name: "", code: "", description: "", admissionFormFee: 0 },
   });
   useEffect(() => {
     reset(
@@ -45,8 +45,9 @@ export function DepartmentForm({
             name: department.name,
             code: department.code,
             description: department.description || "",
+            admissionFormFee: department.admissionFormFee,
           }
-        : { collegeId: user.collegeId || 0, name: "", code: "", description: "" },
+        : { collegeId: user.collegeId || 0, name: "", code: "", description: "", admissionFormFee: 0 },
     );
   }, [department, reset, user.collegeId]);
   const options = [
@@ -82,6 +83,14 @@ export function DepartmentForm({
         label="Description"
         error={errors.description?.message}
         {...register("description")}
+      />
+      <Input
+        label="Admission form fee *"
+        type="number"
+        min="0.01"
+        step="0.01"
+        error={errors.admissionFormFee?.message}
+        {...register("admissionFormFee")}
       />
       <div className="flex justify-end gap-3 border-t pt-5">
         <Button type="button" variant="secondary" onClick={onCancel}>

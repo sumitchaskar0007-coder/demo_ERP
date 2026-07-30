@@ -4,6 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import java.math.BigDecimal;
 
 public record CreateDepartmentRequest(
         @NotNull(message = "College ID is required") Long collegeId,
@@ -18,6 +21,9 @@ public record CreateDepartmentRequest(
                 message = "Department code may contain only letters, numbers, underscores and hyphens")
         String code,
         @Size(max = 500, message = "Description must not exceed 500 characters")
-        String description
+        String description,
+        @DecimalMin(value = "0.01", message = "Admission form fee must be greater than zero")
+        @Digits(integer = 10, fraction = 2, message = "Admission form fee must be a valid amount")
+        BigDecimal admissionFormFee
 ) {
 }

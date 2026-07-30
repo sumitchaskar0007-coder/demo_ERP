@@ -16,6 +16,7 @@ public record CollegeResponse(
         String contactPhone,
         String logoUrl,
         String qrCodeUrl,
+        String paymentQrAccountName,
         CollegeStatus status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

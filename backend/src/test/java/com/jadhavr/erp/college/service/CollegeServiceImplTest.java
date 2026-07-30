@@ -45,7 +45,7 @@ class CollegeServiceImplTest {
     void createCollegeNormalizesCodeAndDefaultsStatus() {
         CreateCollegeRequest request = new CreateCollegeRequest(
                 "ABC College", " abc001 ", null, "Pune", "Maharashtra",
-                "411001", "admin@abc.com", null, null, null
+                "411001", "admin@abc.com", null, null, null, null
         );
         when(repository.existsByCode("ABC001")).thenReturn(false);
         when(repository.saveAndFlush(any(College.class))).thenAnswer(invocation -> {
@@ -64,7 +64,7 @@ class CollegeServiceImplTest {
     void createCollegeRejectsDuplicateCode() {
         CreateCollegeRequest request = new CreateCollegeRequest(
                 "ABC College", "abc001", null, null, null,
-                null, null, null, null, null
+                null, null, null, null, null, null
         );
         when(repository.existsByCode("ABC001")).thenReturn(true);
 

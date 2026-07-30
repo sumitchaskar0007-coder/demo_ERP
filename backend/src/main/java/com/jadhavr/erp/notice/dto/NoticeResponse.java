@@ -11,5 +11,7 @@ public record NoticeResponse(
         Long createdByUserId, String createdByName,
         Set<Long> collegeIds, Set<String> collegeNames, boolean allColleges,
         Long departmentId, String departmentName,
-        Set<RoleName> audienceRoles, String actionPath, LocalDateTime createdAt
+        Set<RoleName> audienceRoles, NoticeDeliveryMode deliveryMode,
+        int recipientCount, Set<String> recipientNames,
+        String actionPath, LocalDateTime createdAt
 ) {}

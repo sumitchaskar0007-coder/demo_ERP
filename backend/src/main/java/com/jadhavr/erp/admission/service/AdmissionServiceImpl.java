@@ -50,6 +50,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.jadhavr.erp.email.service.EmailNotificationService;
+import com.jadhavr.erp.fee.service.FeeService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -88,6 +89,9 @@ public class AdmissionServiceImpl implements AdmissionService {
     private AdmissionDocumentRequirementRepository documentRequirements;
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
+    private FeeService feeService;
+    @Autowired(required = false)
+    public void setFeeService(FeeService service) { this.feeService = service; }
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
@@ -346,6 +350,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         admission.getStudent().setStatus(StudentStatus.ADMISSION_SUBMITTED);
 
         AdmissionForm saved = admissionFormRepository.save(admission);
+        if (feeService != null) feeService.createAccountForAdmission(saved);
         saveStudentSubmissionHistory(saved, oldStatus,
                 oldStatus == AdmissionStatus.SUBMITTED
                         ? "Detailed admission form submitted by student"

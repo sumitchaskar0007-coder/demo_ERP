@@ -30,6 +30,7 @@ import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.fee.service.FeeService;
+import com.jadhavr.erp.fee.entity.StudentFeeAccount;
 import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
@@ -120,6 +121,17 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
             int page, int size, String sortBy, String sortDir) {
         validatePage(page, size);
         Specification<AdmissionForm> spec = buildSpec(keyword, scopedCollegeId(), departmentId, status);
+        spec = spec.and((root, query, cb) -> {
+            var paidAccounts = query.subquery(Long.class);
+            var account = paidAccounts.from(StudentFeeAccount.class);
+            paidAccounts.select(account.get("admissionForm").get("id"))
+                    .where(
+                            cb.equal(account.get("admissionForm").get("id"), root.get("id")),
+                            cb.greaterThanOrEqualTo(
+                                    account.get("paidAmount"),
+                                    account.get("minimumAmountForAdmission")));
+            return cb.exists(paidAccounts);
+        });
         return PageResponse.from(admissions.findAll(
                 spec,
                 PageRequest.of(page, size, Sort.by(directionOrDefault(sortDir), safeSort(sortBy)))
@@ -311,7 +323,10 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
                 && passwordEncoder.matches(admission.getPhone().trim(), studentUser.getPasswordHash());
         studentUser.setMustChangePassword(stillUsingTemporaryPassword);
         AdmissionForm saved = admissions.save(admission);
-        if (feeService != null) feeService.createAccountForAdmission(saved);
+        if (feeService != null) {
+            feeService.createAccountForAdmission(saved);
+            feeService.createRegularFeeAccount(saved);
+        }
         saveHistory(saved, oldStatus, saved.getStatus(),
                 AdmissionAction.STUDENT_SECTION_APPROVED, trimToNull(request.remarks()));
         if (emailNotifications != null) {

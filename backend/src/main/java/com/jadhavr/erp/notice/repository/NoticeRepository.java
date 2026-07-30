@@ -20,7 +20,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             """)
     List<Long> findSentIds(@Param("userId") Long userId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"createdBy", "recipient", "colleges", "department", "audienceRoles"})
+    @EntityGraph(attributePaths = {"createdBy", "recipient", "recipients", "colleges", "department", "audienceRoles"})
     @Query("select distinct n from Notice n where n.id in :ids")
     List<Notice> findDetailedByIdIn(@Param("ids") Collection<Long> ids);
 
@@ -28,12 +28,19 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             select n.id from Notice n
             join n.audienceRoles role
             left join n.colleges college
+            left join n.recipients directRecipient
             where n.createdBy.id <> :userId
               and n.deletedAt is null
-              and role in :roles
-              and (n.recipient is null or n.recipient.id = :userId)
-              and (college is null or college.id = :collegeId)
-              and (n.department is null or n.department.id = :departmentId)
+              and (
+                n.recipient.id = :userId
+                or directRecipient.id = :userId
+                or (
+                  n.deliveryMode = com.jadhavr.erp.notice.dto.NoticeDeliveryMode.COMMON
+                  and role in :roles
+                  and (college is null or college.id = :collegeId)
+                  and (n.department is null or n.department.id = :departmentId)
+                )
+              )
             group by n.id, n.createdAt
             order by n.createdAt desc, n.id desc
             """)
@@ -48,12 +55,19 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             select count(distinct n.id) from Notice n
             join n.audienceRoles role
             left join n.colleges college
+            left join n.recipients directRecipient
             where n.createdBy.id <> :userId
               and n.deletedAt is null
-              and role in :roles
-              and (n.recipient is null or n.recipient.id = :userId)
-              and (college is null or college.id = :collegeId)
-              and (n.department is null or n.department.id = :departmentId)
+              and (
+                n.recipient.id = :userId
+                or directRecipient.id = :userId
+                or (
+                  n.deliveryMode = com.jadhavr.erp.notice.dto.NoticeDeliveryMode.COMMON
+                  and role in :roles
+                  and (college is null or college.id = :collegeId)
+                  and (n.department is null or n.department.id = :departmentId)
+                )
+              )
               and not exists (
                   select v.id from NoticeView v
                   where v.notice.id = n.id and v.user.id = :userId

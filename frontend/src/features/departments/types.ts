@@ -8,6 +8,7 @@ export interface Department {
   name: string;
   code: string;
   description: string | null;
+  admissionFormFee: number;
   status: EntityStatus;
   createdAt: string;
   updatedAt: string;
@@ -18,6 +19,7 @@ export interface DepartmentFormValues {
   name: string;
   code?: string;
   description: string;
+  admissionFormFee: number;
 }
 
 export interface DepartmentSearchParams {

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface StudentProfileRepository extends JpaRepository<StudentProfile, Long>,
@@ -22,6 +23,7 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     boolean existsByPrnIgnoreCaseAndIdNot(String prn, Long id);
     boolean existsByEmailAndCollegeId(String email, Long collegeId);
     List<StudentProfile> findByCollegeId(Long collegeId);
+    List<StudentProfile> findByUserIdIn(Collection<Long> userIds);
     List<StudentProfile> findByDepartmentId(Long departmentId);
     long countByCollegeId(Long collegeId);
     long countByDepartmentId(Long departmentId);

@@ -540,7 +540,16 @@ export function DetailedAdmissionForm({
               id="passport-photo"
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+              onChange={(event) => {
+                const selected = event.target.files?.[0] ?? null;
+                if (selected && selected.size > 2 * 1024 * 1024) {
+                  toast.error("Passport photo must be 2 MB or smaller");
+                  event.target.value = "";
+                  setPhoto(null);
+                  return;
+                }
+                setPhoto(selected);
+              }}
               className="sr-only"
             />
             <div className="mt-3 flex flex-wrap gap-2">

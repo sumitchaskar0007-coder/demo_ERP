@@ -1,6 +1,6 @@
 import { API_BASE_URL, apiClient } from "@/lib/apiClient";
-import type { ApiResponse } from "@/types/api";
-import type { CreateNoticeRequest, Notice } from "./types";
+import type { ApiResponse, PageResponse } from "@/types/api";
+import type { CreateNoticeRequest, Notice, NoticeReceipt, NoticeRecipientOption, NoticeRole } from "./types";
 
 export async function getNoticeInbox() {
   const { data } = await apiClient.get<ApiResponse<Notice[]>>("/api/notices/inbox");
@@ -97,9 +97,27 @@ export async function sendNotice(request: CreateNoticeRequest) {
   const { data } = await apiClient.post<ApiResponse<Notice>>("/api/notices", request);
   return data.data;
 }
+export async function searchNoticeRecipients(params: {
+  collegeId?: number;
+  departmentId?: number;
+  role?: NoticeRole;
+  query?: string;
+  page?: number;
+  size?: number;
+}) {
+  const { data } = await apiClient.get<ApiResponse<PageResponse<NoticeRecipientOption>>>(
+    "/api/notices/recipients",
+    { params },
+  );
+  return data.data;
+}
 export async function deleteNotice(id: number) {
   await apiClient.delete(`/api/notices/${id}`);
 }
 export async function acknowledgeNotice(id: number) {
   await apiClient.post(`/api/notices/${id}/acknowledge`);
+}
+export async function getNoticeReceipts(id: number) {
+  const { data } = await apiClient.get<ApiResponse<NoticeReceipt>>(`/api/notices/${id}/receipts`);
+  return data.data;
 }

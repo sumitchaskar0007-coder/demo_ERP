@@ -12,6 +12,7 @@ export interface College {
   contactPhone: string | null;
   logoUrl: string | null;
   qrCodeUrl: string | null;
+  paymentQrAccountName: string | null;
   status: EntityStatus;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ export interface CollegeFormValues {
   contactPhone: string;
   logoUrl: string;
   qrCodeUrl: string;
+  paymentQrAccountName: string;
 }
 
 export interface CollegeSearchParams {

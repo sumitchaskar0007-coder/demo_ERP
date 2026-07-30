@@ -211,6 +211,7 @@ export async function approveAdmission(
     casteCertificateVerified: boolean;
     incomeProofVerified: boolean;
     nameChangeCertificateVerified: boolean;
+    documentCustody: Array<{ documentType: string; originalReceived: boolean; xeroxReceived: boolean }>;
     remarks?: string;
   },
 ) {
@@ -297,6 +298,17 @@ export async function getPrincipalAdmissionFees(id: number) {
   const { data } = await apiClient.get<
     ApiResponse<import("@/features/fees/types").AdmissionFeeSummaryResponse>
   >(`/api/principal/admissions/${id}/fees`);
+  return data.data;
+}
+export async function getDocumentCustody(id: number) {
+  const { data } = await apiClient.get<ApiResponse<import("./types").AdmissionDocumentCustody[]>>(
+    `/api/student-section/admissions/${id}/document-custody`);
+  return data.data;
+}
+export async function markDocumentReturned(id: number, documentType: string, returnedToStudent: boolean, remarks = "") {
+  const { data } = await apiClient.patch<ApiResponse<import("./types").AdmissionDocumentCustody>>(
+    `/api/student-section/admissions/${id}/document-custody/${documentType}/returned`,
+    { returnedToStudent, remarks });
   return data.data;
 }
 

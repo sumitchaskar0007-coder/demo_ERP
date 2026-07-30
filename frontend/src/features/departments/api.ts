@@ -29,7 +29,7 @@ export async function createDepartment(
 }
 export async function updateDepartment(
   id: number,
-  values: Pick<DepartmentFormValues, "name" | "description">,
+  values: Pick<DepartmentFormValues, "name" | "description" | "admissionFormFee">,
 ) {
   const { data } = await apiClient.put<ApiResponse<Department>>(`${BASE}/${id}`, values);
   return data;

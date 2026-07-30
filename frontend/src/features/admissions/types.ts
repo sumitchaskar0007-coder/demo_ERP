@@ -48,6 +48,15 @@ export interface AdmissionDocumentRequirement {
   active: boolean;
   displayOrder: number;
 }
+export interface AdmissionDocumentCustody {
+  documentType: string;
+  originalReceived: boolean;
+  xeroxReceived: boolean;
+  receivedAt: string | null;
+  returnedToStudent: boolean;
+  returnedAt: string | null;
+  returnRemarks: string | null;
+}
 
 export interface AdmissionCourseYearOption {
   id: number;

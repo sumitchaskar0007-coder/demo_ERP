@@ -68,7 +68,7 @@ public class PrincipalAdmissionController {
     @GetMapping("/{admissionId}/fees")
     public ApiResponse<AdmissionFeeSummaryResponse> getFees(@PathVariable Long admissionId) {
         principalAdmissionService.getAdmissionForPrincipal(admissionId);
-        return ApiResponse.success("Admission fee information retrieved",
+        return ApiResponse.success("Course fee information retrieved",
                 feeService.getAdmissionFeeSummary(admissionId));
     }
     @GetMapping("/{admissionId}/photo")

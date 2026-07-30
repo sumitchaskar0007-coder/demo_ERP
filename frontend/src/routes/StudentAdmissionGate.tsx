@@ -73,6 +73,9 @@ export function StudentAdmissionGate() {
       </div>
     );
   }
-  if (location.pathname === ROUTES.studentAdmission || access?.accessGranted) return <Outlet />;
+  const paymentRoute = location.pathname === ROUTES.studentFees
+    || location.pathname.startsWith(`${ROUTES.studentFees}/`);
+  if (location.pathname === ROUTES.studentAdmission || access?.accessGranted
+      || (Boolean(access?.formCompleted) && paymentRoute)) return <Outlet />;
   return <Navigate to={ROUTES.studentAdmission} replace state={{ from: location.pathname }} />;
 }

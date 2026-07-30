@@ -13,17 +13,16 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "student_fee_accounts",
-        uniqueConstraints = @UniqueConstraint(name = "uk_fee_account_admission", columnNames = "admission_form_id"))
+@Table(name = "student_fee_accounts")
 public class StudentFeeAccount extends BaseAuditEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Version @Column(nullable = false) private long version;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "student_id", nullable = false) private StudentProfile student;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "student_user_id", nullable = false) private User studentUser;
-    @OneToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "admission_form_id", nullable = false) private AdmissionForm admissionForm;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "admission_form_id", nullable = false) private AdmissionForm admissionForm;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "college_id", nullable = false) private College college;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "department_id", nullable = false) private Department department;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "fee_structure_id", nullable = false) private FeeStructure feeStructure;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "fee_structure_id") private FeeStructure feeStructure;
     @Column(nullable = false, length = 20) private String academicYear;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'OPEN'") private StudentCategory studentCategory = StudentCategory.OPEN;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal totalFee;

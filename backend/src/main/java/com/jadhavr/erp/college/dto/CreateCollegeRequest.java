@@ -22,6 +22,8 @@ public record CreateCollegeRequest(
         @Size(max = 150, message = "Contact email must not exceed 150 characters") String contactEmail,
         @Size(max = 20, message = "Contact phone must not exceed 20 characters") String contactPhone,
         @Size(max = 500, message = "Logo URL must not exceed 500 characters") String logoUrl,
-        @Size(max = 500, message = "QR code URL must not exceed 500 characters") String qrCodeUrl
+        @Size(max = 500, message = "QR code URL must not exceed 500 characters") String qrCodeUrl,
+        @Size(max = 150, message = "QR account name must not exceed 150 characters")
+        String paymentQrAccountName
 ) {
 }

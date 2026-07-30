@@ -13,6 +13,9 @@ import com.jadhavr.erp.admission.enums.AdmissionDocumentType;
 import com.jadhavr.erp.admission.service.AdmissionPhotoService;
 import com.jadhavr.erp.admission.service.AdmissionDocumentService;
 import com.jadhavr.erp.admission.service.StudentSectionAdmissionService;
+import com.jadhavr.erp.admission.service.AdmissionDocumentCustodyService;
+import com.jadhavr.erp.admission.dto.AdmissionDocumentCustodyResponse;
+import com.jadhavr.erp.admission.dto.ReturnAdmissionDocumentRequest;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.fee.dto.AdmissionFeeSummaryResponse;
@@ -45,16 +48,18 @@ public class StudentSectionAdmissionController {
     private final AdmissionPhotoService photoService;
     private final AdmissionDocumentService documentService;
     private final FeeService feeService;
+    private final AdmissionDocumentCustodyService custodyService;
 
     public StudentSectionAdmissionController(
             StudentSectionAdmissionService admissionService,
             AdmissionPhotoService photoService,
             AdmissionDocumentService documentService,
-            FeeService feeService) {
+            FeeService feeService, AdmissionDocumentCustodyService custodyService) {
         this.admissionService = admissionService;
         this.photoService = photoService;
         this.documentService = documentService;
         this.feeService = feeService;
+        this.custodyService = custodyService;
     }
 
     @GetMapping
@@ -84,7 +89,7 @@ public class StudentSectionAdmissionController {
     @GetMapping("/{admissionId}/fees")
     public ApiResponse<AdmissionFeeSummaryResponse> getFees(@PathVariable Long admissionId) {
         admissionService.getAdmissionForStudentSection(admissionId);
-        return ApiResponse.success("Admission fee information retrieved",
+        return ApiResponse.success("Student fee information retrieved",
                 feeService.getAdmissionFeeSummary(admissionId));
     }
 
@@ -114,10 +119,24 @@ public class StudentSectionAdmissionController {
     public ApiResponse<StudentSectionAdmissionResponse> approveAdmission(
             @PathVariable Long admissionId,
             @Valid @RequestBody VerifyAdmissionRequest request) {
+        var response = admissionService.approveAdmission(admissionId, request);
+        custodyService.record(admissionId, request.documentCustody());
         return ApiResponse.success(
                 "Admission approved by Student Section successfully",
-                admissionService.approveAdmission(admissionId, request)
+                response
         );
+    }
+
+    @GetMapping("/{admissionId}/document-custody")
+    public ApiResponse<List<AdmissionDocumentCustodyResponse>> custody(@PathVariable Long admissionId) {
+        return ApiResponse.success("Document custody retrieved", custodyService.list(admissionId));
+    }
+
+    @PatchMapping("/{admissionId}/document-custody/{documentType}/returned")
+    public ApiResponse<AdmissionDocumentCustodyResponse> returned(@PathVariable Long admissionId,
+            @PathVariable String documentType, @Valid @RequestBody ReturnAdmissionDocumentRequest request) {
+        return ApiResponse.success("Document return updated",
+                custodyService.returned(admissionId, documentType, request));
     }
 
     @PatchMapping("/{admissionId}/reject")

@@ -85,12 +85,14 @@ export function DepartmentListPage() {
     name: string;
     code: string;
     description: string;
+    admissionFormFee: number;
   }) => {
     try {
       const response = editing
         ? await api.updateDepartment(editing.id, {
             name: values.name,
             description: values.description,
+            admissionFormFee: values.admissionFormFee,
           })
         : await api.createDepartment({ ...values, collegeId: user.collegeId || values.collegeId });
       toast.success(response.message);

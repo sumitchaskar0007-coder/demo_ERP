@@ -11,10 +11,18 @@ import * as admissionsApi from "@/features/admissions/api";
 import type { StudentSectionAdmissionResponse } from "@/features/admissions/types";
 import { handleApiError } from "@/lib/handleApiError";
 import { STUDENT_ADMISSION_CHANGED_EVENT } from "@/routes/StudentAdmissionGate";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/lib/constants";
 
 const rejectedStatuses = new Set(["STUDENT_SECTION_REJECTED", "PRINCIPAL_REJECTED"]);
+const studentSectionApprovedStatuses = new Set([
+  "STUDENT_SECTION_APPROVED",
+  "PRINCIPAL_REVIEW_PENDING",
+  "PRINCIPAL_APPROVED",
+]);
 
 export function StudentAdmissionPage() {
+  const navigate = useNavigate();
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,6 +46,7 @@ export function StudentAdmissionPage() {
   const afterSubmission = async () => {
     await loadAdmission();
     window.dispatchEvent(new Event(STUDENT_ADMISSION_CHANGED_EVENT));
+    navigate(ROUTES.studentFees, { replace: true });
   };
 
   if (loading && !admission) return <Loader label="Loading admission form..." />;
@@ -84,6 +93,13 @@ export function StudentAdmissionPage() {
             Your application is pending Student Section review. It is read-only while under review.
           </p>
         )}
+        {admission.detailsCompletedAt &&
+          !rejected &&
+          !studentSectionApprovedStatuses.has(admission.status) && (
+          <Button className="mt-4" onClick={() => navigate(ROUTES.studentFees)}>
+            Open admission form payment
+          </Button>
+          )}
         {rejected && (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             <p className="font-semibold">Your application was rejected.</p>

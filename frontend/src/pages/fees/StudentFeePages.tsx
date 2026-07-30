@@ -46,6 +46,7 @@ export function StudentFeesPage() {
   if (!a) return <div className="page-container">Loading fee account…</div>;
   const payableFee = Math.max(0, a.totalFee - a.scholarshipAmount);
   const pct = payableFee ? Math.round((a.paidAmount / payableFee) * 100) : 100;
+  const rejectedPayment = p.find((payment) => payment.status === "REJECTED");
   return (
     <div className="page-container space-y-5">
       <div className="flex justify-between">
@@ -59,10 +60,17 @@ export function StudentFeesPage() {
           <Button>Submit Payment Proof</Button>
         </Link>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div
+        className={`grid gap-4 sm:grid-cols-2 ${
+          a.admissionFeeAccount ? "xl:grid-cols-5" : "xl:grid-cols-6"
+        }`}
+      >
         {[
           ["Total Fee", a.totalFee],
-          ["Scholarship", a.scholarshipAmount],
+          ["Minimum Fee", a.minimumAmountForAdmission],
+          ...(!a.admissionFeeAccount
+            ? ([["Scholarship", a.scholarshipAmount]] as [string, number][])
+            : []),
           ["Payable Fee", payableFee],
           ["Paid", a.paidAmount],
           ["Remaining", a.remainingAmount],
@@ -73,6 +81,24 @@ export function StudentFeesPage() {
           </Card>
         ))}
       </div>
+      {rejectedPayment && (
+        <Card className="border-rose-200 bg-rose-50 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="font-bold text-rose-900">Payment proof rejected</h2>
+              <p className="mt-1 text-sm text-rose-800">
+                Reason: {rejectedPayment.rejectionReason || "The Fee Section rejected this proof."}
+              </p>
+              <p className="mt-1 text-xs text-rose-700">
+                Correct the payment information and upload a new proof.
+              </p>
+            </div>
+            <Link to="/student/fees/payments/new">
+              <Button>Submit proof again</Button>
+            </Link>
+          </div>
+        </Card>
+      )}
       <Card className="p-6">
         <div className="flex justify-between">
           <div>
@@ -151,7 +177,7 @@ export function SubmitPaymentPage() {
   };
   if (!a)
     return <div className="page-container text-sm text-slate-500">Loading fee account...</div>;
-  const qrAccountName = a.collegeQrAccountName || a.collegeName;
+  const qrAccountName = a.collegeQrAccountName?.trim() || "";
   return (
     <div className="page-container space-y-5 pb-10">
       <div>
@@ -208,9 +234,13 @@ export function SubmitPaymentPage() {
               <div>
                 <h3 className="font-bold text-amber-950">Verify before you pay</h3>
                 <p className="mt-2 text-sm leading-6 text-amber-900">
-                  Pay only if the account name shown after scanning the QR code is exactly
-                  <strong className="mx-1">{qrAccountName}</strong>. Do not continue if any other
-                  account name appears.
+                  {qrAccountName ? (
+                    <>Pay only if the account name shown after scanning the QR code is exactly
+                    <strong className="mx-1">{qrAccountName}</strong>. Do not continue if any other
+                    account name appears.</>
+                  ) : (
+                    <>QR account name is not configured. Contact the administrator before paying.</>
+                  )}
                 </p>
               </div>
             </div>
@@ -320,7 +350,7 @@ export function SubmitPaymentPage() {
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
             />
             <span>
-              I verified that the QR account name is <strong>{qrAccountName}</strong> before paying.
+              I verified that the QR account name is <strong>{qrAccountName || "not configured"}</strong> before paying.
             </span>
           </label>
 
@@ -328,7 +358,7 @@ export function SubmitPaymentPage() {
             className="mt-6 w-full"
             onClick={submit}
             loading={submitting}
-            disabled={!proof || !accountConfirmed}
+            disabled={!proof || !accountConfirmed || !qrAccountName}
           >
             <CheckCircle2 className="h-4 w-4" />
             Submit Proof for Verification
@@ -391,6 +421,9 @@ function PaymentList({ data }: { data: PaymentResponse[] }) {
               </p>
             </div>
             <StatusBadge status={x.status} />
+            {x.status === "REJECTED" && x.rejectionReason && (
+              <p className="w-full text-sm text-rose-700">Reason: {x.rejectionReason}</p>
+            )}
           </div>
         ))
       ) : (

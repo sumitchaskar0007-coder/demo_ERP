@@ -3,6 +3,10 @@ package com.jadhavr.erp.notice.controller;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.notice.dto.CreateNoticeRequest;
 import com.jadhavr.erp.notice.dto.NoticeResponse;
+import com.jadhavr.erp.notice.dto.NoticeRecipientOption;
+import com.jadhavr.erp.notice.dto.NoticeReceiptResponse;
+import com.jadhavr.erp.common.dto.PageResponse;
+import com.jadhavr.erp.user.entity.RoleName;
 import com.jadhavr.erp.notice.service.NoticeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -22,6 +26,23 @@ public class NoticeController {
     @PreAuthorize("hasAuthority('PERM_NOTICE_SEND')")
     public ResponseEntity<ApiResponse<NoticeResponse>> create(@Valid @RequestBody CreateNoticeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Notice sent successfully", service.create(request)));
+    }
+    @GetMapping("/recipients")
+    @PreAuthorize("hasAuthority('PERM_NOTICE_SEND')")
+    public ApiResponse<PageResponse<NoticeRecipientOption>> recipients(
+            @RequestParam(required = false) Long collegeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) RoleName role,
+            @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size) {
+        return ApiResponse.success("Notice recipients retrieved",
+                service.searchRecipients(collegeId, departmentId, role, query, page, size));
+    }
+    @GetMapping("/{id}/receipts")
+    @PreAuthorize("hasAuthority('PERM_NOTICE_SEND')")
+    public ApiResponse<NoticeReceiptResponse> receipts(@PathVariable Long id) {
+        return ApiResponse.success("Notice receipts retrieved", service.receipts(id));
     }
     @GetMapping("/inbox")
     @PreAuthorize("hasAuthority('PERM_NOTICE_READ')")

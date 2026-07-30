@@ -4,6 +4,7 @@ import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.user.entity.RoleName;
 import com.jadhavr.erp.user.entity.User;
+import com.jadhavr.erp.notice.dto.NoticeDeliveryMode;
 import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
@@ -27,6 +28,16 @@ public class Notice extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recipient_user_id")
     private User recipient;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_mode", nullable = false, length = 20,
+            columnDefinition = "varchar(20) default 'COMMON'")
+    private NoticeDeliveryMode deliveryMode = NoticeDeliveryMode.COMMON;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "notice_recipients", joinColumns = @JoinColumn(name = "notice_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id"),
+            uniqueConstraints = @UniqueConstraint(name = "uk_notice_recipient",
+                    columnNames = {"notice_id", "user_id"}))
+    private Set<User> recipients = new HashSet<>();
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "notice_colleges", joinColumns = @JoinColumn(name = "notice_id"),
             inverseJoinColumns = @JoinColumn(name = "college_id"))
@@ -57,6 +68,14 @@ public class Notice extends BaseAuditEntity {
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
     public User getRecipient() { return recipient; }
     public void setRecipient(User recipient) { this.recipient = recipient; }
+    public NoticeDeliveryMode getDeliveryMode() { return deliveryMode; }
+    public void setDeliveryMode(NoticeDeliveryMode deliveryMode) {
+        this.deliveryMode = deliveryMode == null ? NoticeDeliveryMode.COMMON : deliveryMode;
+    }
+    public Set<User> getRecipients() { return recipients; }
+    public void setRecipients(Set<User> recipients) {
+        this.recipients = recipients == null ? new HashSet<>() : new HashSet<>(recipients);
+    }
     public Set<com.jadhavr.erp.college.entity.College> getColleges() { return colleges; }
     public void setColleges(Set<com.jadhavr.erp.college.entity.College> colleges) { this.colleges = colleges; }
     public Department getDepartment() { return department; }

@@ -19,6 +19,8 @@ public class NoticeAcknowledgement {
     @Column(name = "acknowledged_at", nullable = false)
     private LocalDateTime acknowledgedAt;
 
+    public User getUser() { return user; }
+    public LocalDateTime getAcknowledgedAt() { return acknowledgedAt; }
     public void setNotice(Notice value) { notice = value; }
     public void setUser(User value) { user = value; }
     public void setAcknowledgedAt(LocalDateTime value) { acknowledgedAt = value; }
