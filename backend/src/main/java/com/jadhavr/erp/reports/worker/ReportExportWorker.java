@@ -70,7 +70,7 @@ public class ReportExportWorker {
                     queue.acknowledge(delivery);
                 }
             } catch (RuntimeException exception) {
-                log.warn("Report SQS poll failed; database fallback remains available");
+                log.warn("Report SQS poll failed; database fallback remains available", exception);
             } finally {
                 sqsPollRunning.set(false);
             }
@@ -87,7 +87,7 @@ public class ReportExportWorker {
                 if (job.getResultKey() != null) storage.delete(job.getResultKey());
                 claims.markExpired(job.getId());
             } catch (RuntimeException exception) {
-                log.warn("Unable to clean expired report export {}", job.getId());
+                log.warn("Unable to clean expired report export {}", job.getId(), exception);
             }
         }
     }
@@ -117,7 +117,8 @@ public class ReportExportWorker {
             log.warn(
                     "Report export job {} attempt {} failed",
                     job.getId(),
-                    job.getAttemptCount());
+                    job.getAttemptCount(),
+                    exception);
             claims.fail(job.getId());
         }
     }
@@ -132,7 +133,7 @@ public class ReportExportWorker {
         try {
             storage.delete(resultKey);
         } catch (RuntimeException cleanupFailure) {
-            log.warn("Unable to remove orphaned report object {}", resultKey);
+            log.warn("Unable to remove orphaned report object {}", resultKey, cleanupFailure);
         }
     }
 }

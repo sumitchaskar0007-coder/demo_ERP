@@ -5,6 +5,7 @@ import jakarta.persistence.OptimisticLockException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,7 +18,7 @@ class GlobalExceptionHandlerOptimisticLockTest {
     @Test
     void mapsSpringOptimisticLockConflictToSafeHttp409() {
         var response = handler.handleOptimisticLocking(
-                new ObjectOptimisticLockingFailureException(FeeStructure.class, 42L));
+                new ObjectOptimisticLockingFailureException(FeeStructure.class, 42L), request());
 
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -29,11 +30,15 @@ class GlobalExceptionHandlerOptimisticLockTest {
     @Test
     void mapsJpaOptimisticLockConflictWithoutExposingPersistenceDetails() {
         var response = handler.handleOptimisticLocking(
-                new OptimisticLockException("stale row in secret_schema.fee_structures"));
+                new OptimisticLockException("stale row in secret_schema.fee_structures"), request());
 
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertNotNull(response.getBody());
         assertFalse(response.getBody().message().contains("secret_schema"));
         assertFalse(response.getBody().message().contains("stale row"));
+    }
+
+    private MockHttpServletRequest request() {
+        return new MockHttpServletRequest("PATCH", "/api/fee-structures/42");
     }
 }

@@ -96,7 +96,8 @@ public class DistributedRateLimiter {
                     ? Decision.allowedDecision()
                     : Decision.rejected(retrySeconds(retryAfterMillis));
         } catch (RuntimeException exception) {
-            log.warn("rate_limit_store_unavailable namespace={} failClosed={}", safeNamespace(namespace), failClosed);
+            log.warn("rate_limit_store_unavailable namespace={} failClosed={}",
+                    safeNamespace(namespace), failClosed, exception);
             return failClosed
                     ? Decision.rejected(Math.max(1, ttl.toSeconds()))
                     : Decision.allowedDecision();
@@ -119,7 +120,7 @@ public class DistributedRateLimiter {
                     : Decision.allowedDecision();
         } catch (RuntimeException exception) {
             log.warn("rate_limit_backoff_store_unavailable namespace={} failClosed={}",
-                    safeNamespace(namespace), failClosed);
+                    safeNamespace(namespace), failClosed, exception);
             return failClosed ? Decision.rejected(1) : Decision.allowedDecision();
         }
     }
@@ -150,7 +151,7 @@ public class DistributedRateLimiter {
             return retrySeconds(delay);
         } catch (RuntimeException exception) {
             log.warn("rate_limit_backoff_store_unavailable namespace={} failClosed={}",
-                    safeNamespace(namespace), failClosed);
+                    safeNamespace(namespace), failClosed, exception);
             return failClosed ? Math.max(1, baseDelay.toSeconds()) : 0;
         }
     }
@@ -164,7 +165,8 @@ public class DistributedRateLimiter {
         try {
             redis.delete(key);
         } catch (RuntimeException exception) {
-            log.warn("rate_limit_backoff_reset_failed namespace={}", safeNamespace(namespace));
+            log.warn("rate_limit_backoff_reset_failed namespace={}",
+                    safeNamespace(namespace), exception);
         }
     }
 

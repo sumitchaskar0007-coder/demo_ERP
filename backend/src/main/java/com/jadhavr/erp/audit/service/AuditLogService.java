@@ -57,7 +57,7 @@ public class AuditLogService {
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public void log(AuditModule module, AuditAction action, String type, Long id, String description) {
         try { logWithUser(users.findById(SecurityUtils.getCurrentUserId()).orElse(null),module,action,type,id,description); }
-        catch(Exception e) { log.warn("Audit logging failed: {}",e.getMessage()); }
+        catch(Exception e) { log.warn("Audit logging failed",e); }
     }
 
     @Transactional(propagation=Propagation.REQUIRES_NEW)
@@ -67,7 +67,7 @@ public class AuditLogService {
                     .map(r->r.getName().name()).sorted().collect(Collectors.joining(",")));
             row.setCollege(user==null?null:user.getCollege()); row.setModule(module); row.setAction(action);
             row.setEntityType(type); row.setEntityId(id); row.setDescription(description); repo.save(row);
-        } catch(Exception e) { log.warn("Audit logging failed: {}",e.getMessage()); }
+        } catch(Exception e) { log.warn("Audit logging failed",e); }
     }
 
     @Transactional(readOnly=true)

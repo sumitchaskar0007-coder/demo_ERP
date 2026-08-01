@@ -148,8 +148,7 @@ public class ReportExportJobService {
         }
         PresignedObjectStorageService storage = presignedStorage.getIfAvailable();
         if (storage == null) {
-            throw new BadRequestException(
-                    "Private report download links require the S3 storage provider");
+            throw new BadRequestException("Report downloads are temporarily unavailable");
         }
         Duration remaining = Duration.between(LocalDateTime.now(), job.getExpiresAt());
         Duration linkExpiry = remaining.compareTo(properties.getDownloadExpiry()) < 0
@@ -183,7 +182,8 @@ public class ReportExportJobService {
                 // The database row is the durable fallback. Do not turn a committed,
                 // recoverable job into an API failure because SQS is temporarily down.
                 org.slf4j.LoggerFactory.getLogger(ReportExportJobService.class)
-                        .warn("Unable to publish report job {}; database polling will recover it", jobId);
+                        .warn("Unable to publish report job {}; database polling will recover it",
+                                jobId, exception);
             }
         };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {

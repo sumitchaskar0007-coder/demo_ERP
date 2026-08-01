@@ -19,9 +19,12 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class EmailWorker {
+    private static final Logger log = LoggerFactory.getLogger(EmailWorker.class);
 
     private final EmailNotificationRepository repository;
     private final EmailProvider provider;
@@ -88,6 +91,8 @@ public class EmailWorker {
                     html,
                     text));
         } catch (Exception exception) {
+            log.error("Email delivery failed notificationId={} correlationId={}",
+                    notification.getId(), notification.getCorrelationId(), exception);
             return markFailed(notification);
         }
         // Persist outside the delivery catch. A database failure must leave the queue

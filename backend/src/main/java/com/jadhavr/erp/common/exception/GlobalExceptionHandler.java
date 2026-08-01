@@ -1,6 +1,8 @@
 package com.jadhavr.erp.common.exception;
 
 import com.jadhavr.erp.common.api.ErrorResponse;
+import com.jadhavr.erp.common.error.ClientErrorMessage;
+import com.jadhavr.erp.common.error.RequestCorrelation;
 import jakarta.persistence.OptimisticLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -8,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -18,7 +21,12 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import jakarta.validation.ConstraintViolationException;
@@ -29,26 +37,33 @@ import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.UUID;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String GENERIC_FAILURE =
+            "The request could not be completed. Please try again.";
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(ClientErrorMessage.safe(
+                        exception.getMessage(), "Resource not found")));
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(ClientErrorMessage.safe(
+                        exception.getMessage(), "The request conflicts with existing data")));
     }
 
     @ExceptionHandler({OptimisticLockingFailureException.class, OptimisticLockException.class})
-    public ResponseEntity<ErrorResponse> handleOptimisticLocking(RuntimeException exception) {
+    public ResponseEntity<ErrorResponse> handleOptimisticLocking(
+            RuntimeException exception, HttpServletRequest request) {
+        log.warn("Concurrent update rejected correlationId={} method={} path={}",
+                RequestCorrelation.getOrCreate(request), request.getMethod(),
+                request.getRequestURI(), exception);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse(
                         "This record was changed by another request. Reload it and try again."));
@@ -56,7 +71,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException exception) {
-        return ResponseEntity.badRequest().body(new ErrorResponse(exception.getMessage()));
+        return ResponseEntity.badRequest().body(new ErrorResponse(ClientErrorMessage.safe(
+                exception.getMessage(), "The request is invalid")));
     }
 
     @ExceptionHandler(TooManyRequestsException.class)
@@ -65,29 +81,39 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER,
                         Long.toString(exception.getRetryAfterSeconds()))
-                .body(new ErrorResponse(exception.getMessage(), request.getRequestURI()));
+                .body(new ErrorResponse(ClientErrorMessage.safe(
+                        exception.getMessage(), "Too many requests"), request.getRequestURI()));
     }
 
     @ExceptionHandler(com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleAuthorizationStateUnavailable(
             com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException exception,
             HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(new ErrorResponse(
-                        "Authorization state is temporarily unavailable",
-                        request.getRequestURI()));
+        return hiddenFailure(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Authorization service is temporarily unavailable",
+                exception,
+                request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException exception) {
-        return ResponseEntity.badRequest().body(new ErrorResponse(exception.getMessage()));
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException exception, HttpServletRequest request) {
+        String correlationId = RequestCorrelation.getOrCreate(request);
+        log.warn("Invalid argument rejected correlationId={} method={} path={}",
+                correlationId, request.getMethod(), request.getRequestURI(), exception);
+        return ResponseEntity.badRequest()
+                .header(RequestCorrelation.HEADER, correlationId)
+                .body(new ErrorResponse(
+                        "Request contains an invalid value", request.getRequestURI()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
         Map<String, String> errors = new LinkedHashMap<>();
         for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
-            errors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
+            errors.putIfAbsent(fieldError.getField(), ClientErrorMessage.safe(
+                    fieldError.getDefaultMessage(), "This value is invalid"));
         }
         ErrorResponse response = new ErrorResponse(
                 false,
@@ -99,24 +125,21 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
-        String sqlState = exception.getMostSpecificCause() instanceof java.sql.SQLException sql
-                ? sql.getSQLState() : null;
-        if ("23505".equals(sqlState)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(new ErrorResponse("A resource with the same unique value already exists"));
-        }
-        String message = switch (sqlState == null ? "" : sqlState) {
-            case "23503" -> "The selected related record is invalid or no longer exists";
-            case "23502" -> "A required value is missing";
-            case "23514" -> "A value violates a database validation rule";
-            default -> "The request violates a database constraint";
-        };
-        return ResponseEntity.badRequest().body(new ErrorResponse(message));
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException exception, HttpServletRequest request) {
+        return hiddenFailure(
+                HttpStatus.CONFLICT,
+                "The request conflicts with existing or related data",
+                exception,
+                request);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadableMessage(HttpMessageNotReadableException exception) {
+    public ResponseEntity<ErrorResponse> handleUnreadableMessage(
+            HttpMessageNotReadableException exception, HttpServletRequest request) {
+        log.warn("Unreadable request body correlationId={} method={} path={} type={}",
+                RequestCorrelation.getOrCreate(request), request.getMethod(),
+                request.getRequestURI(), exception.getClass().getSimpleName());
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse(
                         "Request body does not match the required schema, type, or format"));
@@ -128,7 +151,9 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.TOO_EARLY)
                 .header(HttpHeaders.RETRY_AFTER, "2")
-                .body(new ErrorResponse(exception.getMessage(), request.getRequestURI()));
+                .body(new ErrorResponse(ClientErrorMessage.safe(
+                        exception.getMessage(), "The uploaded file is still being checked"),
+                        request.getRequestURI()));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -145,6 +170,45 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse(
                         "Required parameter '" + exception.getParameterName() + "' is missing"));
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestPart(
+            MissingServletRequestPartException exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("A required upload field is missing"));
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedMultipart(MultipartException exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("The upload request is invalid"));
+    }
+
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<ErrorResponse> handleBinding(BindException exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("Request values failed schema validation"));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException exception) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(new ErrorResponse("The request content type is not supported"));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMethod(
+            HttpRequestMethodNotSupportedException exception) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new ErrorResponse("The request method is not supported"));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRoute(NoResourceFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("Resource not found"));
     }
 
     @ExceptionHandler({ConstraintViolationException.class, HandlerMethodValidationException.class})
@@ -184,23 +248,27 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("User account is inactive"));
     }
 
-    // @ExceptionHandler(Exception.class)
-    // public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
-    //     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-    //             .body(new ErrorResponse("An unexpected error occurred"));
-    // }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
-        String correlationId = request.getHeader("X-Request-ID");
-        if (correlationId == null || correlationId.isBlank() || correlationId.length() > 100) {
-            correlationId = UUID.randomUUID().toString();
-        }
-        log.error("Unhandled request failure correlationId={} method={} path={}",
-                correlationId, request.getMethod(), request.getRequestURI(), exception);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .header("X-Request-ID", correlationId)
-                .body(new ErrorResponse(false, "An unexpected error occurred", LocalDateTime.now(),
-                        Map.of("correlationId", correlationId)));
+        return hiddenFailure(
+                HttpStatus.INTERNAL_SERVER_ERROR, GENERIC_FAILURE, exception, request);
+    }
+
+    private ResponseEntity<ErrorResponse> hiddenFailure(
+            HttpStatus status,
+            String clientMessage,
+            Exception exception,
+            HttpServletRequest request) {
+        String correlationId = RequestCorrelation.getOrCreate(request);
+        log.error("Request failure hidden from client correlationId={} status={} method={} path={}",
+                correlationId, status.value(), request.getMethod(), request.getRequestURI(), exception);
+        return ResponseEntity.status(status)
+                .header(RequestCorrelation.HEADER, correlationId)
+                .body(new ErrorResponse(
+                        false,
+                        clientMessage,
+                        LocalDateTime.now(),
+                        Map.of("correlationId", correlationId),
+                        request.getRequestURI()));
     }
 }
