@@ -189,7 +189,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
-  count               = 2
+  count               = var.cache_cluster_count
   alarm_name          = "${local.name}-redis-${count.index + 1}-cpu"
   namespace           = "AWS/ElastiCache"
   metric_name         = "EngineCPUUtilization"
@@ -206,7 +206,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_memory" {
-  count               = 2
+  count               = var.cache_cluster_count
   alarm_name          = "${local.name}-redis-${count.index + 1}-memory"
   namespace           = "AWS/ElastiCache"
   metric_name         = "DatabaseMemoryUsagePercentage"
@@ -223,7 +223,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_memory" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
-  count               = 2
+  count               = var.cache_cluster_count
   alarm_name          = "${local.name}-redis-${count.index + 1}-evictions"
   namespace           = "AWS/ElastiCache"
   metric_name         = "Evictions"

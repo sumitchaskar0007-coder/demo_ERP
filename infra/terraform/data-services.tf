@@ -10,14 +10,14 @@ resource "aws_db_instance" "postgres" {
   engine                          = "postgres"
   engine_version                  = "17.5"
   instance_class                  = var.db_instance_class
-  allocated_storage               = 50
+  allocated_storage               = var.db_allocated_storage_gib
   max_allocated_storage           = 500
   storage_type                    = "gp3"
   storage_encrypted               = true
   db_name                         = var.db_name
   username                        = var.db_master_username
   manage_master_user_password     = true
-  multi_az                        = true
+  multi_az                        = var.db_multi_az
   publicly_accessible             = false
   db_subnet_group_name            = aws_db_subnet_group.main[0].name
   vpc_security_group_ids          = [aws_security_group.database[0].id]
@@ -29,9 +29,9 @@ resource "aws_db_instance" "postgres" {
   skip_final_snapshot             = false
   final_snapshot_identifier       = "${local.name}-final"
   copy_tags_to_snapshot           = true
-  performance_insights_enabled    = true
-  monitoring_interval             = 60
-  monitoring_role_arn             = aws_iam_role.rds_monitoring[0].arn
+  performance_insights_enabled    = var.db_performance_insights_enabled
+  monitoring_interval             = var.db_enhanced_monitoring_enabled ? 60 : 0
+  monitoring_role_arn             = var.db_enhanced_monitoring_enabled ? aws_iam_role.rds_monitoring[0].arn : null
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   lifecycle {
@@ -40,7 +40,7 @@ resource "aws_db_instance" "postgres" {
 }
 
 resource "aws_iam_role" "rds_monitoring" {
-  count = local.manage_database ? 1 : 0
+  count = local.manage_database && var.db_enhanced_monitoring_enabled ? 1 : 0
   name  = "${local.name}-rds-monitoring"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -53,7 +53,7 @@ resource "aws_iam_role" "rds_monitoring" {
 }
 
 resource "aws_iam_role_policy_attachment" "rds_monitoring" {
-  count      = local.manage_database ? 1 : 0
+  count      = local.manage_database && var.db_enhanced_monitoring_enabled ? 1 : 0
   role       = aws_iam_role.rds_monitoring[0].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
@@ -87,10 +87,10 @@ resource "aws_elasticache_replication_group" "redis" {
   description                = "${local.name} distributed cache and rate limits"
   engine                     = "valkey"
   engine_version             = "8.0"
-  node_type                  = "cache.t4g.small"
-  num_cache_clusters         = 2
-  automatic_failover_enabled = true
-  multi_az_enabled           = true
+  node_type                  = var.cache_node_type
+  num_cache_clusters         = var.cache_cluster_count
+  automatic_failover_enabled = var.cache_cluster_count > 1
+  multi_az_enabled           = var.cache_cluster_count > 1
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
   auth_token                 = random_password.redis.result

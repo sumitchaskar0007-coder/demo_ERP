@@ -71,6 +71,7 @@ services:
     init: true
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      APP_RELEASE: ${IMAGE_TAG:-local}
       SERVER_PORT: "8081"
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-college_erp}?sslmode=disable
       DB_USERNAME: ${DB_USERNAME:-erp_app}

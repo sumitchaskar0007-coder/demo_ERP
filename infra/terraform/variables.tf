@@ -8,8 +8,8 @@ variable "environment" {
   default = "production"
 
   validation {
-    condition     = contains(["staging", "production"], var.environment)
-    error_message = "environment must be staging or production"
+    condition     = contains(["staging", "preprod", "production"], var.environment)
+    error_message = "environment must be staging, preprod, or production"
   }
 }
 
@@ -60,6 +60,56 @@ variable "db_master_username" {
 variable "db_instance_class" {
   type    = string
   default = "db.t4g.medium"
+}
+
+variable "db_allocated_storage_gib" {
+  type    = number
+  default = 50
+
+  validation {
+    condition     = var.db_allocated_storage_gib >= 20
+    error_message = "db_allocated_storage_gib must be at least 20 GiB."
+  }
+}
+
+variable "db_multi_az" {
+  type    = bool
+  default = true
+}
+
+variable "db_enhanced_monitoring_enabled" {
+  type    = bool
+  default = true
+}
+
+variable "db_performance_insights_enabled" {
+  type    = bool
+  default = true
+}
+
+variable "cache_node_type" {
+  type    = string
+  default = "cache.t4g.small"
+}
+
+variable "cache_cluster_count" {
+  type    = number
+  default = 2
+
+  validation {
+    condition     = contains([1, 2], var.cache_cluster_count)
+    error_message = "cache_cluster_count must be 1 or 2."
+  }
+}
+
+variable "nat_gateway_count" {
+  type    = number
+  default = 2
+
+  validation {
+    condition     = contains([1, 2], var.nat_gateway_count)
+    error_message = "nat_gateway_count must be 1 or 2."
+  }
 }
 
 variable "production_vpc_id" {
@@ -200,8 +250,8 @@ variable "backend_autoscaling_min_capacity" {
   description = "Minimum number of backend ECS tasks kept running."
 
   validation {
-    condition     = var.backend_autoscaling_min_capacity >= 2
-    error_message = "backend_autoscaling_min_capacity must be at least 2 for availability."
+    condition     = var.backend_autoscaling_min_capacity >= 1
+    error_message = "backend_autoscaling_min_capacity must be at least 1."
   }
 }
 

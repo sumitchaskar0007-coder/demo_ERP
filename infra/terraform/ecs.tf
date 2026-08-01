@@ -205,7 +205,7 @@ locals {
     "16384" = range(32768, 131072, 8192)
   }
 
-  backend_effective_min_capacity = local.external_production && !var.production_database_access_ready ? 0 : var.backend_autoscaling_min_capacity
+  backend_effective_min_capacity = var.desired_count == 0 ? 0 : var.backend_autoscaling_min_capacity
   async_worker_effective_count   = local.external_production && !var.production_database_access_ready ? 0 : var.async_worker_desired_count
 
   common_environment = [
