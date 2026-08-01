@@ -111,7 +111,7 @@ export function PublicAdmissionPage() {
             </div>
             <h1 className="mt-5 text-2xl font-bold sm:text-3xl">Student account created</h1>
             <p className="mx-auto mt-2 max-w-lg text-sm text-emerald-50">
-              Your first registration step is complete. Save these credentials before continuing.
+              Your first registration step is complete. Check your email for the one-time login password.
             </p>
           </div>
           <div className="p-6 sm:p-8">
@@ -119,15 +119,14 @@ export function PublicAdmissionPage() {
               <Credential label="Application reference" value={result.admissionReferenceNumber} />
               <Credential label="Admission number" value={result.admissionNumber} />
               <Credential label="Login email" value={result.email} />
-              <Credential label="Temporary password" value={result.temporaryPassword} accent />
             </div>
             <div className="mt-5 flex gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
               <div>
                 <p className="text-sm font-semibold text-blue-950">What happens next?</p>
                 <p className="mt-1 text-xs leading-5 text-blue-800">
-                  Log in using the credentials above, change your temporary password, complete the
-                  detailed admission form and upload the required documents.
+                  Open the account email, sign in with the one-time password, create a private
+                  password, then complete the detailed admission form and required documents.
                 </p>
               </div>
             </div>

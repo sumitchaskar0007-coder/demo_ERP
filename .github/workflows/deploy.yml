@@ -72,6 +72,7 @@ jobs:
             TARGET_GROUP_ARN
             ARTIFACT_BUCKET
             APPLICATION_SECRET_ID
+            MAIL_SECRET_ID
             RUNTIME_DATABASE_SECRET_ID
             DB_ENDPOINT
             DB_PORT

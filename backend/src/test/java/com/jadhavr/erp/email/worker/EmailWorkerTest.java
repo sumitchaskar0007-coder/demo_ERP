@@ -7,6 +7,7 @@ import com.jadhavr.erp.email.enums.EmailStatus;
 import com.jadhavr.erp.email.repository.EmailNotificationRepository;
 import com.jadhavr.erp.email.service.EmailMessage;
 import com.jadhavr.erp.email.service.EmailProvider;
+import com.jadhavr.erp.email.service.EmailProviderResult;
 import com.jadhavr.erp.email.service.TemplateDataCipher;
 import com.jadhavr.erp.email.template.EmailTemplateRenderer;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,6 +78,22 @@ class EmailWorkerTest {
         assertEquals(EmailStatus.FAILED, outcome.status());
         assertEquals(3, notification.getRetryCount());
         assertTrue(notification.getNextRetryAt() == null);
+        verify(repository).save(notification);
+    }
+
+    @Test
+    void successfulDeliveryRedactsSensitiveTemplateData() {
+        EmailNotification notification = notification(0, 3);
+        notification.setTemplateData(cipher.encrypt(
+                "{\"name\":\"Student\",\"temporaryPassword\":\"Secret@123\"}"));
+        when(provider.send(any(EmailMessage.class)))
+                .thenReturn(new EmailProviderResult("ses-message-id"));
+
+        EmailDeliveryOutcome outcome = worker.process(notification);
+
+        assertEquals(EmailStatus.SENT, outcome.status());
+        assertEquals("{}", cipher.decrypt(notification.getTemplateData()));
+        assertEquals("ses-message-id", notification.getProviderMessageId());
         verify(repository).save(notification);
     }
 

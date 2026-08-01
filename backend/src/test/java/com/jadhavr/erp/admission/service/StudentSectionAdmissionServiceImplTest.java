@@ -112,6 +112,7 @@ class StudentSectionAdmissionServiceImplTest {
         AdmissionForm admission = admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
         admission.setDetailsCompletedAt(LocalDateTime.now());
         admission.setPhotoStorageName("student-photo.jpg");
+        admission.getStudentUser().setMustChangePassword(true);
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
         when(admissions.save(admission)).thenReturn(admission);
         when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
@@ -189,6 +190,7 @@ class StudentSectionAdmissionServiceImplTest {
                 true,
                 true,
                 true,
+                List.of(),
                 remarks
         );
     }

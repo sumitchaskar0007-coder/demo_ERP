@@ -36,7 +36,15 @@ public interface PresignedObjectStorageService {
         }
     }
 
-    record ObjectMetadata(long contentLength, String contentType, String checksumSha256) {}
+    record ObjectMetadata(
+            long contentLength,
+            String contentType,
+            String checksumSha256,
+            String malwareScanStatus) {
+        public ObjectMetadata(long contentLength, String contentType, String checksumSha256) {
+            this(contentLength, contentType, checksumSha256, null);
+        }
+    }
 
     record PresignedDownload(String url, Instant expiresAt) {}
 }

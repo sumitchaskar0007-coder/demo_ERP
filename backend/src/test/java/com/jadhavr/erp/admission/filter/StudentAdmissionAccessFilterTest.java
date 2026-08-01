@@ -47,7 +47,7 @@ class StudentAdmissionAccessFilterTest {
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
         when(admissions.findTopByStudentUserIdOrderByCreatedAtDesc(21L))
                 .thenReturn(Optional.of(admission));
-        MockHttpServletRequest request = request("/api/student/fees/me");
+        MockHttpServletRequest request = request("/api/dashboard/student");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter().doFilter(request, response, chain);
@@ -64,7 +64,7 @@ class StudentAdmissionAccessFilterTest {
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_APPROVED);
         when(admissions.findTopByStudentUserIdOrderByCreatedAtDesc(21L))
                 .thenReturn(Optional.of(admission));
-        MockHttpServletRequest request = request("/api/student/fees/me");
+        MockHttpServletRequest request = request("/api/dashboard/student");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter().doFilter(request, response, chain);
@@ -79,7 +79,7 @@ class StudentAdmissionAccessFilterTest {
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_APPROVED);
         when(admissions.findTopByStudentUserIdOrderByCreatedAtDesc(21L))
                 .thenReturn(Optional.of(admission));
-        MockHttpServletRequest request = request("/api/student/fees/me");
+        MockHttpServletRequest request = request("/api/dashboard/student");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter().doFilter(request, response, chain);

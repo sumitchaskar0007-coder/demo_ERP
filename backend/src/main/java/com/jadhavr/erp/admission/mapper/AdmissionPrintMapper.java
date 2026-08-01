@@ -72,6 +72,9 @@ public class AdmissionPrintMapper {
                         admission.getAcademicYear(),
                         admission.getDepartment().getName(),
                         admission.getDepartment().getCode(),
+                        admission.getCourseYear() == null ? null
+                                : (admission.getDepartment().getCode() + " "
+                                        + admission.getCourseYear().getCode()).trim().toUpperCase(),
                         admission.getPreviousSchoolName(),
                         admission.getPreviousClassName(),
                         admission.getPreviousPercentage(),

@@ -88,7 +88,7 @@ public class StudentFeeController {
     private ResponseEntity<Resource> proofResponse(
             PaymentProofStorageService.PaymentProofResource proof, Long paymentId) {
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename("payment-proof-" + paymentId, StandardCharsets.UTF_8)
                         .build().toString())
                 .contentType(proof.mediaType())

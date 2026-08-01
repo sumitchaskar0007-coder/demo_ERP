@@ -63,7 +63,7 @@ async_worker_task_cpu             = 512
 async_worker_task_memory          = 1024
 async_worker_db_pool_max_size     = 4
 async_worker_db_pool_min_idle     = 1
-malware_protection_enabled        = false
+malware_protection_enabled        = true
 
 # Approved production hostname. Before applying a separate production state,
 # move/import the existing staging-owned Route 53, ACM, CloudFront, WAF, and SES

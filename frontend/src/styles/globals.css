@@ -115,6 +115,54 @@
   }
 }
 
+@page admission-form {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  .admission-form-sheet,
+  .admission-form-sheet * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .admission-form-sheet {
+    page: admission-form;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    max-width: 210mm !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    overflow: hidden !important;
+    break-after: page;
+    page-break-after: always;
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+
+  .admission-form-sheet:last-of-type {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .admission-form-sheet table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  .admission-form-sheet thead {
+    display: table-header-group;
+  }
+
+  .admission-form-sheet tr,
+  .admission-form-sheet .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
 @page timetable {
   size: A4 landscape;
   margin: 8mm;

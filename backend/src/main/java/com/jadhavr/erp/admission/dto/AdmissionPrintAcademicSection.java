@@ -7,6 +7,7 @@ public record AdmissionPrintAcademicSection(
         String academicYear,
         String departmentName,
         String departmentCode,
+        String courseYearDisplayName,
         String previousSchoolName,
         String previousClassName,
         BigDecimal previousPercentage,

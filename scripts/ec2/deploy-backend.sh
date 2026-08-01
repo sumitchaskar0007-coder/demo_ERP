@@ -199,6 +199,14 @@ secret_value() {
       '.[$key] | select(type == "string" and length > 0)'
 }
 
+secret_optional_value() {
+  local secret_json="$1"
+  local key="$2"
+  printf '%s' "${secret_json}" |
+    jq -er --arg key "${key}" \
+      '.[$key] // "" | select(type == "string")'
+}
+
 JWT_SECRET="$(secret_value "${application_secret_json}" JWT_SECRET)"
 RATE_LIMIT_KEY_SECRET="$(secret_value "${application_secret_json}" RATE_LIMIT_KEY_SECRET)"
 REDIS_PASSWORD="$(secret_value "${application_secret_json}" REDIS_PASSWORD)"
@@ -212,6 +220,9 @@ if [ -n "${mail_secret_json}" ]; then
   MAIL_PASSWORD="$(secret_value "${mail_secret_json}" password)"
   MAIL_FROM_ADDRESS="$(secret_value "${mail_secret_json}" from_address)"
   MAIL_REPLY_TO="$(secret_value "${mail_secret_json}" reply_to)"
+  MAIL_FROM_NAME="$(secret_optional_value "${mail_secret_json}" from_name)"
+  MAIL_CONFIGURATION_SET="$(secret_optional_value "${mail_secret_json}" configuration_set)"
+  if [ -z "${MAIL_FROM_NAME}" ]; then MAIL_FROM_NAME="Jadhavar Institute"; fi
   if [ "${MAIL_PORT}" != "587" ]; then
     echo "Production SMTP port must be 587 with STARTTLS" >&2
     exit 1
@@ -220,6 +231,11 @@ if [ -n "${mail_secret_json}" ]; then
     [[ ! "${MAIL_FROM_ADDRESS}" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]] ||
     [[ ! "${MAIL_REPLY_TO}" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]]; then
     echo "Production mail secret contains an invalid host or email address" >&2
+    exit 1
+  fi
+  if [ -n "${MAIL_CONFIGURATION_SET}" ] &&
+    [[ ! "${MAIL_CONFIGURATION_SET}" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
+    echo "Production SES configuration set name is invalid" >&2
     exit 1
   fi
   MAIL_ENABLED=true
@@ -244,7 +260,7 @@ for secret_name in JWT_SECRET RATE_LIMIT_KEY_SECRET REDIS_PASSWORD DB_USERNAME D
   reject_line_break "${secret_name}" "${!secret_name}"
 done
 if [ "${MAIL_ENABLED}" = "true" ]; then
-  for secret_name in MAIL_HOST MAIL_PORT MAIL_USERNAME MAIL_PASSWORD MAIL_FROM_ADDRESS MAIL_REPLY_TO; do
+  for secret_name in MAIL_HOST MAIL_PORT MAIL_USERNAME MAIL_PASSWORD MAIL_FROM_ADDRESS MAIL_REPLY_TO MAIL_FROM_NAME MAIL_CONFIGURATION_SET; do
     reject_line_break "${secret_name}" "${!secret_name}"
   done
 fi
@@ -281,6 +297,7 @@ cleanup() {
   unset application_secret_json database_secret_json mail_secret_json
   unset JWT_SECRET RATE_LIMIT_KEY_SECRET REDIS_PASSWORD DB_USERNAME DB_PASSWORD
   unset MAIL_HOST MAIL_PORT MAIL_USERNAME MAIL_PASSWORD MAIL_FROM_ADDRESS MAIL_REPLY_TO
+  unset MAIL_FROM_NAME MAIL_CONFIGURATION_SET
   exit "${exit_status}"
 }
 trap cleanup EXIT
@@ -348,6 +365,10 @@ if [ "${MAIL_ENABLED}" = "true" ]; then
   printf '%s' "${MAIL_PASSWORD}" >"${backend_secrets_tmp}/MAIL_PASSWORD"
   printf '%s' "${MAIL_FROM_ADDRESS}" >"${backend_secrets_tmp}/MAIL_FROM_ADDRESS"
   printf '%s' "${MAIL_REPLY_TO}" >"${backend_secrets_tmp}/MAIL_REPLY_TO"
+  printf '%s' "${MAIL_FROM_NAME}" >"${backend_secrets_tmp}/MAIL_FROM_NAME"
+  if [ -n "${MAIL_CONFIGURATION_SET}" ]; then
+    printf '%s' "${MAIL_CONFIGURATION_SET}" >"${backend_secrets_tmp}/MAIL_CONFIGURATION_SET"
+  fi
 fi
 
 chmod 0600 "${backend_env_tmp}"

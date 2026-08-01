@@ -9,6 +9,7 @@ import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.security.TestSecurityUsers;
 import com.jadhavr.erp.storage.ObjectStorageService;
+import com.jadhavr.erp.storage.TestUploadFiles;
 import com.jadhavr.erp.user.entity.RoleName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,7 +111,7 @@ class AdmissionDocumentServiceTest {
                 "document",
                 "marksheet.pdf",
                 "",
-                "%PDF-1.7\ncontent".getBytes(StandardCharsets.US_ASCII));
+                TestUploadFiles.pdf());
 
         AdmissionDocument saved =
                 service.save(11L, AdmissionDocumentType.TENTH_MARKSHEET, file);
@@ -227,6 +228,6 @@ class AdmissionDocumentServiceTest {
                 "document",
                 "document.pdf",
                 MediaType.APPLICATION_PDF_VALUE,
-                "%PDF-1.7\ncontent".getBytes(StandardCharsets.US_ASCII));
+                TestUploadFiles.pdf());
     }
 }

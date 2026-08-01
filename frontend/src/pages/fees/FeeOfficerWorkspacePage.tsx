@@ -15,8 +15,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BadgeIndianRupee, Download, Eye, Mail, Maximize2, RefreshCw, Search } from "lucide-react";
+import {
+  BadgeIndianRupee,
+  Download,
+  Eye,
+  Mail,
+  Maximize2,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
+import { DocumentViewer } from "@/components/common/DocumentViewer";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/feeOfficer/api";
 const input =
@@ -1337,13 +1346,15 @@ function PaymentReview({
             )}
             {proof && proof.type !== "application/pdf" && (
               <button
-                className="relative block min-h-80 w-full overflow-auto rounded-2xl bg-slate-100"
-                onClick={() => setZoom(!zoom)}
+                type="button"
+                className="relative grid min-h-80 w-full cursor-zoom-in place-items-center overflow-hidden rounded-2xl bg-slate-100"
+                onClick={() => setZoom(true)}
+                aria-label="Open payment proof in full screen"
               >
                 <img
                   src={proof.url}
                   alt="Payment proof"
-                  className={`mx-auto object-contain ${zoom ? "max-h-none" : "max-h-[560px]"}`}
+                  className="mx-auto max-h-[560px] object-contain"
                 />
                 <span className="absolute right-3 top-3 rounded-lg bg-slate-950/70 p-2 text-white">
                   <Maximize2 className="h-4 w-4" />
@@ -1390,6 +1401,16 @@ function PaymentReview({
           </Panel>
         </div>
       </div>
+      {proof && (
+        <DocumentViewer
+          open={zoom}
+          url={proof.url}
+          contentType={proof.type}
+          title={`Payment proof — ${p.student}`}
+          filename={`payment-proof-${p.id}`}
+          onClose={() => setZoom(false)}
+        />
+      )}
     </div>
   );
 }

@@ -85,7 +85,7 @@ resource "aws_iam_role_policy" "ecs_uploads" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Action   = ["s3:GetObject", "s3:GetObjectTagging", "s3:PutObject", "s3:DeleteObject"]
         Resource = "${aws_s3_bucket.uploads.arn}/*"
       },
       {

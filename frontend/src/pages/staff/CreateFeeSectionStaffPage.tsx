@@ -17,7 +17,7 @@ export function CreateFeeSectionStaffPage() {
   const submit = async () => {
     try {
       await createFeeSectionStaff(v);
-      toast.success("Fee Section staff created. First password is the phone number.");
+      toast.success("Fee Section staff created. One-time credentials were sent by email.");
     } catch (e) {
       toast.error(handleApiError(e).message);
     }
@@ -27,7 +27,7 @@ export function CreateFeeSectionStaffPage() {
       <Card className="mx-auto max-w-2xl p-7">
         <h1 className="page-title">Create Fee Section Staff</h1>
         <p className="page-subtitle">
-          The phone number is used as the first password and must be changed at first login.
+          A secure one-time password is emailed and must be changed at first login.
         </p>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Input

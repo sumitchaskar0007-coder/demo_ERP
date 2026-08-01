@@ -18,6 +18,8 @@ import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.security.TestSecurityUsers;
 import com.jadhavr.erp.storage.ObjectStorageService;
 import com.jadhavr.erp.storage.PresignedObjectStorageService;
+import com.jadhavr.erp.storage.SecureFileContentValidator;
+import com.jadhavr.erp.storage.TestUploadFiles;
 import com.jadhavr.erp.user.entity.RoleName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -126,7 +128,7 @@ class AdmissionDocumentPresignedTransferServiceTest {
                 ArgumentCaptor.forClass(AdmissionDocumentUpload.class);
         verify(uploads).saveAndFlush(upload.capture());
         assertTrue(upload.getValue().getStorageName().matches(
-                "^colleges/7/admission-documents/[0-9a-f-]+\\.pdf$"));
+                "^colleges/7/quarantine/admission-documents/[0-9a-f-]+\\.pdf$"));
         assertFalse(upload.getValue().getStorageName().contains("tenth-marksheet"));
         assertFalse(upload.getValue().getStorageName().contains("/11/"));
         assertEquals(AdmissionDocumentUploadStatus.PENDING, upload.getValue().getStatus());
@@ -180,6 +182,9 @@ class AdmissionDocumentPresignedTransferServiceTest {
         when(presignedStorage.head(upload.getStorageName()))
                 .thenReturn(new PresignedObjectStorageService.ObjectMetadata(
                         1024, "application/pdf", SHA256_BASE64));
+        when(storage.get(upload.getStorageName()))
+                .thenReturn(new ObjectStorageService.StoredObject(
+                        TestUploadFiles.pdf(), "application/pdf"));
         when(documents.findByAdmissionFormIdAndDocumentTypeForUpdate(
                 11L, AdmissionDocumentType.TENTH_MARKSHEET.name()))
                 .thenReturn(Optional.of(oldDocument));
@@ -192,10 +197,11 @@ class AdmissionDocumentPresignedTransferServiceTest {
 
         assertEquals(AdmissionDocumentUploadStatus.COMPLETED, upload.getStatus());
         assertEquals(NOW, upload.getCompletedAt());
-        assertEquals(SHA256_HEX, oldDocument.getSha256Checksum());
+        assertEquals(result.sha256(), oldDocument.getSha256Checksum());
         assertEquals(NOW, oldDocument.getVerifiedAt());
-        assertEquals(upload.getStorageName(), oldDocument.getStorageName());
-        assertEquals(SHA256_HEX, result.sha256());
+        assertTrue(oldDocument.getStorageName().matches(
+                "^colleges/7/admission-documents/[0-9a-f-]+\\.pdf$"));
+        assertEquals(oldDocument.getStorageName(), upload.getStorageName());
         verify(storage, never()).delete(anyString());
 
         List<TransactionSynchronization> synchronizations =
@@ -223,6 +229,42 @@ class AdmissionDocumentPresignedTransferServiceTest {
         verify(documents, never()).saveAndFlush(any());
         verify(storage, never()).delete(upload.getStorageName());
         verify(events).publishEvent(any(AdmissionDocumentUploadStateChangedEvent.class));
+    }
+
+    @Test
+    void keepsUploadPendingWhileMalwareScanHasNoResult() {
+        enableMalwareScan();
+        AdmissionDocumentUpload upload = pendingUpload(admission);
+        when(uploads.findByIdForUpdate(upload.getId())).thenReturn(Optional.of(upload));
+        when(presignedStorage.head(upload.getStorageName()))
+                .thenReturn(new PresignedObjectStorageService.ObjectMetadata(
+                        1024, "application/pdf", SHA256_BASE64, null));
+
+        assertThrows(UploadScanPendingException.class, () -> service.complete(
+                11L, AdmissionDocumentType.TENTH_MARKSHEET, upload.getId()));
+
+        assertEquals(AdmissionDocumentUploadStatus.PENDING, upload.getStatus());
+        verify(storage, never()).get(anyString());
+        verify(documents, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void quarantinesUploadWhenMalwareScanDoesNotPass() {
+        enableMalwareScan();
+        AdmissionDocumentUpload upload = pendingUpload(admission);
+        when(uploads.findByIdForUpdate(upload.getId())).thenReturn(Optional.of(upload));
+        when(presignedStorage.head(upload.getStorageName()))
+                .thenReturn(new PresignedObjectStorageService.ObjectMetadata(
+                        1024, "application/pdf", SHA256_BASE64, "THREATS_FOUND"));
+        when(uploads.save(upload)).thenReturn(upload);
+
+        assertThrows(BadRequestException.class, () -> service.complete(
+                11L, AdmissionDocumentType.TENTH_MARKSHEET, upload.getId()));
+
+        assertEquals(AdmissionDocumentUploadStatus.QUARANTINED, upload.getStatus());
+        assertEquals("MALWARE_SCAN_THREATS_FOUND", upload.getFailureCode());
+        verify(storage, never()).get(anyString());
+        verify(documents, never()).saveAndFlush(any());
     }
 
     @Test
@@ -312,13 +354,31 @@ class AdmissionDocumentPresignedTransferServiceTest {
         return new AdmissionDocumentPresignRequest(filename, contentType, size, SHA256_HEX);
     }
 
+    private void enableMalwareScan() {
+        service = new AdmissionDocumentPresignedTransferService(
+                admissions,
+                documents,
+                uploads,
+                presignedStorage,
+                storage,
+                events,
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                5L * 1024 * 1024,
+                300,
+                120,
+                900,
+                true,
+                new SecureFileContentValidator());
+    }
+
     private AdmissionDocumentUpload pendingUpload(AdmissionForm owner) {
         AdmissionDocumentUpload upload = new AdmissionDocumentUpload();
         upload.setId(UUID.randomUUID());
         upload.setAdmissionForm(owner);
         upload.setDocumentType(AdmissionDocumentType.TENTH_MARKSHEET);
         upload.setStorageName(
-                "colleges/" + owner.getCollege().getId() + "/admission-documents/"
+                "colleges/" + owner.getCollege().getId()
+                        + "/quarantine/admission-documents/"
                         + upload.getId() + ".pdf");
         upload.setOriginalFilename("marksheet.pdf");
         upload.setContentType("application/pdf");

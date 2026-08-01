@@ -107,30 +107,49 @@ export function AdmissionPrintPage() {
         import("jspdf"),
         import("html2canvas"),
       ]);
-      const pdf = new JsPdf({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdf = new JsPdf({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+        hotfixes: ["px_scaling"],
+      });
       for (let index = 0; index < printablePages.length; index += 1) {
-        const canvas = await html2canvas(printablePages[index], {
-          scale: 3,
+        const page = printablePages[index];
+        const canvas = await html2canvas(page, {
+          // Two output pixels per CSS pixel keeps small text sharp without
+          // creating the previous 70+ MB, slow-to-open PDF files.
+          scale: 2,
           backgroundColor: "#ffffff",
           useCORS: true,
+          imageTimeout: 15_000,
           logging: false,
+          removeContainer: true,
           scrollX: 0,
           scrollY: -window.scrollY,
+          width: page.scrollWidth,
+          height: page.scrollHeight,
+          windowWidth: page.scrollWidth,
+          windowHeight: page.scrollHeight,
         });
         if (index > 0) pdf.addPage("a4", "portrait");
-        const maxWidth = 190;
-        const maxHeight = 277;
-        const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
-        const width = canvas.width * ratio;
-        const height = canvas.height * ratio;
+        const pageWidth = 210;
+        const pageHeight = 297;
+        const fitRatio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const renderedWidth = canvas.width * fitRatio;
+        const renderedHeight = canvas.height * fitRatio;
         pdf.addImage(
-          canvas.toDataURL("image/png"),
-          "PNG",
-          (210 - width) / 2,
-          10,
-          width,
-          height,
+          canvas.toDataURL("image/jpeg", 0.94),
+          "JPEG",
+          (pageWidth - renderedWidth) / 2,
+          (pageHeight - renderedHeight) / 2,
+          renderedWidth,
+          renderedHeight,
+          `admission-page-${index + 1}`,
+          "MEDIUM",
         );
+        canvas.width = 1;
+        canvas.height = 1;
       }
       pdf.save(`admission-${data.admissionReferenceNumber}.pdf`);
       if (!studentOwned) {
@@ -193,200 +212,64 @@ export function AdmissionPrintPage() {
       >
         <InstituteHeader data={data} />
 
-        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_30mm] gap-4 border-t border-black pt-3">
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_35mm] gap-5 border-t-2 border-slate-700 pt-3">
           <div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
-              <h2 className="text-[22px] font-extrabold uppercase tracking-wide">Admission Form</h2>
-              <CourseBox>{courseCode}</CourseBox>
-              <CourseBox>{data.academic.academicYear}</CourseBox>
+            <h2 className="text-[22px] font-extrabold uppercase tracking-wide">Admission Form</h2>
+            <div className="mt-2 grid grid-cols-3 gap-4">
+              <CourseValue label="Department" value={courseCode} />
+              <CourseValue
+                label="Course Year"
+                value={formatCourseYear(
+                  data.academic.courseYearDisplayName || admission?.courseYearDisplayName,
+                )}
+              />
+              <CourseValue label="Admission year" value={data.academic.academicYear} />
             </div>
-            <div className="mt-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 text-xs">
-              <b>Form No.</b>
-              <ValueLine value={data.admissionReferenceNumber} />
-              <b>/ {academicYearShort}</b>
+            <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 text-[10px]">
+              <b className="pb-1">Form Number</b>
+              <PrintField value={data.admissionReferenceNumber} compact />
+              <b className="pb-1">Academic Session: {academicYearShort}</b>
             </div>
           </div>
-          <div className="grid h-[36mm] place-items-center overflow-hidden border border-black text-xs">
+          <div className="grid h-[45mm] w-[35mm] place-items-center overflow-hidden border border-slate-700 bg-white text-center text-[9px] text-slate-500">
             {photoUrl ? (
               <img
                 src={photoUrl}
                 alt="Student uploaded document"
-                className="h-full w-full bg-white object-contain"
+                className="h-full w-full bg-white object-cover"
               />
             ) : (
-              "Photo"
+              <span className="px-2">Passport Size Photo</span>
             )}
           </div>
         </div>
 
-        <section className="mt-3 text-[11px] leading-4">
-          <div className="mb-2">
-            <h3 className="text-xs font-bold uppercase tracking-wide">Personal Information</h3>
-            <div className="mt-1 h-px bg-black" />
-          </div>
-          <div className="space-y-1.5">
-            <FormRow number={1}>
-              <FormField
-                label="Full Name of Applicant: Mr. / Ms. / Mrs."
-                value={data.student.fullName}
-              />
-              <p className="mt-0.5 text-[9px] text-slate-700">
-                (In block letters beginning with surname)
-              </p>
-            </FormRow>
-            <FormRow number={2}>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                <b>Gender:</b>
-                <Check label="Male" checked={data.student.gender?.toLowerCase() === "male"} />
-                <Check label="Female" checked={data.student.gender?.toLowerCase() === "female"} />
-                <Check label="Other" checked={data.student.gender?.toLowerCase() === "other"} />
-                <span className="ml-auto text-[9px]">Tick the appropriate box</span>
-              </div>
-            </FormRow>
-            <FormRow number={3}>
-              <div className="grid grid-cols-3 gap-3">
-                <FormField label="Date of Birth" value={shortDate(data.student.dateOfBirth)} />
-                <FormField label="Place of Birth" value={data.student.placeOfBirth} />
-                <FormField label="State" value={data.student.state} />
-              </div>
-            </FormRow>
-            <FormRow number={4}>
-              <div className="grid grid-cols-[1.35fr_1fr] items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <b className="shrink-0">Aadhaar Card No.</b>
-                  <BoxLine boxes={12} value={data.student.aadhaarNumber} />
-                </div>
-                <div className="flex items-center gap-3">
-                  <b>Marital Status:</b>
-                  <Check
-                    label="Married"
-                    checked={data.student.maritalStatus?.toLowerCase() === "married"}
-                  />
-                  <Check
-                    label="Unmarried"
-                    checked={data.student.maritalStatus?.toLowerCase() === "unmarried"}
-                  />
-                </div>
-              </div>
-            </FormRow>
-            <FormRow number={5}>
-              <FormField label="APAAR ID" value={data.student.apaarId} />
-            </FormRow>
-            <FormRow number={6}>
-              <div className="grid grid-cols-3 gap-3">
-                <FormField label="Nationality" value={data.student.nationality || "Indian"} />
-                <FormField label="Religion" value={data.student.religion} />
-                <FormField label="Caste" value={data.student.caste} />
-              </div>
-            </FormRow>
-            <FormRow number={7}>
-              <FormField
-                label="Applicant Mobile No. & Email ID"
-                value={`${data.student.phone} / ${data.student.email}`}
-              />
-            </FormRow>
-            <FormRow number={8}>
-              <FormField label="Father / Guardian Name" value={data.parent.parentName} />
-              <div className="mt-1 grid grid-cols-2 gap-3">
-                <FormField label="Mobile No." value={data.parent.parentPhone} />
-                <FormField label="Email" value={data.parent.parentEmail} />
-              </div>
-            </FormRow>
-            <FormRow number={9}>
-              <FormField label="Permanent Address" value={address} />
-              <div className="mt-1 grid grid-cols-3 gap-3">
-                <FormField label="PIN" value={data.student.pincode} />
-                <FormField label="State" value={data.student.state} />
-                <FormField label="City" value={data.student.city} />
-              </div>
-              <div className="mt-1 grid grid-cols-2 gap-3">
-                <FormField
-                  label="Mobile No."
-                  value={data.student.permanentPhone || data.student.phone}
-                />
-                <FormField
-                  label="Email"
-                  value={data.student.permanentEmail || data.student.email}
-                />
-              </div>
-            </FormRow>
-            <FormRow number={10}>
-              <FormField label="Correspondence Address" value={correspondenceAddress || address} />
-              <div className="mt-1 grid grid-cols-3 gap-3">
-                <FormField
-                  label="PIN"
-                  value={data.student.correspondencePincode || data.student.pincode}
-                />
-                <FormField
-                  label="State"
-                  value={data.student.correspondenceState || data.student.state}
-                />
-                <FormField
-                  label="City"
-                  value={data.student.correspondenceCity || data.student.city}
-                />
-              </div>
-              <div className="mt-1 grid grid-cols-2 gap-3">
-                <FormField
-                  label="Mobile No."
-                  value={data.student.correspondenceMobile || data.student.correspondencePhone}
-                />
-                <FormField label="Email" value={data.student.correspondenceEmail} />
-              </div>
-            </FormRow>
-            <FormRow number={11}>
-              <b>Academic Record:</b>
-              <AcademicTable data={data} />
-            </FormRow>
-            <FormRow number={12}>
-              <FormField
-                label="Seat No. of Qualifying Entrance Test"
-                value={data.academic.qualifyingEntranceSeatNumber}
-              />
-            </FormRow>
-            <FormRow number={13}>
-              <FormField
-                label="Total Score in the Test (CET) - Written"
-                value={data.academic.qualifyingEntranceTotalScore}
-              />
-            </FormRow>
-            <FormRow number={14}>
-              <FormField
-                label="Last Graduation College Name & Address"
-                value={[
-                  data.academic.lastGraduationCollegeName,
-                  data.academic.lastGraduationCollegeAddress,
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
-              />
-            </FormRow>
-          </div>
-        </section>
+        <PersonalInformationSection
+          data={data}
+          permanentAddress={address}
+          correspondenceAddress={correspondenceAddress || address}
+        />
 
-        <div className="mt-7 grid grid-cols-[1fr_1fr_1.4fr] items-end gap-5 text-xs">
-          <FormField label="Date" />
-          <FormField label="Place" />
-          <b className="border-t border-black pt-1 text-center italic">
-            Signature of the Applicant
-          </b>
+        <AcademicRecordTable data={data} />
+        <EntranceDetailsSection data={data} />
+
+        <div className="mt-5 grid grid-cols-[1fr_1fr_1.35fr] items-end gap-6 text-[10px]">
+          <PrintField label="Date" value="" />
+          <PrintField label="Place" value="" />
+          <SignatureLine label="Signature of Applicant" />
         </div>
       </Card>
 
       <Card
         data-admission-pdf-page
-        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[14mm] text-black"
+        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[10mm] text-black"
       >
-        <DocumentChecklist
-          admission={admission}
-          requirements={requirements}
-          custody={custody}
-        />
+        <DocumentChecklist admission={admission} requirements={requirements} custody={custody} />
       </Card>
 
       <Card
         data-admission-pdf-page
-        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[14mm] text-black"
+        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[10mm] text-black"
       >
         <DeclarationSection declarations={data.declarations} />
         <UndertakingSection />
@@ -397,16 +280,19 @@ export function AdmissionPrintPage() {
 
 function InstituteHeader({ data }: { data: AdmissionPrintResponse }) {
   return (
-    <header className="grid grid-cols-[120px_1fr_170px] items-center gap-4 text-center">
-      <div className="text-[11px] font-semibold uppercase">
-        <div className="mx-auto mb-1 grid h-16 w-16 place-items-center rounded-full border border-black text-[10px]">
+    <header className="grid grid-cols-[80px_minmax(0,1fr)_80px] items-center gap-4 text-center">
+      <div>
+        <div className="mx-auto grid h-16 w-16 place-items-center text-[10px]">
           {data.college.logoUrl ? (
-            <img src={data.college.logoUrl} alt="" className="h-14 w-14 object-contain" />
+            <img
+              src={data.college.logoUrl}
+              alt={`${data.college.collegeName} logo`}
+              className="h-16 w-16 object-contain"
+            />
           ) : (
-            "AIMS"
+            ""
           )}
         </div>
-        {data.college.collegeName}
       </div>
       <div>
         <p className="text-sm font-bold uppercase">Jadhavar Group of Institutes</p>
@@ -419,7 +305,7 @@ function InstituteHeader({ data }: { data: AdmissionPrintResponse }) {
           Email: {data.college.contactEmail || "-"} | Phone: {data.college.contactPhone || "-"}
         </p>
       </div>
-      <div className="text-4xl font-serif">Jadhavar</div>
+      <div aria-hidden />
     </header>
   );
 }
@@ -434,42 +320,145 @@ function DeclarationSection({ declarations }: { declarations: string[] }) {
         "I fully understand that the Director of the institute will have full liberty to expel me from the institute for infringement of rules of conduct, discipline, attendance and the information given above.",
       ];
   return (
-    <section className="text-[13px] leading-6">
-      <h3 className="text-base font-bold">Declaration</h3>
-      <div className="mb-4 mt-1 h-px bg-black" />
-      <StatementList items={items} />
-      <p className="ml-auto mt-20 w-56 border-t border-black pt-1 text-center font-semibold">
-        Signature of Applicant
-      </p>
+    <section className="text-[12px] leading-6">
+      <SectionHeading>Declaration</SectionHeading>
+      <div className="mt-4">
+        <StatementList items={items} />
+      </div>
+      <div className="ml-auto mt-14 w-64">
+        <SignatureLine label="Signature of Applicant" />
+      </div>
     </section>
   );
 }
 
 function UndertakingSection() {
   return (
-    <section className="mt-12 text-[13px] leading-6">
-      <h3 className="text-base font-bold">Undertaking</h3>
-      <div className="mb-4 mt-1 h-px bg-black" />
-      <StatementList
-        items={[
-          "I undertake to observe full attendance as per the University/Institute Rules and failing which I am aware that my terms will not be granted.",
-          "So long as I am a student of Institute, I will do nothing either inside or outside the Institute which may result in disciplinary action against me under the Rules, Act and Laws.",
-          "I agree and undertake that if the fees and other charges decided by the Institute are more than the current academic year fees, then I will pay the difference to the Institute on demand.",
-        ]}
-      />
-      <div className="mt-20 grid grid-cols-2 gap-x-16 gap-y-10">
-        <FormField label="Date" />
-        <b className="border-t border-black pt-1 text-center">Signature of Applicant</b>
-        <FormField label="Place" />
-        <b className="border-t border-black pt-1 text-center">
-          Signature of the Parents / Guardian
-        </b>
+    <section className="mt-14 text-[12px] leading-6">
+      <SectionHeading>Undertaking</SectionHeading>
+      <div className="mt-4">
+        <StatementList
+          items={[
+            "I undertake to observe full attendance as per the University/Institute Rules and failing which I am aware that my terms will not be granted.",
+            "So long as I am a student of Institute, I will do nothing either inside or outside the Institute which may result in disciplinary action against me under the Rules, Act and Laws.",
+            "I agree and undertake that if the fees and other charges decided by the Institute are more than the current academic year fees, then I will pay the difference to the Institute on demand.",
+          ]}
+        />
+      </div>
+      <div className="mt-16 grid grid-cols-2 items-end gap-x-16 gap-y-10">
+        <PrintField label="Date" value="" />
+        <SignatureLine label="Signature of Applicant" />
+        <PrintField label="Place" value="" />
+        <SignatureLine label="Signature of Parent / Guardian" />
       </div>
     </section>
   );
 }
 
-function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
+function PersonalInformationSection({
+  data,
+  permanentAddress,
+  correspondenceAddress,
+}: {
+  data: AdmissionPrintResponse;
+  permanentAddress: string;
+  correspondenceAddress: string;
+}) {
+  return (
+    <section className="mt-4 text-[10px] leading-[13px]">
+      <SectionHeading>Personal Information</SectionHeading>
+      <div className="mt-2 grid grid-cols-6 gap-x-4 gap-y-2">
+        <PrintField
+          label="Full Name of Applicant"
+          value={data.student.fullName}
+          className="col-span-6"
+        />
+        <PrintField label="Gender" value={data.student.gender} className="col-span-2" />
+        <PrintField
+          label="Date of Birth"
+          value={shortDate(data.student.dateOfBirth)}
+          className="col-span-2"
+        />
+        <PrintField
+          label="Place of Birth"
+          value={data.student.placeOfBirth}
+          className="col-span-2"
+        />
+        <PrintField
+          label="Aadhaar Card Number"
+          value={data.student.aadhaarNumber}
+          className="col-span-2"
+        />
+        <PrintField label="APAAR ID" value={data.student.apaarId} className="col-span-2" />
+        <PrintField
+          label="Marital Status"
+          value={data.student.maritalStatus}
+          className="col-span-2"
+        />
+        <PrintField
+          label="Nationality"
+          value={data.student.nationality || "Indian"}
+          className="col-span-2"
+        />
+        <PrintField label="Religion" value={data.student.religion} className="col-span-2" />
+        <PrintField label="Caste" value={data.student.caste} className="col-span-2" />
+        <PrintField
+          label="Applicant Mobile Number"
+          value={data.student.phone}
+          className="col-span-2"
+        />
+        <PrintField label="Applicant Email ID" value={data.student.email} className="col-span-4" />
+        <PrintField
+          label="Father / Mother / Guardian Name"
+          value={data.parent.parentName}
+          className="col-span-3"
+        />
+        <PrintField
+          label="Guardian Mobile Number"
+          value={data.parent.parentPhone}
+          className="col-span-3"
+        />
+        <PrintField label="Guardian Email" value={data.parent.parentEmail} className="col-span-6" />
+        <PrintField label="Permanent Address" value={permanentAddress} className="col-span-6" />
+        <PrintField label="PIN Code" value={data.student.pincode} className="col-span-2" />
+        <PrintField label="State" value={data.student.state} className="col-span-2" />
+        <PrintField label="City" value={data.student.city} className="col-span-2" />
+        <PrintField
+          label="Correspondence Address"
+          value={correspondenceAddress}
+          className="col-span-6"
+        />
+        <PrintField
+          label="Correspondence PIN Code"
+          value={data.student.correspondencePincode || data.student.pincode}
+          className="col-span-2"
+        />
+        <PrintField
+          label="Correspondence State"
+          value={data.student.correspondenceState || data.student.state}
+          className="col-span-2"
+        />
+        <PrintField
+          label="Correspondence City"
+          value={data.student.correspondenceCity || data.student.city}
+          className="col-span-2"
+        />
+        <PrintField
+          label="Correspondence Mobile Number"
+          value={data.student.correspondenceMobile || data.student.correspondencePhone}
+          className="col-span-3"
+        />
+        <PrintField
+          label="Correspondence Email"
+          value={data.student.correspondenceEmail}
+          className="col-span-3"
+        />
+      </div>
+    </section>
+  );
+}
+
+function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
   const savedRows = data.academic.academicRecords?.map((record) => [
     qualificationLabel(record.qualification),
     record.instituteName || "",
@@ -495,74 +484,151 @@ function AcademicTable({ data }: { data: AdmissionPrintResponse }) {
       ];
   while (rows.length < 4) rows.push(["", "", "", "", "", "", ""]);
   return (
-    <table className="mt-1 w-full table-fixed border-collapse text-center text-[9px] leading-3">
-      <thead>
-        <tr>
-          {[
-            "Qualification",
-            "School/College/Institute",
-            "Board/University",
-            "Year of Passing",
-            "Total Marks",
-            "Obtained Marks",
-            "Percentage",
-          ].map((head) => (
-            <th key={head} className="h-9 border border-black px-1 py-2 font-semibold leading-3">
-              {head}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, index) => (
-          <tr key={index}>
-            {row.map((cell, cellIndex) => (
-              <td key={cellIndex} className="h-7 border border-black px-1 py-1.5 leading-3">
-                {cell}
-              </td>
+    <section className="mt-4 break-inside-avoid">
+      <SectionHeading>Academic Record</SectionHeading>
+      <table className="mt-2 w-full table-fixed border-collapse text-center text-[8px] leading-[11px]">
+        <colgroup>
+          <col className="w-[13%]" />
+          <col className="w-[25%]" />
+          <col className="w-[20%]" />
+          <col className="w-[11%]" />
+          <col className="w-[10%]" />
+          <col className="w-[11%]" />
+          <col className="w-[10%]" />
+        </colgroup>
+        <thead className="table-header-group">
+          <tr className="bg-slate-100">
+            {[
+              "Qualification",
+              "School / College / Institute",
+              "Board / University",
+              "Year of Passing",
+              "Total Marks",
+              "Obtained Marks",
+              "Percentage",
+            ].map((head) => (
+              <th
+                key={head}
+                className="whitespace-normal border border-slate-700 px-1.5 py-1.5 text-[7px] font-bold leading-[9px]"
+              >
+                {head}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index} className="break-inside-avoid">
+              {row.map((cell, cellIndex) => (
+                <td
+                  key={cellIndex}
+                  className="whitespace-normal border border-slate-700 px-1.5 py-1.5 align-top"
+                >
+                  {safeValue(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 
-function CourseBox({ children }: { children: ReactNode }) {
+function EntranceDetailsSection({ data }: { data: AdmissionPrintResponse }) {
   return (
-    <span className="min-w-20 border border-black px-2 py-1 text-center text-sm font-bold uppercase">
-      {children}
-    </span>
+    <section className="mt-4 break-inside-avoid text-[10px]">
+      <SectionHeading>Entrance and Final Details</SectionHeading>
+      <div className="mt-2 grid grid-cols-2 gap-x-5 gap-y-2">
+        <PrintField
+          label="Seat Number of Qualifying Entrance Test"
+          value={data.academic.qualifyingEntranceSeatNumber}
+        />
+        <PrintField
+          label="Total Score in the Test"
+          value={data.academic.qualifyingEntranceTotalScore}
+        />
+        <PrintField
+          label="Last Graduation College Name and Address"
+          value={[
+            data.academic.lastGraduationCollegeName,
+            data.academic.lastGraduationCollegeAddress,
+          ]
+            .filter(Boolean)
+            .join(", ")}
+          className="col-span-2"
+        />
+      </div>
+    </section>
   );
 }
 
-function FormRow({ number, children }: { number: number; children: ReactNode }) {
+function CourseValue({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="grid break-inside-avoid grid-cols-[18px_minmax(0,1fr)] gap-1">
-      <b>{number}.</b>
-      <div className="min-w-0">{children}</div>
-    </div>
-  );
-}
-
-function FormField({ label, value }: { label: string; value?: unknown }) {
-  return (
-    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1.5">
-      <b className="whitespace-nowrap pt-px">{label}:</b>
-      <ValueLine value={value} />
-    </div>
-  );
-}
-
-function ValueLine({ value }: { value?: unknown }) {
-  return (
-    <span className="relative block min-h-6 min-w-0 px-1 pb-2 font-medium leading-4">
-      <span className="relative z-10 block">
-        {value !== null && value !== undefined && value !== "" ? String(value) : "\u00a0"}
+    <span className="min-w-20 text-center">
+      <span className="block text-[7px] font-semibold uppercase tracking-wide text-slate-600">
+        {label}
       </span>
-      <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-black" />
+      <span className="block px-1 pb-0.5 text-xs font-bold uppercase">{value}</span>
     </span>
   );
+}
+
+function SectionHeading({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="border-b-2 border-slate-700 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-800">
+      {children}
+    </h3>
+  );
+}
+
+function PrintField({
+  label,
+  value,
+  className = "",
+  compact = false,
+}: {
+  label?: string;
+  value?: unknown;
+  className?: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`min-w-0 break-inside-avoid ${className}`}>
+      {label && (
+        <div className="mb-0.5 text-[7px] font-bold uppercase tracking-wide text-slate-600">
+          {label}
+        </div>
+      )}
+      <div
+        className={`min-w-0 whitespace-normal border-b border-slate-500 px-0.5 font-medium text-slate-950 ${
+          compact ? "min-h-5 pb-0.5 text-[10px]" : "min-h-6 pb-1 text-[9px] leading-[12px]"
+        }`}
+      >
+        {safeValue(value) || "\u00a0"}
+      </div>
+    </div>
+  );
+}
+
+function SignatureLine({ label }: { label: string }) {
+  return (
+    <div className="break-inside-avoid pt-7 text-center">
+      <div className="border-t border-slate-700 pt-1 text-[9px] font-semibold">{label}</div>
+    </div>
+  );
+}
+
+function safeValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return "";
+}
+
+function formatCourseYear(value?: string | null): string {
+  return value?.trim().replaceAll("_", " ").replace(/\s+/g, " ").toUpperCase() ?? "";
 }
 
 function DocumentChecklist({
@@ -588,11 +654,11 @@ function DocumentChecklist({
       <h2 className="text-center text-lg font-extrabold uppercase">
         Department Document Checklist
       </h2>
-      <div className="mt-2 h-0.5 bg-black" />
+      <div className="mt-2 h-0.5 bg-slate-700" />
       <p className="mt-2 text-center text-xs font-semibold">
-        {admission?.departmentName || "Department"} · {admission?.academicYear || ""}
+        {admission?.departmentName || "Department"} - {admission?.academicYear || ""}
       </p>
-      <div className="mt-5 grid grid-cols-3 gap-2">
+      <div className="mt-5 grid grid-cols-3 gap-x-5 gap-y-3">
         {[
           ["Total documents", requirements.length],
           ["Required", required.length],
@@ -601,21 +667,44 @@ function DocumentChecklist({
           ["Required pending", pending.length],
           ["Verification", pending.length ? "Pending" : "Complete"],
         ].map(([label, value]) => (
-          <div key={String(label)} className="border border-black p-2">
-            <b>{label}:</b> {value}
+          <div key={String(label)} className="border-b border-slate-500 pb-1">
+            <span className="block text-[7px] font-bold uppercase tracking-wide text-slate-600">
+              {label}
+            </span>
+            <b className="text-xs">{value}</b>
           </div>
         ))}
       </div>
-      <table className="mt-5 w-full table-fixed border-collapse text-[9px] leading-3">
-        <thead>
-          <tr>
-            {["No.", "Document", "Requirement", "Submitted", "Original", "Xerox", "Verified", "Remark"].map(
-              (heading) => (
-                <th key={heading} className="h-9 border border-black px-1 py-2">
-                  {heading}
-                </th>
-              ),
-            )}
+      <table className="mt-5 w-full table-fixed border-collapse text-[8px] leading-[11px]">
+        <colgroup>
+          <col className="w-[5%]" />
+          <col className="w-[27%]" />
+          <col className="w-[12%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
+          <col className="w-[20%]" />
+        </colgroup>
+        <thead className="table-header-group">
+          <tr className="bg-slate-100">
+            {[
+              "No.",
+              "Document",
+              "Requirement",
+              "Submitted",
+              "Original",
+              "Xerox",
+              "Verified",
+              "Remark",
+            ].map((heading) => (
+              <th
+                key={heading}
+                className="whitespace-normal border border-slate-700 px-1 py-2 align-top text-[7px] font-bold leading-[9px]"
+              >
+                {heading}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -626,18 +715,20 @@ function DocumentChecklist({
             );
             return (
               <tr key={requirement.documentKey} className="break-inside-avoid">
-                <td className="border border-black p-2 text-center">{index + 1}</td>
-                <td className="border border-black p-2 font-semibold">
+                <td className="border border-slate-700 px-1 py-2 text-center align-top">
+                  {index + 1}
+                </td>
+                <td className="whitespace-normal border border-slate-700 px-2 py-2 align-top font-semibold [overflow-wrap:normal] [word-break:normal]">
                   {requirement.documentName}
                 </td>
-                <td className="border border-black p-2 text-center">
+                <td className="border border-slate-700 px-1 py-2 text-center align-top">
                   {requirement.required ? "Required" : "Optional"}
                 </td>
-                <CheckCell checked={submitted} />
-                <CheckCell checked={documentCustody?.originalReceived} />
-                <CheckCell checked={documentCustody?.xeroxReceived} />
-                <CheckCell checked={documentVerified(admission, requirement.documentKey)} />
-                <td className="border border-black p-2">
+                <ReliableCheckCell checked={submitted} />
+                <ReliableCheckCell checked={documentCustody?.originalReceived} />
+                <ReliableCheckCell checked={documentCustody?.xeroxReceived} />
+                <ReliableCheckCell checked={documentVerified(admission, requirement.documentKey)} />
+                <td className="whitespace-normal border border-slate-700 px-2 py-2 align-top [overflow-wrap:normal] [word-break:normal]">
                   {documentCustody?.returnedToStudent ? "Returned to student" : ""}
                 </td>
               </tr>
@@ -645,7 +736,7 @@ function DocumentChecklist({
           })}
           {!requirements.length && (
             <tr>
-              <td colSpan={8} className="border border-black p-6 text-center">
+              <td colSpan={8} className="border border-slate-700 p-6 text-center">
                 No admission documents are configured for this department.
               </td>
             </tr>
@@ -653,34 +744,46 @@ function DocumentChecklist({
         </tbody>
       </table>
       {pending.length > 0 && (
-        <div className="mt-5 border border-black p-3">
+        <div className="mt-5 border-l-2 border-slate-700 bg-slate-50 p-3">
           <h3 className="font-bold uppercase">Pending Required Documents</h3>
           <ul className="mt-2 list-inside list-disc">
-            {pending.map((item) => <li key={item.documentKey}>{item.documentName}</li>)}
+            {pending.map((item) => (
+              <li key={item.documentKey}>{item.documentName}</li>
+            ))}
           </ul>
         </div>
       )}
       <div className="mt-14 grid grid-cols-2 gap-x-16 gap-y-12">
-        {["Document verification officer", "Admission officer", "Head of department", "Principal / authorized officer"].map(
-          (label) => <div key={label} className="border-t border-black pt-1 text-center">{label}</div>,
-        )}
+        {[
+          "Document verification officer",
+          "Admission officer",
+          "Head of department",
+          "Principal / authorized officer",
+        ].map((label) => (
+          <SignatureLine key={label} label={label} />
+        ))}
       </div>
     </section>
   );
 }
 
-function CheckCell({ checked }: { checked?: boolean }) {
+function ReliableCheckCell({ checked }: { checked?: boolean }) {
   return (
-    <td className="border border-black p-2 text-center text-sm font-bold">
-      {checked ? "✓" : "☐"}
+    <td className="border border-slate-700 px-1 py-2 text-center align-top">
+      <span
+        role="img"
+        aria-label={checked ? "Checked" : "Not checked"}
+        className="relative mx-auto block h-4 w-4 border border-slate-800 bg-white"
+      >
+        {checked && (
+          <span className="absolute left-[4px] top-[1px] block h-[9px] w-[5px] rotate-45 border-b-2 border-r-2 border-slate-900" />
+        )}
+      </span>
     </td>
   );
 }
 
-function documentVerified(
-  admission: StudentSectionAdmissionResponse | null,
-  key: string,
-) {
+function documentVerified(admission: StudentSectionAdmissionResponse | null, key: string) {
   if (!admission) return false;
   const fields: Record<string, boolean> = {
     TENTH_MARKSHEET: admission.tenthMarksheetVerified,
@@ -707,33 +810,6 @@ function StatementList({ items }: { items: string[] }) {
         </div>
       ))}
     </div>
-  );
-}
-
-function Check({ label, checked }: { label: string; checked?: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      {label && <span>{label}</span>}
-      <span className="grid h-4 w-4 place-items-center border border-black text-xs font-bold leading-none">
-        {checked ? "X" : ""}
-      </span>
-    </span>
-  );
-}
-
-function BoxLine({ boxes, value }: { boxes: number; value?: string | null }) {
-  const characters = value?.replace(/\s/g, "").slice(0, boxes).split("") ?? [];
-  return (
-    <span className="inline-flex align-middle">
-      {Array.from({ length: boxes }).map((_, index) => (
-        <span
-          key={index}
-          className="grid h-5 w-5 place-items-center border border-black text-[10px]"
-        >
-          {characters[index] || ""}
-        </span>
-      ))}
-    </span>
   );
 }
 

@@ -1,6 +1,7 @@
 package com.jadhavr.erp.email.config;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.mail.internet.InternetAddress;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -15,8 +16,9 @@ public class MailProperties {
 
     private boolean enabled;
     private String fromAddress = "noreply@localhost";
-    private String fromName = "Jadhavar ERP";
+    private String fromName = "Jadhavar Institute";
     private String replyTo = "noreply@localhost";
+    private String configurationSet = "";
     private int maxRetries = 3;
     private int retryDelaySeconds = 60;
     private int batchSize = 20;
@@ -54,6 +56,14 @@ public class MailProperties {
 
     public void setReplyTo(String replyTo) {
         this.replyTo = replyTo;
+    }
+
+    public String getConfigurationSet() {
+        return configurationSet;
+    }
+
+    public void setConfigurationSet(String configurationSet) {
+        this.configurationSet = configurationSet == null ? "" : configurationSet.trim();
     }
 
     public int getMaxRetries() {
@@ -116,6 +126,34 @@ public class MailProperties {
                         || sqs.isRecoveryEnabled())) {
             throw new IllegalStateException(
                     "Email SQS roles require app.mail.transport=sqs");
+        }
+        if (maxRetries < 1 || maxRetries > 10
+                || retryDelaySeconds < 1 || retryDelaySeconds > 3_600
+                || batchSize < 1 || batchSize > 100
+                || tokenExpiryMinutes < 5 || tokenExpiryMinutes > 1_440) {
+            throw new IllegalStateException("Mail retry, batch, or token limits are invalid");
+        }
+        if (!configurationSet.isEmpty()
+                && !configurationSet.matches("^[A-Za-z0-9_-]{1,64}$")) {
+            throw new IllegalStateException("SES configuration set name is invalid");
+        }
+        if (enabled) {
+            requireAddress(fromAddress, "from address");
+            requireAddress(replyTo, "reply-to address");
+            if (fromName == null || fromName.isBlank() || fromName.length() > 100
+                    || fromName.indexOf('\r') >= 0 || fromName.indexOf('\n') >= 0) {
+                throw new IllegalStateException("Mail sender name is invalid");
+            }
+        }
+    }
+
+    private void requireAddress(String value, String label) {
+        try {
+            InternetAddress address = new InternetAddress(value, true);
+            address.validate();
+            if (!address.getAddress().contains("@")) throw new IllegalArgumentException();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Mail " + label + " is invalid", exception);
         }
     }
 

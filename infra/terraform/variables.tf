@@ -410,8 +410,8 @@ variable "async_worker_db_pool_min_idle" {
 
 variable "malware_protection_enabled" {
   type        = bool
-  default     = false
-  description = "Enable billable GuardDuty Malware Protection for private uploads only after scan cost, quarantine workflow, and alerts are approved."
+  default     = true
+  description = "Enable GuardDuty Malware Protection and managed scan-result tags for private uploads."
 }
 
 variable "email_queue_depth_alarm_threshold" {

@@ -105,7 +105,7 @@ public class StudentAdmissionController {
     public ResponseEntity<Resource> getDocument(@PathVariable String type) {
         var document = documentService.loadMine(type);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(document.filename(), java.nio.charset.StandardCharsets.UTF_8)
                         .build().toString())
                 .contentType(document.mediaType())

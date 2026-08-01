@@ -80,7 +80,7 @@ export function CreateStudentSectionStaffPage() {
             />
             <Input label="Phone" error={errors.phone?.message} {...register("phone")} />
             <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">
-              First password: the staff member's phone number. A password change is required at
+              A secure one-time password is sent to the staff member's email and must be changed at
               first login.
             </p>
             <div className="md:col-span-2">

@@ -19,6 +19,7 @@ import com.jadhavr.erp.user.repository.RoleRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
+import com.jadhavr.erp.auth.util.TemporaryPasswordGenerator;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -85,13 +86,14 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.fullName().trim());
         user.setEmail(email);
         user.setPhone(request.phone());
-        user.setPasswordHash(passwordEncoder.encode(request.phone().trim()));
+        String temporaryPassword = TemporaryPasswordGenerator.generate();
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(true);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(principalRole));
         User saved = users.save(user);
         if (emailNotifications != null) {
-            emailNotifications.queuePrincipalCreatedEmail(saved, request.phone().trim());
+            emailNotifications.queuePrincipalCreatedEmail(saved, temporaryPassword);
         }
         return mapper.toResponse(saved);
     }

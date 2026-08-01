@@ -14,10 +14,20 @@ public final class HodModuleDtos {
     public record TimetableReviewRow(Long id,Long divisionId,String division,String courseYear,String academicYear,String reviewStatus,String comment,LocalDateTime submittedAt,LocalDateTime reviewedAt,long lectures) {}
     public record ActivityItem(String type,String message,LocalDateTime occurredAt) {}
     public record WorkspaceResponse(Long departmentId,String department,Summary summary,List<DivisionCard> divisions,List<StudentRow> students,long totalStudents,int page,int totalPages,List<TeacherRow> teachers,List<TeacherRow> eligibleClassTeachers,List<SubjectRow> subjects,List<TimetableReviewRow> timetables,List<ActivityItem> recentActivity) {}
-    public record BulkAllocationRequest(@NotNull Long sectionId,@NotEmpty List<@NotNull Long> studentIds) {}
-    public record AutomaticAllocationRequest(@NotNull Long courseYearId,List<Long> studentIds) {}
-    public record TransferRequest(@NotNull Long targetSectionId,@NotEmpty List<@NotNull Long> studentIds) {}
-    public record SubjectAllocationRequest(@NotNull Long teacherId,@NotEmpty List<@NotNull Long> divisionIds) {}
-    public record ClassTeacherRequest(@NotNull Long teacherId) {}
-    public record TimetableReviewRequest(@NotBlank String action,@Size(max=1000) String comment) {}
+ public record BulkAllocationRequest(
+  @NotNull @Positive Long sectionId,
+  @NotEmpty @Size(max=500) List<@NotNull @Positive Long> studentIds) {}
+ public record AutomaticAllocationRequest(
+  @NotNull @Positive Long courseYearId,
+  @Size(max=500) List<@NotNull @Positive Long> studentIds) {}
+ public record TransferRequest(
+  @NotNull @Positive Long targetSectionId,
+  @NotEmpty @Size(max=500) List<@NotNull @Positive Long> studentIds) {}
+ public record SubjectAllocationRequest(
+  @NotNull @Positive Long teacherId,
+  @NotEmpty @Size(max=100) List<@NotNull @Positive Long> divisionIds) {}
+    public record ClassTeacherRequest(@NotNull @Positive Long teacherId) {}
+    public record TimetableReviewRequest(
+     @NotBlank @Pattern(regexp="^(APPROVE|REJECT|REQUEST_CHANGES)$") String action,
+     @Size(max=1000) String comment) {}
 }

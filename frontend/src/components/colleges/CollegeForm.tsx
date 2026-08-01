@@ -160,11 +160,11 @@ function ImageUpload({
   return (
     <label className="block rounded-xl border border-dashed border-slate-300 p-4 text-sm transition hover:border-brand-400">
       <span className="font-semibold text-slate-700">{label}</span>
-      <span className="mt-1 block text-xs text-slate-400">JPG, PNG or WebP, maximum 5 MB</span>
+      <span className="mt-1 block text-xs text-slate-400">JPG or PNG, maximum 5 MB</span>
       <input
         className="mt-3 block w-full text-xs"
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png"
         disabled={loading}
         onChange={(event) => onFile(event.target.files?.[0])}
       />

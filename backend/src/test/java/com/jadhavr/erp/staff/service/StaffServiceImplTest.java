@@ -8,6 +8,7 @@ import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.staff.dto.CreateStudentSectionStaffRequest;
 import com.jadhavr.erp.staff.dto.CreateStaffRequest;
 import com.jadhavr.erp.staff.dto.StaffResponse;
@@ -71,6 +72,7 @@ class StaffServiceImplTest {
     @Mock private WeeklyAttendanceRecordRepository attendanceRecords;
     @Mock private RefreshTokenRepository refreshTokens;
     @Mock private AuthorizationSnapshotService authorizationSnapshots;
+    @Mock private EmailNotificationService emailNotifications;
 
     private BCryptPasswordEncoder passwordEncoder;
     private StaffServiceImpl service;
@@ -82,6 +84,7 @@ class StaffServiceImplTest {
                 staffProfiles, users, roles, colleges, passwordEncoder, new StaffMapper(),
                 refreshTokens, authorizationSnapshots);
         service.setDepartments(departments);
+        service.setEmailNotifications(emailNotifications);
         service.setStaffDetailRepositories(
                 sections, subjectAssignments, attendanceSessions, attendanceRecords);
     }
@@ -120,8 +123,12 @@ class StaffServiceImplTest {
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(users).save(userCaptor.capture());
         assertEquals(RoleName.STUDENT_SECTION, userCaptor.getValue().getRoles().iterator().next().getName());
-        assertNotEquals("9876543210", userCaptor.getValue().getPasswordHash());
-        assertTrue(passwordEncoder.matches("9876543210", userCaptor.getValue().getPasswordHash()));
+        ArgumentCaptor<String> passwordCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailNotifications).queueUserCreatedEmail(
+                org.mockito.ArgumentMatchers.eq(userCaptor.getValue()), passwordCaptor.capture());
+        assertTrue(passwordEncoder.matches(
+                passwordCaptor.getValue(), userCaptor.getValue().getPasswordHash()));
+        assertNotEquals("9876543210", passwordCaptor.getValue());
         assertTrue(userCaptor.getValue().isMustChangePassword());
     }
 
@@ -220,7 +227,7 @@ class StaffServiceImplTest {
     }
 
     @Test
-    void unifiedFormUsesPhoneAsTemporaryPasswordAndRequiresChange() {
+    void unifiedFormUsesRandomEmailedTemporaryPasswordAndRequiresChange() {
         authenticate(2L, 1L, RoleName.PRINCIPAL);
         Department department = department(5L, 1L);
         when(departments.findById(5L)).thenReturn(Optional.of(department));
@@ -232,7 +239,11 @@ class StaffServiceImplTest {
         assertEquals(5L, result.departmentId());
         ArgumentCaptor<User> user = ArgumentCaptor.forClass(User.class);
         verify(users).save(user.capture());
-        assertTrue(passwordEncoder.matches("9876543210", user.getValue().getPasswordHash()));
+        ArgumentCaptor<String> password = ArgumentCaptor.forClass(String.class);
+        verify(emailNotifications).queueUserCreatedEmail(
+                org.mockito.ArgumentMatchers.eq(user.getValue()), password.capture());
+        assertTrue(passwordEncoder.matches(password.getValue(), user.getValue().getPasswordHash()));
+        assertNotEquals("9876543210", password.getValue());
         assertTrue(user.getValue().isMustChangePassword());
     }
 

@@ -15,6 +15,7 @@ vi.mock("@/features/admissions/api", () => ({
   getAdmissionHistory: vi.fn(),
   getAdmissionCourseYears: vi.fn(),
   getAdmissionDocumentRequirements: vi.fn(),
+  getDocumentCustody: vi.fn(),
   getAdmissionDocument: vi.fn(),
   getAdmissionPhoto: vi.fn(),
   startAdmissionReview: vi.fn(),
@@ -88,6 +89,7 @@ describe("StudentSectionAdmissionDetailPage", () => {
     vi.mocked(admissionApi.getAdmissionHistory).mockResolvedValue([]);
     vi.mocked(admissionApi.getAdmissionCourseYears).mockResolvedValue([]);
     vi.mocked(admissionApi.getAdmissionDocumentRequirements).mockResolvedValue([]);
+    vi.mocked(admissionApi.getDocumentCustody).mockResolvedValue([]);
     vi.mocked(admissionApi.getAdmissionPhoto).mockResolvedValue("blob:test-photo");
   });
 

@@ -18,6 +18,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import jakarta.validation.ConstraintViolationException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -114,7 +118,39 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableMessage(HttpMessageNotReadableException exception) {
         return ResponseEntity.badRequest()
-                .body(new ErrorResponse("Malformed JSON or invalid request value"));
+                .body(new ErrorResponse(
+                        "Request body does not match the required schema, type, or format"));
+    }
+
+    @ExceptionHandler(com.jadhavr.erp.admission.service.UploadScanPendingException.class)
+    public ResponseEntity<ErrorResponse> handleUploadScanPending(
+            com.jadhavr.erp.admission.service.UploadScanPendingException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_EARLY)
+                .header(HttpHeaders.RETRY_AFTER, "2")
+                .body(new ErrorResponse(exception.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleParameterTypeMismatch(
+            MethodArgumentTypeMismatchException exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(
+                        "Parameter '" + exception.getName() + "' has an invalid type or format"));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(
+                        "Required parameter '" + exception.getParameterName() + "' is missing"));
+    }
+
+    @ExceptionHandler({ConstraintViolationException.class, HandlerMethodValidationException.class})
+    public ResponseEntity<ErrorResponse> handleMethodValidation(Exception exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("Request parameters failed schema validation"));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

@@ -213,7 +213,7 @@ public class StudentSectionAdmissionController {
             @PathVariable Long admissionId, @PathVariable String type) {
         var document = documentService.load(admissionId, type);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(document.filename(), java.nio.charset.StandardCharsets.UTF_8)
                         .build().toString())
                 .contentType(document.mediaType())

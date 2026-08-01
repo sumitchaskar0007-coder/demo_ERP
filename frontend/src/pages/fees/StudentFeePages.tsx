@@ -142,9 +142,9 @@ export function SubmitPaymentPage() {
   }, []);
   const chooseProof = (file: File | null) => {
     if (!file) return setProof(null);
-    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    const allowed = ["application/pdf", "image/jpeg", "image/png"];
     if (!allowed.includes(file.type)) {
-      toast.error("Select a PDF, JPEG, PNG, or WebP receipt");
+      toast.error("Select a PDF, JPEG, or PNG receipt");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -322,11 +322,11 @@ export function SubmitPaymentPage() {
                 </span>
                 <span className="mt-3 text-sm font-bold text-slate-800">Choose payment proof</span>
                 <span className="mt-1 text-xs text-slate-500">
-                  PDF, JPEG, PNG or WebP - maximum 5 MB
+                  PDF, JPEG, or PNG - maximum 5 MB
                 </span>
                 <input
                   type="file"
-                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  accept="application/pdf,image/jpeg,image/png"
                   className="sr-only"
                   onChange={(event) => chooseProof(event.target.files?.[0] ?? null)}
                 />

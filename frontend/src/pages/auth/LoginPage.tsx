@@ -22,7 +22,6 @@ import { Input } from "@/components/common/Input";
 import { useAuth } from "@/features/auth/authStore";
 import {
   APP_NAME,
-  ROLES,
   ROUTES,
   defaultRouteForRoles,
   isRouteAllowedForRoles,
@@ -72,7 +71,7 @@ export function LoginPage() {
     return (
       <Navigate
         to={
-          user?.mustChangePassword && !user.roles.includes(ROLES.STUDENT)
+          user?.mustChangePassword
             ? ROUTES.changePassword
             : defaultRouteForRoles(user?.roles)
         }
@@ -87,10 +86,7 @@ export function LoginPage() {
 
       const authenticatedUser = await login(values);
       toast.success(`Welcome to ${APP_NAME}`);
-      if (
-        authenticatedUser.mustChangePassword &&
-        !authenticatedUser.roles.includes(ROLES.STUDENT)
-      ) {
+      if (authenticatedUser.mustChangePassword) {
         navigate(ROUTES.changePassword, { replace: true });
         return;
       }

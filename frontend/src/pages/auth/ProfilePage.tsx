@@ -310,7 +310,7 @@ export function ProfilePage() {
               <span>
                 <span className="block font-semibold text-brand-700">Choose photo</span>
                 <span className="mt-1 block text-xs leading-5 text-slate-500">
-                  JPG, PNG, or WebP. Maximum size 5 MB.
+                  JPG or PNG. Maximum size 5 MB.
                 </span>
                 {photo && (
                   <span className="mt-1 block max-w-[260px] truncate text-xs font-medium text-slate-700">
@@ -320,7 +320,7 @@ export function ProfilePage() {
               </span>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png"
                 className="sr-only"
                 onChange={(event) => {
                   const selected = event.target.files?.[0] || null;

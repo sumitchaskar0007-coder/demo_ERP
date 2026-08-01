@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
+import { DocumentViewer } from "@/components/common/DocumentViewer";
 import { StatusBadge } from "@/components/common/Badge";
 import { DataTable, type Column } from "@/components/table/DataTable";
 import { handleApiError } from "@/lib/handleApiError";
@@ -233,6 +234,13 @@ export function PaymentDetailsPage() {
   const { paymentId } = useParams();
   const [p, setP] = useState<PaymentResponse | null>(null);
   const [openingProof, setOpeningProof] = useState(false);
+  const [proofPreview, setProofPreview] = useState<{ url: string; contentType: string } | null>(null);
+  useEffect(
+    () => () => {
+      if (proofPreview) URL.revokeObjectURL(proofPreview.url);
+    },
+    [proofPreview],
+  );
   const load = () => {
     if (paymentId) api.getPaymentById(+paymentId).then(setP);
   };
@@ -266,8 +274,7 @@ export function PaymentDetailsPage() {
       }
       const proof = await api.getPaymentProof(p.id);
       const proofUrl = URL.createObjectURL(proof);
-      window.open(proofUrl, "_blank", "noopener,noreferrer");
-      window.setTimeout(() => URL.revokeObjectURL(proofUrl), 60_000);
+      setProofPreview({ url: proofUrl, contentType: proof.type });
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -310,6 +317,16 @@ export function PaymentDetailsPage() {
           </div>
         )}
       </Card>
+      {proofPreview && (
+        <DocumentViewer
+          open
+          url={proofPreview.url}
+          contentType={proofPreview.contentType}
+          title={`Payment proof — ${p.studentName}`}
+          filename={`payment-proof-${p.id}`}
+          onClose={() => setProofPreview(null)}
+        />
+      )}
     </div>
   );
 }

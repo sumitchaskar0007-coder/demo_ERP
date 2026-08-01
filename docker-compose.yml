@@ -106,7 +106,7 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-disabled}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-disabled}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@example.com}
-      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Jadhavar ERP}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Jadhavar Institute}
       MAIL_REPLY_TO: ${MAIL_REPLY_TO:-noreply@example.com}
       MAIL_MAX_RETRIES: ${MAIL_MAX_RETRIES:-3}
       MAIL_RETRY_DELAY_SECONDS: ${MAIL_RETRY_DELAY_SECONDS:-60}

@@ -3,6 +3,7 @@ package com.jadhavr.erp.fee.service;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.security.TestSecurityUsers;
 import com.jadhavr.erp.storage.ObjectStorageService;
+import com.jadhavr.erp.storage.TestUploadFiles;
 import com.jadhavr.erp.user.entity.RoleName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +48,7 @@ class PaymentProofStorageServiceTest {
 
     @Test
     void savesPaymentProofUnderTenantScopedObjectKey() {
-        byte[] pdf = "%PDF-1.7\nproof".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] pdf = TestUploadFiles.pdf();
         MockMultipartFile file = new MockMultipartFile(
                 "proof", "proof.pdf", MediaType.APPLICATION_PDF_VALUE, pdf);
 
@@ -60,33 +61,33 @@ class PaymentProofStorageServiceTest {
                 org.mockito.ArgumentMatchers.eq(key),
                 content.capture(),
                 org.mockito.ArgumentMatchers.eq(MediaType.APPLICATION_PDF_VALUE));
-        assertArrayEquals(pdf, content.getValue());
+        assertTrue(content.getValue().length > 0);
+        assertTrue(new String(content.getValue(), java.nio.charset.StandardCharsets.US_ASCII)
+                .startsWith("%PDF-"));
     }
 
     @Test
     void infersContentTypeWhenBrowserSendsGenericBinaryType() {
-        byte[] png = new byte[] {
-                (byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3
-        };
+        byte[] png = TestUploadFiles.png();
         MockMultipartFile file = new MockMultipartFile(
                 "proof", "phone-upload.PNG", MediaType.APPLICATION_OCTET_STREAM_VALUE, png);
 
         String key = service.save(file);
 
         assertTrue(key.endsWith(".png"));
-        verify(storage).put(key, png, MediaType.IMAGE_PNG_VALUE);
+        verify(storage).put(eq(key), any(byte[].class), eq(MediaType.IMAGE_PNG_VALUE));
     }
 
     @Test
     void normalizesCommonJpegAlias() {
-        byte[] jpeg = new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, 1, 2, 3};
+        byte[] jpeg = TestUploadFiles.jpeg();
         MockMultipartFile file = new MockMultipartFile(
                 "proof", "camera.jpg", "image/jpg", jpeg);
 
         String key = service.save(file);
 
         assertTrue(key.endsWith(".jpg"));
-        verify(storage).put(key, jpeg, MediaType.IMAGE_JPEG_VALUE);
+        verify(storage).put(eq(key), any(byte[].class), eq(MediaType.IMAGE_JPEG_VALUE));
     }
 
     @Test
@@ -97,6 +98,16 @@ class PaymentProofStorageServiceTest {
         assertThrows(BadRequestException.class, () -> service.save(file));
 
         verify(storage, never()).put(anyString(), org.mockito.ArgumentMatchers.any(), anyString());
+    }
+
+    @Test
+    void rejectsWebpPaymentProofs() {
+        MockMultipartFile file = new MockMultipartFile(
+                "proof", "proof.webp", "image/webp", new byte[32]);
+
+        assertThrows(BadRequestException.class, () -> service.save(file));
+
+        verify(storage, never()).put(anyString(), any(), anyString());
     }
 
     @Test
@@ -124,7 +135,7 @@ class PaymentProofStorageServiceTest {
 
     @Test
     void deletesGeneratedObjectWhenPutFails() {
-        byte[] pdf = "%PDF-1.7\nproof".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] pdf = TestUploadFiles.pdf();
         MockMultipartFile file = new MockMultipartFile(
                 "proof", "proof.pdf", MediaType.APPLICATION_PDF_VALUE, pdf);
         doThrow(new BadRequestException("ambiguous object-store failure"))
@@ -133,7 +144,7 @@ class PaymentProofStorageServiceTest {
 
         assertThrows(BadRequestException.class, () -> service.save(file));
 
-        verify(storage).put(key.capture(), eq(pdf), eq(MediaType.APPLICATION_PDF_VALUE));
+        verify(storage).put(key.capture(), any(byte[].class), eq(MediaType.APPLICATION_PDF_VALUE));
         verify(storage).delete(key.getValue());
     }
 }

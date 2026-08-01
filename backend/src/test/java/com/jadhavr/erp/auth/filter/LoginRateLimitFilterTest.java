@@ -6,12 +6,15 @@ import com.jadhavr.erp.auth.security.AuthorizationSnapshot;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.TrustedClientIpResolver;
 import com.jadhavr.erp.auth.service.DistributedRateLimiter;
+import com.jadhavr.erp.config.RateLimitProperties;
 import com.jadhavr.erp.user.entity.UserStatus;
+import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -20,7 +23,10 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,25 +34,25 @@ import static org.mockito.Mockito.when;
 class LoginRateLimitFilterTest {
     private final DistributedRateLimiter limiter = mock(DistributedRateLimiter.class);
     @SuppressWarnings("unchecked")
-    private final ObjectProvider<DistributedRateLimiter> limiterProvider =
-            mock(ObjectProvider.class);
+    private final ObjectProvider<DistributedRateLimiter> limiterProvider = mock(ObjectProvider.class);
     private final TrustedClientIpResolver clientIps = mock(TrustedClientIpResolver.class);
     @SuppressWarnings("unchecked")
-    private final ObjectProvider<TrustedClientIpResolver> clientIpProvider =
-            mock(ObjectProvider.class);
-    private final LoginRateLimitFilter filter;
+    private final ObjectProvider<TrustedClientIpResolver> clientIpProvider = mock(ObjectProvider.class);
+    private LoginRateLimitFilter filter;
 
-    LoginRateLimitFilterTest() {
+    @BeforeEach
+    void setUp() {
         when(limiterProvider.getIfAvailable()).thenReturn(limiter);
         when(clientIpProvider.getIfAvailable()).thenReturn(clientIps);
+        when(limiter.check(anyString(), anyString(), anyLong(), any(Duration.class)))
+                .thenReturn(new DistributedRateLimiter.Decision(true, 0));
+        when(limiter.checkBackoff(anyString(), anyString()))
+                .thenReturn(new DistributedRateLimiter.Decision(true, 0));
         filter = new LoginRateLimitFilter(
                 limiterProvider,
                 clientIpProvider,
                 new ObjectMapper().registerModule(new JavaTimeModule()),
-                1000,
-                120,
-                600,
-                300,
+                new RateLimitProperties(),
                 true);
     }
 
@@ -56,85 +62,90 @@ class LoginRateLimitFilterTest {
     }
 
     @Test
-    void authenticatedApiTrafficUsesUserIdNotSharedIp() throws Exception {
+    void authenticatedApiTrafficUsesLooserUserPolicy() throws Exception {
         authenticate(42L);
         MockHttpServletRequest request =
                 new MockHttpServletRequest("GET", "/api/notices/unread-count");
         when(clientIps.resolve(request)).thenReturn("203.0.113.7");
-        when(limiter.check(
-                eq("http:api-user"), eq("42"), eq(600L), any(Duration.class)))
-                .thenReturn(new DistributedRateLimiter.Decision(true, 0));
 
-        filter.doFilter(
-                request,
-                new MockHttpServletResponse(),
-                mock(jakarta.servlet.FilterChain.class));
+        filter.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
 
         verify(limiter).check(
-                eq("http:api-user"), eq("42"), eq(600L), any(Duration.class));
+                eq("http:authenticated-user"), eq("42"), eq(600L), any(Duration.class));
     }
 
     @Test
-    void anonymousApiTrafficUsesResolvedClientIp() throws Exception {
+    void publicApiTrafficUsesModerateIpPolicy() throws Exception {
         MockHttpServletRequest request =
                 new MockHttpServletRequest("GET", "/api/public/admissions/options");
         when(clientIps.resolve(request)).thenReturn("198.51.100.40");
-        when(limiter.check(
-                eq("http:api-anonymous-ip"),
-                eq("198.51.100.40"),
-                eq(300L),
-                any(Duration.class)))
-                .thenReturn(new DistributedRateLimiter.Decision(true, 0));
 
-        filter.doFilter(
-                request,
-                new MockHttpServletResponse(),
-                mock(jakarta.servlet.FilterChain.class));
+        filter.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
 
         verify(limiter).check(
-                eq("http:api-anonymous-ip"),
-                eq("198.51.100.40"),
-                eq(300L),
-                any(Duration.class));
+                eq("http:public-ip"), eq("198.51.100.40"), eq(120L), any(Duration.class));
     }
 
     @Test
-    void rejectedRequestReturnsConsistentJsonAndActualRetryAfter() throws Exception {
-        MockHttpServletRequest request =
-                new MockHttpServletRequest("POST", "/api/v1/auth/login");
+    void loginUsesBothIpAndNormalizedAccountPolicies() throws Exception {
+        MockHttpServletRequest request = loginRequest(" Student@Example.com ");
         when(clientIps.resolve(request)).thenReturn("198.51.100.40");
-        when(limiter.check(
-                eq("http:login-ip"),
-                eq("198.51.100.40"),
-                eq(1000L),
-                any(Duration.class)))
-                .thenReturn(new DistributedRateLimiter.Decision(false, 17));
+
+        filter.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
+
+        verify(limiter).check(eq("http:auth:login:ip"), eq("198.51.100.40"),
+                eq(20L), any(Duration.class));
+        verify(limiter).check(eq("http:auth:login:account"), eq("student@example.com"),
+                eq(5L), any(Duration.class));
+        verify(limiter).checkBackoff(
+                "http:auth:login:backoff-account", "student@example.com");
+    }
+
+    @Test
+    void failedLoginRecordsBackoffAndNextAttemptReturnsRetryAfter() throws Exception {
+        MockHttpServletRequest request = loginRequest("student@example.com");
+        when(clientIps.resolve(request)).thenReturn("198.51.100.40");
+        FilterChain failingChain = mock(FilterChain.class);
+        doAnswer(invocation -> {
+            ((MockHttpServletResponse) invocation.getArgument(1)).setStatus(401);
+            return null;
+        }).when(failingChain).doFilter(any(), any());
+
+        filter.doFilter(request, new MockHttpServletResponse(), failingChain);
+
+        verify(limiter).recordFailure(eq("http:auth:login:backoff-ip"),
+                eq("198.51.100.40"), any(), any(), any());
+        verify(limiter).recordFailure(eq("http:auth:login:backoff-account"),
+                eq("student@example.com"), any(), any(), any());
+
+        MockHttpServletRequest retry = loginRequest("student@example.com");
+        when(clientIps.resolve(retry)).thenReturn("198.51.100.40");
+        when(limiter.checkBackoff(
+                "http:auth:login:backoff-account", "student@example.com"))
+                .thenReturn(new DistributedRateLimiter.Decision(false, 8));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        filter.doFilter(
-                request,
-                response,
-                mock(jakarta.servlet.FilterChain.class));
+        filter.doFilter(retry, response, mock(FilterChain.class));
 
         assertThat(response.getStatus()).isEqualTo(429);
-        assertThat(response.getHeader("Retry-After")).isEqualTo("17");
-        assertThat(response.getContentAsString())
-                .contains("\"success\":false")
-                .contains("\"message\":\"Too many requests\"")
-                .contains("\"path\":\"/api/v1/auth/login\"");
+        assertThat(response.getHeader("Retry-After")).isEqualTo("8");
+        assertThat(response.getContentAsString()).contains("Too many authentication attempts");
+    }
+
+    private MockHttpServletRequest loginRequest(String email) {
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("POST", "/api/v1/auth/login");
+        request.setContentType("application/json");
+        request.setContent(("{\"email\":\"" + email + "\",\"password\":\"Secret1!\"}")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return request;
     }
 
     private void authenticate(Long userId) {
         CustomUserDetails user = new CustomUserDetails(new AuthorizationSnapshot(
-                userId,
-                3L,
-                "student@example.test",
-                UserStatus.ACTIVE,
-                null,
-                0,
-                List.of("ROLE_STUDENT")));
+                userId, 3L, "student@example.test", UserStatus.ACTIVE,
+                null, 0, List.of("ROLE_STUDENT")));
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(
-                        user, null, user.getAuthorities()));
+                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
     }
 }

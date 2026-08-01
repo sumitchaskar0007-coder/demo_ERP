@@ -64,17 +64,21 @@ public class EmailWorker {
 
     public EmailDeliveryOutcome process(EmailNotification notification) {
         EmailProviderResult result;
+        String redactedTemplateData;
         try {
             Map<String, String> data = objectMapper.readValue(
                     cipher.decrypt(notification.getTemplateData()),
                     new TypeReference<>() {});
+            // Prepare the redacted value before delivery. This prevents a successful
+            // provider send from being followed by a cipher failure and a duplicate retry.
+            redactedTemplateData = cipher.encrypt("{}");
             String name = data.getOrDefault("name", "User");
             String url = data.get("url");
             String text = "Hello " + name + ",\n\n" + notification.getSubject()
                     + credentialText(data)
                     + admissionText(data)
                     + (url == null ? "" : "\n\n" + url)
-                    + "\n\nJadhavar ERP";
+                    + "\n\nJadhavar Institute";
             String html = renderer.render(
                     notification.getTemplateName(), data, notification.getSubject());
             result = provider.send(new EmailMessage(
@@ -88,12 +92,14 @@ public class EmailWorker {
         }
         // Persist outside the delivery catch. A database failure must leave the queue
         // message unacknowledged instead of pretending that the provider send failed.
-        markSent(notification, result);
+        markSent(notification, result, redactedTemplateData);
         return new EmailDeliveryOutcome(EmailStatus.SENT, 0);
     }
 
     protected void markSent(
-            EmailNotification notification, EmailProviderResult result) {
+            EmailNotification notification,
+            EmailProviderResult result,
+            String redactedTemplateData) {
         notification.setStatus(EmailStatus.SENT);
         notification.setProvider("SMTP");
         notification.setProviderMessageId(result.providerMessageId());
@@ -101,6 +107,8 @@ public class EmailWorker {
         notification.setFailureReason(null);
         notification.setProcessingStartedAt(null);
         notification.setNextRetryAt(null);
+        // Credentials and password-reset URLs are needed only until delivery succeeds.
+        notification.setTemplateData(redactedTemplateData);
         repository.save(notification);
     }
 

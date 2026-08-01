@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ContentDisposition;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -37,25 +39,38 @@ public class S3ObjectStorageService implements ObjectStorageService, PresignedOb
     private final S3Client s3;
     private final S3Presigner presigner;
     private final String bucket;
+    private final boolean malwareScanRequired;
 
     public S3ObjectStorageService(
             S3Client s3,
             S3Presigner presigner,
             @Value("${app.aws.private-upload-bucket}") String bucket) {
+        this(s3, presigner, bucket, false);
+    }
+
+    @Autowired
+    public S3ObjectStorageService(
+            S3Client s3,
+            S3Presigner presigner,
+            @Value("${app.aws.private-upload-bucket}") String bucket,
+            @Value("${app.storage.malware-scan.required:true}") boolean malwareScanRequired) {
         this.s3 = s3;
         this.presigner = presigner;
         this.bucket = bucket;
+        this.malwareScanRequired = malwareScanRequired;
     }
 
     @Override
     public void put(String key, byte[] content, String contentType) {
         String safeKey = ObjectKeyPolicy.requireSafe(key);
         try {
+            String disposition = contentType != null && contentType.startsWith("image/")
+                    ? "inline" : "attachment";
             s3.putObject(PutObjectRequest.builder()
                             .bucket(bucket)
                             .key(safeKey)
                             .contentType(contentType)
-                            .contentDisposition("inline")
+                            .contentDisposition(disposition)
                             .build(),
                     RequestBody.fromBytes(content));
         } catch (RuntimeException exception) {
@@ -126,10 +141,12 @@ public class S3ObjectStorageService implements ObjectStorageService, PresignedOb
                     .key(ObjectKeyPolicy.requireSafe(key))
                     .checksumMode(ChecksumMode.ENABLED)
                     .build());
+            String scanStatus = malwareScanRequired ? malwareScanStatus(key) : null;
             return new ObjectMetadata(
                     response.contentLength() == null ? -1 : response.contentLength(),
                     response.contentType(),
-                    response.checksumSHA256());
+                    response.checksumSHA256(),
+                    scanStatus);
         } catch (NoSuchKeyException exception) {
             throw new ResourceNotFoundException("Uploaded document object was not found");
         } catch (S3Exception exception) {
@@ -169,6 +186,21 @@ public class S3ObjectStorageService implements ObjectStorageService, PresignedOb
         } catch (RuntimeException exception) {
             throw new BadRequestException("Unable to create the document download URL");
         }
+    }
+
+    private String malwareScanStatus(String key) {
+        var response = s3.getObjectTagging(GetObjectTaggingRequest.builder()
+                .bucket(bucket)
+                .key(ObjectKeyPolicy.requireSafe(key))
+                .build());
+        if (response == null || response.tagSet() == null) {
+            return null;
+        }
+        return response.tagSet().stream()
+                .filter(tag -> "GuardDutyMalwareScanStatus".equals(tag.key()))
+                .map(software.amazon.awssdk.services.s3.model.Tag::value)
+                .findFirst()
+                .orElse(null);
     }
 
     private Map<String, List<String>> browserSettableHeaders(

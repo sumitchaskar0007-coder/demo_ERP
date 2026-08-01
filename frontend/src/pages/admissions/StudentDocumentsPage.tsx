@@ -1,8 +1,9 @@
-import { CheckCircle2, Download, FileText, FolderOpen, Search, UserRound } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileText, FolderOpen, Search, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { DocumentViewer } from "@/components/common/DocumentViewer";
 import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Pagination } from "@/components/common/Pagination";
@@ -51,6 +52,20 @@ export function StudentDocumentsPage() {
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse>();
   const [detailLoading, setDetailLoading] = useState(false);
   const [downloading, setDownloading] = useState<AdmissionDocumentType>();
+  const [previewing, setPreviewing] = useState<AdmissionDocumentType>();
+  const [preview, setPreview] = useState<{
+    url: string;
+    contentType: string;
+    title: string;
+    filename: string;
+  }>();
+
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview.url);
+    },
+    [preview],
+  );
 
   useEffect(() => {
     let active = true;
@@ -158,6 +173,24 @@ export function StudentDocumentsPage() {
       toast.error(handleApiError(error).message);
     } finally {
       setDownloading(undefined);
+    }
+  };
+
+  const view = async (type: AdmissionDocumentType) => {
+    if (!admission) return;
+    setPreviewing(type);
+    try {
+      const file = await downloadAdmissionDocument(admission.id, type);
+      setPreview({
+        url: URL.createObjectURL(file.blob),
+        contentType: file.blob.type,
+        title: `${documentLabels[type]} — ${admission.fullName}`,
+        filename: file.filename,
+      });
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setPreviewing(undefined);
     }
   };
 
@@ -335,15 +368,25 @@ export function StudentDocumentsPage() {
                           </p>
                         </div>
                       </div>
-                      <Button
-                        variant="secondary"
-                        className="mt-4 w-full"
-                        loading={downloading === type}
-                        onClick={() => download(type)}
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                      </Button>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <Button
+                          className="w-full"
+                          loading={previewing === type}
+                          onClick={() => view(type)}
+                        >
+                          <Eye className="h-4 w-4" />
+                          View
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="w-full"
+                          loading={downloading === type}
+                          onClick={() => download(type)}
+                        >
+                          <Download className="h-4 w-4" />
+                          Download
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   {!admission.uploadedDocuments.length && (
@@ -368,6 +411,16 @@ export function StudentDocumentsPage() {
             )}
           </Card>
         </div>
+      )}
+      {preview && (
+        <DocumentViewer
+          open
+          url={preview.url}
+          contentType={preview.contentType}
+          title={preview.title}
+          filename={preview.filename}
+          onClose={() => setPreview(undefined)}
+        />
       )}
     </div>
   );

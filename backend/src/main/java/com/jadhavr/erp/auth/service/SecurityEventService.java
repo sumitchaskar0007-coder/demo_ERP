@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 
 @Service
 public class SecurityEventService {
-    private static final int MAX_FAILURES = 5;
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final SecurityAuditEventRepository events;
@@ -29,14 +28,15 @@ public class SecurityEventService {
     public void loginFailure(String email, String ip, String agent) {
         var user = users.findByEmail(email).orElse(null);
         if (user != null) {
-            int failures = user.getFailedLoginAttempts() + 1; user.setFailedLoginAttempts(failures);
-            boolean locked = failures >= MAX_FAILURES;
-            if (locked) user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
+            int failures = Math.min(Integer.MAX_VALUE, user.getFailedLoginAttempts() + 1);
+            user.setFailedLoginAttempts(failures);
+            // Authentication throttling is temporary and handled by the distributed
+            // exponential backoff; accounts are never hard-locked due to failures.
+            user.setLockedUntil(null);
             users.save(user);
-            if (locked) authorizationSnapshots.invalidateOrThrow(user.getId());
         }
         record(user == null ? null : user.getId(), user == null || user.getCollege() == null ? null : user.getCollege().getId(),
-                "LOGIN_FAILURE", false, ip, agent, user == null ? "Unknown account" : "Invalid credentials or locked account");
+                "LOGIN_FAILURE", false, ip, agent, user == null ? "Unknown account" : "Invalid credentials");
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void refreshReuse(Long userId, String ip, String agent) {

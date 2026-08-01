@@ -21,7 +21,7 @@ public class CollegeImageStorageService {
     private static final Logger log = LoggerFactory.getLogger(CollegeImageStorageService.class);
     private static final long MAX_SIZE = 5L * 1024 * 1024;
     private static final Pattern PENDING_REFERENCE = Pattern.compile(
-            "^/api/super-admin/colleges/images/pending/(logo|qr-code)/([0-9a-f-]{36})(\\.(?:jpg|png|webp))$");
+            "^/api/super-admin/colleges/images/pending/(logo|qr-code)/([0-9a-f-]{36})(\\.(?:jpg|png))$");
 
     private final ObjectStorageService storage;
     private final ImageUploadValidator images;
@@ -69,7 +69,7 @@ public class CollegeImageStorageService {
 
     public ImageResource loadPending(String kind, String id, String extension) {
         requireKind(kind);
-        if (!id.matches("[0-9a-f-]{36}") || !extension.matches("jpg|png|webp")) {
+        if (!id.matches("[0-9a-f-]{36}") || !extension.matches("jpg|png")) {
             throw new BadRequestException("Invalid image reference");
         }
         return load("pending/college-assets/" + kind + "/" + id + "." + extension);

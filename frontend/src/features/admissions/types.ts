@@ -156,7 +156,6 @@ export interface SubmitAdmissionResponse {
   departmentCode: string;
   studentName: string;
   email: string;
-  temporaryPassword: string;
   loginUrl: string;
   message: string;
 }
@@ -373,6 +372,7 @@ export interface AdmissionPrintAcademicSection {
   academicYear: string;
   departmentName: string;
   departmentCode: string;
+  courseYearDisplayName?: string | null;
   previousSchoolName?: string | null;
   previousClassName?: string | null;
   previousPercentage?: number | null;

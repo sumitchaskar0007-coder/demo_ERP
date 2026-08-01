@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -141,7 +142,8 @@ class DepartmentServiceImplTest {
 
         DepartmentResponse result = service.updateDepartment(
                 10L,
-                new UpdateDepartmentRequest("Updated Department", "Updated description")
+                new UpdateDepartmentRequest(
+                        "Updated Department", "Updated description", new BigDecimal("500.00"))
         );
 
         assertEquals("BCA", result.code());
@@ -194,7 +196,8 @@ class DepartmentServiceImplTest {
                 collegeId,
                 "Bachelor of Computer Applications",
                 code,
-                "Computer applications department"
+                "Computer applications department",
+                new BigDecimal("500.00")
         );
     }
 

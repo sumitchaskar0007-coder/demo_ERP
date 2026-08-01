@@ -14,7 +14,6 @@ public record SubmitAdmissionResponse(
         String departmentCode,
         String studentName,
         String email,
-        String temporaryPassword,
         String loginUrl,
         String message
 ) {

@@ -18,6 +18,7 @@ import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.storage.ObjectStorageService;
 import com.jadhavr.erp.storage.PresignedObjectStorageService;
+import com.jadhavr.erp.storage.SecureFileContentValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,8 @@ public class AdmissionDocumentPresignedTransferService {
     private final Duration uploadUrlExpiry;
     private final Duration downloadUrlExpiry;
     private final Duration pendingUploadExpiry;
+    private final SecureFileContentValidator fileValidator;
+    private final boolean malwareScanRequired;
     private AdmissionDocumentRequirementService requirements;
 
     @Autowired(required = false)
@@ -80,7 +83,9 @@ public class AdmissionDocumentPresignedTransferService {
             @Value("${app.storage.presign.max-bytes:2097152}") long maxBytes,
             @Value("${app.storage.presign.upload-expiry-seconds:300}") long uploadExpirySeconds,
             @Value("${app.storage.presign.download-expiry-seconds:120}") long downloadExpirySeconds,
-            @Value("${app.storage.presign.pending-expiry-seconds:900}") long pendingExpirySeconds) {
+            @Value("${app.storage.presign.pending-expiry-seconds:900}") long pendingExpirySeconds,
+            @Value("${app.storage.malware-scan.required:true}") boolean malwareScanRequired,
+            SecureFileContentValidator fileValidator) {
         this(
                 admissions,
                 documents,
@@ -92,7 +97,9 @@ public class AdmissionDocumentPresignedTransferService {
                 maxBytes,
                 uploadExpirySeconds,
                 downloadExpirySeconds,
-                pendingExpirySeconds);
+                pendingExpirySeconds,
+                malwareScanRequired,
+                fileValidator);
     }
 
     AdmissionDocumentPresignedTransferService(
@@ -107,6 +114,25 @@ public class AdmissionDocumentPresignedTransferService {
             long uploadExpirySeconds,
             long downloadExpirySeconds,
             long pendingExpirySeconds) {
+        this(admissions, documents, uploads, presignedStorage, storage, events, clock,
+                maxBytes, uploadExpirySeconds, downloadExpirySeconds, pendingExpirySeconds,
+                false, new SecureFileContentValidator());
+    }
+
+    AdmissionDocumentPresignedTransferService(
+            AdmissionFormRepository admissions,
+            AdmissionDocumentRepository documents,
+            AdmissionDocumentUploadRepository uploads,
+            PresignedObjectStorageService presignedStorage,
+            ObjectStorageService storage,
+            ApplicationEventPublisher events,
+            Clock clock,
+            long maxBytes,
+            long uploadExpirySeconds,
+            long downloadExpirySeconds,
+            long pendingExpirySeconds,
+            boolean malwareScanRequired,
+            SecureFileContentValidator fileValidator) {
         long effectiveMaxBytes = Math.min(maxBytes, MAX_DOCUMENT_BYTES);
         AdmissionDocumentUploadPolicy.validateMaxBytes(effectiveMaxBytes);
         this.uploadUrlExpiry = validatedDuration(
@@ -127,6 +153,8 @@ public class AdmissionDocumentPresignedTransferService {
         this.events = events;
         this.clock = clock;
         this.maxBytes = effectiveMaxBytes;
+        this.malwareScanRequired = malwareScanRequired;
+        this.fileValidator = fileValidator;
     }
 
     @Transactional
@@ -160,7 +188,7 @@ public class AdmissionDocumentPresignedTransferService {
                         maxBytes);
         Long collegeId = requireCollegeId(admission);
         UUID uploadId = UUID.randomUUID();
-        String storageName = tenantPrefix(collegeId)
+        String storageName = quarantinePrefix(collegeId)
                 + uploadId + validated.storageExtension();
         Instant now = clock.instant();
         Instant completionDeadline = now.plus(pendingUploadExpiry);
@@ -237,7 +265,8 @@ public class AdmissionDocumentPresignedTransferService {
             expire(upload, "UPLOAD_SESSION_EXPIRED");
             throw new BadRequestException("Document upload session has expired");
         }
-        requireTenantStorageKey(upload.getStorageName(), requireCollegeId(admission));
+        Long collegeId = requireCollegeId(admission);
+        requireQuarantineStorageKey(upload.getStorageName(), collegeId);
 
         PresignedObjectStorageService.ObjectMetadata metadata =
                 presignedStorage.head(upload.getStorageName());
@@ -246,6 +275,30 @@ public class AdmissionDocumentPresignedTransferService {
             quarantine(upload, failureCode);
             throw new BadRequestException("Uploaded document failed integrity verification");
         }
+        if (malwareScanRequired) {
+            String scanStatus = metadata.malwareScanStatus();
+            if (scanStatus == null || scanStatus.isBlank()) {
+                throw new UploadScanPendingException();
+            }
+            if (!"NO_THREATS_FOUND".equals(scanStatus)) {
+                quarantine(upload, "MALWARE_SCAN_" + scanStatus);
+                throw new BadRequestException("Uploaded document failed malware screening");
+            }
+        }
+
+        SecureFileContentValidator.ValidatedContent validated;
+        try {
+            ObjectStorageService.StoredObject quarantined = storage.get(upload.getStorageName());
+            validated = fileValidator.validateDocument(
+                    quarantined.content(), upload.getContentType(), maxBytes);
+        } catch (BadRequestException exception) {
+            quarantine(upload, "CONTENT_VALIDATION_FAILED");
+            throw exception;
+        }
+        String quarantineStorageName = upload.getStorageName();
+        String approvedStorageName = tenantPrefix(collegeId)
+                + upload.getId() + validated.extension();
+        storage.put(approvedStorageName, validated.content(), validated.contentType());
 
         AdmissionDocument document = documents
                 .findByAdmissionFormIdAndDocumentTypeForUpdate(admission.getId(), type)
@@ -253,24 +306,21 @@ public class AdmissionDocumentPresignedTransferService {
         String oldStorageName = document.getStorageName();
         document.setAdmissionForm(admission);
         document.setDocumentType(type);
-        document.setStorageName(upload.getStorageName());
+        document.setStorageName(approvedStorageName);
         document.setOriginalFilename(upload.getOriginalFilename());
-        document.setContentType(upload.getContentType());
-        document.setFileSize(upload.getExpectedFileSize());
-        document.setSha256Checksum(upload.getExpectedSha256());
+        document.setContentType(validated.contentType());
+        document.setFileSize((long) validated.content().length);
+        document.setSha256Checksum(validated.sha256());
         document.setVerifiedAt(now);
         AdmissionDocument saved = documents.saveAndFlush(document);
 
+        upload.setStorageName(approvedStorageName);
         upload.setStatus(AdmissionDocumentUploadStatus.COMPLETED);
         upload.setCompletedAt(now);
         upload.setFailureCode(null);
         uploads.save(upload);
-        registerAfterCommit(() -> {
-            if (oldStorageName != null && !oldStorageName.equals(upload.getStorageName())) {
-                safeDelete(oldStorageName);
-            }
-            publishState(upload, null);
-        });
+        registerPromotionCleanup(
+                approvedStorageName, quarantineStorageName, oldStorageName, upload);
         return completionResponse(saved);
     }
 
@@ -483,6 +533,32 @@ public class AdmissionDocumentPresignedTransferService {
         });
     }
 
+    private void registerPromotionCleanup(
+            String approvedKey,
+            String quarantineKey,
+            String oldKey,
+            AdmissionDocumentUpload upload) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safeDelete(quarantineKey);
+            if (oldKey != null && !oldKey.equals(approvedKey)) safeDelete(oldKey);
+            publishState(upload, null);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                safeDelete(quarantineKey);
+                if (oldKey != null && !oldKey.equals(approvedKey)) safeDelete(oldKey);
+                publishState(upload, null);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) safeDelete(approvedKey);
+            }
+        });
+    }
+
     private void safeDelete(String storageKey) {
         try {
             storage.delete(storageKey);
@@ -507,8 +583,18 @@ public class AdmissionDocumentPresignedTransferService {
         return "colleges/" + collegeId + "/admission-documents/";
     }
 
+    private static String quarantinePrefix(Long collegeId) {
+        return "colleges/" + collegeId + "/quarantine/admission-documents/";
+    }
+
     private static void requireTenantStorageKey(String storageKey, Long collegeId) {
         if (storageKey == null || !storageKey.startsWith(tenantPrefix(collegeId))) {
+            throw new BadRequestException("Admission document storage key is invalid");
+        }
+    }
+
+    private static void requireQuarantineStorageKey(String storageKey, Long collegeId) {
+        if (storageKey == null || !storageKey.startsWith(quarantinePrefix(collegeId))) {
             throw new BadRequestException("Admission document storage key is invalid");
         }
     }

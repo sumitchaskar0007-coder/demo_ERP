@@ -25,8 +25,8 @@ export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
 
   const choose = (next: File | undefined) => {
     if (!next) return setFile(null);
-    if (!["image/jpeg", "image/png", "image/webp"].includes(next.type)) {
-      toast.error("Choose a JPG, PNG, or WebP QR-code image");
+    if (!["image/jpeg", "image/png"].includes(next.type)) {
+      toast.error("Choose a JPG or PNG QR-code image");
       return;
     }
     if (next.size > 5 * 1024 * 1024) {
@@ -100,10 +100,10 @@ export function PaymentQrManager({ collegeId }: { collegeId?: number }) {
         <label className="mt-5 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-7 text-center hover:border-blue-400">
           <Upload className="h-6 w-6 text-blue-600" />
           <span className="mt-2 text-sm font-bold">Choose new QR-code image</span>
-          <span className="mt-1 text-xs text-slate-500">JPG, PNG or WebP - maximum 5 MB</span>
+          <span className="mt-1 text-xs text-slate-500">JPG or PNG - maximum 5 MB</span>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png"
             className="sr-only"
             onChange={(event) => choose(event.target.files?.[0])}
           />

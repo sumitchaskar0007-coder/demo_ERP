@@ -29,6 +29,7 @@ import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.enums.CourseYearName;
 import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.auth.util.TemporaryPasswordGenerator;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
@@ -214,7 +215,7 @@ public class AdmissionServiceImpl implements AdmissionService {
                 .orElseThrow(() -> new ResourceNotFoundException("STUDENT role not found"));
         String fullName = buildFullName(
                 request.firstName(), request.middleName(), request.lastName());
-        String temporaryPassword = request.phone().trim();
+        String temporaryPassword = TemporaryPasswordGenerator.generate();
 
         User user = new User();
         user.setCollege(college);
@@ -222,9 +223,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         user.setEmail(email);
         user.setPhone(trimToNull(request.phone()));
         user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
-        // Students must first complete the admission workflow. The mandatory
-        // password change is activated only when Student Section approves it.
-        user.setMustChangePassword(false);
+        user.setMustChangePassword(true);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(studentRole));
         User savedUser = userRepository.save(user);
@@ -269,9 +268,8 @@ public class AdmissionServiceImpl implements AdmissionService {
                 department.getCode(),
                 fullName,
                 email,
-                temporaryPassword,
                 "/login",
-                "Admission submitted successfully. Please save your login credentials."
+                "Admission submitted successfully. Login credentials were sent to your email."
         );
     }
 

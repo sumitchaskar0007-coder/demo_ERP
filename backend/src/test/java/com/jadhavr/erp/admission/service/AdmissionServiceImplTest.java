@@ -21,6 +21,7 @@ import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
 import com.jadhavr.erp.fee.enums.StudentCategory;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
@@ -69,6 +70,7 @@ class AdmissionServiceImplTest {
     @Mock private StudentProfileRepository studentProfileRepository;
     @Mock private AdmissionFormRepository admissionFormRepository;
     @Mock private AdmissionStatusHistoryRepository admissionStatusHistoryRepository;
+    @Mock private EmailNotificationService emailNotifications;
 
     private BCryptPasswordEncoder passwordEncoder;
     private AdmissionServiceImpl service;
@@ -88,6 +90,7 @@ class AdmissionServiceImplTest {
                 new StudentSectionAdmissionMapper(),
                 admissionStatusHistoryRepository
         );
+        service.setEmailNotifications(emailNotifications);
     }
 
     @AfterEach
@@ -162,16 +165,18 @@ class AdmissionServiceImplTest {
         assertEquals(30L, result.studentProfileId());
         assertTrue(result.admissionReferenceNumber().startsWith("ADM-ABC001-"));
         assertTrue(result.admissionNumber().startsWith("STU-ABC001-"));
-        assertEquals("9876543210", result.temporaryPassword());
-
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
         User savedUser = userCaptor.getValue();
         assertEquals("aarav.patil@example.com", savedUser.getEmail());
         assertEquals(RoleName.STUDENT, savedUser.getRoles().iterator().next().getName());
-        assertNotEquals(result.temporaryPassword(), savedUser.getPasswordHash());
-        assertTrue(passwordEncoder.matches(result.temporaryPassword(), savedUser.getPasswordHash()));
-        assertFalse(savedUser.isMustChangePassword());
+        ArgumentCaptor<String> passwordCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailNotifications).queueUserCreatedEmail(
+                org.mockito.ArgumentMatchers.eq(savedUser), passwordCaptor.capture());
+        String temporaryPassword = passwordCaptor.getValue();
+        assertTrue(temporaryPassword.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%*\\-_=+]).{20}$"));
+        assertTrue(passwordEncoder.matches(temporaryPassword, savedUser.getPasswordHash()));
+        assertTrue(savedUser.isMustChangePassword());
 
         ArgumentCaptor<StudentProfile> profileCaptor = ArgumentCaptor.forClass(StudentProfile.class);
         verify(studentProfileRepository).save(profileCaptor.capture());

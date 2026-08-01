@@ -14,9 +14,11 @@ import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException;
+import com.jadhavr.erp.email.service.EmailNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -40,6 +42,7 @@ class UserServiceImplTest {
     @Mock PasswordEncoder encoder;
     @Mock RefreshTokenRepository refreshTokens;
     @Mock AuthorizationSnapshotService authorizationSnapshots;
+    @Mock EmailNotificationService emailNotifications;
     UserServiceImpl service;
     College college;
     Role principalRole;
@@ -47,6 +50,7 @@ class UserServiceImplTest {
     @BeforeEach void setup() {
         service = new UserServiceImpl(users, roles, colleges, encoder, new UserMapper(),
                 refreshTokens, authorizationSnapshots);
+        service.setEmailNotifications(emailNotifications);
         college = college(CollegeStatus.ACTIVE);
         principalRole = new Role();
         principalRole.setName(RoleName.PRINCIPAL);
@@ -54,12 +58,17 @@ class UserServiceImplTest {
 
     @Test void createPrincipalSuccessAndEncodesPassword() {
         stubValidCreation();
-        when(encoder.encode("9876543210")).thenReturn("$2a$encoded");
+        when(encoder.encode(anyString())).thenReturn("$2a$encoded");
         when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
         var result = service.createPrincipal(request());
         assertEquals("principal@abc.com", result.email());
         assertEquals(List.of("PRINCIPAL"), result.roles());
-        verify(encoder).encode("9876543210");
+        ArgumentCaptor<String> password = ArgumentCaptor.forClass(String.class);
+        verify(encoder).encode(password.capture());
+        assertNotEquals("9876543210", password.getValue());
+        assertEquals(20, password.getValue().length());
+        verify(emailNotifications).queuePrincipalCreatedEmail(
+                any(User.class), eq(password.getValue()));
     }
 
     @Test void missingCollegeFails() {

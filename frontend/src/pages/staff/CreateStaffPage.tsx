@@ -109,7 +109,7 @@ export function CreateStaffPage() {
         staffType: values.staffTypes[0],
         departmentId: values.departmentIds[0],
       });
-      toast.success("Staff account created. The first password is the phone number.");
+      toast.success("Staff account created. One-time credentials were sent by email.");
       navigate(ROUTES.staff);
     } catch (error) {
       toast.error(handleApiError(error).message);
@@ -130,13 +130,13 @@ export function CreateStaffPage() {
             label="Phone Number"
             type="tel"
             autoComplete="tel"
-            placeholder="Used as the temporary password"
+            placeholder="Staff contact number"
             error={errors.phone?.message}
             {...register("phone")}
           />
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 md:col-span-2">
-            The phone number is the staff member&apos;s temporary password. They must create a new
-            password immediately after their first login.
+            A secure one-time password will be emailed to the staff member. They must create a
+            private password immediately after their first login.
           </div>
         </Card>
 

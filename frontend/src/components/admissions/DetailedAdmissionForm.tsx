@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { DocumentViewer } from "@/components/common/DocumentViewer";
 import { Input } from "@/components/common/Input";
 import { Select } from "@/components/common/Select";
 import { Textarea } from "@/components/common/Textarea";
@@ -531,7 +532,7 @@ export function DetailedAdmissionForm({
                         : "Choose a passport photo"}
                   </p>
                   <p className="mt-1 truncate text-xs text-slate-500">
-                    {photo?.name ?? "JPEG, PNG or WebP, maximum 2 MB"}
+                    {photo?.name ?? "JPEG or PNG, maximum 2 MB"}
                   </p>
                 </div>
               </div>
@@ -539,7 +540,7 @@ export function DetailedAdmissionForm({
             <input
               id="passport-photo"
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png"
               onChange={(event) => {
                 const selected = event.target.files?.[0] ?? null;
                 if (selected && selected.size > 2 * 1024 * 1024) {
@@ -970,7 +971,7 @@ export function DetailedAdmissionForm({
         complete={formSteps[7].complete}
       >
         <p className="mb-4 text-sm text-slate-500">
-          Upload PDF, JPEG, PNG, or WebP files up to 2 MB each. Required documents must be uploaded
+          Upload PDF, JPEG, or PNG files up to 2 MB each. Required documents must be uploaded
           before submission.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
@@ -1070,6 +1071,19 @@ export function DetailedAdmissionView({
 }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [openingDocument, setOpeningDocument] = useState<AdmissionDocumentType | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<{
+    url: string;
+    contentType: string;
+    title: string;
+  } | null>(null);
+  useEffect(
+    () => () => {
+      if (documentPreview && documentPreview.url !== photoUrl) {
+        URL.revokeObjectURL(documentPreview.url);
+      }
+    },
+    [documentPreview, photoUrl],
+  );
   useEffect(() => {
     if (!admission.photoAvailable) return;
     let url = "";
@@ -1120,12 +1134,13 @@ export function DetailedAdmissionView({
       const url = studentOwned
         ? await api.getMyAdmissionDocument(type)
         : await api.getAdmissionDocument(admission.id, type);
-      const link = document.createElement("a");
-      link.href = url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      const blob = await fetch(url).then((response) => response.blob());
+      URL.revokeObjectURL(url);
+      setDocumentPreview({
+        url: URL.createObjectURL(blob),
+        contentType: blob.type,
+        title: defaultDocumentDefinitions.find((item) => item.type === type)?.label ?? type,
+      });
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -1138,7 +1153,23 @@ export function DetailedAdmissionView({
         <div className="grid gap-6 lg:grid-cols-[140px_1fr]">
           <div className="h-44 overflow-hidden rounded-xl border bg-slate-50">
             {photoUrl ? (
-              <img src={photoUrl} alt="Student passport" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                className="relative h-full w-full cursor-zoom-in"
+                onClick={() =>
+                  setDocumentPreview({
+                    url: photoUrl,
+                    contentType: "image/jpeg",
+                    title: `Student photograph — ${admission.fullName}`,
+                  })
+                }
+                aria-label="Inspect student photograph"
+              >
+                <img src={photoUrl} alt="Student passport" className="h-full w-full object-cover" />
+                <span className="absolute inset-x-0 bottom-0 bg-slate-950/75 px-2 py-1 text-xs font-semibold text-white">
+                  Click to inspect
+                </span>
+              </button>
             ) : (
               <div className="grid h-full place-items-center text-xs text-slate-400">No photo</div>
             )}
@@ -1204,6 +1235,16 @@ export function DetailedAdmissionView({
           )}
         </div>
       </Section>
+      {documentPreview && (
+        <DocumentViewer
+          open
+          url={documentPreview.url}
+          contentType={documentPreview.contentType}
+          title={documentPreview.title}
+          filename={`${documentPreview.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+          onClose={() => setDocumentPreview(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1354,7 +1395,7 @@ function DocumentUpload({
       <input
         id={inputId}
         type="file"
-        accept="application/pdf,image/jpeg,image/png,image/webp"
+        accept="application/pdf,image/jpeg,image/png"
         required={required && !available && !file}
         disabled={disabled}
         className="sr-only"

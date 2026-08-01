@@ -120,7 +120,7 @@ export function AdmissionDocumentSettingsPage() {
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600">
           Configure which file inputs students see for each department. Uploads accept
-          PDF, JPEG, PNG, or WebP files with a maximum size of 2 MB.
+          PDF, JPEG, or PNG files with a maximum size of 2 MB.
         </p>
       </div>
 

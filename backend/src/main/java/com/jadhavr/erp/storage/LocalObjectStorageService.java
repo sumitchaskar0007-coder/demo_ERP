@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 
 @Service
 @ConditionalOnProperty(name = "app.storage.provider", havingValue = "local", matchIfMissing = true)
@@ -25,9 +27,23 @@ public class LocalObjectStorageService implements ObjectStorageService {
         try {
             Files.createDirectories(target.getParent());
             Files.write(target, content);
-            Files.writeString(target.resolveSibling(target.getFileName() + ".content-type"), contentType);
+            Path metadata = target.resolveSibling(target.getFileName() + ".content-type");
+            Files.writeString(metadata, contentType);
+            restrictPermissions(target);
+            restrictPermissions(metadata);
         } catch (IOException exception) {
             throw new BadRequestException("Unable to store the uploaded file");
+        }
+    }
+
+    private void restrictPermissions(Path path) throws IOException {
+        try {
+            Files.setPosixFilePermissions(path, Set.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE));
+        } catch (UnsupportedOperationException ignored) {
+            // Windows ACLs are inherited from the isolated upload directory.
+            path.toFile().setExecutable(false, false);
         }
     }
 

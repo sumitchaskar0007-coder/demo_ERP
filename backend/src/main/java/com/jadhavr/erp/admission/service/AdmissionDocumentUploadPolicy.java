@@ -17,13 +17,11 @@ final class AdmissionDocumentUploadPolicy {
     private static final Map<String, Set<String>> ALLOWED_EXTENSIONS = Map.of(
             MediaType.APPLICATION_PDF_VALUE, Set.of(".pdf"),
             MediaType.IMAGE_JPEG_VALUE, Set.of(".jpg", ".jpeg"),
-            MediaType.IMAGE_PNG_VALUE, Set.of(".png"),
-            "image/webp", Set.of(".webp"));
+            MediaType.IMAGE_PNG_VALUE, Set.of(".png"));
     private static final Map<String, String> CANONICAL_EXTENSIONS = Map.of(
             MediaType.APPLICATION_PDF_VALUE, ".pdf",
             MediaType.IMAGE_JPEG_VALUE, ".jpg",
-            MediaType.IMAGE_PNG_VALUE, ".png",
-            "image/webp", ".webp");
+            MediaType.IMAGE_PNG_VALUE, ".png");
 
     private AdmissionDocumentUploadPolicy() {}
 
@@ -43,7 +41,7 @@ final class AdmissionDocumentUploadPolicy {
                 : contentType.trim().toLowerCase(Locale.ROOT);
         Set<String> extensions = ALLOWED_EXTENSIONS.get(normalizedContentType);
         if (extensions == null) {
-            throw new BadRequestException("Only PDF, JPEG, PNG, or WebP documents are allowed");
+            throw new BadRequestException("Only PDF, JPEG, or PNG documents are allowed");
         }
 
         String filename = validateFilename(originalFilename);

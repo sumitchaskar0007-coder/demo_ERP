@@ -26,6 +26,7 @@ import com.jadhavr.erp.auth.security.JwtService;
 import com.jadhavr.erp.auth.security.TrustedClientIpResolver;
 import com.jadhavr.erp.auth.service.DistributedRateLimiter;
 import com.jadhavr.erp.admission.filter.StudentAdmissionAccessFilter;
+import com.jadhavr.erp.config.RateLimitProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -162,6 +163,11 @@ class DashboardAuthorizationWebTest {
     @TestConfiguration
     @EnableMethodSecurity
     static class MethodSecurityTestConfig {
+        @Bean
+        RateLimitProperties rateLimitProperties() {
+            return new RateLimitProperties();
+        }
+
         @Bean
         SecurityFilterChain testFilterChain(org.springframework.security.config.annotation.web.builders.HttpSecurity http)
                 throws Exception {

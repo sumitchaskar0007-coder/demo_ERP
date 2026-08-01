@@ -16,9 +16,19 @@ public final class WeeklyAttendanceDtos {
             String studentName, String photoUrl, String status, String remarks) {}
     public record RosterResponse(LectureResponse lecture, List<StudentRow> students, int totalStudents,
             Map<String, Long> counts, boolean editable) {}
-    public record MarkItem(@NotNull Long studentId, @NotBlank String status, @Size(max=500) String remarks) {}
-    public record MarkRequest(@NotNull Long lectureId, @NotEmpty List<@Valid MarkItem> records, boolean submit) {}
-    public record UpdateRequest(@NotEmpty List<@Valid MarkItem> records, boolean submit) {}
+    public record MarkItem(
+            @NotNull @Positive Long studentId,
+            @NotBlank
+            @Pattern(regexp = "^(PRESENT|ABSENT|LATE|EXCUSED|HALF_DAY|LEAVE)$")
+            String status,
+            @Size(max=500) String remarks) {}
+    public record MarkRequest(
+            @NotNull @Positive Long lectureId,
+            @NotEmpty @Size(max=500) List<@Valid MarkItem> records,
+            boolean submit) {}
+    public record UpdateRequest(
+            @NotEmpty @Size(max=500) List<@Valid MarkItem> records,
+            boolean submit) {}
     public record SessionSummary(Long id, LocalDate date, String time, Long subjectId, String subject,
             Long departmentId, String department, Long divisionId, String year, String division,
             String teacher, String status, int total, long present, long absent, long late, long leave,

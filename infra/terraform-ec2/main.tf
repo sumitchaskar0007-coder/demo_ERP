@@ -353,6 +353,7 @@ resource "aws_iam_role_policy" "backend" {
           Effect = "Allow"
           Action = [
             "s3:GetObject",
+            "s3:GetObjectTagging",
             "s3:PutObject",
             "s3:DeleteObject"
           ]

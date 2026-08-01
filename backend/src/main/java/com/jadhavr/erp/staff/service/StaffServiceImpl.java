@@ -13,6 +13,7 @@ import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
+import com.jadhavr.erp.auth.util.TemporaryPasswordGenerator;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
@@ -150,7 +151,7 @@ public class StaffServiceImpl implements StaffService {
 
         Set<RoleName> roleNames = staffTypes.stream().map(this::roleFor).collect(java.util.stream.Collectors.toSet());
         StaffResponse created = createStaff(collegeId, request.fullName(), request.email(),
-                request.phone(), request.phone().trim(), request.joiningDate(), roleNames, staffType, true);
+                request.phone(), request.joiningDate(), roleNames, staffType, true);
         StaffProfile profile = staffProfiles.findById(created.id()).orElseThrow();
         profile.setDepartment(department);
         profile.setDepartments(assignedDepartments);
@@ -166,7 +167,7 @@ public class StaffServiceImpl implements StaffService {
         if (type == StaffType.HOD && staffProfiles.existsByDepartmentIdAndStaffTypeAndStatus(department.getId(), type, StaffStatus.ACTIVE)) throw new DuplicateResourceException("Department already has an active HOD");
         RoleName role = switch(type){case HOD -> RoleName.HOD; case CLASS_TEACHER -> RoleName.CLASS_TEACHER; default -> RoleName.SUBJECT_TEACHER;};
         StaffResponse response = createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(),
-                request.phone(), request.joiningDate(), Set.of(role), type, true);
+                request.joiningDate(), Set.of(role), type, true);
         StaffProfile profile = staffProfiles.findById(response.id()).orElseThrow(); profile.setDepartment(department); profile.setDepartments(Set.of(department)); staffProfiles.save(profile);
         return mapper.toResponse(profile);
     }
@@ -174,19 +175,19 @@ public class StaffServiceImpl implements StaffService {
     @Override
     @Transactional
     public StaffResponse createStudentSectionStaff(CreateStudentSectionStaffRequest request) {
-        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.phone(),
+        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(),
                 request.joiningDate(), Set.of(RoleName.STUDENT_SECTION), StaffType.STUDENT_SECTION, true);
     }
 
     @Override
     @Transactional
     public StaffResponse createFeeSectionStaff(CreateFeeSectionStaffRequest request) {
-        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(), request.phone(),
+        return createStaff(request.collegeId(), request.fullName(), request.email(), request.phone(),
                 request.joiningDate(), Set.of(RoleName.FEE_SECTION), StaffType.FEE_SECTION, true);
     }
 
     private StaffResponse createStaff(Long collegeId, String fullName, String requestedEmail, String phone,
-                                      String rawPassword, java.time.LocalDate joiningDate,
+                                      java.time.LocalDate joiningDate,
                                        Set<RoleName> roleNames, StaffType staffType, boolean mustChangePassword) {
         CustomUserDetails currentUser = SecurityUtils.requireCurrentUser();
         if (!SecurityUtils.isSuperAdmin() && !SecurityUtils.isPrincipal()) {
@@ -215,13 +216,14 @@ public class StaffServiceImpl implements StaffService {
         user.setEmail(email);
         String normalizedPhone = trimToNull(phone);
         user.setPhone(normalizedPhone);
-        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        String temporaryPassword = TemporaryPasswordGenerator.generate();
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(mustChangePassword);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(assignedRoles);
         User savedUser = users.save(user);
         if (emailNotifications != null) {
-            emailNotifications.queueUserCreatedEmail(savedUser, rawPassword);
+            emailNotifications.queueUserCreatedEmail(savedUser, temporaryPassword);
         }
 
         StaffProfile profile = new StaffProfile();

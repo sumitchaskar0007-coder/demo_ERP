@@ -401,15 +401,8 @@ export async function downloadAdmissionDocument(
     originalFilename = filenameFromContentDisposition(result.value.contentDisposition);
   }
 
-  let extension =
+  const extension =
     blob.type === "application/pdf" ? ".pdf" : blob.type === "image/png" ? ".png" : ".jpg";
-
-  // Keep downloads in the requested PNG/JPG/PDF formats. Legacy WebP uploads
-  // are converted to PNG in the browser before they are saved.
-  if (blob.type === "image/webp") {
-    blob = await convertImageToPng(blob);
-    extension = ".png";
-  }
 
   const originalName = originalFilename ?? `${type.toLowerCase().replaceAll("_", "-")}${extension}`;
   const baseName = originalName.replace(/\.[^.]+$/, "");
@@ -448,24 +441,6 @@ function filenameFromContentDisposition(disposition: string) {
   } catch {
     return matchedName.replace(/^"|"$/g, "");
   }
-}
-
-async function convertImageToPng(source: Blob) {
-  const bitmap = await createImageBitmap(source);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Unable to convert this image");
-  context.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  return new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(
-      (converted) =>
-        converted ? resolve(converted) : reject(new Error("Unable to convert this image")),
-      "image/png",
-    ),
-  );
 }
 
 export async function getAdmissionPhoto(id: number, principal = false) {

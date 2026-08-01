@@ -77,13 +77,60 @@ export async function uploadAdmissionDocumentWithFallback<T>(
 
   throwIfAborted(options.signal);
   options.onProgress?.({ stage: "verifying" });
-  const { data } = await apiClient.post<ApiResponse<AdmissionDocumentCompletionResponse>>(
-    `${endpoint}/complete`,
-    { uploadId: uploadSession.uploadId },
-    { signal: options.signal },
+  const data = await completeAfterSecurityScan(
+    endpoint,
+    uploadSession,
+    options.signal,
   );
   options.onProgress?.({ stage: "completed" });
-  return data.data;
+  return data;
+}
+
+async function completeAfterSecurityScan(
+  endpoint: string,
+  session: AdmissionDocumentUploadResponse,
+  signal?: AbortSignal,
+) {
+  const deadline = Date.parse(session.completionDeadline);
+  for (;;) {
+    throwIfAborted(signal);
+    try {
+      const { data } = await apiClient.post<ApiResponse<AdmissionDocumentCompletionResponse>>(
+        `${endpoint}/complete`,
+        { uploadId: session.uploadId },
+        { signal },
+      );
+      return data.data;
+    } catch (error) {
+      if (!axios.isAxiosError(error) || error.response?.status !== 425) throw error;
+      if (!Number.isFinite(deadline) || Date.now() + 500 >= deadline) {
+        throw new Error("The document security scan did not finish before the upload expired");
+      }
+      const retryHeader = Number(error.response.headers?.["retry-after"]);
+      const delayMs = Number.isFinite(retryHeader)
+        ? Math.min(5_000, Math.max(500, retryHeader * 1_000))
+        : 2_000;
+      await abortableDelay(delayMs, signal);
+    }
+  }
+}
+
+function abortableDelay(milliseconds: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Upload cancelled", "AbortError"));
+      return;
+    }
+    const timer = globalThis.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    const onAbort = () => {
+      globalThis.clearTimeout(timer);
+      reject(new DOMException("Upload cancelled", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 export async function resolveAdmissionDocumentDownload<T>(
@@ -135,8 +182,7 @@ function recognizedDocumentContentType(file: File) {
   if (
     normalized === "application/pdf" ||
     normalized === "image/jpeg" ||
-    normalized === "image/png" ||
-    normalized === "image/webp"
+    normalized === "image/png"
   ) {
     return normalized;
   }
@@ -144,7 +190,6 @@ function recognizedDocumentContentType(file: File) {
   if (filename.endsWith(".pdf")) return "application/pdf";
   if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) return "image/jpeg";
   if (filename.endsWith(".png")) return "image/png";
-  if (filename.endsWith(".webp")) return "image/webp";
   return normalized;
 }
 

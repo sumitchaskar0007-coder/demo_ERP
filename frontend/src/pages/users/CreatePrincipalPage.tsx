@@ -86,8 +86,8 @@ export function CreatePrincipalPage() {
               <Input label="Phone *" error={errors.phone?.message} {...register("phone")} />
             </div>
             <p className="rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
-              The first password is the principal's phone number. They must change it after signing
-              in.
+              A secure one-time password will be emailed to the principal. They must replace it
+              after signing in.
             </p>
             <div className="flex justify-end border-t pt-5">
               <Button type="submit" loading={isSubmitting}>
@@ -100,9 +100,9 @@ export function CreatePrincipalPage() {
           <ShieldCheck className="h-7 w-7 text-emerald-600" />
           <h2 className="mt-4 font-bold">First-login security</h2>
           <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-500">
-            <li>• Phone number is stored only as a BCrypt password hash.</li>
-            <li>• The principal must choose a strong new password on first login.</li>
-            <li>• The account cannot access the platform until that change is complete.</li>
+            <li>• The one-time password is random and stored only as a BCrypt hash.</li>
+            <li>• The principal must choose a strong private password on first login.</li>
+            <li>• The account stays restricted until that change is complete.</li>
           </ul>
         </Card>
       </div>

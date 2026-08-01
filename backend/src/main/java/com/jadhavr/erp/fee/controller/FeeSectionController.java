@@ -89,7 +89,7 @@ public class FeeSectionController {
     public ResponseEntity<Resource> paymentProof(@PathVariable Long id) {
         var proof = proofStorage.load(service.paymentProofStorageName(id));
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename("payment-proof-" + id, java.nio.charset.StandardCharsets.UTF_8)
                         .build().toString())
                 .contentType(proof.mediaType())

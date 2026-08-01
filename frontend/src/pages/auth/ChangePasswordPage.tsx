@@ -100,13 +100,13 @@ export function ChangePasswordPage() {
               </h1>
               <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100">
                 {isStudent
-                  ? "Your admission is approved. Create a private password before entering your student dashboard."
-                  : "Your staff account is ready. Replace the temporary phone-number password before entering your dashboard."}
+                  ? "Your student account is ready. Replace the emailed one-time password before continuing your admission."
+                  : "Your account is ready. Replace the emailed one-time password before entering your dashboard."}
               </p>
 
               <div className="mt-8 hidden space-y-4 text-sm text-blue-50 sm:block">
                 {[
-                  "Your temporary phone-number password will be replaced",
+                  "Your emailed one-time password will be replaced",
                   "Your dashboard stays locked until this step is complete",
                   "Your new password is securely encrypted",
                 ].map((item) => (
