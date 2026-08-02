@@ -16,48 +16,52 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export const createCollegeSchema = z.object({
-  name: z.string().trim().min(2, "Name must contain at least 2 characters").max(150),
-  code,
-  address: z.string().max(500).optional().default(""),
-  city: z.string().max(100).optional().default(""),
-  state: z.string().max(100).optional().default(""),
-  pincode: z.string().max(10).optional().default(""),
-  contactEmail: optionalEmail.optional().default(""),
-  contactPhone: z.string().max(20).optional().default(""),
-  logoUrl: z.string().max(500).optional().default(""),
-  qrCodeUrl: z.string().max(500).optional().default(""),
-  paymentQrAccountName: z.string().trim().max(150).optional().default(""),
-}).superRefine((value, context) => {
-  if (value.qrCodeUrl && !value.paymentQrAccountName) {
-    context.addIssue({
-      code: "custom",
-      path: ["paymentQrAccountName"],
-      message: "QR account name is required when a QR code is uploaded",
-    });
-  }
-});
+export const createCollegeSchema = z
+  .object({
+    name: z.string().trim().min(2, "Name must contain at least 2 characters").max(150),
+    code,
+    address: z.string().max(500).optional().default(""),
+    city: z.string().max(100).optional().default(""),
+    state: z.string().max(100).optional().default(""),
+    pincode: z.string().max(10).optional().default(""),
+    contactEmail: optionalEmail.optional().default(""),
+    contactPhone: z.string().max(20).optional().default(""),
+    logoUrl: z.string().max(500).optional().default(""),
+    qrCodeUrl: z.string().max(500).optional().default(""),
+    paymentQrAccountName: z.string().trim().max(150).optional().default(""),
+  })
+  .superRefine((value, context) => {
+    if (value.qrCodeUrl && !value.paymentQrAccountName) {
+      context.addIssue({
+        code: "custom",
+        path: ["paymentQrAccountName"],
+        message: "QR account name is required when a QR code is uploaded",
+      });
+    }
+  });
 
-export const updateCollegeSchema = z.object({
-  name: z.string().trim().min(2, "Name must contain at least 2 characters").max(150),
-  address: z.string().max(500).optional().default(""),
-  city: z.string().max(100).optional().default(""),
-  state: z.string().max(100).optional().default(""),
-  pincode: z.string().max(10).optional().default(""),
-  contactEmail: optionalEmail.optional().default(""),
-  contactPhone: z.string().max(20).optional().default(""),
-  logoUrl: z.string().max(500).optional().default(""),
-  qrCodeUrl: z.string().max(500).optional().default(""),
-  paymentQrAccountName: z.string().trim().max(150).optional().default(""),
-}).superRefine((value, context) => {
-  if (value.qrCodeUrl && !value.paymentQrAccountName) {
-    context.addIssue({
-      code: "custom",
-      path: ["paymentQrAccountName"],
-      message: "QR account name is required when a QR code is uploaded",
-    });
-  }
-});
+export const updateCollegeSchema = z
+  .object({
+    name: z.string().trim().min(2, "Name must contain at least 2 characters").max(150),
+    address: z.string().max(500).optional().default(""),
+    city: z.string().max(100).optional().default(""),
+    state: z.string().max(100).optional().default(""),
+    pincode: z.string().max(10).optional().default(""),
+    contactEmail: optionalEmail.optional().default(""),
+    contactPhone: z.string().max(20).optional().default(""),
+    logoUrl: z.string().max(500).optional().default(""),
+    qrCodeUrl: z.string().max(500).optional().default(""),
+    paymentQrAccountName: z.string().trim().max(150).optional().default(""),
+  })
+  .superRefine((value, context) => {
+    if (value.qrCodeUrl && !value.paymentQrAccountName) {
+      context.addIssue({
+        code: "custom",
+        path: ["paymentQrAccountName"],
+        message: "QR account name is required when a QR code is uploaded",
+      });
+    }
+  });
 
 export const createDepartmentSchema = z.object({
   collegeId: z.coerce.number().positive("College is required"),

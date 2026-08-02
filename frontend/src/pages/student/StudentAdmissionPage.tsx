@@ -102,10 +102,7 @@ export function StudentAdmissionPage() {
             ) : (
               <span />
             )}
-            <Button
-              variant="secondary"
-              onClick={() => navigate("/student/admission/print")}
-            >
+            <Button variant="secondary" onClick={() => navigate("/student/admission/print")}>
               Download admission form
             </Button>
           </div>

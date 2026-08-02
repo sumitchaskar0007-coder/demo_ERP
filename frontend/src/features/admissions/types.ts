@@ -36,6 +36,11 @@ export interface AcademicRecord {
   marksPercentage?: number | null;
 }
 
+export interface EntranceExam {
+  examName: string;
+  result: string;
+}
+
 export type AdmissionDocumentType = string;
 
 export interface AdmissionDocumentRequirement {
@@ -98,6 +103,7 @@ export interface DetailedAdmissionRequest {
   correspondenceMobile?: string;
   correspondenceEmail?: string;
   academicRecords: AcademicRecord[];
+  entranceExams: EntranceExam[];
   qualifyingEntranceSeatNumber?: string;
   qualifyingEntranceTotalScore?: number;
   lastGraduationCollegeName?: string;
@@ -245,6 +251,7 @@ export interface StudentSectionAdmissionResponse extends AdmissionResponse {
   correspondenceMobile?: string | null;
   correspondenceEmail?: string | null;
   academicRecords: AcademicRecord[];
+  entranceExams?: EntranceExam[];
   qualifyingEntranceSeatNumber?: string | null;
   qualifyingEntranceTotalScore?: number | null;
   lastGraduationCollegeName?: string | null;
@@ -377,6 +384,7 @@ export interface AdmissionPrintAcademicSection {
   previousClassName?: string | null;
   previousPercentage?: number | null;
   academicRecords: AcademicRecord[];
+  entranceExams?: EntranceExam[];
   qualifyingEntranceSeatNumber?: string | null;
   qualifyingEntranceTotalScore?: number | null;
   lastGraduationCollegeName?: string | null;

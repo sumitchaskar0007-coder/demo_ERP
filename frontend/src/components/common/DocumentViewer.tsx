@@ -1,13 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Download,
-  ExternalLink,
-  Minus,
-  Plus,
-  RotateCcw,
-  RotateCw,
-  X,
-} from "lucide-react";
+import { Download, ExternalLink, Minus, Plus, RotateCcw, RotateCw, X } from "lucide-react";
 
 type DocumentViewerProps = {
   open: boolean;
@@ -182,7 +174,9 @@ export function DocumentViewer({
                 })
               }
               className={`select-none shadow-2xl ${
-                fitToScreen ? "max-h-[calc(100vh-8rem)] max-w-[calc(100vw-2rem)] object-contain" : "max-w-none"
+                fitToScreen
+                  ? "max-h-[calc(100vh-8rem)] max-w-[calc(100vw-2rem)] object-contain"
+                  : "max-w-none"
               }`}
               style={{
                 width:

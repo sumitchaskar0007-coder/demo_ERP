@@ -1,0 +1,186 @@
+name: Deploy preproduction
+
+on:
+  push:
+    branches: [sai]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: preproduction-deployment
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::814645955631:role/jadhavr-erp-preprod-github-deploy
+  ECR_REGISTRY: 814645955631.dkr.ecr.ap-south-1.amazonaws.com
+  ECR_REPOSITORY: jadhavr-erp-preprod-backend
+  ECS_CLUSTER: jadhavr-erp-preprod
+  ECS_SERVICE: jadhavr-erp-preprod-backend
+  ECS_BACKEND_TASK_FAMILY: jadhavr-erp-preprod-backend
+  ECS_MIGRATION_TASK_FAMILY: jadhavr-erp-preprod-migration
+  ECS_SUBNETS: subnet-0789e4adf26058962,subnet-0da9da23b0f4f2f53
+  ECS_SECURITY_GROUP: sg-0be5ff98dc4786c47
+  FRONTEND_BUCKET: jadhavr-erp-preprod-frontend-814645955631
+  CLOUDFRONT_DISTRIBUTION_ID: E38DLQDQFBJG28
+  APPLICATION_URL: https://d3vrkvv4lom6n0.cloudfront.net
+
+jobs:
+  deploy:
+    name: Test and deploy sai to preproduction
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out sai commit
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Verify and package backend
+        working-directory: backend
+        run: ./mvnw -B verify
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Test and build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ""
+          VITE_ADMISSION_DIRECT_TRANSFER_ENABLED: "false"
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm run test:unit
+          npm run build
+
+      - name: Configure AWS credentials using GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push immutable backend image
+        id: image
+        env:
+          RELEASE_ID: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image_uri="${ECR_REGISTRY}/${ECR_REPOSITORY}:${RELEASE_ID}"
+          docker build --pull --tag "$image_uri" backend
+          docker push "$image_uri"
+          digest="$(aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$RELEASE_ID" \
+            --query 'imageDetails[0].imageDigest' --output text)"
+          test "$digest" != "None"
+          echo "uri=${ECR_REGISTRY}/${ECR_REPOSITORY}@${digest}" >> "$GITHUB_OUTPUT"
+          echo "release=${RELEASE_ID:0:12}" >> "$GITHUB_OUTPUT"
+
+      - name: Register migration and backend task revisions
+        id: tasks
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+          RELEASE_ID: ${{ steps.image.outputs.release }}
+        run: |
+          set -euo pipefail
+          register_revision() {
+            family="$1"
+            output="$2"
+            aws ecs describe-task-definition --task-definition "$family" \
+              --query taskDefinition --output json |
+              jq --arg image "$IMAGE_URI" --arg release "$RELEASE_ID" '
+                .containerDefinitions[0].image = $image |
+                .containerDefinitions[0].environment =
+                  ((.containerDefinitions[0].environment // [] | map(select(.name != "APP_RELEASE"))) +
+                   [{"name":"APP_RELEASE","value":$release}]) |
+                del(.taskDefinitionArn,.revision,.status,.requiresAttributes,
+                    .compatibilities,.registeredAt,.registeredBy,.deregisteredAt)' > task.json
+            arn="$(aws ecs register-task-definition \
+              --cli-input-json file://task.json \
+              --query 'taskDefinition.taskDefinitionArn' --output text)"
+            test "$arn" != "None"
+            echo "$output=$arn" >> "$GITHUB_OUTPUT"
+          }
+          register_revision "$ECS_MIGRATION_TASK_FAMILY" migration
+          register_revision "$ECS_BACKEND_TASK_FAMILY" backend
+
+      - name: Run database migrations
+        env:
+          MIGRATION_TASK: ${{ steps.tasks.outputs.migration }}
+        run: |
+          set -euo pipefail
+          task_arn="$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition "$MIGRATION_TASK" \
+            --launch-type FARGATE \
+            --started-by "github-${GITHUB_SHA:0:12}" \
+            --network-configuration "awsvpcConfiguration={subnets=[${ECS_SUBNETS}],securityGroups=[${ECS_SECURITY_GROUP}],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' --output text)"
+          test "$task_arn" != "None"
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$task_arn"
+          exit_code="$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$task_arn" \
+            --query 'tasks[0].containers[0].exitCode' --output text)"
+          if [ "$exit_code" != "0" ]; then
+            aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$task_arn" \
+              --query 'tasks[0].{stoppedReason:stoppedReason,containers:containers[*].{name:name,reason:reason,exitCode:exitCode}}'
+            exit 1
+          fi
+
+      - name: Deploy backend with rollback
+        env:
+          BACKEND_TASK: ${{ steps.tasks.outputs.backend }}
+          RELEASE_ID: ${{ steps.image.outputs.release }}
+        run: |
+          set -euo pipefail
+          previous="$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' --output text)"
+          rollback() {
+            echo "Deployment failed; restoring $previous"
+            aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" \
+              --task-definition "$previous" --force-new-deployment >/dev/null || true
+            aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" || true
+          }
+          trap rollback ERR
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" \
+            --task-definition "$BACKEND_TASK" --force-new-deployment >/dev/null
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+          health="$(curl --fail --silent --show-error --retry 12 --retry-all-errors \
+            --retry-delay 10 "${APPLICATION_URL}/api/health")"
+          echo "$health" | jq -e --arg release "$RELEASE_ID" \
+            '.success == true and .data.status == "UP" and .data.release == $release' >/dev/null
+          trap - ERR
+
+      - name: Publish frontend
+        run: |
+          set -euo pipefail
+          aws s3 sync frontend/dist "s3://${FRONTEND_BUCKET}" --delete --only-show-errors
+          invalidation_id="$(aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths '/*' \
+            --query 'Invalidation.Id' --output text)"
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --id "$invalidation_id"
+
+      - name: Final smoke checks
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors "${APPLICATION_URL}/" >/dev/null
+          curl --fail --silent --show-error --retry 6 --retry-all-errors "${APPLICATION_URL}/api/health" | jq -e '.success == true' >/dev/null
+          curl --fail --silent --show-error --retry 6 --retry-all-errors "${APPLICATION_URL}/actuator/health/readiness" | jq -e '.status == "UP"' >/dev/null

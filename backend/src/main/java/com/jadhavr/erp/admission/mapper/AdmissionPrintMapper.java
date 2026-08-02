@@ -86,6 +86,11 @@ public class AdmissionPrintMapper {
                                         record.getTotalMarks(), record.getObtainedMarks(),
                                         record.getMarksPercentage()))
                                 .toList(),
+                        admission.getEntranceExams().stream()
+                                .filter(Objects::nonNull)
+                                .map(exam -> new com.jadhavr.erp.admission.dto.EntranceExamDto(
+                                        exam.getExamName(), exam.getResult()))
+                                .toList(),
                         admission.getQualifyingEntranceSeatNumber(),
                         admission.getQualifyingEntranceTotalScore(),
                         admission.getLastGraduationCollegeName(),

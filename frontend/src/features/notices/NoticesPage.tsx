@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, Building2, CalendarDays, Eye, Inbox, Megaphone, Search, Send, Trash2, Users, X } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  CalendarDays,
+  Eye,
+  Inbox,
+  Megaphone,
+  Search,
+  Send,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/common/Button";
@@ -14,7 +26,14 @@ import type { Department } from "@/features/departments/types";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROLES } from "@/lib/constants";
 import * as api from "./api";
-import type { Notice, NoticeDeliveryMode, NoticePriority, NoticeReceipt, NoticeRecipientOption, NoticeRole } from "./types";
+import type {
+  Notice,
+  NoticeDeliveryMode,
+  NoticePriority,
+  NoticeReceipt,
+  NoticeRecipientOption,
+  NoticeRole,
+} from "./types";
 
 const labels: Record<NoticeRole, string> = {
   SUPER_ADMIN: "Super Admins",
@@ -49,9 +68,24 @@ export function NoticesPage() {
             "STUDENT",
           ]
         : principal
-          ? ["HOD", "STUDENT_SECTION", "FEE_SECTION", "CLASS_TEACHER", "SUBJECT_TEACHER", "GENERAL_STAFF", "STUDENT"]
+          ? [
+              "HOD",
+              "STUDENT_SECTION",
+              "FEE_SECTION",
+              "CLASS_TEACHER",
+              "SUBJECT_TEACHER",
+              "GENERAL_STAFF",
+              "STUDENT",
+            ]
           : hod
-            ? ["STUDENT_SECTION", "FEE_SECTION", "CLASS_TEACHER", "SUBJECT_TEACHER", "GENERAL_STAFF", "STUDENT"]
+            ? [
+                "STUDENT_SECTION",
+                "FEE_SECTION",
+                "CLASS_TEACHER",
+                "SUBJECT_TEACHER",
+                "GENERAL_STAFF",
+                "STUDENT",
+              ]
             : [],
     [admin, principal, hod],
   );
@@ -110,7 +144,7 @@ export function NoticesPage() {
         ? collegeIds[0]
         : null
       : principal
-        ? user?.collegeId ?? null
+        ? (user?.collegeId ?? null)
         : null;
     setDepartmentId(null);
     if (!collegeId || hod) {
@@ -403,36 +437,36 @@ export function NoticesPage() {
               </section>
             )}
             {deliveryMode === "COMMON" ? (
-            <section>
-              <div className="mb-3 flex items-center gap-2">
-                <Users className="h-4 w-4 text-brand-600" />
-                <p className="text-sm font-semibold text-slate-800">Select recipients</p>
-                <span className="text-xs text-slate-400">Choose one or more roles</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {allowed.map((role) => {
-                  const selected = roles.includes(role);
-                  return (
-                    <label
-                      key={role}
-                      className={`flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition ${selected ? "border-brand-600 bg-brand-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        disabled={hod}
-                        onChange={() => toggleRole(role)}
-                        className="sr-only"
-                      />
-                      <span
-                        className={`h-2 w-2 rounded-full ${selected ? "bg-white" : "bg-slate-300"}`}
-                      />
-                      {labels[role]}
-                    </label>
-                  );
-                })}
-              </div>
-            </section>
+              <section>
+                <div className="mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4 text-brand-600" />
+                  <p className="text-sm font-semibold text-slate-800">Select recipients</p>
+                  <span className="text-xs text-slate-400">Choose one or more roles</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {allowed.map((role) => {
+                    const selected = roles.includes(role);
+                    return (
+                      <label
+                        key={role}
+                        className={`flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition ${selected ? "border-brand-600 bg-brand-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={hod}
+                          onChange={() => toggleRole(role)}
+                          className="sr-only"
+                        />
+                        <span
+                          className={`h-2 w-2 rounded-full ${selected ? "bg-white" : "bg-slate-300"}`}
+                        />
+                        {labels[role]}
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
             ) : (
               <section className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                 <div>
@@ -461,19 +495,28 @@ export function NoticesPage() {
                   >
                     <option value="">All roles</option>
                     {allowed.map((role) => (
-                      <option key={role} value={role}>{labels[role]}</option>
+                      <option key={role} value={role}>
+                        {labels[role]}
+                      </option>
                     ))}
                   </select>
                 </div>
                 {selectedRecipients.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {selectedRecipients.map((recipient) => (
-                      <span key={recipient.userId} className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white">
+                      <span
+                        key={recipient.userId}
+                        className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white"
+                      >
                         {recipient.fullName}
                         <button
                           type="button"
                           aria-label={`Remove ${recipient.fullName}`}
-                          onClick={() => setSelectedRecipients((current) => current.filter((item) => item.userId !== recipient.userId))}
+                          onClick={() =>
+                            setSelectedRecipients((current) =>
+                              current.filter((item) => item.userId !== recipient.userId),
+                            )
+                          }
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -485,34 +528,56 @@ export function NoticesPage() {
                   {searchingRecipients ? (
                     <p className="p-5 text-center text-sm text-slate-500">Searching users…</p>
                   ) : recipientResults.length === 0 ? (
-                    <p className="p-5 text-center text-sm text-slate-500">No matching users found.</p>
-                  ) : recipientResults.map((recipient) => {
-                    const selected = selectedRecipients.some((item) => item.userId === recipient.userId);
-                    return (
-                      <label key={recipient.userId} className="flex cursor-pointer items-start gap-3 border-b border-slate-100 p-3 last:border-0 hover:bg-slate-50">
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => setSelectedRecipients((current) =>
-                            selected
-                              ? current.filter((item) => item.userId !== recipient.userId)
-                              : [...current, recipient]
-                          )}
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600"
-                        />
-                        <span className="min-w-0 flex-1">
-                          <b className="block truncate text-sm text-slate-800">{recipient.fullName}</b>
-                          <span className="block truncate text-xs text-slate-500">{recipient.email}</span>
-                          <span className="mt-1 block text-[11px] text-slate-400">
-                            {[recipient.collegeName, recipient.departmentName, recipient.roles.map((role) => labels[role]).join(", ")].filter(Boolean).join(" • ")}
+                    <p className="p-5 text-center text-sm text-slate-500">
+                      No matching users found.
+                    </p>
+                  ) : (
+                    recipientResults.map((recipient) => {
+                      const selected = selectedRecipients.some(
+                        (item) => item.userId === recipient.userId,
+                      );
+                      return (
+                        <label
+                          key={recipient.userId}
+                          className="flex cursor-pointer items-start gap-3 border-b border-slate-100 p-3 last:border-0 hover:bg-slate-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() =>
+                              setSelectedRecipients((current) =>
+                                selected
+                                  ? current.filter((item) => item.userId !== recipient.userId)
+                                  : [...current, recipient],
+                              )
+                            }
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <b className="block truncate text-sm text-slate-800">
+                              {recipient.fullName}
+                            </b>
+                            <span className="block truncate text-xs text-slate-500">
+                              {recipient.email}
+                            </span>
+                            <span className="mt-1 block text-[11px] text-slate-400">
+                              {[
+                                recipient.collegeName,
+                                recipient.departmentName,
+                                recipient.roles.map((role) => labels[role]).join(", "),
+                              ]
+                                .filter(Boolean)
+                                .join(" • ")}
+                            </span>
                           </span>
-                        </span>
-                      </label>
-                    );
-                  })}
+                        </label>
+                      );
+                    })
+                  )}
                 </div>
                 <p className="text-xs font-semibold text-brand-700">
-                  {selectedRecipients.length} user{selectedRecipients.length === 1 ? "" : "s"} selected
+                  {selectedRecipients.length} user{selectedRecipients.length === 1 ? "" : "s"}{" "}
+                  selected
                 </p>
               </section>
             )}
@@ -645,10 +710,17 @@ export function NoticesPage() {
                             ) : (
                               <div className="max-h-64 divide-y divide-slate-200 overflow-y-auto">
                                 {receiptByNotice[notice.id].recipients.map((receipt) => (
-                                  <div key={receipt.userId} className="flex items-center justify-between gap-3 p-3">
+                                  <div
+                                    key={receipt.userId}
+                                    className="flex items-center justify-between gap-3 p-3"
+                                  >
                                     <div className="min-w-0">
-                                      <p className="truncate text-sm font-semibold text-slate-800">{receipt.fullName}</p>
-                                      <p className="truncate text-xs text-slate-500">{receipt.email}</p>
+                                      <p className="truncate text-sm font-semibold text-slate-800">
+                                        {receipt.fullName}
+                                      </p>
+                                      <p className="truncate text-xs text-slate-500">
+                                        {receipt.email}
+                                      </p>
                                     </div>
                                     <div className="shrink-0 text-right text-xs">
                                       {receipt.seen ? (
@@ -657,7 +729,9 @@ export function NoticesPage() {
                                           Seen
                                         </span>
                                       ) : (
-                                        <span className="font-semibold text-slate-400">Not seen</span>
+                                        <span className="font-semibold text-slate-400">
+                                          Not seen
+                                        </span>
                                       )}
                                       {receipt.seenAt && (
                                         <p className="mt-1 text-[10px] text-slate-400">

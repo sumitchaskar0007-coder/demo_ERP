@@ -79,6 +79,7 @@ public record StudentSectionAdmissionResponse(
         String correspondenceMobile,
         String correspondenceEmail,
         java.util.List<AcademicRecordDto> academicRecords,
+        java.util.List<EntranceExamDto> entranceExams,
         String qualifyingEntranceSeatNumber,
         BigDecimal qualifyingEntranceTotalScore,
         String lastGraduationCollegeName,

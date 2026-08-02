@@ -234,7 +234,9 @@ export function PaymentDetailsPage() {
   const { paymentId } = useParams();
   const [p, setP] = useState<PaymentResponse | null>(null);
   const [openingProof, setOpeningProof] = useState(false);
-  const [proofPreview, setProofPreview] = useState<{ url: string; contentType: string } | null>(null);
+  const [proofPreview, setProofPreview] = useState<{ url: string; contentType: string } | null>(
+    null,
+  );
   useEffect(
     () => () => {
       if (proofPreview) URL.revokeObjectURL(proofPreview.url);

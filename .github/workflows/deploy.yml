@@ -1,4 +1,4 @@
-name: Deploy production
+name: Deprecated EC2 production deploy (disabled)
 
 on:
   workflow_dispatch:
@@ -38,10 +38,8 @@ env:
 
 jobs:
   deploy:
-    name: Build and deploy
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      inputs.confirmation == 'DEPLOY_PRODUCTION_EC2'
+    name: EC2 deployment is disabled; use Deploy production ECS
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: production

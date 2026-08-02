@@ -9,7 +9,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -ntp dependency:go-offline
 COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -ntp -DskipTests clean package
+    mvn -B -ntp -Dmaven.test.skip=true clean package
 
 FROM eclipse-temurin:${JAVA_VERSION}-jre-jammy AS runtime
 

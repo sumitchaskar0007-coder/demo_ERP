@@ -47,6 +47,20 @@ variable "backend_image" {
   description = "Immutable ECR image URI including a digest or version tag"
 }
 
+variable "backend_repository_name" {
+  type        = string
+  default     = ""
+  description = "Optional ECR repository name override. Leave empty to use <project>-<environment>-backend."
+
+  validation {
+    condition = var.backend_repository_name == "" || can(regex(
+      "^[a-z0-9]+(?:[._/-][a-z0-9]+)*$",
+      var.backend_repository_name
+    ))
+    error_message = "backend_repository_name must be a valid private ECR repository name."
+  }
+}
+
 variable "db_name" {
   type    = string
   default = "college_erp"
@@ -192,6 +206,14 @@ variable "production_database_access_ready" {
 variable "alert_email" {
   type    = string
   default = ""
+
+  validation {
+    condition = var.environment != "production" || can(regex(
+      "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      var.alert_email
+    ))
+    error_message = "Production requires a valid operational alert_email."
+  }
 }
 
 variable "mail_enabled" {
@@ -202,8 +224,14 @@ variable "mail_enabled" {
 
 variable "github_repository" {
   type        = string
-  default     = "sumitchaskar0007-coder/Jadhavr-ERP"
+  default     = "trijja/Jadhavr-ERP"
   description = "GitHub owner/repository allowed to assume the deployment role through the production environment."
+}
+
+variable "github_deploy_subject" {
+  type        = string
+  default     = ""
+  description = "Optional exact GitHub OIDC subject allowed to assume the deployment role."
 }
 
 variable "manage_github_oidc_provider" {

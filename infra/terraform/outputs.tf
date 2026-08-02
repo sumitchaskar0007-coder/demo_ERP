@@ -11,7 +11,7 @@ output "uploads_bucket" {
 }
 
 output "uploads_kms_key_arn" {
-  description = "Customer-managed KMS key for private upload objects; unrelated to the external RDS keys."
+  description = "Customer-managed KMS key for private upload objects."
   value       = aws_kms_key.uploads.arn
 }
 
@@ -48,18 +48,18 @@ output "backend_subnet_ids" {
 }
 
 output "backend_security_group_id" {
-  description = "Security group the external RDS owner must allow as the TCP/5432 source."
+  description = "Security group used by ECS tasks and allowed to reach the managed RDS instance."
   value       = aws_security_group.ecs.id
 }
 
 output "ecs_execution_role_arn" {
-  description = "Role that the external secret and KMS key policies must authorize."
+  description = "ECS execution role used to retrieve runtime secrets."
   value       = aws_iam_role.ecs_execution.arn
 }
 
-output "external_rds_security_group_id" {
-  description = "Externally managed production RDS security group consumed by this stack."
-  value       = local.external_production ? var.production_rds_security_group_id : aws_security_group.database[0].id
+output "database_security_group_id" {
+  description = "Security group attached to the environment-owned RDS instance."
+  value       = aws_security_group.database[0].id
 }
 
 output "migration_task_definition" {
@@ -67,7 +67,7 @@ output "migration_task_definition" {
 }
 
 output "database_role_task_definition" {
-  description = "Staging-only database role task; production database roles are externally managed."
+  description = "One-shot task that creates the least-privilege runtime database role."
   value       = local.manage_database ? aws_ecs_task_definition.database_role[0].family : null
 }
 

@@ -9,6 +9,7 @@ import com.jadhavr.erp.notice.repository.NoticeAcknowledgementRepository;
 import com.jadhavr.erp.notice.repository.NoticeRepository;
 import com.jadhavr.erp.notice.repository.NoticeViewRepository;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
+import com.jadhavr.erp.staff.entity.StaffProfile;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
 import com.jadhavr.erp.user.entity.Role;
 import com.jadhavr.erp.user.entity.RoleName;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -107,6 +109,44 @@ class NoticeServiceImplTest {
         assertEquals(17L, service.unreadCount());
 
         verify(notices).countUnread(currentUser.getId(), null, null, Set.of(RoleName.HOD));
+    }
+
+    @Test
+    void recipientSearchPagesBeforeFetchingRoleCollections() {
+        User recipient = new User();
+        recipient.setId(8L);
+        recipient.setFullName("Student Recipient");
+        recipient.setEmail("student@example.com");
+        recipient.setRoles(Set.of(role(RoleName.STUDENT)));
+        when(staffProfiles.findByUserId(currentUser.getId())).thenReturn(Optional.of(hodProfile()));
+        when(users.searchNoticeRecipientIds(7L, 1L, 2L, RoleName.STUDENT, "",
+                PageRequest.of(0, 20, org.springframework.data.domain.Sort.by("fullName").ascending())))
+                .thenReturn(new PageImpl<>(List.of(8L)));
+        when(users.findNoticeRecipientDetailsByIdIn(List.of(8L))).thenReturn(List.of(recipient));
+        when(staffProfiles.findByUserIdIn(List.of(8L))).thenReturn(List.of());
+        when(studentProfiles.findByUserIdIn(List.of(8L))).thenReturn(List.of());
+
+        var result = service.searchRecipients(null, null, RoleName.STUDENT, "", 0, 20);
+
+        assertEquals(List.of(8L), result.content().stream().map(option -> option.userId()).toList());
+        verify(users).findNoticeRecipientDetailsByIdIn(List.of(8L));
+    }
+
+    private StaffProfile hodProfile() {
+        var college = new com.jadhavr.erp.college.entity.College();
+        college.setId(1L);
+        var department = new com.jadhavr.erp.department.entity.Department();
+        department.setId(2L);
+        StaffProfile profile = new StaffProfile();
+        profile.setCollege(college);
+        profile.setDepartment(department);
+        return profile;
+    }
+
+    private Role role(RoleName name) {
+        Role role = new Role();
+        role.setName(name);
+        return role;
     }
 
     private User authenticatedHod() {

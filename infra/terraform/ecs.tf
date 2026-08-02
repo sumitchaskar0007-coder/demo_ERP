@@ -1,5 +1,5 @@
 resource "aws_ecr_repository" "backend" {
-  name                 = "${local.name}-backend"
+  name                 = var.backend_repository_name != "" ? var.backend_repository_name : "${local.name}-backend"
   image_tag_mutability = "IMMUTABLE"
   force_delete         = false
   image_scanning_configuration { scan_on_push = true }
@@ -545,25 +545,19 @@ resource "aws_ecs_task_definition" "database_role" {
     command = [
       "sh",
       "-ec",
-      <<-EOT
-        psql --set=ON_ERROR_STOP=1 \
-          --host="$DB_HOST" \
-          --username="$DB_MASTER_USERNAME" \
-          --dbname="$DB_NAME" \
-          --set=app_password="$DB_APP_PASSWORD" <<'SQL'
-        SELECT format('CREATE ROLE erp_app LOGIN PASSWORD %L', :'app_password')
-        WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'erp_app') \gexec
-        SELECT format('ALTER ROLE erp_app PASSWORD %L', :'app_password') \gexec
-        GRANT CONNECT ON DATABASE college_erp TO erp_app;
-        GRANT USAGE ON SCHEMA public TO erp_app;
-        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO erp_app;
-        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO erp_app;
-        ALTER DEFAULT PRIVILEGES FOR ROLE ${var.db_master_username} IN SCHEMA public
-          GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO erp_app;
-        ALTER DEFAULT PRIVILEGES FOR ROLE ${var.db_master_username} IN SCHEMA public
-          GRANT USAGE, SELECT ON SEQUENCES TO erp_app;
-        SQL
-      EOT
+      join("\n", [
+        "psql --set=ON_ERROR_STOP=1 --host=\"$DB_HOST\" --username=\"$DB_MASTER_USERNAME\" --dbname=\"$DB_NAME\" --set=app_password=\"$DB_APP_PASSWORD\" <<'SQL'",
+        "SELECT format('CREATE ROLE erp_app LOGIN PASSWORD %L', :'app_password')",
+        "WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'erp_app') \\gexec",
+        "SELECT format('ALTER ROLE erp_app PASSWORD %L', :'app_password') \\gexec",
+        "GRANT CONNECT ON DATABASE college_erp TO erp_app;",
+        "GRANT USAGE ON SCHEMA public TO erp_app;",
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO erp_app;",
+        "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO erp_app;",
+        "ALTER DEFAULT PRIVILEGES FOR ROLE ${var.db_master_username} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO erp_app;",
+        "ALTER DEFAULT PRIVILEGES FOR ROLE ${var.db_master_username} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO erp_app;",
+        "SQL",
+      ])
     ]
     environment = [
       { name = "DB_HOST", value = local.database_endpoint },
@@ -608,7 +602,7 @@ resource "aws_ecs_service" "backend" {
 
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
-  health_check_grace_period_seconds  = 90
+  health_check_grace_period_seconds  = 180
   enable_execute_command             = false
 
   network_configuration {

@@ -14,6 +14,9 @@ import type {
   StudentSectionAdmissionResponse,
 } from "@/features/admissions/types";
 
+const PDF_PAGE_WIDTH_MM = 210;
+const PDF_PAGE_HEIGHT_MM = 297;
+
 export function AdmissionPrintPage() {
   const { admissionId = "" } = useParams();
   const id = Number(admissionId);
@@ -116,6 +119,8 @@ export function AdmissionPrintPage() {
       });
       for (let index = 0; index < printablePages.length; index += 1) {
         const page = printablePages[index];
+        const pageWidth = page.offsetWidth;
+        const pageHeight = page.offsetHeight;
         const canvas = await html2canvas(page, {
           // Two output pixels per CSS pixel keeps small text sharp without
           // creating the previous 70+ MB, slow-to-open PDF files.
@@ -127,24 +132,30 @@ export function AdmissionPrintPage() {
           removeContainer: true,
           scrollX: 0,
           scrollY: -window.scrollY,
-          width: page.scrollWidth,
-          height: page.scrollHeight,
-          windowWidth: page.scrollWidth,
-          windowHeight: page.scrollHeight,
+          width: pageWidth,
+          height: pageHeight,
+          windowWidth: Math.max(document.documentElement.clientWidth, pageWidth),
+          windowHeight: Math.max(document.documentElement.clientHeight, pageHeight),
+          onclone: (_clonedDocument, clonedPage) => {
+            // Lock the cloned node to the exact dimensions shown in the UI.
+            // This prevents html2canvas from applying a responsive reflow while
+            // it creates the off-screen export document.
+            clonedPage.style.width = `${pageWidth}px`;
+            clonedPage.style.minWidth = `${pageWidth}px`;
+            clonedPage.style.maxWidth = `${pageWidth}px`;
+            clonedPage.style.height = `${pageHeight}px`;
+            clonedPage.style.minHeight = `${pageHeight}px`;
+            clonedPage.style.maxHeight = `${pageHeight}px`;
+          },
         });
         if (index > 0) pdf.addPage("a4", "portrait");
-        const pageWidth = 210;
-        const pageHeight = 297;
-        const fitRatio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-        const renderedWidth = canvas.width * fitRatio;
-        const renderedHeight = canvas.height * fitRatio;
         pdf.addImage(
-          canvas.toDataURL("image/jpeg", 0.94),
+          canvas.toDataURL("image/jpeg", 0.96),
           "JPEG",
-          (pageWidth - renderedWidth) / 2,
-          (pageHeight - renderedHeight) / 2,
-          renderedWidth,
-          renderedHeight,
+          0,
+          0,
+          PDF_PAGE_WIDTH_MM,
+          PDF_PAGE_HEIGHT_MM,
           `admission-page-${index + 1}`,
           "MEDIUM",
         );
@@ -188,7 +199,7 @@ export function AdmissionPrintPage() {
   const academicYearShort = `${academicStart.slice(-2)} - ${academicEnd.slice(-2)}`;
 
   return (
-    <div className="page-container print-page-bg">
+    <div className="page-container print-page-bg overflow-x-auto">
       <div className="no-print mb-4 flex flex-wrap gap-2">
         <Link to={studentOwned ? "/student/admission" : `/student-section/admissions/${id}`}>
           <Button variant="secondary">
@@ -208,13 +219,15 @@ export function AdmissionPrintPage() {
 
       <Card
         data-admission-pdf-page
-        className="print-container admission-form-sheet mx-auto min-h-[297mm] w-[210mm] max-w-full p-[10mm] text-black"
+        className="print-container admission-form-sheet mx-auto h-[297mm] min-h-[297mm] w-[210mm] min-w-[210mm] max-w-none overflow-hidden p-[10mm] text-black"
       >
         <InstituteHeader data={data} />
 
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_35mm] gap-5 border-t-2 border-slate-700 pt-3">
           <div>
-            <h2 className="text-[22px] font-extrabold uppercase tracking-wide">Admission Form</h2>
+            <h2 className="text-[24px] leading-tight font-extrabold uppercase tracking-wide">
+              Admission Form
+            </h2>
             <div className="mt-2 grid grid-cols-3 gap-4">
               <CourseValue label="Department" value={courseCode} />
               <CourseValue
@@ -225,7 +238,7 @@ export function AdmissionPrintPage() {
               />
               <CourseValue label="Admission year" value={data.academic.academicYear} />
             </div>
-            <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 text-[10px]">
+            <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 text-[11px]">
               <b className="pb-1">Form Number</b>
               <PrintField value={data.admissionReferenceNumber} compact />
               <b className="pb-1">Academic Session: {academicYearShort}</b>
@@ -249,11 +262,21 @@ export function AdmissionPrintPage() {
           permanentAddress={address}
           correspondenceAddress={correspondenceAddress || address}
         />
+      </Card>
 
+      <Card
+        data-admission-pdf-page
+        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 h-[297mm] min-h-[297mm] w-[210mm] min-w-[210mm] max-w-none overflow-hidden p-[10mm] text-black"
+      >
+        <ContinuationHeader
+          collegeName={data.college.collegeName}
+          admissionReferenceNumber={data.admissionReferenceNumber}
+          title="Academic and Entrance Details"
+        />
         <AcademicRecordTable data={data} />
         <EntranceDetailsSection data={data} />
 
-        <div className="mt-5 grid grid-cols-[1fr_1fr_1.35fr] items-end gap-6 text-[10px]">
+        <div className="mt-12 grid grid-cols-[1fr_1fr_1.35fr] items-end gap-8 text-[11px]">
           <PrintField label="Date" value="" />
           <PrintField label="Place" value="" />
           <SignatureLine label="Signature of Applicant" />
@@ -262,14 +285,14 @@ export function AdmissionPrintPage() {
 
       <Card
         data-admission-pdf-page
-        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[10mm] text-black"
+        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 h-[297mm] min-h-[297mm] w-[210mm] min-w-[210mm] max-w-none overflow-hidden p-[10mm] text-black"
       >
         <DocumentChecklist admission={admission} requirements={requirements} custody={custody} />
       </Card>
 
       <Card
         data-admission-pdf-page
-        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 min-h-[297mm] w-[210mm] max-w-full p-[10mm] text-black"
+        className="print-container admission-form-sheet admission-form-page-break mx-auto mt-8 h-[297mm] min-h-[297mm] w-[210mm] min-w-[210mm] max-w-none overflow-hidden p-[10mm] text-black"
       >
         <DeclarationSection declarations={data.declarations} />
         <UndertakingSection />
@@ -295,17 +318,37 @@ function InstituteHeader({ data }: { data: AdmissionPrintResponse }) {
         </div>
       </div>
       <div>
-        <p className="text-sm font-bold uppercase">Jadhavar Group of Institutes</p>
-        <p className="text-[11px]">Aditya Educational Foundation's</p>
-        <h1 className="text-xl font-extrabold">{data.college.collegeName}</h1>
-        <p className="text-xs">
+        <p className="text-[15px] leading-5 font-bold uppercase">Jadhavar Group of Institutes</p>
+        <p className="text-xs leading-5">Aditya Educational Foundation's</p>
+        <h1 className="text-[22px] leading-7 font-extrabold">{data.college.collegeName}</h1>
+        <p className="text-[13px] leading-5">
           {[data.college.address, data.college.city, data.college.state].filter(Boolean).join(", ")}
         </p>
-        <p className="text-xs">
+        <p className="text-[13px] leading-5">
           Email: {data.college.contactEmail || "-"} | Phone: {data.college.contactPhone || "-"}
         </p>
       </div>
       <div aria-hidden />
+    </header>
+  );
+}
+
+function ContinuationHeader({
+  collegeName,
+  admissionReferenceNumber,
+  title,
+}: {
+  collegeName: string;
+  admissionReferenceNumber: string;
+  title: string;
+}) {
+  return (
+    <header className="border-b-2 border-slate-700 pb-3">
+      <p className="text-[13px] font-bold uppercase tracking-wide text-slate-700">{collegeName}</p>
+      <div className="mt-1 flex items-end justify-between gap-6">
+        <h2 className="text-[22px] leading-7 font-extrabold uppercase">{title}</h2>
+        <p className="shrink-0 text-[11px] font-semibold">Form No: {admissionReferenceNumber}</p>
+      </div>
     </header>
   );
 }
@@ -365,9 +408,9 @@ function PersonalInformationSection({
   correspondenceAddress: string;
 }) {
   return (
-    <section className="mt-4 text-[10px] leading-[13px]">
-      <SectionHeading>Personal Information</SectionHeading>
-      <div className="mt-2 grid grid-cols-6 gap-x-4 gap-y-2">
+    <section className="mt-5 text-[11px] leading-[15px]">
+      <SectionHeading showRule={false}>Personal Information</SectionHeading>
+      <div className="mt-4 grid grid-cols-6 gap-x-5 gap-y-3">
         <PrintField
           label="Full Name of Applicant"
           value={data.student.fullName}
@@ -484,9 +527,9 @@ function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
       ];
   while (rows.length < 4) rows.push(["", "", "", "", "", "", ""]);
   return (
-    <section className="mt-4 break-inside-avoid">
+    <section className="mt-7 break-inside-avoid">
       <SectionHeading>Academic Record</SectionHeading>
-      <table className="mt-2 w-full table-fixed border-collapse text-center text-[8px] leading-[11px]">
+      <table className="admission-pdf-table mt-4 w-full table-fixed text-center text-[10px] leading-[14px]">
         <colgroup>
           <col className="w-[13%]" />
           <col className="w-[25%]" />
@@ -509,7 +552,7 @@ function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
             ].map((head) => (
               <th
                 key={head}
-                className="whitespace-normal border border-slate-700 px-1.5 py-1.5 text-[7px] font-bold leading-[9px]"
+                className="whitespace-normal px-2 py-4 align-middle text-[9px] leading-[12px] font-bold"
               >
                 {head}
               </th>
@@ -520,10 +563,7 @@ function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
           {rows.map((row, index) => (
             <tr key={index} className="break-inside-avoid">
               {row.map((cell, cellIndex) => (
-                <td
-                  key={cellIndex}
-                  className="whitespace-normal border border-slate-700 px-1.5 py-1.5 align-top"
-                >
+                <td key={cellIndex} className="whitespace-normal px-2 py-4 align-middle">
                   {safeValue(cell)}
                 </td>
               ))}
@@ -536,18 +576,41 @@ function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
 }
 
 function EntranceDetailsSection({ data }: { data: AdmissionPrintResponse }) {
+  const exams = data.academic.entranceExams?.length
+    ? data.academic.entranceExams
+    : data.academic.qualifyingEntranceSeatNumber ||
+        data.academic.qualifyingEntranceTotalScore != null
+      ? [
+          {
+            examName: data.academic.qualifyingEntranceSeatNumber || "Qualifying entrance test",
+            result: String(data.academic.qualifyingEntranceTotalScore ?? "Not specified"),
+          },
+        ]
+      : [];
   return (
-    <section className="mt-4 break-inside-avoid text-[10px]">
+    <section className="mt-8 break-inside-avoid text-[11px]">
       <SectionHeading>Entrance and Final Details</SectionHeading>
-      <div className="mt-2 grid grid-cols-2 gap-x-5 gap-y-2">
-        <PrintField
-          label="Seat Number of Qualifying Entrance Test"
-          value={data.academic.qualifyingEntranceSeatNumber}
-        />
-        <PrintField
-          label="Total Score in the Test"
-          value={data.academic.qualifyingEntranceTotalScore}
-        />
+      {exams.length > 0 && (
+        <table className="admission-pdf-table mt-4 w-full table-fixed text-[10px] leading-[14px]">
+          <thead>
+            <tr>
+              <th className="w-12 px-2 py-2">No.</th>
+              <th className="px-2 py-2">Entrance Exam Name</th>
+              <th className="px-2 py-2">Result / Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exams.map((exam, index) => (
+              <tr key={`${exam.examName}-${index}`}>
+                <td className="px-2 py-2 text-center">{index + 1}</td>
+                <td className="px-2 py-2">{safeValue(exam.examName)}</td>
+                <td className="px-2 py-2">{safeValue(exam.result)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
         <PrintField
           label="Last Graduation College Name and Address"
           value={[
@@ -566,19 +629,30 @@ function EntranceDetailsSection({ data }: { data: AdmissionPrintResponse }) {
 function CourseValue({ label, value }: { label: string; value: ReactNode }) {
   return (
     <span className="min-w-20 text-center">
-      <span className="block text-[7px] font-semibold uppercase tracking-wide text-slate-600">
+      <span className="block text-[9px] leading-4 font-semibold uppercase tracking-wide text-slate-600">
         {label}
       </span>
-      <span className="block px-1 pb-0.5 text-xs font-bold uppercase">{value}</span>
+      <span className="block px-1 pt-0.5 pb-1 text-[14px] leading-5 font-bold uppercase">
+        {value}
+      </span>
     </span>
   );
 }
 
-function SectionHeading({ children }: { children: ReactNode }) {
+function SectionHeading({
+  children,
+  showRule = true,
+}: {
+  children: ReactNode;
+  showRule?: boolean;
+}) {
   return (
-    <h3 className="border-b-2 border-slate-700 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-800">
-      {children}
-    </h3>
+    <div className="break-inside-avoid">
+      <h3 className="text-[14px] leading-5 font-bold uppercase tracking-[0.08em] text-slate-800">
+        {children}
+      </h3>
+      {showRule && <div aria-hidden className="mt-2 border-t border-slate-700" />}
+    </div>
   );
 }
 
@@ -596,13 +670,15 @@ function PrintField({
   return (
     <div className={`min-w-0 break-inside-avoid ${className}`}>
       {label && (
-        <div className="mb-0.5 text-[7px] font-bold uppercase tracking-wide text-slate-600">
+        <div className="mb-1 text-[9px] leading-[12px] font-bold uppercase tracking-wide text-slate-600">
           {label}
         </div>
       )}
       <div
         className={`min-w-0 whitespace-normal border-b border-slate-500 px-0.5 font-medium text-slate-950 ${
-          compact ? "min-h-5 pb-0.5 text-[10px]" : "min-h-6 pb-1 text-[9px] leading-[12px]"
+          compact
+            ? "min-h-6 pb-1.5 text-[11px] leading-[15px]"
+            : "min-h-7 pb-1.5 text-[11px] leading-[15px]"
         }`}
       >
         {safeValue(value) || "\u00a0"}
@@ -614,7 +690,9 @@ function PrintField({
 function SignatureLine({ label }: { label: string }) {
   return (
     <div className="break-inside-avoid pt-7 text-center">
-      <div className="border-t border-slate-700 pt-1 text-[9px] font-semibold">{label}</div>
+      <div className="border-t border-slate-700 pt-2 text-[10px] leading-4 font-semibold">
+        {label}
+      </div>
     </div>
   );
 }
@@ -650,7 +728,7 @@ function DocumentChecklist({
     (item) => !admission?.uploadedDocuments.includes(item.documentKey),
   );
   return (
-    <section className="text-[10px] leading-4">
+    <section className="text-[11px] leading-[17px]">
       <h2 className="text-center text-lg font-extrabold uppercase">
         Department Document Checklist
       </h2>
@@ -668,14 +746,14 @@ function DocumentChecklist({
           ["Verification", pending.length ? "Pending" : "Complete"],
         ].map(([label, value]) => (
           <div key={String(label)} className="border-b border-slate-500 pb-1">
-            <span className="block text-[7px] font-bold uppercase tracking-wide text-slate-600">
+            <span className="block text-[9px] leading-3 font-bold uppercase tracking-wide text-slate-600">
               {label}
             </span>
             <b className="text-xs">{value}</b>
           </div>
         ))}
       </div>
-      <table className="mt-5 w-full table-fixed border-collapse text-[8px] leading-[11px]">
+      <table className="admission-pdf-table mt-5 w-full table-fixed text-[9px] leading-[13px]">
         <colgroup>
           <col className="w-[5%]" />
           <col className="w-[27%]" />
@@ -700,7 +778,7 @@ function DocumentChecklist({
             ].map((heading) => (
               <th
                 key={heading}
-                className="whitespace-normal border border-slate-700 px-1 py-2 align-top text-[7px] font-bold leading-[9px]"
+                className="whitespace-normal px-1 py-3.5 align-middle text-[8px] leading-[11px] font-bold"
               >
                 {heading}
               </th>
@@ -715,20 +793,18 @@ function DocumentChecklist({
             );
             return (
               <tr key={requirement.documentKey} className="break-inside-avoid">
-                <td className="border border-slate-700 px-1 py-2 text-center align-top">
-                  {index + 1}
-                </td>
-                <td className="whitespace-normal border border-slate-700 px-2 py-2 align-top font-semibold [overflow-wrap:normal] [word-break:normal]">
+                <td className="px-1 py-3 text-center align-middle">{index + 1}</td>
+                <td className="whitespace-normal px-2 py-3 align-middle font-semibold [overflow-wrap:normal] [word-break:normal]">
                   {requirement.documentName}
                 </td>
-                <td className="border border-slate-700 px-1 py-2 text-center align-top">
+                <td className="px-1 py-3 text-center align-middle">
                   {requirement.required ? "Required" : "Optional"}
                 </td>
                 <ReliableCheckCell checked={submitted} />
                 <ReliableCheckCell checked={documentCustody?.originalReceived} />
                 <ReliableCheckCell checked={documentCustody?.xeroxReceived} />
                 <ReliableCheckCell checked={documentVerified(admission, requirement.documentKey)} />
-                <td className="whitespace-normal border border-slate-700 px-2 py-2 align-top [overflow-wrap:normal] [word-break:normal]">
+                <td className="whitespace-normal px-2 py-3 align-middle [overflow-wrap:normal] [word-break:normal]">
                   {documentCustody?.returnedToStudent ? "Returned to student" : ""}
                 </td>
               </tr>
@@ -736,7 +812,7 @@ function DocumentChecklist({
           })}
           {!requirements.length && (
             <tr>
-              <td colSpan={8} className="border border-slate-700 p-6 text-center">
+              <td colSpan={8} className="p-6 text-center">
                 No admission documents are configured for this department.
               </td>
             </tr>
@@ -753,7 +829,7 @@ function DocumentChecklist({
           </ul>
         </div>
       )}
-      <div className="mt-14 grid grid-cols-2 gap-x-16 gap-y-12">
+      <div className="mt-3 grid grid-cols-2 gap-x-16 gap-y-3">
         {[
           "Document verification officer",
           "Admission officer",
@@ -769,7 +845,7 @@ function DocumentChecklist({
 
 function ReliableCheckCell({ checked }: { checked?: boolean }) {
   return (
-    <td className="border border-slate-700 px-1 py-2 text-center align-top">
+    <td className="px-1 py-3 text-center align-middle">
       <span
         role="img"
         aria-label={checked ? "Checked" : "Not checked"}

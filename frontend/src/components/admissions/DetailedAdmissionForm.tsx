@@ -1,4 +1,14 @@
-import { Check, CheckCircle2, Circle, FileCheck2, ImagePlus, UploadCloud, X } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  Circle,
+  FileCheck2,
+  ImagePlus,
+  Plus,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
@@ -14,6 +24,7 @@ import type {
   AdmissionDocumentType,
   AdmissionDocumentTransferStage,
   DetailedAdmissionRequest,
+  EntranceExam,
   StudentSectionAdmissionResponse,
 } from "@/features/admissions/types";
 import { handleApiError } from "@/lib/handleApiError";
@@ -104,6 +115,16 @@ function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionReq
     correspondencePincode: a.correspondencePincode ?? a.pincode ?? "",
     correspondenceState: a.correspondenceState ?? a.state ?? "",
     academicRecords: records,
+    entranceExams: a.entranceExams?.length
+      ? a.entranceExams
+      : a.qualifyingEntranceSeatNumber || a.qualifyingEntranceTotalScore != null
+        ? [
+            {
+              examName: a.qualifyingEntranceSeatNumber || "Qualifying entrance test",
+              result: a.qualifyingEntranceTotalScore?.toString() || "Not specified",
+            },
+          ]
+        : [{ examName: "", result: "" }],
     qualifyingEntranceSeatNumber: a.qualifyingEntranceSeatNumber ?? "",
     qualifyingEntranceTotalScore: a.qualifyingEntranceTotalScore ?? undefined,
     lastGraduationCollegeName: a.lastGraduationCollegeName ?? "",
@@ -312,6 +333,32 @@ export function DetailedAdmissionForm({
       }),
     }));
 
+  const updateEntranceExam = (index: number, name: keyof EntranceExam, value: string) =>
+    setValues((current) => ({
+      ...current,
+      entranceExams: current.entranceExams.map((exam, examIndex) =>
+        examIndex === index ? { ...exam, [name]: value } : exam,
+      ),
+    }));
+
+  const addEntranceExam = () =>
+    setValues((current) => ({
+      ...current,
+      entranceExams:
+        current.entranceExams.length >= 10
+          ? current.entranceExams
+          : [...current.entranceExams, { examName: "", result: "" }],
+    }));
+
+  const removeEntranceExam = (index: number) =>
+    setValues((current) => ({
+      ...current,
+      entranceExams:
+        current.entranceExams.length === 1
+          ? [{ examName: "", result: "" }]
+          : current.entranceExams.filter((_, examIndex) => examIndex !== index),
+    }));
+
   const copyPermanentAddress = (checked: boolean) => {
     setSameAddress(checked);
     if (!checked) return;
@@ -354,6 +401,16 @@ export function DetailedAdmissionForm({
     }
     if (!values.courseYearId) {
       toast.error("Select FY, SY, or TY for the chosen department");
+      return;
+    }
+    const incompleteExam = values.entranceExams.find(
+      (exam) => Boolean(exam.examName.trim()) !== Boolean(exam.result.trim()),
+    );
+    if (incompleteExam) {
+      toast.error("Enter both entrance exam name and result, or remove the incomplete row");
+      document
+        .getElementById("entrance-exams")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     const missing = documentDefinitions.filter(
@@ -411,8 +468,14 @@ export function DetailedAdmissionForm({
         }
       }
       setCanCancelUploads(false);
-      if (studentOwned) await api.submitMyAdmissionDetails(values);
-      else await api.updateAdmissionDetails(admission.id, values);
+      const submission = {
+        ...values,
+        entranceExams: values.entranceExams
+          .filter((exam) => exam.examName.trim() && exam.result.trim())
+          .map((exam) => ({ examName: exam.examName.trim(), result: exam.result.trim() })),
+      };
+      if (studentOwned) await api.submitMyAdmissionDetails(submission);
+      else await api.updateAdmissionDetails(admission.id, submission);
       toast.success(
         studentOwned ? "Admission form submitted for review" : "Detailed admission form saved",
       );
@@ -932,26 +995,56 @@ export function DetailedAdmissionForm({
         </div>
       </Section>
 
-      <Section title="Entrance test and last graduation">
+      <Section title="Entrance exams and last graduation">
+        <div id="entrance-exams" className="mb-6 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Entrance exam results</p>
+              <p className="text-xs text-slate-500">
+                Add every exam attempted by the student (maximum 10).
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addEntranceExam}
+              disabled={values.entranceExams.length >= 10}
+            >
+              <Plus className="h-4 w-4" /> Add entrance exam
+            </Button>
+          </div>
+          {values.entranceExams.map((exam, index) => (
+            <div
+              key={index}
+              className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+            >
+              <Input
+                label={`Entrance exam name ${index + 1}`}
+                maxLength={120}
+                placeholder="e.g. MH-CET, JEE, NEET"
+                value={exam.examName}
+                onChange={(event) => updateEntranceExam(index, "examName", event.target.value)}
+              />
+              <Input
+                label="Result / score"
+                maxLength={100}
+                placeholder="e.g. 92.5 percentile, Rank 120"
+                value={exam.result}
+                onChange={(event) => updateEntranceExam(index, "result", event.target.value)}
+              />
+              <Button
+                type="button"
+                variant="danger"
+                className="px-3"
+                onClick={() => removeEntranceExam(index)}
+                aria-label={`Remove entrance exam ${index + 1}`}
+              >
+                <Trash2 className="h-4 w-4" /> <span className="md:hidden">Remove</span>
+              </Button>
+            </div>
+          ))}
+        </div>
         <Grid>
-          <Input
-            label="Seat number of qualifying entrance test"
-            value={values.qualifyingEntranceSeatNumber ?? ""}
-            onChange={(e) => set("qualifyingEntranceSeatNumber", e.target.value)}
-          />
-          <Input
-            label="Total score in test"
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.qualifyingEntranceTotalScore ?? ""}
-            onChange={(e) =>
-              set(
-                "qualifyingEntranceTotalScore",
-                e.target.value === "" ? undefined : Number(e.target.value),
-              )
-            }
-          />
           <Input
             label="Last graduation college name"
             value={values.lastGraduationCollegeName ?? ""}
@@ -971,8 +1064,8 @@ export function DetailedAdmissionForm({
         complete={formSteps[7].complete}
       >
         <p className="mb-4 text-sm text-slate-500">
-          Upload PDF, JPEG, or PNG files up to 2 MB each. Required documents must be uploaded
-          before submission.
+          Upload PDF, JPEG, or PNG files up to 2 MB each. Required documents must be uploaded before
+          submission.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           {documentDefinitions.map((item) => (
@@ -1121,8 +1214,10 @@ export function DetailedAdmissionView({
           .filter(Boolean)
           .join(", "),
       ],
-      ["Entrance seat number", admission.qualifyingEntranceSeatNumber],
-      ["Entrance total score", admission.qualifyingEntranceTotalScore],
+      [
+        "Entrance exams",
+        admission.entranceExams?.map((exam) => `${exam.examName}: ${exam.result}`).join("; "),
+      ],
       ["Last graduation college", admission.lastGraduationCollegeName],
       ["Last graduation address", admission.lastGraduationCollegeAddress],
     ],

@@ -81,10 +81,14 @@ export function AdmissionDocumentSettingsPage() {
     if (!departmentId) return;
     setSaving(true);
     try {
-      await api.updateAdmissionDocumentSetting(item.id, {
-        documentName: editingName.trim(),
-        required: editingRequired,
-      }, departmentId);
+      await api.updateAdmissionDocumentSetting(
+        item.id,
+        {
+          documentName: editingName.trim(),
+          required: editingRequired,
+        },
+        departmentId,
+      );
       setEditingId(null);
       await load();
       toast.success("Admission document updated");
@@ -119,8 +123,8 @@ export function AdmissionDocumentSettingsPage() {
           Required documents
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600">
-          Configure which file inputs students see for each department. Uploads accept
-          PDF, JPEG, or PNG files with a maximum size of 2 MB.
+          Configure which file inputs students see for each department. Uploads accept PDF, JPEG, or
+          PNG files with a maximum size of 2 MB.
         </p>
       </div>
 

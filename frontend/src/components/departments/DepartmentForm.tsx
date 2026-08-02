@@ -35,7 +35,13 @@ export function DepartmentForm({
     formState: { errors, isSubmitting },
   } = useForm<CreateForm>({
     resolver: zodResolver(editing ? updateDepartmentSchema : createDepartmentSchema),
-    defaultValues: { collegeId: user.collegeId || 0, name: "", code: "", description: "", admissionFormFee: 0 },
+    defaultValues: {
+      collegeId: user.collegeId || 0,
+      name: "",
+      code: "",
+      description: "",
+      admissionFormFee: 0,
+    },
   });
   useEffect(() => {
     reset(
@@ -47,7 +53,13 @@ export function DepartmentForm({
             description: department.description || "",
             admissionFormFee: department.admissionFormFee,
           }
-        : { collegeId: user.collegeId || 0, name: "", code: "", description: "", admissionFormFee: 0 },
+        : {
+            collegeId: user.collegeId || 0,
+            name: "",
+            code: "",
+            description: "",
+            admissionFormFee: 0,
+          },
     );
   }, [department, reset, user.collegeId]);
   const options = [

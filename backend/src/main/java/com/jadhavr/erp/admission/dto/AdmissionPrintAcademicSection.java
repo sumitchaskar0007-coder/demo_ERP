@@ -12,6 +12,7 @@ public record AdmissionPrintAcademicSection(
         String previousClassName,
         BigDecimal previousPercentage,
         List<AcademicRecordDto> academicRecords,
+        List<EntranceExamDto> entranceExams,
         String qualifyingEntranceSeatNumber,
         BigDecimal qualifyingEntranceTotalScore,
         String lastGraduationCollegeName,

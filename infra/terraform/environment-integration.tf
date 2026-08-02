@@ -1,49 +1,51 @@
 locals {
   external_production = var.environment == "production"
-  manage_network      = !local.external_production
-  manage_database     = !local.external_production
+  # Every environment is isolated and owned by its own Terraform state. In
+  # particular, production must never reuse the preproduction VPC or RDS.
+  manage_network  = true
+  manage_database = true
 
   production_cache_subnet_ids = length(var.production_cache_subnet_ids) > 0 ? var.production_cache_subnet_ids : var.production_backend_subnet_ids
 
-  vpc_id               = local.manage_network ? aws_vpc.main[0].id : var.production_vpc_id
-  vpc_cidr             = local.manage_network ? aws_vpc.main[0].cidr_block : data.aws_vpc.production[0].cidr_block
-  public_subnet_ids    = local.manage_network ? aws_subnet.public[*].id : var.production_public_subnet_ids
-  backend_subnet_ids   = local.manage_network ? aws_subnet.application[*].id : var.production_backend_subnet_ids
-  cache_subnet_ids     = local.manage_network ? aws_subnet.data[*].id : local.production_cache_subnet_ids
-  database_endpoint    = local.manage_database ? aws_db_instance.postgres[0].address : var.production_rds_endpoint
-  database_port        = local.manage_database ? aws_db_instance.postgres[0].port : var.production_database_port
-  database_name        = local.manage_database ? var.db_name : var.production_database_name
-  runtime_secret_arn   = local.manage_database ? aws_secretsmanager_secret.application.arn : var.production_runtime_database_secret_arn
-  migration_secret_arn = local.manage_database ? aws_db_instance.postgres[0].master_user_secret[0].secret_arn : var.production_migration_database_secret_arn
+  vpc_id               = aws_vpc.main[0].id
+  vpc_cidr             = aws_vpc.main[0].cidr_block
+  public_subnet_ids    = aws_subnet.public[*].id
+  backend_subnet_ids   = aws_subnet.application[*].id
+  cache_subnet_ids     = aws_subnet.data[*].id
+  database_endpoint    = aws_db_instance.postgres[0].address
+  database_port        = aws_db_instance.postgres[0].port
+  database_name        = var.db_name
+  runtime_secret_arn   = aws_secretsmanager_secret.application.arn
+  migration_secret_arn = aws_db_instance.postgres[0].master_user_secret[0].secret_arn
 }
 
 data "aws_vpc" "production" {
-  count = local.external_production && var.production_vpc_id != "" ? 1 : 0
+  count = 0
   id    = var.production_vpc_id
 }
 
 data "aws_subnet" "production_public" {
-  for_each = local.external_production ? toset(var.production_public_subnet_ids) : toset([])
+  for_each = toset([])
   id       = each.value
 }
 
 data "aws_subnet" "production_backend" {
-  for_each = local.external_production ? toset(var.production_backend_subnet_ids) : toset([])
+  for_each = toset([])
   id       = each.value
 }
 
 data "aws_subnet" "production_cache" {
-  for_each = local.external_production ? toset(local.production_cache_subnet_ids) : toset([])
+  for_each = toset([])
   id       = each.value
 }
 
 data "aws_security_group" "production_rds" {
-  count = local.external_production && var.production_rds_security_group_id != "" ? 1 : 0
+  count = 0
   id    = var.production_rds_security_group_id
 }
 
 resource "terraform_data" "production_contract" {
-  count = local.external_production ? 1 : 0
+  count = 0
 
   input = {
     vpc_id                        = var.production_vpc_id

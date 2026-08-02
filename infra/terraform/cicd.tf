@@ -25,6 +25,7 @@ locals {
     ? aws_iam_openid_connect_provider.github[0].arn
     : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
   )
+  github_deploy_subject = var.github_deploy_subject != "" ? var.github_deploy_subject : "repo:${var.github_repository}:environment:production"
 }
 
 resource "aws_iam_role" "github_deploy" {
@@ -41,7 +42,7 @@ resource "aws_iam_role" "github_deploy" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:environment:production"
+          "token.actions.githubusercontent.com:sub" = local.github_deploy_subject
         }
       }
     }]

@@ -111,7 +111,8 @@ export function PublicAdmissionPage() {
             </div>
             <h1 className="mt-5 text-2xl font-bold sm:text-3xl">Student account created</h1>
             <p className="mx-auto mt-2 max-w-lg text-sm text-emerald-50">
-              Your first registration step is complete. Check your email for the one-time login password.
+              Your first registration step is complete. Check your email for the one-time login
+              password.
             </p>
           </div>
           <div className="p-6 sm:p-8">

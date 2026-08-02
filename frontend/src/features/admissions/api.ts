@@ -70,10 +70,13 @@ export async function getAdmissionDocumentSettings(departmentId: number) {
   >("/api/college-settings/admission-documents", { params: { departmentId } });
   return data.data;
 }
-export async function createAdmissionDocumentSetting(values: {
-  documentName: string;
-  required: boolean;
-}, departmentId: number) {
+export async function createAdmissionDocumentSetting(
+  values: {
+    documentName: string;
+    required: boolean;
+  },
+  departmentId: number,
+) {
   const { data } = await apiClient.post<
     ApiResponse<import("./types").AdmissionDocumentRequirement>
   >("/api/college-settings/admission-documents", values, { params: { departmentId } });
@@ -211,7 +214,11 @@ export async function approveAdmission(
     casteCertificateVerified: boolean;
     incomeProofVerified: boolean;
     nameChangeCertificateVerified: boolean;
-    documentCustody: Array<{ documentType: string; originalReceived: boolean; xeroxReceived: boolean }>;
+    documentCustody: Array<{
+      documentType: string;
+      originalReceived: boolean;
+      xeroxReceived: boolean;
+    }>;
     remarks?: string;
   },
 ) {
@@ -308,13 +315,20 @@ export async function getMyAdmissionPrintData() {
 }
 export async function getDocumentCustody(id: number) {
   const { data } = await apiClient.get<ApiResponse<import("./types").AdmissionDocumentCustody[]>>(
-    `/api/student-section/admissions/${id}/document-custody`);
+    `/api/student-section/admissions/${id}/document-custody`,
+  );
   return data.data;
 }
-export async function markDocumentReturned(id: number, documentType: string, returnedToStudent: boolean, remarks = "") {
+export async function markDocumentReturned(
+  id: number,
+  documentType: string,
+  returnedToStudent: boolean,
+  remarks = "",
+) {
   const { data } = await apiClient.patch<ApiResponse<import("./types").AdmissionDocumentCustody>>(
     `/api/student-section/admissions/${id}/document-custody/${documentType}/returned`,
-    { returnedToStudent, remarks });
+    { returnedToStudent, remarks },
+  );
   return data.data;
 }
 

@@ -246,9 +246,7 @@ export function AttendanceReportPage() {
   const below50 = students.filter((s) => s.total > 0 && s.percentage < 50).length;
   const presentToday = new Set(
     students
-      .filter((s) =>
-        s.history.some((h) => h.date === today && h.status === "PRESENT"),
-      )
+      .filter((s) => s.history.some((h) => h.date === today && h.status === "PRESENT"))
       .map((s) => s.studentId),
   ).size;
   const absentToday = new Set(

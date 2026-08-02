@@ -1,12 +1,4 @@
-import {
-  Building2,
-  ChevronRight,
-  Mail,
-  Pencil,
-  Phone,
-  Plus,
-  Search,
-} from "lucide-react";
+import { Building2, ChevronRight, Mail, Pencil, Phone, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";

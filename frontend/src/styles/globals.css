@@ -396,6 +396,25 @@
     border-color: #111827;
   }
 
+  .admission-form-sheet .admission-pdf-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-top: 1px solid #334155;
+    border-left: 1px solid #334155;
+  }
+
+  .admission-form-sheet .admission-pdf-table th,
+  .admission-form-sheet .admission-pdf-table td {
+    border: 0;
+    border-right: 1px solid #334155;
+    border-bottom: 1px solid #334155;
+    line-height: 1.35;
+  }
+
+  .admission-form-sheet .admission-pdf-table th {
+    background: #f1f5f9;
+  }
+
   @media (max-width: 639px) {
     .page-container {
       padding: 1rem 0.75rem 2rem;

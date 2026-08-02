@@ -45,6 +45,7 @@ public record DetailedAdmissionRequest(
         @Size(max = 20) String correspondenceMobile,
         @Email @Size(max = 150) String correspondenceEmail,
         @Valid @Size(max = 4) List<AcademicRecordDto> academicRecords,
+        @Valid @Size(max = 10) List<EntranceExamDto> entranceExams,
         @Size(max = 80) String qualifyingEntranceSeatNumber,
         @DecimalMin("0.00") BigDecimal qualifyingEntranceTotalScore,
         @Size(max = 200) String lastGraduationCollegeName,

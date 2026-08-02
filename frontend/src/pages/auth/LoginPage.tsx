@@ -2,14 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowRight,
   Check,
-  Clock3,
   Eye,
   EyeOff,
   GraduationCap,
   LockKeyhole,
   Mail,
   ShieldCheck,
-  UsersRound,
 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -20,34 +18,11 @@ import { BrandLogo } from "@/components/common/BrandLogo";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { useAuth } from "@/features/auth/authStore";
-import {
-  APP_NAME,
-  ROUTES,
-  defaultRouteForRoles,
-  isRouteAllowedForRoles,
-} from "@/lib/constants";
+import { APP_NAME, ROUTES, defaultRouteForRoles, isRouteAllowedForRoles } from "@/lib/constants";
 import { handleApiError } from "@/lib/handleApiError";
 import { loginSchema } from "@/lib/validators";
 
 type LoginForm = z.infer<typeof loginSchema>;
-
-const PLATFORM_FEATURES = [
-  {
-    title: "Role-Based Access",
-    description: "Secure dashboards for every role",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Real-Time Operations",
-    description: "Track and manage in real time",
-    icon: Clock3,
-  },
-  {
-    title: "Trusted & Secure",
-    description: "Enterprise-grade data protection",
-    icon: LockKeyhole,
-  },
-];
 
 export function LoginPage() {
   const [rememberedEmail] = useState(
@@ -70,11 +45,7 @@ export function LoginPage() {
   if (isAuthenticated)
     return (
       <Navigate
-        to={
-          user?.mustChangePassword
-            ? ROUTES.changePassword
-            : defaultRouteForRoles(user?.roles)
-        }
+        to={user?.mustChangePassword ? ROUTES.changePassword : defaultRouteForRoles(user?.roles)}
         replace
       />
     );
@@ -123,34 +94,6 @@ export function LoginPage() {
             <h1 className="mt-7 max-w-xl text-5xl font-black leading-[1.05] tracking-tight 2xl:text-6xl">
               Empowering Education with <span className="text-violet-200">Smart ERP</span>
             </h1>
-            <p className="mt-6 max-w-lg text-base leading-7 text-violet-100/90 xl:text-lg">
-              Role-based access, real-time insights, and secure data management—all in one powerful
-              platform.
-            </p>
-
-            <div className="mt-9 grid max-w-lg gap-4">
-              {PLATFORM_FEATURES.map(({ title, description, icon: Icon }) => (
-                <div key={title} className="flex items-center gap-4">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-violet-100 backdrop-blur-sm">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-bold">{title}</p>
-                    <p className="mt-0.5 text-sm text-violet-100/75">{description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex w-fit items-center gap-4 rounded-2xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 text-white">
-              <UsersRound className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-violet-100">Trusted by</p>
-              <p className="text-lg font-black">500+ Institutions</p>
-            </div>
           </div>
         </aside>
 

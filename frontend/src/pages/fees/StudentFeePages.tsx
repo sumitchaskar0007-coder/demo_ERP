@@ -235,9 +235,11 @@ export function SubmitPaymentPage() {
                 <h3 className="font-bold text-amber-950">Verify before you pay</h3>
                 <p className="mt-2 text-sm leading-6 text-amber-900">
                   {qrAccountName ? (
-                    <>Pay only if the account name shown after scanning the QR code is exactly
-                    <strong className="mx-1">{qrAccountName}</strong>. Do not continue if any other
-                    account name appears.</>
+                    <>
+                      Pay only if the account name shown after scanning the QR code is exactly
+                      <strong className="mx-1">{qrAccountName}</strong>. Do not continue if any
+                      other account name appears.
+                    </>
                   ) : (
                     <>QR account name is not configured. Contact the administrator before paying.</>
                   )}
@@ -350,7 +352,8 @@ export function SubmitPaymentPage() {
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
             />
             <span>
-              I verified that the QR account name is <strong>{qrAccountName || "not configured"}</strong> before paying.
+              I verified that the QR account name is{" "}
+              <strong>{qrAccountName || "not configured"}</strong> before paying.
             </span>
           </label>
 

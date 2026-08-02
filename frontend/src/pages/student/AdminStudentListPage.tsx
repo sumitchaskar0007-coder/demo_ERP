@@ -401,9 +401,7 @@ function StudentDetailContent({
       return;
     }
     if (
-      !window.confirm(
-        `Approve ₹${amount.toLocaleString("en-IN")} scholarship for ${p.fullName}?`,
-      )
+      !window.confirm(`Approve ₹${amount.toLocaleString("en-IN")} scholarship for ${p.fullName}?`)
     )
       return;
     setApprovingScholarship(true);
@@ -659,10 +657,7 @@ function StudentDetailContent({
                   value={scholarshipRemarks}
                   onChange={(event) => setScholarshipRemarks(event.target.value)}
                 />
-                <Button
-                  loading={approvingScholarship}
-                  onClick={() => void approveScholarship()}
-                >
+                <Button loading={approvingScholarship} onClick={() => void approveScholarship()}>
                   Confirm scholarship
                 </Button>
               </div>

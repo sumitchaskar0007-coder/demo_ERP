@@ -1,0 +1,46 @@
+project_name = "jadhavr-erp"
+environment  = "production"
+aws_region   = "ap-south-1"
+
+# Production uses its own Terraform backend key and creates its own VPC,
+# application/data subnets, NAT gateways, RDS, Valkey, ECS, S3 and secrets.
+# Never reuse the preproduction state key or import preproduction resources.
+nat_gateway_count                = 2
+db_name                          = "college_erp"
+db_master_username               = "erp_migration"
+db_instance_class                = "db.t4g.medium"
+db_allocated_storage_gib         = 100
+db_multi_az                      = true
+db_enhanced_monitoring_enabled   = true
+db_performance_insights_enabled  = true
+cache_node_type                  = "cache.t4g.small"
+cache_cluster_count              = 2
+
+# Bootstrap with zero application tasks. Populate the application and mail
+# secrets, run the database-role and migration tasks, then change these to
+# true/2 in the separately reviewed activation plan.
+production_database_access_ready = false
+desired_count                     = 0
+backend_task_cpu                  = 1024
+backend_task_memory               = 2048
+backend_autoscaling_min_capacity  = 2
+backend_autoscaling_max_capacity  = 12
+backend_autoscaling_cpu_target    = 60
+backend_autoscaling_memory_target = 70
+backend_requests_per_target       = 900
+database_connection_budget        = 180
+
+temporary_domain        = false
+domain_name             = "erp.example.com"
+api_domain_name         = "api.erp.example.com"
+route53_zone_id         = "Z0000000000000000000"
+backend_image           = "000000000000.dkr.ecr.ap-south-1.amazonaws.com/jadhavr-erp-production-ecs-backend@sha256:replace"
+backend_repository_name = "jadhavr-erp-production-ecs-backend"
+
+alert_email       = "operations@example.com"
+mail_enabled      = false
+async_queues_enabled = false
+malware_protection_enabled = true
+waf_public_auth_edge_limit = 10000
+github_repository = "trijja/Jadhavr-ERP"
+manage_github_oidc_provider = false

@@ -7,23 +7,28 @@ minutes. These are objectives, not a substitute for a restore drill.
 
 ## RDS backup and point-in-time restore
 
-The production RDS owner controls encryption, topology, backups, monitoring,
-deletion protection, restore drills, and Flyway validation. This application
-Terraform neither creates nor modifies those controls. Before a production
-release, obtain evidence that the agreed backup retention and recovery targets
-are active.
+The production Terraform owns the isolated RDS instance, subnet group,
+security group, KMS encryption, backups, monitoring, and deletion protection.
+Before a production release, capture `terraform plan` evidence and live AWS
+evidence that the configured backup retention, encryption, Multi-AZ topology,
+and recovery targets are active.
 
-For a restore drill, the RDS owner restores to a *separate* instance in private
-subnets, supplies temporary runtime and migration secret ARNs, and completes
-their Flyway validation. The application team then executes read-only smoke
-tests. Record the restore timestamp, duration, and row/checksum verification;
-the RDS owner removes the drill instance according to the change ticket.
+For a restore drill, an authorized operator restores to a *separate* instance
+in the production private database subnets and attaches the production database
+security group. Never overwrite or repoint the live database. Create temporary
+runtime and migration secrets for the restored endpoint, run Flyway validation,
+and execute read-only application smoke tests from a one-off ECS task. Record
+the recovery point, start/end times, row counts, schema/Flyway checksums, and
+test results. Delete the drill database and temporary secrets only after the
+evidence is approved and the change record authorizes cleanup.
 
 ```sh
 aws rds describe-db-instances --db-instance-identifier "$DB_INSTANCE" \
   --query 'DBInstances[0].{MultiAZ:MultiAZ,Encrypted:StorageEncrypted,Backup:BackupRetentionPeriod}'
 aws rds describe-db-instances --db-instance-identifier "$RESTORED_INSTANCE" \
   --query 'DBInstances[0].DBInstanceStatus'
+aws rds describe-db-instances --db-instance-identifier "$RESTORED_INSTANCE" \
+  --query 'DBInstances[0].{SubnetGroup:DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups:VpcSecurityGroups[*].VpcSecurityGroupId,KmsKeyId:KmsKeyId}'
 ```
 
 ## Upload recovery

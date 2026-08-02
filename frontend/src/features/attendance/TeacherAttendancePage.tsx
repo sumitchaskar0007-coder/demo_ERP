@@ -416,14 +416,7 @@ function HistoryTable({ rows }: { rows: SessionSummary[] }) {
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                {[
-                  "Date & time",
-                  "Subject",
-                  "Class",
-                  "Present",
-                  "Absent",
-                  "Status",
-                ].map((h) => (
+                {["Date & time", "Subject", "Class", "Present", "Absent", "Status"].map((h) => (
                   <th key={h} className="px-4 py-3">
                     {h}
                   </th>

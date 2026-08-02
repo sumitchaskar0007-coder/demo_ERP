@@ -436,6 +436,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         admission.setCorrespondencePhone(trimToNull(request.correspondencePhone()));
         admission.setCorrespondenceMobile(trimToNull(request.correspondenceMobile()));
         admission.setCorrespondenceEmail(normalizeOptionalEmail(request.correspondenceEmail()));
+        admission.setEntranceExams(entranceExams(request));
         admission.setQualifyingEntranceSeatNumber(trimToNull(request.qualifyingEntranceSeatNumber()));
         admission.setQualifyingEntranceTotalScore(request.qualifyingEntranceTotalScore());
         admission.setLastGraduationCollegeName(trimToNull(request.lastGraduationCollegeName()));
@@ -465,6 +466,23 @@ public class AdmissionServiceImpl implements AdmissionService {
         user.setFullName(admission.getFullName());
         user.setEmail(email);
         user.setPhone(admission.getPhone());
+    }
+
+    private java.util.ArrayList<com.jadhavr.erp.admission.entity.AdmissionEntranceExam> entranceExams(
+            DetailedAdmissionRequest request) {
+        if (request.entranceExams() != null) {
+            return request.entranceExams().stream()
+                    .map(exam -> new com.jadhavr.erp.admission.entity.AdmissionEntranceExam(
+                            exam.examName().trim(), exam.result().trim()))
+                    .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+        }
+        String legacyName = trimToNull(request.qualifyingEntranceSeatNumber());
+        if (legacyName == null && request.qualifyingEntranceTotalScore() == null) return new java.util.ArrayList<>();
+        String name = legacyName == null ? "Qualifying entrance test" : legacyName;
+        String result = request.qualifyingEntranceTotalScore() == null
+                ? "Not specified" : request.qualifyingEntranceTotalScore().stripTrailingZeros().toPlainString();
+        return new java.util.ArrayList<>(java.util.List.of(
+                new com.jadhavr.erp.admission.entity.AdmissionEntranceExam(name, result)));
     }
 
     private AcademicClass requireCourseYear(AdmissionForm admission, Long courseYearId) {

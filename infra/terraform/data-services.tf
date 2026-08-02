@@ -4,6 +4,23 @@ resource "aws_db_subnet_group" "main" {
   subnet_ids = aws_subnet.data[*].id
 }
 
+resource "aws_kms_key" "database" {
+  count                   = local.external_production ? 1 : 0
+  description             = "${local.name} RDS storage, Performance Insights, and snapshot encryption"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_kms_alias" "database" {
+  count         = local.external_production ? 1 : 0
+  name          = "alias/${local.name}-database"
+  target_key_id = aws_kms_key.database[0].key_id
+}
+
 resource "aws_db_instance" "postgres" {
   count                           = local.manage_database ? 1 : 0
   identifier                      = "${local.name}-postgres"
@@ -14,6 +31,7 @@ resource "aws_db_instance" "postgres" {
   max_allocated_storage           = 500
   storage_type                    = "gp3"
   storage_encrypted               = true
+  kms_key_id                      = local.external_production ? aws_kms_key.database[0].arn : null
   db_name                         = var.db_name
   username                        = var.db_master_username
   manage_master_user_password     = true
@@ -30,6 +48,7 @@ resource "aws_db_instance" "postgres" {
   final_snapshot_identifier       = "${local.name}-final"
   copy_tags_to_snapshot           = true
   performance_insights_enabled    = var.db_performance_insights_enabled
+  performance_insights_kms_key_id = local.external_production && var.db_performance_insights_enabled ? aws_kms_key.database[0].arn : null
   monitoring_interval             = var.db_enhanced_monitoring_enabled ? 60 : 0
   monitoring_role_arn             = var.db_enhanced_monitoring_enabled ? aws_iam_role.rds_monitoring[0].arn : null
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]

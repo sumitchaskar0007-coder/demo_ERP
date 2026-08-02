@@ -247,6 +247,11 @@ public class AdmissionForm extends BaseAuditEntity {
     @OrderColumn(name = "record_order")
     private List<AdmissionAcademicRecord> academicRecords = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "admission_entrance_exams", joinColumns = @JoinColumn(name = "admission_form_id"))
+    @OrderColumn(name = "exam_order")
+    private List<AdmissionEntranceExam> entranceExams = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private AdmissionStatus status = AdmissionStatus.SUBMITTED;
@@ -444,6 +449,10 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setQualifyingEntranceSeatNumber(String qualifyingEntranceSeatNumber) { this.qualifyingEntranceSeatNumber = qualifyingEntranceSeatNumber; }
     public BigDecimal getQualifyingEntranceTotalScore() { return qualifyingEntranceTotalScore; }
     public void setQualifyingEntranceTotalScore(BigDecimal qualifyingEntranceTotalScore) { this.qualifyingEntranceTotalScore = qualifyingEntranceTotalScore; }
+    public List<AdmissionEntranceExam> getEntranceExams() { return entranceExams; }
+    public void setEntranceExams(List<AdmissionEntranceExam> entranceExams) {
+        this.entranceExams = entranceExams == null ? new ArrayList<>() : entranceExams;
+    }
     public String getLastGraduationCollegeName() { return lastGraduationCollegeName; }
     public void setLastGraduationCollegeName(String lastGraduationCollegeName) { this.lastGraduationCollegeName = lastGraduationCollegeName; }
     public String getLastGraduationCollegeAddress() { return lastGraduationCollegeAddress; }

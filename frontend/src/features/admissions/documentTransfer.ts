@@ -77,11 +77,7 @@ export async function uploadAdmissionDocumentWithFallback<T>(
 
   throwIfAborted(options.signal);
   options.onProgress?.({ stage: "verifying" });
-  const data = await completeAfterSecurityScan(
-    endpoint,
-    uploadSession,
-    options.signal,
-  );
+  const data = await completeAfterSecurityScan(endpoint, uploadSession, options.signal);
   options.onProgress?.({ stage: "completed" });
   return data;
 }

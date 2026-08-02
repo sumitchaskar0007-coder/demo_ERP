@@ -187,8 +187,6 @@ jobs:
           terraform fmt -check -recursive infra
           terraform -chdir=infra/terraform init -backend=false -input=false
           terraform -chdir=infra/terraform validate
-          terraform -chdir=infra/terraform-ec2 init -backend=false -input=false
-          terraform -chdir=infra/terraform-ec2 validate
 
       - name: Configure least-privilege AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -230,7 +228,7 @@ jobs:
 
       - name: Scan release image
         if: steps.existing_image.outputs.exists != 'true'
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           format: table

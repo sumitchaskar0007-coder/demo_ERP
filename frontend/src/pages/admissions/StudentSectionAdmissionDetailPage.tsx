@@ -217,17 +217,40 @@ export function StudentSectionAdmissionDetailPage() {
           <h2 className="text-lg font-bold">Physical document custody</h2>
           <div className="mt-4 space-y-3">
             {custody.map((item) => (
-              <div key={item.documentType} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
-                <div><p className="font-semibold">{requirements.find(r => r.documentKey === item.documentType)?.documentName ?? item.documentType}</p>
-                  <p className="text-xs text-slate-500">{[item.originalReceived && "Original", item.xeroxReceived && "Xerox"].filter(Boolean).join(" + ")}</p></div>
+              <div
+                key={item.documentType}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
+              >
+                <div>
+                  <p className="font-semibold">
+                    {requirements.find((r) => r.documentKey === item.documentType)?.documentName ??
+                      item.documentType}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {[item.originalReceived && "Original", item.xeroxReceived && "Xerox"]
+                      .filter(Boolean)
+                      .join(" + ")}
+                  </p>
+                </div>
                 <label className="flex items-center gap-2 text-sm font-semibold">
-                  <input type="checkbox" checked={item.returnedToStudent} onChange={async (e) => {
-                    const remarks = e.target.checked
-                      ? window.prompt("Return remarks (optional)", item.returnRemarks ?? "") ?? ""
-                      : "";
-                    await api.markDocumentReturned(id, item.documentType, e.target.checked, remarks);
-                    await load();
-                  }} /> Returned to student
+                  <input
+                    type="checkbox"
+                    checked={item.returnedToStudent}
+                    onChange={async (e) => {
+                      const remarks = e.target.checked
+                        ? (window.prompt("Return remarks (optional)", item.returnRemarks ?? "") ??
+                          "")
+                        : "";
+                      await api.markDocumentReturned(
+                        id,
+                        item.documentType,
+                        e.target.checked,
+                        remarks,
+                      );
+                      await load();
+                    }}
+                  />{" "}
+                  Returned to student
                 </label>
               </div>
             ))}
@@ -271,7 +294,9 @@ function ActionModal({
     resolver: zodResolver(rejectAdmissionSchema),
     defaultValues: { rejectionReason: "" },
   });
-  const [documentCustody, setDocumentCustody] = useState<Record<string, { originalReceived: boolean; xeroxReceived: boolean }>>({});
+  const [documentCustody, setDocumentCustody] = useState<
+    Record<string, { originalReceived: boolean; xeroxReceived: boolean }>
+  >({});
   const submit = async (values: Record<string, string | boolean>) => {
     try {
       if (modal === "approve")
@@ -295,7 +320,10 @@ function ActionModal({
           nameChangeCertificateVerified: Boolean(values.nameChangeCertificateVerified),
           documentCustody: requirements
             .filter((item) => documentCustody[item.documentKey])
-            .map((item) => ({ documentType: item.documentKey, ...documentCustody[item.documentKey] })),
+            .map((item) => ({
+              documentType: item.documentKey,
+              ...documentCustody[item.documentKey],
+            })),
           remarks: String(values.remarks || ""),
         });
       if (modal === "reject")
@@ -341,28 +369,44 @@ function ActionModal({
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
             <div>
               <p className="text-sm font-bold">Required document verification</p>
-              <p className="mt-1 text-xs text-slate-500">Only documents configured for this department are shown.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Only documents configured for this department are shown.
+              </p>
             </div>
             <VerificationCheckbox
               label="Passport photo"
               available={admission.photoAvailable}
               {...approveForm.register("photoVerified")}
             />
-            {requirements.filter(item => item.required).map(item => (
-              <CustodyChoice key={item.documentKey} requirement={item}
-                available={admission.uploadedDocuments.includes(item.documentKey)}
-                value={documentCustody[item.documentKey]}
-                onChange={(value) => setDocumentCustody(current => ({...current, [item.documentKey]: value}))} />
-            ))}
+            {requirements
+              .filter((item) => item.required)
+              .map((item) => (
+                <CustodyChoice
+                  key={item.documentKey}
+                  requirement={item}
+                  available={admission.uploadedDocuments.includes(item.documentKey)}
+                  value={documentCustody[item.documentKey]}
+                  onChange={(value) =>
+                    setDocumentCustody((current) => ({ ...current, [item.documentKey]: value }))
+                  }
+                />
+              ))}
           </div>
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
             <p className="text-sm font-bold">Optional document verification</p>
-            {requirements.filter(item => !item.required).map(item => (
-              <CustodyChoice key={item.documentKey} requirement={item}
-                available={admission.uploadedDocuments.includes(item.documentKey)}
-                value={documentCustody[item.documentKey]}
-                onChange={(value) => setDocumentCustody(current => ({...current, [item.documentKey]: value}))} />
-            ))}
+            {requirements
+              .filter((item) => !item.required)
+              .map((item) => (
+                <CustodyChoice
+                  key={item.documentKey}
+                  requirement={item}
+                  available={admission.uploadedDocuments.includes(item.documentKey)}
+                  value={documentCustody[item.documentKey]}
+                  onChange={(value) =>
+                    setDocumentCustody((current) => ({ ...current, [item.documentKey]: value }))
+                  }
+                />
+              ))}
           </div>
           <Textarea
             label="Remarks"
@@ -430,13 +474,19 @@ function CustodyChoice({
       {available && (
         <div className="mt-2 flex gap-5">
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={current.originalReceived}
-              onChange={(event) => onChange({ ...current, originalReceived: event.target.checked })} />
+            <input
+              type="checkbox"
+              checked={current.originalReceived}
+              onChange={(event) => onChange({ ...current, originalReceived: event.target.checked })}
+            />
             Original
           </label>
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={current.xeroxReceived}
-              onChange={(event) => onChange({ ...current, xeroxReceived: event.target.checked })} />
+            <input
+              type="checkbox"
+              checked={current.xeroxReceived}
+              onChange={(event) => onChange({ ...current, xeroxReceived: event.target.checked })}
+            />
             Xerox
           </label>
         </div>

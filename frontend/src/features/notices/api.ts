@@ -1,6 +1,12 @@
 import { API_BASE_URL, apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
-import type { CreateNoticeRequest, Notice, NoticeReceipt, NoticeRecipientOption, NoticeRole } from "./types";
+import type {
+  CreateNoticeRequest,
+  Notice,
+  NoticeReceipt,
+  NoticeRecipientOption,
+  NoticeRole,
+} from "./types";
 
 export async function getNoticeInbox() {
   const { data } = await apiClient.get<ApiResponse<Notice[]>>("/api/notices/inbox");

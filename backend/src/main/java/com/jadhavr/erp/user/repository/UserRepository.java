@@ -29,9 +29,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query("select count(distinct u.id) from User u join u.roles r where r.name = :role")
     long countByRole(@Param("role") RoleName role);
 
-    @EntityGraph(attributePaths = {"college", "roles"})
     @Query(value = """
-            select distinct u from User u
+            select u.id from User u
             join u.roles role
             left join StudentProfile student on student.user = u
             left join StaffProfile staff on staff.user = u
@@ -51,6 +50,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                    or lower(u.fullName) like concat('%', lower(:keyword), '%')
                    or lower(u.email) like concat('%', lower(:keyword), '%')
                    or u.phone like concat('%', :keyword, '%'))
+            group by u.id, u.fullName
             """,
             countQuery = """
             select count(distinct u.id) from User u
@@ -74,11 +74,15 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                    or lower(u.email) like concat('%', lower(:keyword), '%')
                    or u.phone like concat('%', :keyword, '%'))
             """)
-    Page<User> searchNoticeRecipients(
+    Page<Long> searchNoticeRecipientIds(
             @Param("senderId") Long senderId,
             @Param("collegeId") Long collegeId,
             @Param("departmentId") Long departmentId,
             @Param("roleName") RoleName roleName,
             @Param("keyword") String keyword,
             Pageable pageable);
+
+    @EntityGraph(attributePaths = {"college", "roles"})
+    @Query("select distinct u from User u where u.id in :ids")
+    List<User> findNoticeRecipientDetailsByIdIn(@Param("ids") List<Long> ids);
 }

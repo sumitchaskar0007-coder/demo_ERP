@@ -3,6 +3,7 @@ package com.jadhavr.erp.admission.service;
 import com.jadhavr.erp.admission.dto.SubmitAdmissionRequest;
 import com.jadhavr.erp.admission.dto.AcademicRecordDto;
 import com.jadhavr.erp.admission.dto.DetailedAdmissionRequest;
+import com.jadhavr.erp.admission.dto.EntranceExamDto;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
@@ -334,6 +335,10 @@ class AdmissionServiceImplTest {
         assertEquals(40L, result.id());
         assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING, result.status());
         assertEquals("Updated Pune address", result.addressLine1());
+        assertEquals(List.of("MH-CET", "CMAT"),
+                result.entranceExams().stream().map(EntranceExamDto::examName).toList());
+        assertEquals(List.of("92.5 percentile", "Rank 120"),
+                result.entranceExams().stream().map(EntranceExamDto::result).toList());
         assertNull(result.rejectionReason());
         assertEquals(StudentStatus.ADMISSION_SUBMITTED, admission.getStudent().getStatus());
         ArgumentCaptor<AdmissionStatusHistory> history =
@@ -373,7 +378,7 @@ class AdmissionServiceImplTest {
                 valid.permanentPhone(), valid.permanentEmail(), valid.correspondenceAddress(),
                 valid.correspondenceCity(), valid.correspondencePincode(), valid.correspondenceState(),
                 valid.correspondencePhone(), valid.correspondenceMobile(), valid.correspondenceEmail(),
-                valid.academicRecords(), valid.qualifyingEntranceSeatNumber(),
+                valid.academicRecords(), valid.entranceExams(), valid.qualifyingEntranceSeatNumber(),
                 valid.qualifyingEntranceTotalScore(), valid.lastGraduationCollegeName(),
                 valid.lastGraduationCollegeAddress());
 
@@ -419,6 +424,8 @@ class AdmissionServiceImplTest {
                 "9876543210", "aarav.patil@example.com",
                 List.of(new AcademicRecordDto("12TH", "ABC College", "State Board", "2025",
                         new BigDecimal("100"), new BigDecimal("78.50"), new BigDecimal("78.50"))),
+                List.of(new EntranceExamDto("MH-CET", "92.5 percentile"),
+                        new EntranceExamDto("CMAT", "Rank 120")),
                 "MHT123", new BigDecimal("82.00"), "ABC College", "Pune");
     }
 

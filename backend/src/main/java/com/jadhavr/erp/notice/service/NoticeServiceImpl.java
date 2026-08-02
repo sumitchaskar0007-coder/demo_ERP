@@ -171,15 +171,20 @@ public class NoticeServiceImpl implements NoticeService {
             throw new AccessDeniedException("Your role cannot search notice recipients");
         }
         String keyword = query == null || query.isBlank() ? "" : query.trim();
-        var result = users.searchNoticeRecipients(current.getId(), scopedCollegeId, scopedDepartmentId,
+        var result = users.searchNoticeRecipientIds(current.getId(), scopedCollegeId, scopedDepartmentId,
                 role, keyword, PageRequest.of(safePage, safeSize, Sort.by("fullName").ascending()));
-        List<Long> userIds = result.getContent().stream().map(User::getId).toList();
+        List<Long> userIds = result.getContent();
+        Map<Long, User> detailedUsers = userIds.isEmpty() ? Map.of()
+                : users.findNoticeRecipientDetailsByIdIn(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, Function.identity()));
         Map<Long, StaffProfile> staffByUser = staffProfiles.findByUserIdIn(userIds).stream()
                 .collect(Collectors.toMap(profile -> profile.getUser().getId(), Function.identity()));
         Map<Long, com.jadhavr.erp.student.entity.StudentProfile> studentByUser =
                 studentProfiles.findByUserIdIn(userIds).stream()
                         .collect(Collectors.toMap(profile -> profile.getUser().getId(), Function.identity()));
-        var options = result.map(user -> {
+        var options = result.map(userId -> {
+            User user = detailedUsers.get(userId);
+            if (user == null) throw new ResourceNotFoundException("Notice recipient not found");
             Department department = studentByUser.containsKey(user.getId())
                     ? studentByUser.get(user.getId()).getDepartment()
                     : staffByUser.containsKey(user.getId()) ? staffByUser.get(user.getId()).getDepartment() : null;
