@@ -38,6 +38,7 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
     boolean existsByAdmissionFormIdAndFeeStructureIsNotNull(Long id);
 
     boolean existsByFeeStructureId(Long id);
+    List<StudentFeeAccount> findByFeeStructureId(Long id);
 
     long countByCollegeId(Long id);
     List<StudentFeeAccount> findByCollegeId(Long id);

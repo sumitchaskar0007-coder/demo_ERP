@@ -42,6 +42,7 @@ public class StudentSectionAdmissionMapper {
                 admission.getCourseYear() == null ? null : admission.getCourseYear().getYearName(),
                 admission.getCourseYear() == null ? null : admission.getCourseYear().getName(),
                 admission.getStudentCategory(),
+                admission.getCustomCategoryName(),
                 admission.getFullName(),
                 admission.getEmail(),
                 admission.getPhone(),

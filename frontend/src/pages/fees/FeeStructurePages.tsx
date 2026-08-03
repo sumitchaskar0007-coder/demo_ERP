@@ -46,7 +46,10 @@ export function FeeStructureListPage() {
     departmentId: "",
     courseYear: "",
     studentCategory: "OPEN",
+    customCategoryName: "",
+    gender: "FEMALE",
     totalFee: "",
+    scholarshipAmount: "",
     minimumAmountForAdmission: "",
   });
 
@@ -121,7 +124,10 @@ export function FeeStructureListPage() {
       departmentId: "",
       courseYear: "",
       studentCategory: "OPEN",
+      customCategoryName: "",
+      gender: "FEMALE",
       totalFee: "",
+      scholarshipAmount: "",
       minimumAmountForAdmission: "",
     });
   };
@@ -129,9 +135,18 @@ export function FeeStructureListPage() {
     if (!collegeId || !values.departmentId || !values.courseYear)
       return toast.error("Select department and course year");
     const totalFee = Number(values.totalFee);
+    const scholarshipAmount = Number(values.scholarshipAmount || 0);
     const minimum = Number(values.minimumAmountForAdmission);
-    if (totalFee <= 0 || minimum < 0 || minimum > totalFee)
+    if (
+      totalFee <= 0 ||
+      scholarshipAmount < 0 ||
+      scholarshipAmount > totalFee ||
+      minimum < 0 ||
+      minimum > totalFee - scholarshipAmount
+    )
       return toast.error("Check total and minimum fee amounts");
+    if (values.studentCategory === "OTHER" && values.customCategoryName.trim().length < 2)
+      return toast.error("Enter the custom category name");
     setSaving(true);
     try {
       const payload = {
@@ -140,8 +155,12 @@ export function FeeStructureListPage() {
         academicYear: ACADEMIC_YEAR,
         courseYear: values.courseYear,
         studentCategory: values.studentCategory as CreateFeeStructureRequest["studentCategory"],
-        title: `${values.courseYear} ${values.studentCategory} Fee`,
+        customCategoryName:
+          values.studentCategory === "OTHER" ? values.customCategoryName.trim() : undefined,
+        gender: values.gender as "MALE" | "FEMALE",
+        title: `${values.courseYear} ${values.studentCategory === "OTHER" ? values.customCategoryName : values.studentCategory} ${values.gender} Fee`,
         totalFee,
+        scholarshipAmount,
         minimumAmountForAdmission: minimum,
         admissionFee: 0,
         tuitionFee: totalFee,
@@ -149,8 +168,20 @@ export function FeeStructureListPage() {
         libraryFee: 0,
         otherFee: 0,
       };
-      if (editingId) await api.updateFeeStructure(editingId, payload);
-      else await api.createFeeStructure(payload);
+      if (editingId) {
+        await api.updateFeeStructure(editingId, {
+          title: payload.title,
+          totalFee: payload.totalFee,
+          minimumAmountForAdmission: payload.minimumAmountForAdmission,
+          admissionFee: payload.admissionFee,
+          tuitionFee: payload.tuitionFee,
+          examFee: payload.examFee,
+          libraryFee: payload.libraryFee,
+          otherFee: payload.otherFee,
+          scholarshipAmount: payload.scholarshipAmount,
+          gender: payload.gender,
+        });
+      } else await api.createFeeStructure(payload);
       toast.success(editingId ? "Fee structure updated" : "Fee structure created");
       resetForm();
       await load(0);
@@ -223,6 +254,23 @@ export function FeeStructureListPage() {
             disabled={Boolean(editingId)}
             onChange={(event) => setValues({ ...values, studentCategory: event.target.value })}
           />
+          {values.studentCategory === "OTHER" && (
+            <Input
+              label="Custom Category Name"
+              maxLength={80}
+              value={values.customCategoryName}
+              onChange={(event) => setValues({ ...values, customCategoryName: event.target.value })}
+            />
+          )}
+          <Select
+            label="Gender"
+            options={[
+              { label: "Female", value: "FEMALE" },
+              { label: "Male", value: "MALE" },
+            ]}
+            value={values.gender}
+            onChange={(event) => setValues({ ...values, gender: event.target.value })}
+          />
           <Input
             label="Total Fee"
             type="number"
@@ -238,6 +286,13 @@ export function FeeStructureListPage() {
             onChange={(event) =>
               setValues({ ...values, minimumAmountForAdmission: event.target.value })
             }
+          />
+          <Input
+            label="Scholarship Amount"
+            type="number"
+            min="0"
+            value={values.scholarshipAmount}
+            onChange={(event) => setValues({ ...values, scholarshipAmount: event.target.value })}
           />
         </div>
         <div className="mt-4 flex gap-2">
@@ -288,7 +343,10 @@ export function FeeStructureListPage() {
                       departmentId: String(row.departmentId),
                       courseYear: row.courseYear || "",
                       studentCategory: row.studentCategory || "OPEN",
+                      customCategoryName: row.customCategoryName || "",
+                      gender: row.gender || "FEMALE",
                       totalFee: String(row.totalFee),
+                      scholarshipAmount: String(row.scholarshipAmount),
                       minimumAmountForAdmission: String(row.minimumAmountForAdmission),
                     });
                   }}
@@ -313,9 +371,9 @@ export function FeeStructureListPage() {
               </div>
               <span className="text-sm">
                 {row.departmentName} · {row.courseYear || "Course year not set"} ·{" "}
-                {row.studentCategory || "OPEN"}
+                {row.categoryLabel || row.studentCategory || "OPEN"} · {row.gender}
               </span>
-              <b>₹{row.totalFee.toLocaleString("en-IN")}</b>
+              <b>₹{row.payableFee.toLocaleString("en-IN")} payable</b>
             </div>
           ))}
         </div>
@@ -351,6 +409,8 @@ const initial: CreateFeeStructureRequest = {
   examFee: 0,
   libraryFee: 0,
   otherFee: 0,
+  gender: "FEMALE",
+  scholarshipAmount: 0,
 };
 export function FeeStructureFormPage() {
   const { id } = useParams();

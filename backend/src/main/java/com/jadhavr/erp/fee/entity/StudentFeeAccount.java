@@ -25,6 +25,7 @@ public class StudentFeeAccount extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "fee_structure_id") private FeeStructure feeStructure;
     @Column(nullable = false, length = 20) private String academicYear;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'OPEN'") private StudentCategory studentCategory = StudentCategory.OPEN;
+    @Column(name = "custom_category_name", length = 80) private String customCategoryName;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal totalFee;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal paidAmount = BigDecimal.ZERO;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal remainingAmount;
@@ -50,6 +51,8 @@ public class StudentFeeAccount extends BaseAuditEntity {
     public void setAcademicYear(String value) { academicYear = value; }
     public StudentCategory getStudentCategory() { return studentCategory; }
     public void setStudentCategory(StudentCategory value) { studentCategory = value; }
+    public String getCustomCategoryName() { return customCategoryName; }
+    public void setCustomCategoryName(String value) { customCategoryName = value; }
     public BigDecimal getTotalFee() { return totalFee; }
     public void setTotalFee(BigDecimal value) { totalFee = value; }
     public BigDecimal getPaidAmount() { return paidAmount; }

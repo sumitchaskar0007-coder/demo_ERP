@@ -11,6 +11,7 @@ public record StudentProfileResponse(
         Long userId,
         String admissionNumber,
         StudentCategory studentCategory,
+        String customCategoryName,
         Long collegeId,
         String collegeName,
         String collegeCode,

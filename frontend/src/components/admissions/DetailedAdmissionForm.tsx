@@ -157,6 +157,13 @@ export function DetailedAdmissionForm({
   const [saving, setSaving] = useState(false);
   const [canCancelUploads, setCanCancelUploads] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [draftReady, setDraftReady] = useState(!studentOwned);
+  const [draftStatus, setDraftStatus] = useState<
+    "loading" | "idle" | "saving" | "saved" | "conflict" | "error"
+  >(studentOwned ? "loading" : "idle");
+  const draftVersion = useRef(0);
+  const draftBlocked = useRef(false);
+  const lastSavedDraft = useRef("");
   const uploadAbortController = useRef<AbortController | null>(null);
   const uploadedDocumentTypes = useMemo(
     () => new Set([...(admission.uploadedDocuments ?? []), ...locallyUploadedDocuments]),
@@ -230,6 +237,63 @@ export function DetailedAdmissionForm({
   const completionPercentage = Math.round((completedSteps / formSteps.length) * 100);
 
   useEffect(() => setValues(initialValues(admission)), [admission]);
+  useEffect(() => {
+    if (!studentOwned) return;
+    let active = true;
+    setDraftReady(false);
+    setDraftStatus("loading");
+    draftBlocked.current = false;
+    api
+      .getMyAdmissionDetailDraft()
+      .then((draft) => {
+        if (!active) return;
+        draftVersion.current = draft.version;
+        const restored = draft.values
+          ? { ...initialValues(admission), ...draft.values }
+          : initialValues(admission);
+        setValues(restored);
+        lastSavedDraft.current = JSON.stringify(restored);
+        setDraftStatus(draft.values ? "saved" : "idle");
+        setDraftReady(true);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setDraftStatus("error");
+        toast.error(`Draft could not be restored: ${handleApiError(error).message}`);
+      });
+    return () => {
+      active = false;
+    };
+  }, [admission.id, studentOwned]);
+
+  useEffect(() => {
+    if (!studentOwned || !draftReady || draftBlocked.current || saving) return;
+    const serialized = JSON.stringify(values);
+    if (serialized === lastSavedDraft.current) return;
+    const timer = window.setTimeout(() => {
+      setDraftStatus("saving");
+      api
+        .saveMyAdmissionDetailDraft(values, draftVersion.current)
+        .then((draft) => {
+          draftVersion.current = draft.version;
+          lastSavedDraft.current = serialized;
+          setDraftStatus("saved");
+        })
+        .catch((error) => {
+          const detail = handleApiError(error);
+          if (detail.status === 409) {
+            draftBlocked.current = true;
+            setDraftStatus("conflict");
+            toast.error(
+              "This form was updated in another tab. Reload before continuing to avoid overwriting it.",
+            );
+          } else {
+            setDraftStatus("error");
+          }
+        });
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [draftReady, saving, studentOwned, values]);
   useEffect(() => {
     setLocallyUploadedDocuments([]);
     setDocumentTransfers({});
@@ -509,6 +573,23 @@ export function DetailedAdmissionForm({
               Complete every required section and attach the documents marked required before
               submitting.
             </p>
+            {studentOwned && (
+              <p
+                className={cn(
+                  "mt-2 text-xs font-semibold",
+                  draftStatus === "conflict" || draftStatus === "error"
+                    ? "text-rose-600"
+                    : "text-emerald-700",
+                )}
+              >
+                {draftStatus === "loading" && "Restoring saved draft…"}
+                {draftStatus === "saving" && "Saving draft…"}
+                {draftStatus === "saved" && "Draft saved securely"}
+                {draftStatus === "idle" && "Draft autosave is ready"}
+                {draftStatus === "conflict" && "Newer changes exist in another tab—reload required"}
+                {draftStatus === "error" && "Draft autosave failed—keep this tab open and retry"}
+              </p>
+            )}
           </div>
           <div className="min-w-48 rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm">
             <div className="flex items-center justify-between text-sm">

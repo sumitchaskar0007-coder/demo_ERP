@@ -8,6 +8,9 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.college.service.CollegeImageStorageService;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.common.api.ApiResponse;
+import com.jadhavr.erp.fee.dto.FeeCategoryOptionResponse;
+import com.jadhavr.erp.fee.enums.StudentCategory;
+import com.jadhavr.erp.fee.repository.FeeStructureRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,12 +27,33 @@ public class PublicAdmissionController {
     private final AdmissionService admissionService;
     private final CollegeRepository colleges;
     private final CollegeImageStorageService images;
+    private final FeeStructureRepository feeStructures;
 
     public PublicAdmissionController(AdmissionService admissionService, CollegeRepository colleges,
-            CollegeImageStorageService images) {
+            CollegeImageStorageService images, FeeStructureRepository feeStructures) {
         this.admissionService = admissionService;
         this.colleges = colleges;
         this.images = images;
+        this.feeStructures = feeStructures;
+    }
+
+    @GetMapping("/college/{collegeCode}/departments/{departmentId}/categories")
+    public ApiResponse<java.util.List<FeeCategoryOptionResponse>> categories(
+            @PathVariable String collegeCode, @PathVariable Long departmentId) {
+        var college = colleges.findByCode(collegeCode.trim().toUpperCase(java.util.Locale.ROOT))
+                .orElseThrow(() -> new ResourceNotFoundException("College not found"));
+        var configured = feeStructures.findPublicCategoryOptions(college.getId(), departmentId);
+        var options = new java.util.LinkedHashMap<String, FeeCategoryOptionResponse>();
+        for (StudentCategory category : StudentCategory.values()) {
+            if (category != StudentCategory.OTHER) options.put(category.name(),
+                    new FeeCategoryOptionResponse(category, null, category.name()));
+        }
+        configured.stream().filter(f -> f.getStudentCategory() == StudentCategory.OTHER)
+                .filter(f -> f.getCustomCategoryName() != null)
+                .forEach(f -> options.putIfAbsent("OTHER:" + f.getCustomCategoryName().toUpperCase(java.util.Locale.ROOT),
+                        new FeeCategoryOptionResponse(StudentCategory.OTHER, f.getCustomCategoryName(), f.getCustomCategoryName())));
+        options.put("OTHER", new FeeCategoryOptionResponse(StudentCategory.OTHER, null, "Other (not listed)"));
+        return ApiResponse.success("Admission categories retrieved", java.util.List.copyOf(options.values()));
     }
 
     @GetMapping("/college/{collegeCode}/logo")

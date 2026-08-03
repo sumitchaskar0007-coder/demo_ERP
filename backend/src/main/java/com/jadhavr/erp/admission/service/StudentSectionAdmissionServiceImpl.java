@@ -327,6 +327,9 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         }
         admission.setStudentCategory(request.studentCategory());
         admission.getStudent().setStudentCategory(request.studentCategory());
+        String customCategory = normalizeVerifiedCategory(request.studentCategory(), request.customCategoryName());
+        admission.setCustomCategoryName(customCategory);
+        admission.getStudent().setCustomCategoryName(customCategory);
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_APPROVED);
         admission.setStudentSectionVerifiedAt(LocalDateTime.now());
         admission.setStudentSectionVerifiedBy(currentUser);
@@ -346,6 +349,16 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
                     saved.getStudent().getAdmissionNumber());
         }
         return admissionMapper.toResponse(saved);
+    }
+
+    private String normalizeVerifiedCategory(com.jadhavr.erp.fee.enums.StudentCategory category, String value) {
+        String custom = trimToNull(value);
+        if (category == com.jadhavr.erp.fee.enums.StudentCategory.OTHER) {
+            if (custom == null) throw new BadRequestException("Select a configured OTHER category");
+            return custom.toUpperCase(Locale.ROOT);
+        }
+        if (custom != null) throw new BadRequestException("Custom category is allowed only for OTHER");
+        return null;
     }
 
     @Override

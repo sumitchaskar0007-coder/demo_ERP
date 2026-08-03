@@ -49,6 +49,9 @@ public class StudentProfile extends BaseAuditEntity {
     @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'OPEN'")
     private StudentCategory studentCategory = StudentCategory.OPEN;
 
+    @Column(name = "custom_category_name", length = 80)
+    private String customCategoryName;
+
     @Column(nullable = false, length = 80)
     private String firstName;
 
@@ -122,6 +125,8 @@ public class StudentProfile extends BaseAuditEntity {
     public void setAdmissionNumber(String admissionNumber) { this.admissionNumber = admissionNumber; }
     public StudentCategory getStudentCategory() { return studentCategory; }
     public void setStudentCategory(StudentCategory studentCategory) { this.studentCategory = studentCategory; }
+    public String getCustomCategoryName() { return customCategoryName; }
+    public void setCustomCategoryName(String customCategoryName) { this.customCategoryName = customCategoryName; }
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getMiddleName() { return middleName; }

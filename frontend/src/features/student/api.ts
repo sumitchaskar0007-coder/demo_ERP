@@ -44,3 +44,18 @@ export async function approveScholarship(
   );
   return data.data;
 }
+
+export async function changeOtherCategory(studentId: number, customCategoryName: string) {
+  const { data } = await apiClient.patch<ApiResponse<unknown>>(
+    `/api/principal/fee-structures/students/${studentId}/other-category`,
+    { customCategoryName },
+  );
+  return data.data;
+}
+
+export async function getAvailableOtherCategories(collegeCode: string, departmentId: number) {
+  const { data } = await apiClient.get<
+    ApiResponse<Array<{ category: string; customCategoryName?: string | null; label: string }>>
+  >(`/api/public/admissions/college/${collegeCode}/departments/${departmentId}/categories`);
+  return data.data.filter((option) => option.category === "OTHER" && option.customCategoryName);
+}

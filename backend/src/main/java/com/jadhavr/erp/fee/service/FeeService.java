@@ -40,4 +40,5 @@ public interface FeeService {
     PaymentResponse verify(Long id, VerifyPaymentRequest request);
     PaymentResponse reject(Long id, RejectPaymentRequest request);
     List<FeeTransactionResponse> accountTransactions(Long id);
+    StudentFeeAccountResponse changeOtherCategory(Long studentId, ChangeStudentCategoryRequest request);
 }

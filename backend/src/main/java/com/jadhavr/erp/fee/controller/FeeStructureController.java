@@ -75,4 +75,12 @@ public class FeeStructureController {
         return ApiResponse.success("Fee structure deactivated",
                 service.setStructureStatus(id, FeeStructureStatus.INACTIVE));
     }
+
+    @PatchMapping("/students/{studentId}/other-category")
+    public ApiResponse<com.jadhavr.erp.fee.dto.StudentFeeAccountResponse> changeOtherCategory(
+            @PathVariable Long studentId,
+            @Valid @RequestBody com.jadhavr.erp.fee.dto.ChangeStudentCategoryRequest request) {
+        return ApiResponse.success("Student category and fee assessment updated",
+                service.changeOtherCategory(studentId, request));
+    }
 }

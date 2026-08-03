@@ -144,6 +144,24 @@ class StudentSectionAdmissionServiceImplTest {
     }
 
     @Test
+    void approvalPersistsConfiguredOtherCategoryOnAdmissionAndStudent() {
+        AdmissionForm admission = admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        admission.setPhotoStorageName("student-photo.jpg");
+        when(admissions.findById(100L)).thenReturn(Optional.of(admission));
+        when(admissions.save(admission)).thenReturn(admission);
+        when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
+
+        service.approveAdmission(100L, new VerifyAdmissionRequest(
+                StudentCategory.OTHER, true, true, true, true, true, true, true,
+                true, true, true, true, List.of(), "Verified", "scbc"));
+
+        assertEquals(StudentCategory.OTHER, admission.getStudentCategory());
+        assertEquals("SCBC", admission.getCustomCategoryName());
+        assertEquals("SCBC", admission.getStudent().getCustomCategoryName());
+    }
+
+    @Test
     void rejectUpdatesAdmissionProfileAndHistory() {
         AdmissionForm admission = admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));

@@ -15,9 +15,12 @@ export interface CreateFeeStructureRequest {
   academicYear: string;
   courseYear?: string;
   studentCategory?: "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
+  customCategoryName?: string;
+  gender: "MALE" | "FEMALE";
   title: string;
   description?: string;
   totalFee: number;
+  scholarshipAmount: number;
   minimumAmountForAdmission: number;
   admissionFee?: number;
   tuitionFee?: number;
@@ -36,6 +39,8 @@ export interface FeeStructureResponse extends CreateFeeStructureRequest {
   departmentName: string;
   departmentCode: string;
   status: FeeStructureStatus;
+  payableFee: number;
+  categoryLabel: string;
   createdAt: string;
   updatedAt: string;
 }

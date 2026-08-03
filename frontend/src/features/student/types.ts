@@ -11,6 +11,7 @@ export interface StudentProfileResponse {
   userId: number;
   admissionNumber: string;
   studentCategory: import("@/features/admissions/types").StudentCategory;
+  customCategoryName?: string | null;
   collegeId: number;
   collegeName: string;
   collegeCode: string;

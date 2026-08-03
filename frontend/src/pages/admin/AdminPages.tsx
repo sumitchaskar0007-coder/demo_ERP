@@ -759,8 +759,11 @@ export function AdminFeeSetupPage() {
     departmentId: "",
     courseYear: "",
     studentCategory: "OPEN",
+    customCategoryName: "",
+    gender: "FEMALE",
     academicYear: "2026-27",
     totalFee: "",
+    scholarshipAmount: "",
     minimumAmountForAdmission: "",
   });
 
@@ -869,7 +872,12 @@ export function AdminFeeSetupPage() {
         academicYear: v.academicYear,
         courseYear: v.courseYear,
         studentCategory: v.studentCategory,
-        title: v.title || `${v.courseYear} ${v.studentCategory} Fee`,
+        customCategoryName: v.studentCategory === "OTHER" ? v.customCategoryName.trim() : undefined,
+        gender: v.gender,
+        scholarshipAmount: Number(v.scholarshipAmount || 0),
+        title:
+          v.title ||
+          `${v.courseYear} ${v.studentCategory === "OTHER" ? v.customCategoryName : v.studentCategory} ${v.gender} Fee`,
         totalFee: Number(v.totalFee),
         minimumAmountForAdmission: Number(v.minimumAmountForAdmission),
         admissionFee: 0,
@@ -878,8 +886,20 @@ export function AdminFeeSetupPage() {
         libraryFee: 0,
         otherFee: 0,
       };
-      if (editingId) await api.updateAdminFeeStructure(editingId, payload);
-      else await api.createAdminFeeStructure(payload);
+      if (editingId) {
+        await api.updateAdminFeeStructure(editingId, {
+          title: payload.title,
+          totalFee: payload.totalFee,
+          minimumAmountForAdmission: payload.minimumAmountForAdmission,
+          admissionFee: payload.admissionFee,
+          tuitionFee: payload.tuitionFee,
+          examFee: payload.examFee,
+          libraryFee: payload.libraryFee,
+          otherFee: payload.otherFee,
+          scholarshipAmount: payload.scholarshipAmount,
+          gender: payload.gender,
+        });
+      } else await api.createAdminFeeStructure(payload);
       toast.success(editingId ? "Fee structure updated" : "Fee structure created");
       setEditingId(null);
       void load();
@@ -954,7 +974,18 @@ export function AdminFeeSetupPage() {
             value={v.studentCategory}
             onChange={(e) => setV({ ...v, studentCategory: e.target.value })}
           />
+          {v.studentCategory === "OTHER" && input("customCategoryName", "Custom Category Name")}
+          <Select
+            label="Gender"
+            options={[
+              { label: "Female", value: "FEMALE" },
+              { label: "Male", value: "MALE" },
+            ]}
+            value={v.gender}
+            onChange={(e) => setV({ ...v, gender: e.target.value })}
+          />
           {input("totalFee", "Total Fee")}
+          {input("scholarshipAmount", "Scholarship Amount")}
           {input("minimumAmountForAdmission", "Minimum Admission Fee")}
         </div>
         <Button className="mt-4" loading={saving} onClick={save}>
@@ -1006,10 +1037,13 @@ export function AdminFeeSetupPage() {
                       collegeId: String(r.collegeId),
                       departmentId: String(r.departmentId),
                       studentCategory: r.studentCategory || "OPEN",
+                      customCategoryName: r.customCategoryName || "",
+                      gender: r.gender || "FEMALE",
                       academicYear: r.academicYear,
                       courseYear: r.courseYear || "",
                       title: r.title,
                       totalFee: String(r.totalFee),
+                      scholarshipAmount: String(r.scholarshipAmount),
                       minimumAmountForAdmission: String(r.minimumAmountForAdmission),
                     });
                   }}

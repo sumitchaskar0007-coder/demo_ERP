@@ -67,6 +67,10 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.nio.charset.StandardCharsets;
+import com.jadhavr.erp.admission.dto.AdmissionDetailDraftRequest;
+import com.jadhavr.erp.admission.dto.AdmissionDetailDraftResponse;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 @Service
 public class AdmissionServiceImpl implements AdmissionService {
@@ -76,6 +80,18 @@ public class AdmissionServiceImpl implements AdmissionService {
             AdmissionStatus.CANCELLED
     );
     private static final String PASSWORD_SPECIALS = "@#$%!";
+    private static final int MAX_DRAFT_BYTES = 64 * 1024;
+    private static final Set<String> DRAFT_FIELDS = Set.of(
+            "courseYearId", "fullName", "email", "phone", "dateOfBirth", "gender",
+            "placeOfBirth", "maritalStatus", "aadhaarNumber", "apaarId", "nationality",
+            "religion", "caste", "studentCategory", "customCategoryName", "parentName",
+            "parentPhone", "parentEmail", "addressLine1", "addressLine2", "city", "pincode",
+            "state", "permanentPhone", "permanentEmail", "correspondenceAddress",
+            "correspondenceCity", "correspondencePincode", "correspondenceState",
+            "correspondencePhone", "correspondenceMobile", "correspondenceEmail",
+            "academicRecords", "entranceExams", "qualifyingEntranceSeatNumber",
+            "qualifyingEntranceTotalScore", "lastGraduationCollegeName",
+            "lastGraduationCollegeAddress");
 
     private final CollegeRepository collegeRepository;
     private final DepartmentRepository departmentRepository;
@@ -237,6 +253,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         profile.setDepartment(department);
         profile.setAdmissionNumber(generateAdmissionNumber(college.getCode()));
         profile.setStudentCategory(request.studentCategory());
+        profile.setCustomCategoryName(normalizeCustomCategory(request.studentCategory(), request.customCategoryName()));
         copyStudentFields(profile, request, fullName, email);
         profile.setStatus(StudentStatus.ADMISSION_SUBMITTED);
         StudentProfile savedProfile = studentProfileRepository.save(profile);
@@ -250,6 +267,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         admissionForm.setStudentUser(savedUser);
         admissionForm.setAcademicYear(academicYear());
         admissionForm.setStudentCategory(request.studentCategory());
+        admissionForm.setCustomCategoryName(normalizeCustomCategory(request.studentCategory(), request.customCategoryName()));
         copyAdmissionFields(admissionForm, request, fullName, email);
         admissionForm.setStatus(AdmissionStatus.SUBMITTED);
         admissionForm.setSource(AdmissionSource.PUBLIC_LINK);
@@ -317,6 +335,43 @@ public class AdmissionServiceImpl implements AdmissionService {
 
     @Override
     @Transactional
+    public AdmissionDetailDraftResponse saveMyAdmissionDetailDraft(AdmissionDetailDraftRequest request) {
+        AdmissionForm visible = findMyAdmission();
+        AdmissionForm admission = admissionFormRepository.findByIdForUpdate(visible.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Admission not found"));
+        if (!studentCanEdit(admission)) {
+            throw new BadRequestException("The admission form is read-only while it is pending or approved");
+        }
+        if (!request.values().isObject()) throw new BadRequestException("Admission draft must be an object");
+        if (request.values().toString().getBytes(StandardCharsets.UTF_8).length > MAX_DRAFT_BYTES) {
+            throw new BadRequestException("Admission draft is too large");
+        }
+        var fields = request.values().fieldNames();
+        while (fields.hasNext()) {
+            String field = fields.next();
+            if (!DRAFT_FIELDS.contains(field)) throw new BadRequestException("Unsupported admission draft field: " + field);
+        }
+        if (request.version() != admission.getDetailDraftVersion()) {
+            throw new ObjectOptimisticLockingFailureException(AdmissionForm.class, admission.getId());
+        }
+        admission.setDetailDraft(request.values().deepCopy());
+        admission.setDetailDraftVersion(admission.getDetailDraftVersion() + 1);
+        admission.setDetailDraftUpdatedAt(LocalDateTime.now());
+        admissionFormRepository.save(admission);
+        return new AdmissionDetailDraftResponse(admission.getDetailDraft(),
+                admission.getDetailDraftVersion(), admission.getDetailDraftUpdatedAt());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdmissionDetailDraftResponse getMyAdmissionDetailDraft() {
+        AdmissionForm admission = findMyAdmission();
+        return new AdmissionDetailDraftResponse(admission.getDetailDraft(),
+                admission.getDetailDraftVersion(), admission.getDetailDraftUpdatedAt());
+    }
+
+    @Override
+    @Transactional
     public StudentSectionAdmissionResponse submitMyAdmissionDetails(DetailedAdmissionRequest request) {
         AdmissionForm admission = findMyAdmission();
         if (!studentCanEdit(admission)) {
@@ -351,6 +406,9 @@ public class AdmissionServiceImpl implements AdmissionService {
         admission.setStudentSectionRejectedBy(null);
         admission.setStudentSectionVerifiedAt(null);
         admission.setStudentSectionVerifiedBy(null);
+        admission.setDetailDraft(null);
+        admission.setDetailDraftUpdatedAt(null);
+        admission.setDetailDraftVersion(admission.getDetailDraftVersion() + 1);
         admission.setStudentSectionRemarks(null);
         admission.setPrincipalApprovedAt(null);
         admission.getStudent().setStatus(StudentStatus.ADMISSION_SUBMITTED);
@@ -419,6 +477,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         admission.setReligion(request.religion().trim());
         admission.setCaste(request.caste().trim());
         admission.setStudentCategory(request.studentCategory());
+        admission.setCustomCategoryName(normalizeCustomCategory(request.studentCategory(), null));
         admission.setParentName(request.parentName().trim());
         admission.setParentPhone(request.parentPhone().trim());
         admission.setParentEmail(normalizeOptionalEmail(request.parentEmail()));
@@ -593,6 +652,18 @@ public class AdmissionServiceImpl implements AdmissionService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeCustomCategory(com.jadhavr.erp.fee.enums.StudentCategory category, String value) {
+        String normalized = trimToNull(value);
+        if (category == com.jadhavr.erp.fee.enums.StudentCategory.OTHER) {
+            if (normalized == null || normalized.length() < 2) {
+                throw new BadRequestException("Custom category is required for OTHER");
+            }
+            return normalized.toUpperCase(Locale.ROOT);
+        }
+        if (normalized != null) throw new BadRequestException("Custom category is allowed only for OTHER");
+        return null;
     }
 
     private Long currentUserId() {

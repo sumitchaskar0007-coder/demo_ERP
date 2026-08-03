@@ -44,8 +44,18 @@ export function PublicAdmissionPage() {
   const [result, setResult] = useState<SubmitAdmissionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState<
+    Array<{
+      category: FormValues["studentCategory"];
+      customCategoryName?: string | null;
+      label: string;
+    }>
+  >([]);
+  const [categorySelection, setCategorySelection] = useState("OPEN");
   const {
     register,
+    setValue,
+    watch,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -61,6 +71,15 @@ export function PublicAdmissionPage() {
       pincode: "",
     },
   });
+  const departmentId = watch("departmentId");
+
+  useEffect(() => {
+    if (!departmentId) return setCategoryOptions([]);
+    api
+      .getPublicAdmissionCategories(collegeCode, Number(departmentId))
+      .then(setCategoryOptions)
+      .catch(() => setCategoryOptions([]));
+  }, [collegeCode, departmentId]);
 
   useEffect(() => {
     setLoading(true);
@@ -249,18 +268,28 @@ export function PublicAdmissionPage() {
               >
                 <Select
                   label="Student category"
-                  options={[
-                    { label: "Open", value: "OPEN" },
-                    { label: "OBC", value: "OBC" },
-                    { label: "SC", value: "SC" },
-                    { label: "ST", value: "ST" },
-                    { label: "SBC", value: "SBC" },
-                    { label: "VJNT", value: "VJNT" },
-                    { label: "EWS", value: "EWS" },
-                    { label: "Other", value: "OTHER" },
-                  ]}
+                  options={(categoryOptions.length
+                    ? categoryOptions
+                    : [{ category: "OPEN" as const, label: "Open" }]
+                  ).map((option) => ({
+                    label: option.label,
+                    value: option.customCategoryName
+                      ? `OTHER:${option.customCategoryName}`
+                      : option.category,
+                  }))}
+                  value={categorySelection}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const custom = value.startsWith("OTHER:") ? value.slice(6) : "";
+                    setCategorySelection(value);
+                    setValue(
+                      "studentCategory",
+                      custom ? "OTHER" : (value as FormValues["studentCategory"]),
+                      { shouldValidate: true },
+                    );
+                    setValue("customCategoryName", custom, { shouldValidate: true });
+                  }}
                   error={errors.studentCategory?.message}
-                  {...register("studentCategory")}
                 />
                 <Input
                   label="First name"

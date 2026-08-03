@@ -22,8 +22,21 @@ public record VerifyAdmissionRequest(
         @NotNull Boolean incomeProofVerified,
         @NotNull Boolean nameChangeCertificateVerified,
         @Size(max = 50) List<@Valid DocumentCustody> documentCustody,
-        @Size(max = 500) String remarks
+        @Size(max = 500) String remarks,
+        @Size(min = 2, max = 80) String customCategoryName
 ) {
+    public VerifyAdmissionRequest(StudentCategory studentCategory, Boolean photoVerified,
+            Boolean tenthMarksheetVerified, Boolean twelfthMarksheetVerified,
+            Boolean leavingCertificateVerified, Boolean aadhaarCardVerified,
+            Boolean graduationPgCertificateVerified, Boolean migrationCertificateVerified,
+            Boolean gapAffidavitVerified, Boolean casteCertificateVerified,
+            Boolean incomeProofVerified, Boolean nameChangeCertificateVerified,
+            List<DocumentCustody> documentCustody, String remarks) {
+        this(studentCategory, photoVerified, tenthMarksheetVerified, twelfthMarksheetVerified,
+                leavingCertificateVerified, aadhaarCardVerified, graduationPgCertificateVerified,
+                migrationCertificateVerified, gapAffidavitVerified, casteCertificateVerified,
+                incomeProofVerified, nameChangeCertificateVerified, documentCustody, remarks, null);
+    }
     public record DocumentCustody(
             @NotBlank
             @Size(max = 80)

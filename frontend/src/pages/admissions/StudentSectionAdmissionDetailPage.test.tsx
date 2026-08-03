@@ -11,6 +11,7 @@ vi.mock("@/features/auth/authStore", () => ({
 
 vi.mock("@/features/admissions/api", () => ({
   getStudentSectionAdmission: vi.fn(),
+  getPublicAdmissionCategories: vi.fn(),
   getStudentSectionAdmissionFees: vi.fn(),
   getAdmissionHistory: vi.fn(),
   getAdmissionCourseYears: vi.fn(),
@@ -81,6 +82,9 @@ const admission = {
 
 describe("StudentSectionAdmissionDetailPage", () => {
   beforeEach(() => {
+    vi.mocked(admissionApi.getPublicAdmissionCategories).mockResolvedValue([
+      { category: "OPEN", label: "Open" },
+    ]);
     vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue(admission);
     vi.mocked(admissionApi.getStudentSectionAdmissionFees).mockResolvedValue({
       account: null,

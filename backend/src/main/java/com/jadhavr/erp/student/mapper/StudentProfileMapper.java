@@ -13,6 +13,7 @@ public class StudentProfileMapper {
                 profile.getUser().getId(),
                 profile.getAdmissionNumber(),
                 profile.getStudentCategory(),
+                profile.getCustomCategoryName(),
                 profile.getCollege().getId(),
                 profile.getCollege().getName(),
                 profile.getCollege().getCode(),

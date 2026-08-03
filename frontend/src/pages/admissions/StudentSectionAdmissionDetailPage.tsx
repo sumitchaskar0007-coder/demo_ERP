@@ -286,10 +286,28 @@ function ActionModal({
     resolver: zodResolver(approveAdmissionSchema),
     defaultValues: {
       studentCategory: requestedCategory,
+      customCategoryName: admission.customCategoryName || "",
       photoVerified: false,
       remarks: "",
     },
   });
+  const [categoryOptions, setCategoryOptions] = useState<
+    Array<{
+      category: StudentSectionAdmissionResponse["studentCategory"];
+      customCategoryName?: string | null;
+      label: string;
+    }>
+  >([]);
+  const [categorySelection, setCategorySelection] = useState(
+    admission.customCategoryName ? `OTHER:${admission.customCategoryName}` : requestedCategory,
+  );
+  useEffect(() => {
+    if (modal !== "approve") return;
+    api
+      .getPublicAdmissionCategories(admission.collegeCode, admission.departmentId)
+      .then(setCategoryOptions)
+      .catch(() => setCategoryOptions([]));
+  }, [modal, admission.collegeCode, admission.departmentId]);
   const rejectForm = useForm<z.infer<typeof rejectAdmissionSchema>>({
     resolver: zodResolver(rejectAdmissionSchema),
     defaultValues: { rejectionReason: "" },
@@ -307,6 +325,7 @@ function ActionModal({
         await api.approveAdmission(id, {
           studentCategory:
             values.studentCategory as StudentSectionAdmissionResponse["studentCategory"],
+          customCategoryName: String(values.customCategoryName || "") || undefined,
           photoVerified: Boolean(values.photoVerified),
           tenthMarksheetVerified: Boolean(values.tenthMarksheetVerified),
           twelfthMarksheetVerified: Boolean(values.twelfthMarksheetVerified),
@@ -353,17 +372,29 @@ function ActionModal({
         >
           <Select
             label="Verified student category"
-            options={[
-              { label: "Open", value: "OPEN" },
-              { label: "OBC", value: "OBC" },
-              { label: "SC", value: "SC" },
-              { label: "ST", value: "ST" },
-              { label: "SBC", value: "SBC" },
-              { label: "VJNT", value: "VJNT" },
-              { label: "EWS", value: "EWS" },
-              { label: "Other", value: "OTHER" },
-            ]}
-            {...approveForm.register("studentCategory")}
+            options={(categoryOptions.length
+              ? categoryOptions
+              : [{ category: "OPEN" as const, label: "Open" }]
+            )
+              .filter((option) => option.category !== "OTHER" || option.customCategoryName)
+              .map((option) => ({
+                label: option.label,
+                value: option.customCategoryName
+                  ? `OTHER:${option.customCategoryName}`
+                  : option.category,
+              }))}
+            value={categorySelection}
+            onChange={(event) => {
+              const value = event.target.value;
+              const custom = value.startsWith("OTHER:") ? value.slice(6) : "";
+              setCategorySelection(value);
+              approveForm.setValue(
+                "studentCategory",
+                custom ? "OTHER" : (value as StudentSectionAdmissionResponse["studentCategory"]),
+                { shouldValidate: true },
+              );
+              approveForm.setValue("customCategoryName", custom, { shouldValidate: true });
+            }}
             error={approveForm.formState.errors.studentCategory?.message}
           />
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">

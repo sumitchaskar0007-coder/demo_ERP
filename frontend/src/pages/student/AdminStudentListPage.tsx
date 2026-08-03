@@ -22,7 +22,6 @@ import { Input } from "@/components/common/Input";
 import { Loader } from "@/components/common/Loader";
 import { Pagination } from "@/components/common/Pagination";
 import { Select } from "@/components/common/Select";
-import { Textarea } from "@/components/common/Textarea";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { DataTable, type Column } from "@/components/table/DataTable";
@@ -376,9 +375,37 @@ function StudentDetailContent({
   onScholarshipApproved: () => void;
 }) {
   const p = details.profile;
-  const [scholarshipAmount, setScholarshipAmount] = useState("");
-  const [scholarshipRemarks, setScholarshipRemarks] = useState("");
-  const [approvingScholarship, setApprovingScholarship] = useState(false);
+  const [otherCategories, setOtherCategories] = useState<
+    Array<{ customCategoryName?: string | null; label: string }>
+  >([]);
+  const [selectedOtherCategory, setSelectedOtherCategory] = useState("");
+  const [changingCategory, setChangingCategory] = useState(false);
+  useEffect(() => {
+    if (!principal || p.studentCategory !== "OTHER") return;
+    api
+      .getAvailableOtherCategories(p.collegeCode, p.departmentId)
+      .then(setOtherCategories)
+      .catch(() => setOtherCategories([]));
+  }, [principal, p.collegeCode, p.departmentId, p.studentCategory]);
+  const changeCategory = async () => {
+    if (!selectedOtherCategory) return toast.error("Select a configured category");
+    if (
+      !window.confirm(
+        `Change ${p.fullName}'s category to ${selectedOtherCategory} and recalculate fees?`,
+      )
+    )
+      return;
+    setChangingCategory(true);
+    try {
+      await api.changeOtherCategory(p.id, selectedOtherCategory);
+      toast.success("Category and fee account updated");
+      onScholarshipApproved();
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setChangingCategory(false);
+    }
+  };
   const attendanceTone =
     details.attendance.percentage >= 75
       ? "bg-emerald-500"
@@ -390,37 +417,6 @@ function StudentDetailContent({
     : p.status === "UNDER_REVIEW"
       ? "warning"
       : "success";
-  const approveScholarship = async () => {
-    const amount = Number(scholarshipAmount);
-    if (!details.fees || !Number.isFinite(amount) || amount <= 0) {
-      toast.error("Enter a valid scholarship amount");
-      return;
-    }
-    if (amount > details.fees.remainingAmount) {
-      toast.error("Scholarship cannot exceed the remaining fee");
-      return;
-    }
-    if (
-      !window.confirm(`Approve ₹${amount.toLocaleString("en-IN")} scholarship for ${p.fullName}?`)
-    )
-      return;
-    setApprovingScholarship(true);
-    try {
-      await api.approveScholarship(p.id, {
-        amount,
-        remarks: scholarshipRemarks.trim() || undefined,
-      });
-      setScholarshipAmount("");
-      setScholarshipRemarks("");
-      toast.success("Scholarship approved and student notified");
-      onScholarshipApproved();
-    } catch (error) {
-      toast.error(handleApiError(error).message);
-    } finally {
-      setApprovingScholarship(false);
-    }
-  };
-
   return (
     <div className="space-y-4 sm:space-y-5">
       <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-5 text-white shadow-lg shadow-blue-900/10 sm:p-6">
@@ -639,26 +635,22 @@ function StudentDetailContent({
                 tone="text-rose-700"
               />
             </div>
-            {principal && details.fees.remainingAmount > 0 && (
-              <div className="grid gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 md:grid-cols-[220px_1fr_auto] md:items-end">
-                <Input
-                  label="Scholarship amount"
-                  type="number"
-                  min={1}
-                  max={details.fees.remainingAmount}
-                  step="0.01"
-                  value={scholarshipAmount}
-                  onChange={(event) => setScholarshipAmount(event.target.value)}
+            {principal && p.studentCategory === "OTHER" && (
+              <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/40 p-4 md:grid-cols-[1fr_auto] md:items-end">
+                <Select
+                  label="Correct OTHER category"
+                  value={selectedOtherCategory}
+                  options={[
+                    { label: "Select configured category", value: "" },
+                    ...otherCategories.map((option) => ({
+                      label: option.label,
+                      value: option.customCategoryName || "",
+                    })),
+                  ]}
+                  onChange={(event) => setSelectedOtherCategory(event.target.value)}
                 />
-                <Textarea
-                  label="Remarks (optional)"
-                  rows={2}
-                  maxLength={500}
-                  value={scholarshipRemarks}
-                  onChange={(event) => setScholarshipRemarks(event.target.value)}
-                />
-                <Button loading={approvingScholarship} onClick={() => void approveScholarship()}>
-                  Confirm scholarship
+                <Button loading={changingCategory} onClick={() => void changeCategory()}>
+                  Change category & recalculate
                 </Button>
               </div>
             )}

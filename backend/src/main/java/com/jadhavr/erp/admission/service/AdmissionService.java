@@ -19,4 +19,7 @@ public interface AdmissionService {
     java.util.List<AdmissionCourseYearOptionResponse> getMyCourseYearOptions();
     StudentSectionAdmissionResponse submitMyAdmissionDetails(DetailedAdmissionRequest request);
     AdmissionPrintResponse getMyAdmissionPrintData();
+    com.jadhavr.erp.admission.dto.AdmissionDetailDraftResponse getMyAdmissionDetailDraft();
+    com.jadhavr.erp.admission.dto.AdmissionDetailDraftResponse saveMyAdmissionDetailDraft(
+            com.jadhavr.erp.admission.dto.AdmissionDetailDraftRequest request);
 }

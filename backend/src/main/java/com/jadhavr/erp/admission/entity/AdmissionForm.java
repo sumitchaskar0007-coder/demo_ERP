@@ -24,6 +24,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -72,6 +75,9 @@ public class AdmissionForm extends BaseAuditEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'OPEN'")
     private StudentCategory studentCategory = StudentCategory.OPEN;
+
+    @Column(name = "custom_category_name", length = 80)
+    private String customCategoryName;
 
     @Column(nullable = false, length = 80)
     private String firstName;
@@ -242,6 +248,14 @@ public class AdmissionForm extends BaseAuditEntity {
 
     private LocalDateTime detailsCompletedAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "detail_draft", columnDefinition = "jsonb")
+    private JsonNode detailDraft;
+    @Column(name = "detail_draft_version", nullable = false)
+    private long detailDraftVersion;
+    @Column(name = "detail_draft_updated_at")
+    private LocalDateTime detailDraftUpdatedAt;
+
     @ElementCollection
     @CollectionTable(name = "admission_academic_records", joinColumns = @JoinColumn(name = "admission_form_id"))
     @OrderColumn(name = "record_order")
@@ -305,6 +319,8 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setAcademicYear(String academicYear) { this.academicYear = academicYear; }
     public StudentCategory getStudentCategory() { return studentCategory; }
     public void setStudentCategory(StudentCategory studentCategory) { this.studentCategory = studentCategory; }
+    public String getCustomCategoryName() { return customCategoryName; }
+    public void setCustomCategoryName(String customCategoryName) { this.customCategoryName = customCategoryName; }
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getMiddleName() { return middleName; }
@@ -459,6 +475,12 @@ public class AdmissionForm extends BaseAuditEntity {
     public void setLastGraduationCollegeAddress(String lastGraduationCollegeAddress) { this.lastGraduationCollegeAddress = lastGraduationCollegeAddress; }
     public LocalDateTime getDetailsCompletedAt() { return detailsCompletedAt; }
     public void setDetailsCompletedAt(LocalDateTime detailsCompletedAt) { this.detailsCompletedAt = detailsCompletedAt; }
+    public JsonNode getDetailDraft() { return detailDraft; }
+    public void setDetailDraft(JsonNode detailDraft) { this.detailDraft = detailDraft; }
+    public long getDetailDraftVersion() { return detailDraftVersion; }
+    public void setDetailDraftVersion(long detailDraftVersion) { this.detailDraftVersion = detailDraftVersion; }
+    public LocalDateTime getDetailDraftUpdatedAt() { return detailDraftUpdatedAt; }
+    public void setDetailDraftUpdatedAt(LocalDateTime detailDraftUpdatedAt) { this.detailDraftUpdatedAt = detailDraftUpdatedAt; }
     public List<AdmissionAcademicRecord> getAcademicRecords() { return academicRecords; }
     public void setAcademicRecords(List<AdmissionAcademicRecord> academicRecords) { this.academicRecords = academicRecords; }
 }

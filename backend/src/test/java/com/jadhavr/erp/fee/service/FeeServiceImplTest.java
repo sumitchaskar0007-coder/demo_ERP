@@ -86,8 +86,8 @@ class FeeServiceImplTest {
         structure.setTotalFee(new BigDecimal("12000.00"));
         structure.setMinimumAmountForAdmission(new BigDecimal("2000.00"));
         when(accounts.existsByAdmissionFormIdAndFeeStructureIsNotNull(40L)).thenReturn(false);
-        when(structures.findFirstByCollegeIdAndDepartmentIdAndAcademicYearInAndStudentCategoryAndStatus(
-                1L, 10L, List.of("2026-2027", "2026-27"), StudentCategory.SC, FeeStructureStatus.ACTIVE))
+        when(structures.findFirstByCollegeIdAndDepartmentIdAndAcademicYearInAndStudentCategoryAndCustomCategoryNameIsNullAndGenderIgnoreCaseAndStatus(
+                1L, 10L, List.of("2026-2027", "2026-27"), StudentCategory.SC, "FEMALE", FeeStructureStatus.ACTIVE))
                 .thenReturn(Optional.of(structure));
 
         service.createRegularFeeAccount(admission);
@@ -207,6 +207,7 @@ class FeeServiceImplTest {
         admission.setStudentUser(studentUser);
         admission.setAcademicYear("2026-2027");
         admission.setStudentCategory(category);
+        admission.setGender("Female");
         return admission;
     }
 

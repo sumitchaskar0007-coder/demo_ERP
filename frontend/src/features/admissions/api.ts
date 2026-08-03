@@ -23,9 +23,25 @@ export async function getPublicAdmissionInfo(collegeCode: string) {
   );
   return data.data;
 }
+export async function getPublicAdmissionCategories(collegeCode: string, departmentId: number) {
+  const { data } = await apiClient.get<
+    ApiResponse<
+      Array<{
+        category: import("./types").StudentCategory;
+        customCategoryName?: string | null;
+        label: string;
+      }>
+    >
+  >(`/api/public/admissions/college/${collegeCode}/departments/${departmentId}/categories`);
+  return data.data;
+}
 export async function submitAdmission(collegeCode: string, values: SubmitAdmissionRequest) {
   const payload = {
     ...values,
+    customCategoryName:
+      values.studentCategory === "OTHER" && values.customCategoryName?.trim()
+        ? values.customCategoryName.trim()
+        : undefined,
     previousPercentage: values.previousPercentage === "" ? undefined : values.previousPercentage,
   };
   const { data } = await apiClient.post<ApiResponse<SubmitAdmissionResponse>>(
@@ -119,6 +135,29 @@ export async function submitMyAdmissionDetails(values: import("./types").Detaile
   );
   return data.data;
 }
+export async function getMyAdmissionDetailDraft() {
+  const { data } = await apiClient.get<
+    ApiResponse<{
+      values: Partial<import("./types").DetailedAdmissionRequest> | null;
+      version: number;
+      updatedAt?: string | null;
+    }>
+  >("/api/student/admissions/me/details/draft");
+  return data.data;
+}
+export async function saveMyAdmissionDetailDraft(
+  values: import("./types").DetailedAdmissionRequest,
+  version: number,
+) {
+  const { data } = await apiClient.put<
+    ApiResponse<{
+      values: Partial<import("./types").DetailedAdmissionRequest>;
+      version: number;
+      updatedAt: string;
+    }>
+  >("/api/student/admissions/me/details/draft", { values, version });
+  return data.data;
+}
 export async function uploadMyAdmissionPhoto(file: File) {
   const body = new FormData();
   body.append("file", file);
@@ -203,6 +242,7 @@ export async function approveAdmission(
   id: number,
   values: {
     studentCategory: import("./types").StudentCategory;
+    customCategoryName?: string;
     photoVerified: boolean;
     tenthMarksheetVerified: boolean;
     twelfthMarksheetVerified: boolean;

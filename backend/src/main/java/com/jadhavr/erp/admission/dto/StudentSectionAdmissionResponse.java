@@ -24,6 +24,7 @@ public record StudentSectionAdmissionResponse(
         CourseYearName courseYearName,
         String courseYearDisplayName,
         StudentCategory studentCategory,
+        String customCategoryName,
         String fullName,
         String email,
         String phone,

@@ -74,6 +74,17 @@ public class StudentAdmissionController {
                 admissionService.submitMyAdmissionDetails(request));
     }
 
+    @GetMapping("/me/details/draft")
+    public ApiResponse<com.jadhavr.erp.admission.dto.AdmissionDetailDraftResponse> getDraft() {
+        return ApiResponse.success("Admission draft retrieved", admissionService.getMyAdmissionDetailDraft());
+    }
+
+    @PutMapping("/me/details/draft")
+    public ApiResponse<com.jadhavr.erp.admission.dto.AdmissionDetailDraftResponse> saveDraft(
+            @Valid @RequestBody com.jadhavr.erp.admission.dto.AdmissionDetailDraftRequest request) {
+        return ApiResponse.success("Admission draft saved", admissionService.saveMyAdmissionDetailDraft(request));
+    }
+
     @PostMapping(path = "/me/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<StudentSectionAdmissionResponse> uploadPhoto(@RequestParam("file") MultipartFile file) {
         photoService.saveMine(file);

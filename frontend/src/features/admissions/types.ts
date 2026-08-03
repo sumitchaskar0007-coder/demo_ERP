@@ -85,6 +85,7 @@ export interface DetailedAdmissionRequest {
   religion: string;
   caste: string;
   studentCategory: StudentCategory;
+  customCategoryName?: string;
   parentName: string;
   parentPhone: string;
   parentEmail?: string;
@@ -131,6 +132,7 @@ export interface PublicAdmissionInfoResponse {
 export interface SubmitAdmissionRequest {
   departmentId: number;
   studentCategory: StudentCategory;
+  customCategoryName?: string;
   firstName: string;
   middleName?: string;
   lastName: string;
@@ -201,6 +203,7 @@ export interface AdmissionResponse {
   rejectionReason?: string | null;
 }
 export interface StudentSectionAdmissionResponse extends AdmissionResponse {
+  customCategoryName?: string | null;
   courseYearId?: number | null;
   courseYearName?: "FIRST_YEAR" | "SECOND_YEAR" | "THIRD_YEAR" | null;
   courseYearDisplayName?: string | null;
