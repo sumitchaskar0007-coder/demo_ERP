@@ -979,12 +979,14 @@ jobs:
                 --services "$ECS_WORKER_SERVICE"
               rollback_wait_status=$?
               rollback_result="${RUNNER_TEMP}/worker-rollback-service.json"
-              aws ecs describe-services \
-                --cluster "$ECS_CLUSTER" \
-                --services "$ECS_WORKER_SERVICE" \
-                --output json > "$rollback_result"
-              rollback_describe_status=$?
-              jq -e --arg task_definition "$PREVIOUS_TASK" '
+              rollback_verify_status=1
+              for _ in $(seq 1 24); do
+                aws ecs describe-services \
+                  --cluster "$ECS_CLUSTER" \
+                  --services "$ECS_WORKER_SERVICE" \
+                  --output json > "$rollback_result"
+                rollback_describe_status=$?
+                if [ "$rollback_describe_status" -eq 0 ] && jq -e --arg task_definition "$PREVIOUS_TASK" '
                 ((.failures // []) | length) == 0 and
                 (.services | length) == 1 and
                 .services[0].taskDefinition == $task_definition and
@@ -993,8 +995,12 @@ jobs:
                 (.services[0].deployments | length) == 1 and
                 .services[0].deployments[0].taskDefinition == $task_definition and
                 (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
-              ' "$rollback_result" >/dev/null
-              rollback_verify_status=$?
+                ' "$rollback_result" >/dev/null; then
+                  rollback_verify_status=0
+                  break
+                fi
+                sleep 5
+              done
               set -e
               if [ "$rollback_update_status" -ne 0 ] ||
                 [ "$rollback_wait_status" -ne 0 ] ||
@@ -1038,13 +1044,15 @@ jobs:
             --services "$ECS_WORKER_SERVICE"
 
           service_result="${RUNNER_TEMP}/worker-release-service.json"
-          aws ecs describe-services \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_WORKER_SERVICE" \
-            --output json > "$service_result"
-          jq -e \
-            --arg task_definition "$NEW_TASK" \
-            --argjson desired "$EXPECTED_DESIRED_COUNT" '
+          worker_verified=false
+          for _ in $(seq 1 24); do
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_WORKER_SERVICE" \
+              --output json > "$service_result"
+            if jq -e \
+              --arg task_definition "$NEW_TASK" \
+              --argjson desired "$EXPECTED_DESIRED_COUNT" '
               ((.failures // []) | length) == 0 and
               (.services | length) == 1 and
               .services[0].taskDefinition == $task_definition and
@@ -1054,7 +1062,13 @@ jobs:
               (.services[0].deployments | length) == 1 and
               .services[0].deployments[0].taskDefinition == $task_definition and
               (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
-          ' "$service_result" >/dev/null
+            ' "$service_result" >/dev/null; then
+              worker_verified=true
+              break
+            fi
+            sleep 5
+          done
+          [ "$worker_verified" = "true" ]
 
           deployment_started=false
           trap - ERR INT TERM EXIT
@@ -1082,11 +1096,12 @@ jobs:
             aws ecs wait services-stable \
               --cluster "$ECS_CLUSTER" \
               --services "$service" || return 1
-            aws ecs describe-services \
-              --cluster "$ECS_CLUSTER" \
-              --services "$service" \
-              --output json > "$result_file" || return 1
-            jq -e --arg task_definition "$task_definition" '
+            for _ in $(seq 1 24); do
+              aws ecs describe-services \
+                --cluster "$ECS_CLUSTER" \
+                --services "$service" \
+                --output json > "$result_file" || return 1
+              if jq -e --arg task_definition "$task_definition" '
               ((.failures // []) | length) == 0 and
               (.services | length) == 1 and
               .services[0].taskDefinition == $task_definition and
@@ -1095,7 +1110,12 @@ jobs:
               (.services[0].deployments | length) == 1 and
               .services[0].deployments[0].taskDefinition == $task_definition and
               (.services[0].deployments[0].rolloutState // "COMPLETED") == "COMPLETED"
-            ' "$result_file" >/dev/null
+              ' "$result_file" >/dev/null; then
+                return 0
+              fi
+              sleep 5
+            done
+            return 1
           }
 
           echo "::warning::Worker release failed; restoring the previous worker and API revisions"
