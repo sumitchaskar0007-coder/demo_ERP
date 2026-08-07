@@ -18,6 +18,7 @@ import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.fee.enums.StudentCategory;
+import com.jadhavr.erp.fee.service.FeeService;
 import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.Role;
@@ -51,12 +52,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class StudentSectionAdmissionServiceImplTest {
     @Mock private AdmissionFormRepository admissions;
     @Mock private AdmissionStatusHistoryRepository histories;
     @Mock private UserRepository users;
+    @Mock private FeeService feeService;
 
     private StudentSectionAdmissionServiceImpl service;
 
@@ -68,8 +72,12 @@ class StudentSectionAdmissionServiceImplTest {
                 users,
                 new StudentSectionAdmissionMapper(),
                 new AdmissionStatusHistoryMapper(),
-                new AdmissionPrintMapper()
+                new AdmissionPrintMapper(),
+                feeService,
+                null,
+                null
         );
+        lenient().when(feeService.isAdmissionFormFeeVerified(100L)).thenReturn(true);
         authenticate(50L, 1L, RoleName.STUDENT_SECTION);
     }
 
@@ -92,11 +100,26 @@ class StudentSectionAdmissionServiceImplTest {
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
         when(admissions.save(admission)).thenReturn(admission);
         when(users.findById(50L)).thenReturn(Optional.of(user(50L, 1L, RoleName.STUDENT_SECTION)));
+        when(feeService.isAdmissionFormFeeVerified(100L)).thenReturn(true);
 
         var result = service.startReview(100L);
 
         assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING, result.status());
         verifyHistory(AdmissionAction.STUDENT_SECTION_REVIEW_STARTED);
+    }
+
+    @Test
+    void startReviewCannotBypassFeeSectionVerification() {
+        AdmissionForm admission = admission(100L, 1L, AdmissionStatus.SUBMITTED);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        when(admissions.findById(100L)).thenReturn(Optional.of(admission));
+        when(feeService.isAdmissionFormFeeVerified(100L)).thenReturn(false);
+
+        BadRequestException error = assertThrows(BadRequestException.class,
+                () -> service.startReview(100L));
+
+        assertEquals("The admission form fee must be verified by Fee Section before review",
+                error.getMessage());
     }
 
     @Test
@@ -126,6 +149,24 @@ class StudentSectionAdmissionServiceImplTest {
         assertTrue(admission.getStudentUser().isMustChangePassword());
         assertEquals("Verified", admission.getStudentSectionRemarks());
         verifyHistory(AdmissionAction.STUDENT_SECTION_APPROVED);
+    }
+
+    @Test
+    void approvalCannotBypassFeeSectionVerificationForLegacyPendingAdmission() {
+        AdmissionForm admission = admission(100L, 1L, AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        admission.setPhotoStorageName("student-photo.jpg");
+        when(admissions.findById(100L)).thenReturn(Optional.of(admission));
+        when(feeService.isAdmissionFormFeeVerified(100L)).thenReturn(false);
+
+        BadRequestException error = assertThrows(BadRequestException.class,
+                () -> service.approveAdmission(
+                        100L, verificationRequest(StudentCategory.VJNT, "Verified")));
+
+        assertEquals("The admission form fee must be verified by Fee Section before review",
+                error.getMessage());
+        verify(admissions, never()).save(any());
+        verify(histories, never()).save(any());
     }
 
     @Test

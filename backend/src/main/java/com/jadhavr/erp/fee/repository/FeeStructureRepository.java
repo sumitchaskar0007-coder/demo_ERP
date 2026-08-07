@@ -16,14 +16,34 @@ public interface FeeStructureRepository extends JpaRepository<FeeStructure,Long>
      and f.department.id = :departmentId
      and f.academicYear in :academicYears
      and f.studentCategory = :category
-     and ((:customCategoryName is null and f.customCategoryName is null)
-       or (:customCategoryName is not null and lower(f.customCategoryName) = lower(:customCategoryName)))
+     and f.customCategoryName is null
      and lower(f.gender) = lower(:gender)
      and lower(f.courseYear) = lower(:courseYear)
      and f.status = :status
    order by f.id
    """)
- List<FeeStructure> findAllConfiguredAssessments(
+ List<FeeStructure> findAllConfiguredAssessmentsWithoutCustomCategory(
+   @Param("collegeId") Long collegeId,
+   @Param("departmentId") Long departmentId,
+   @Param("academicYears") Collection<String> academicYears,
+   @Param("category") StudentCategory category,
+   @Param("gender") String gender,
+   @Param("courseYear") String courseYear,
+   @Param("status") FeeStructureStatus status);
+
+ @Query("""
+   select f from FeeStructure f
+   where f.college.id = :collegeId
+     and f.department.id = :departmentId
+     and f.academicYear in :academicYears
+     and f.studentCategory = :category
+     and lower(f.customCategoryName) = lower(:customCategoryName)
+     and lower(f.gender) = lower(:gender)
+     and lower(f.courseYear) = lower(:courseYear)
+     and f.status = :status
+   order by f.id
+   """)
+ List<FeeStructure> findAllConfiguredAssessmentsWithCustomCategory(
    @Param("collegeId") Long collegeId,
    @Param("departmentId") Long departmentId,
    @Param("academicYears") Collection<String> academicYears,
@@ -54,9 +74,12 @@ public interface FeeStructureRepository extends JpaRepository<FeeStructure,Long>
    StudentCategory category, String customCategoryName, String gender,
   String courseYear, FeeStructureStatus status) {
   if (courseYear != null) {
-   List<FeeStructure> exact = findAllConfiguredAssessments(
-     collegeId, departmentId, academicYears, category, customCategoryName,
-     gender, courseYear, status);
+   List<FeeStructure> exact = customCategoryName == null
+     ? findAllConfiguredAssessmentsWithoutCustomCategory(
+       collegeId, departmentId, academicYears, category, gender, courseYear, status)
+     : findAllConfiguredAssessmentsWithCustomCategory(
+       collegeId, departmentId, academicYears, category, customCategoryName,
+       gender, courseYear, status);
    if (exact.size() > 1) {
     throw new com.jadhavr.erp.common.exception.BadRequestException(
       "Multiple active fee structures match this category and gender. Deactivate the duplicate configuration.");

@@ -45,12 +45,19 @@ function showAdmission(status: StudentSectionAdmissionResponse["status"]) {
 describe("student section admission actions", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("shows only Review for a submitted admission", async () => {
-    showAdmission("SUBMITTED");
+  it("shows Review only after Fee Section moves the admission to the review queue", async () => {
+    showAdmission("STUDENT_SECTION_REVIEW_PENDING");
 
     expect(await screen.findByRole("button", { name: "Review" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "View" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Print" })).not.toBeInTheDocument();
+  });
+
+  it("does not offer Review while the submitted form is awaiting fee verification", async () => {
+    showAdmission("SUBMITTED");
+
+    expect(await screen.findByRole("button", { name: "View" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
   });
 
   it("shows View and Print after student section approval", async () => {

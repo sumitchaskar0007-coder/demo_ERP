@@ -80,6 +80,7 @@ export function PublicAdmissionPage() {
   >([]);
   const {
     register,
+    getValues,
     setValue,
     watch,
     handleSubmit,
@@ -104,19 +105,45 @@ export function PublicAdmissionPage() {
   const gender = watch("gender");
 
   useEffect(() => {
-    setValue("customCategoryName", "");
     if (!departmentId) {
       setCategoryOptions([]);
+      setValue("customCategoryName", "");
       return;
     }
+    let active = true;
     api
       .getPublicAdmissionCategories(collegeCode, Number(departmentId), {
         gender: gender || undefined,
         academicYear: info?.academicYear,
       })
-      .then(setCategoryOptions)
-      .catch(() => setCategoryOptions([]));
-  }, [collegeCode, departmentId, gender, info?.academicYear, setValue]);
+      .then((options) => {
+        if (!active) return;
+        setCategoryOptions(options);
+
+        const selectedCustomCategory = getValues("customCategoryName")?.trim();
+        if (
+          getValues("studentCategory") === "OTHER" &&
+          selectedCustomCategory &&
+          !options.some(
+            (option) =>
+              option.category === "OTHER" &&
+              option.customCategoryName?.toUpperCase() === selectedCustomCategory.toUpperCase(),
+          )
+        ) {
+          setValue("customCategoryName", "");
+          setFieldError("customCategoryName", {
+            type: "manual",
+            message: "Selected Other category is not available for this department and gender",
+          });
+        }
+      })
+      .catch(() => {
+        // Keep the last successful options and the user's selection on a transient refresh error.
+      });
+    return () => {
+      active = false;
+    };
+  }, [collegeCode, departmentId, gender, getValues, info?.academicYear, setFieldError, setValue]);
 
   useEffect(() => {
     setLoading(true);

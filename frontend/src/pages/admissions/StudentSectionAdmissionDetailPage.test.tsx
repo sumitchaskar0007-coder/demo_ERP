@@ -80,6 +80,37 @@ const admission = {
   detailsCompletedAt: "2026-07-20T10:00:00Z",
 } satisfies StudentSectionAdmissionResponse;
 
+const verifiedAdmissionFeeAccount = {
+  id: 10,
+  studentId: 11,
+  studentUserId: 12,
+  admissionId: 42,
+  admissionReferenceNumber: "ADM-REF-42",
+  admissionNumber: "ADM-42",
+  collegeId: 1,
+  collegeName: "Jadhavar College",
+  collegeCode: "JCE",
+  departmentId: 2,
+  departmentName: "Computer Science",
+  departmentCode: "CS",
+  academicYear: "2026-27",
+  studentCategory: "OPEN",
+  totalFee: 1000,
+  paidAmount: 1000,
+  remainingAmount: 0,
+  creditAmount: 0,
+  discountAmount: 0,
+  scholarshipAmount: 0,
+  scholarshipRemoved: false,
+  minimumAmountForAdmission: 1000,
+  status: "PAID",
+  admissionFeeAccount: true,
+  collegeQrAccountName: "Jadhavar College",
+  paymentInstructions: "Pay and upload proof",
+  createdAt: "2026-07-20T10:00:00Z",
+  updatedAt: "2026-07-20T10:00:00Z",
+} as const;
+
 describe("StudentSectionAdmissionDetailPage", () => {
   beforeEach(() => {
     vi.mocked(admissionApi.getPublicAdmissionCategories).mockResolvedValue([
@@ -87,7 +118,7 @@ describe("StudentSectionAdmissionDetailPage", () => {
     ]);
     vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue(admission);
     vi.mocked(admissionApi.getStudentSectionAdmissionFees).mockResolvedValue({
-      account: null,
+      account: verifiedAdmissionFeeAccount,
       payments: [],
     });
     vi.mocked(admissionApi.getAdmissionHistory).mockResolvedValue([]);
@@ -226,5 +257,39 @@ describe("StudentSectionAdmissionDetailPage", () => {
     await user.click(screen.getAllByRole("button", { name: "Approve" }).at(-1)!);
 
     await waitFor(() => expect(admissionApi.approveAdmission).toHaveBeenCalledTimes(1));
+  });
+
+  it("locks approval for a legacy pending admission without a verified form fee", async () => {
+    vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue({
+      ...admission,
+      photoAvailable: true,
+    });
+    vi.mocked(admissionApi.getStudentSectionAdmissionFees).mockResolvedValue({
+      account: {
+        ...verifiedAdmissionFeeAccount,
+        paidAmount: 0,
+        remainingAmount: 1000,
+        status: "PENDING",
+      },
+      payments: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/student-section/admissions/42"]}>
+        <Routes>
+          <Route
+            path="/student-section/admissions/:admissionId"
+            element={<StudentSectionAdmissionDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByText(
+        "Approval is locked until Fee Section verifies the ₹1,000 admission form fee.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
 });

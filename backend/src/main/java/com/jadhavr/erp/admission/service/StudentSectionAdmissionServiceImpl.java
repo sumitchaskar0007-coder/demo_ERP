@@ -160,6 +160,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (admission.getDetailsCompletedAt() == null) {
             throw new BadRequestException("The student must complete and submit the detailed admission form first");
         }
+        ensureAdmissionFormFeeVerified(admissionId);
         AdmissionStatus oldStatus = admission.getStatus();
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
         AdmissionForm saved = admissions.save(admission);
@@ -320,6 +321,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     public StudentSectionAdmissionResponse approveAdmission(Long admissionId, VerifyAdmissionRequest request) {
         AdmissionForm admission = findScopedAdmission(admissionId);
         ensurePendingReview(admission, "approved");
+        ensureAdmissionFormFeeVerified(admissionId);
         AdmissionStatus oldStatus = admission.getStatus();
         User currentUser = currentUserEntity();
         if (admission.getDetailsCompletedAt() == null) {
@@ -503,6 +505,13 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private void ensurePendingReview(AdmissionForm admission, String action) {
         if (admission.getStatus() != AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING) {
             throw new BadRequestException("Admission can be " + action + " only while pending review");
+        }
+    }
+
+    private void ensureAdmissionFormFeeVerified(Long admissionId) {
+        if (feeService == null || !feeService.isAdmissionFormFeeVerified(admissionId)) {
+            throw new BadRequestException(
+                    "The admission form fee must be verified by Fee Section before review");
         }
     }
 

@@ -2,6 +2,8 @@ package com.jadhavr.erp.fee.service;
 
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.admission.enums.AdmissionAction;
+import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
 import com.jadhavr.erp.academic.entity.AcademicClass;
@@ -44,6 +46,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.Set;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -183,6 +186,48 @@ class FeeServiceImplTest {
 
         verify(payments).findByIdForUpdate(30L);
         verify(accounts, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void verifiedAdmissionFormFeeMovesCompletedFormToStudentSectionReview() {
+        AdmissionForm admission = admission(StudentCategory.OPEN);
+        admission.setStatus(AdmissionStatus.SUBMITTED);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        account.setAdmissionForm(admission);
+        account.setStudent(admission.getStudent());
+        account.setStudentUser(admission.getStudentUser());
+        account.setCollege(admission.getCollege());
+        account.setDepartment(admission.getDepartment());
+        account.setTotalFee(new BigDecimal("1000.00"));
+        account.setPaidAmount(BigDecimal.ZERO);
+        account.setRemainingAmount(new BigDecimal("1000.00"));
+        account.setMinimumAmountForAdmission(new BigDecimal("1000.00"));
+        FeePayment payment = payment(account, new BigDecimal("1000.00"), PaymentStatus.PENDING);
+        payment.setStudent(admission.getStudent());
+        payment.setStudentUser(admission.getStudentUser());
+        payment.setDepartment(admission.getDepartment());
+        User officer = new User();
+        officer.setId(99L);
+        officer.setFullName("Fee Officer");
+        when(payments.findByIdForUpdate(30L)).thenReturn(Optional.of(payment));
+        when(accounts.findByIdForUpdate(20L)).thenReturn(Optional.of(account));
+        when(transactions.existsByFeePaymentId(30L)).thenReturn(false);
+        when(users.findById(99L)).thenReturn(Optional.of(officer));
+        when(payments.save(payment)).thenReturn(payment);
+
+        service.verify(30L, new VerifyPaymentRequest("admission form fee checked"));
+
+        assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING, admission.getStatus());
+        verify(admissions).save(admission);
+        ArgumentCaptor<AdmissionStatusHistory> history =
+                ArgumentCaptor.forClass(AdmissionStatusHistory.class);
+        verify(histories).save(history.capture());
+        assertEquals(AdmissionStatus.SUBMITTED, history.getValue().getOldStatus());
+        assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING,
+                history.getValue().getNewStatus());
+        assertEquals(AdmissionAction.PAYMENT_VERIFIED, history.getValue().getAction());
     }
 
     @Test

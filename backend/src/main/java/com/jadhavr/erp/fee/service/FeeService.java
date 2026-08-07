@@ -20,6 +20,7 @@ public interface FeeService {
             int page, int size, String sort, String direction);
     void createAccountForAdmission(AdmissionForm admission);
     void createRegularFeeAccount(AdmissionForm admission);
+    boolean isAdmissionFormFeeVerified(Long admissionId);
     StudentFeeAccountResponse myAccount();
     String myCollegeQrStorageName();
     PaymentResponse submitPayment(SubmitPaymentRequest request, String proofStorageName);

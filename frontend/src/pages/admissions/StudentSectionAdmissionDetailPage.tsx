@@ -71,23 +71,22 @@ export function StudentSectionAdmissionDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
-  const quick = async () => {
-    try {
-      await api.startAdmissionReview(id);
-      toast.success("Review started");
-      await load();
-    } catch (err) {
-      toast.error(handleApiError(err).message);
-    }
-  };
   if (loading) return <Loader label="Loading admission detail..." />;
   if (!admission) return null;
   const canVerify = canManage && admission.status === "STUDENT_SECTION_REVIEW_PENDING";
+  const admissionFormFeeVerified = Boolean(
+    fees?.account?.admissionFeeAccount &&
+      Number(fees.account.paidAmount) >= Number(fees.account.minimumAmountForAdmission),
+  );
   const canChangeInformation =
     canManage &&
     Boolean(admission.detailsCompletedAt) &&
-    ["SUBMITTED", "STUDENT_SECTION_REVIEW_PENDING"].includes(admission.status);
-  const canApprove = canVerify && Boolean(admission.detailsCompletedAt) && admission.photoAvailable;
+    admission.status === "STUDENT_SECTION_REVIEW_PENDING";
+  const canApprove =
+    canVerify &&
+    admissionFormFeeVerified &&
+    Boolean(admission.detailsCompletedAt) &&
+    admission.photoAvailable;
   const finishEditing = async () => {
     setEditing(false);
     await load();
@@ -105,11 +104,6 @@ export function StudentSectionAdmissionDetailPage() {
           <AdmissionStatusBadge status={admission.status} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          {canManage && admission.status === "SUBMITTED" && admission.detailsCompletedAt && (
-            <Button variant="secondary" onClick={quick}>
-              Start Review
-            </Button>
-          )}
           {canChangeInformation && !editing && (
             <Button variant="secondary" onClick={() => setEditing(true)}>
               <Pencil className="h-4 w-4" />
@@ -129,6 +123,11 @@ export function StudentSectionAdmissionDetailPage() {
             </Button>
           )}
         </div>
+        {canVerify && !admissionFormFeeVerified && (
+          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Approval is locked until Fee Section verifies the ₹1,000 admission form fee.
+          </p>
+        )}
       </Card>
       {canChangeInformation && editing ? (
         <DetailedAdmissionForm admission={admission} onSaved={finishEditing} />

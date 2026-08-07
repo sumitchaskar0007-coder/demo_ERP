@@ -419,7 +419,9 @@ public class AdmissionServiceImpl implements AdmissionService {
         copyDetailedFields(admission, request, email);
         admission.setDetailsCompletedAt(LocalDateTime.now());
         admission.setSubmittedAt(LocalDateTime.now());
-        admission.setStatus(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
+        admission.setStatus(oldStatus == AdmissionStatus.SUBMITTED
+                ? AdmissionStatus.SUBMITTED
+                : AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING);
         admission.setRejectionReason(null);
         admission.setStudentSectionRejectedAt(null);
         admission.setStudentSectionRejectedBy(null);

@@ -37,7 +37,7 @@ export function StudentSectionAdmissionListPage() {
   const principal = isRole([ROLES.PRINCIPAL]);
   const [result, setResult] = useState(emptyPage);
   const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(principal ? "" : "STUDENT_SECTION_REVIEW_PENDING");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
@@ -95,7 +95,7 @@ export function StudentSectionAdmissionListPage() {
       key: "actions",
       header: "",
       render: (row) => {
-        const reviewable = canManage && row.status === "SUBMITTED";
+        const reviewable = canManage && row.status === "STUDENT_SECTION_REVIEW_PENDING";
         return (
           <div className="flex flex-wrap gap-2">
             {reviewable ? (

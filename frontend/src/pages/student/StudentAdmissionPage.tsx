@@ -68,6 +68,8 @@ export function StudentAdmissionPage() {
   const rejected = rejectedStatuses.has(admission.status);
   const editable = !admission.detailsCompletedAt || rejected;
   const pending = admission.status === "STUDENT_SECTION_REVIEW_PENDING";
+  const awaitingFeeVerification =
+    admission.status === "SUBMITTED" && Boolean(admission.detailsCompletedAt);
 
   return (
     <div className="page-container space-y-5">
@@ -91,6 +93,12 @@ export function StudentAdmissionPage() {
         {pending && (
           <p className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
             Your application is pending Student Section review. It is read-only while under review.
+          </p>
+        )}
+        {awaitingFeeVerification && (
+          <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+            Your form is complete. Pay the ₹1,000 admission form fee and wait for Fee Section
+            verification. It will then move to Student Section review automatically.
           </p>
         )}
         {admission.detailsCompletedAt && !rejected && (

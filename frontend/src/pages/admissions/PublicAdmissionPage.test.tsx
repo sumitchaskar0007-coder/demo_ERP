@@ -58,6 +58,71 @@ describe("PublicAdmissionPage", () => {
     expect(customCategory).toHaveValue("NT");
   });
 
+  it("keeps a valid Other category when gender refreshes the category options", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/admissions/101"]}>
+        <Routes>
+          <Route path="/admissions/:collegeCode" element={<PublicAdmissionPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Jadhavar College");
+    await user.selectOptions(screen.getByLabelText("Department"), "30");
+    await waitFor(() => expect(admissionApi.getPublicAdmissionCategories).toHaveBeenCalled());
+
+    await user.selectOptions(screen.getByLabelText("Student category"), "OTHER");
+    const customCategory = await screen.findByLabelText("Other category");
+    await user.selectOptions(customCategory, "NT");
+    await user.selectOptions(screen.getByLabelText("Gender"), "Female");
+
+    await waitFor(() =>
+      expect(admissionApi.getPublicAdmissionCategories).toHaveBeenCalledWith(
+        "101",
+        30,
+        expect.objectContaining({ gender: "Female", academicYear: "2026-27" }),
+      ),
+    );
+    expect(customCategory).toHaveValue("NT");
+  });
+
+  it("explains when an Other category is unavailable for the selected gender", async () => {
+    const user = userEvent.setup();
+    vi.mocked(admissionApi.getPublicAdmissionCategories).mockImplementation(
+      async (_collegeCode, _departmentId, filters) =>
+        filters?.gender === "Male"
+          ? [{ category: "OPEN", label: "OPEN" }]
+          : [
+              { category: "OPEN", label: "OPEN" },
+              { category: "OTHER", customCategoryName: "NT", label: "NT" },
+            ],
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/admissions/101"]}>
+        <Routes>
+          <Route path="/admissions/:collegeCode" element={<PublicAdmissionPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Jadhavar College");
+    await user.selectOptions(screen.getByLabelText("Department"), "30");
+    await waitFor(() => expect(admissionApi.getPublicAdmissionCategories).toHaveBeenCalled());
+    await user.selectOptions(screen.getByLabelText("Student category"), "OTHER");
+    const customCategory = await screen.findByLabelText("Other category");
+    await user.selectOptions(customCategory, "NT");
+    await user.selectOptions(screen.getByLabelText("Gender"), "Male");
+
+    expect(
+      await screen.findByText(
+        "Selected Other category is not available for this department and gender",
+      ),
+    ).toBeInTheDocument();
+    expect(customCategory).toHaveValue("");
+  });
+
   it("shows missing information beside each required field", async () => {
     const user = userEvent.setup();
     render(

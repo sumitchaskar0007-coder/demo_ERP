@@ -346,6 +346,24 @@ class AdmissionServiceImplTest {
     }
 
     @Test
+    void completedAdmissionWaitsForFeeVerificationBeforeStudentSectionReview() {
+        authenticateStudent(20L);
+        AdmissionForm admission = studentAdmission(AdmissionStatus.SUBMITTED);
+        admission.setPhotoStorageName("student-photo.jpg");
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
+                .thenReturn(Optional.of(admission));
+        when(admissionFormRepository.save(admission)).thenReturn(admission);
+
+        var result = service.submitMyAdmissionDetails(detailedRequest());
+
+        assertEquals(AdmissionStatus.SUBMITTED, result.status());
+        ArgumentCaptor<AdmissionStatusHistory> history =
+                ArgumentCaptor.forClass(AdmissionStatusHistory.class);
+        verify(admissionStatusHistoryRepository).save(history.capture());
+        assertEquals(AdmissionStatus.SUBMITTED, history.getValue().getNewStatus());
+    }
+
+    @Test
     void rejectedAdmissionCanBeCorrectedAndResubmittedUsingSameRecord() {
         authenticateStudent(20L);
         AdmissionForm admission = studentAdmission(AdmissionStatus.STUDENT_SECTION_REJECTED);
