@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { DocumentViewer } from "@/components/common/DocumentViewer";
 import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/feeOfficer/api";
+import { downloadFeeReceipt } from "@/features/fees/feeReceiptPdf";
 const input =
   "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
 const primary =
@@ -1487,24 +1488,11 @@ function AccountModal({
   );
 }
 async function downloadReceipt(p: api.Payment) {
-  const { default: JsPdf } = await import("jspdf");
-  const doc = new JsPdf();
-  doc.setFontSize(20);
-  doc.text("Jadhavar ERP - Payment Receipt", 20, 25);
-  doc.setFontSize(11);
-  [
-    ["Receipt", p.receiptNumber || "Pending"],
-    ["Student", p.student],
-    ["PRN", p.prn],
-    ["Department", p.department],
-    ["Amount", money(p.amount)],
-    ["Payment Mode", p.paymentMode],
-    ["Transaction ID", p.transactionId],
-    ["Payment Date", p.paymentDate],
-    ["Verified By", p.verifiedBy || "—"],
-    ["Verification Time", p.verifiedAt ? new Date(p.verifiedAt).toLocaleString() : "—"],
-  ].forEach(([k, v], i) => doc.text(`${k}: ${v}`, 20, 45 + i * 10));
-  doc.save(`${p.receiptNumber || "payment"}.pdf`);
+  try {
+    await downloadFeeReceipt(await api.paymentReceipt(p.id));
+  } catch (error) {
+    toast.error(handleApiError(error).message);
+  }
 }
 function Chart({
   title,

@@ -1,4 +1,13 @@
 package com.jadhavr.erp.fee.dto;
+
+import com.jadhavr.erp.fee.enums.StudentCategory;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-public record ChangeStudentCategoryRequest(@NotBlank @Size(min=2,max=80) String customCategoryName) {}
+
+public record ChangeStudentCategoryRequest(
+        @NotNull StudentCategory studentCategory,
+        @Size(min = 2, max = 80) String customCategoryName,
+        @NotBlank @Size(max = 150) String caste,
+        @NotBlank @Size(min = 3, max = 500) String reason) {
+}

@@ -4,6 +4,7 @@ import type {
   CreateFeeStructureRequest,
   FeeAccountStatus,
   FeeDashboardResponse,
+  FeeReceiptResponse,
   FeeStructureResponse,
   FeeStructureStatus,
   FeeTransactionResponse,
@@ -54,6 +55,10 @@ export const submitPayment = (v: SubmitPaymentRequest, proof: File) => {
 };
 export const getMyPayments = () =>
   apiClient.get<ApiResponse<PaymentResponse[]>>("/api/student/fees/payments").then(unwrap);
+export const getMyPaymentReceipt = (paymentId: number) =>
+  apiClient
+    .get<ApiResponse<FeeReceiptResponse>>(`/api/student/fees/payments/${paymentId}/receipt`)
+    .then(unwrap);
 export const getMyFeeTransactions = () =>
   apiClient
     .get<ApiResponse<FeeTransactionResponse[]>>("/api/student/fees/transactions")

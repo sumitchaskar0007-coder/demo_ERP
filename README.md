@@ -95,6 +95,9 @@ configuration, API endpoints, credentials, testing, and local setup. See the
 [frontend documentation](frontend/README.md) for UI setup and role-aware workflows.
 See the [authentication flowcharts](docs/authentication/README.md) for the complete
 cookie JWT, refresh rotation, CSRF, authorization, tenant, and deployment flows.
+For a complete architecture walkthrough, technology explanations, coding topics,
+and interview questions with model answers, see the
+[Project and Interview Guide](docs/PROJECT_AND_INTERVIEW_GUIDE.md).
 
 ## Quick start
 

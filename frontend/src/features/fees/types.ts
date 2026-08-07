@@ -7,6 +7,8 @@ export type FeeTransactionType =
   | "PAYMENT_REJECTED"
   | "DISCOUNT_APPLIED"
   | "SCHOLARSHIP_APPROVED"
+  | "SCHOLARSHIP_REMOVED"
+  | "FEE_CATEGORY_CHANGED"
   | "FEE_ADJUSTMENT"
   | "REFUND";
 export interface CreateFeeStructureRequest {
@@ -59,11 +61,16 @@ export interface StudentFeeAccountResponse {
   departmentCode: string;
   academicYear: string;
   studentCategory: "OPEN" | "OBC" | "SC" | "ST" | "SBC" | "VJNT" | "EWS" | "OTHER";
+  customCategoryName?: string | null;
   totalFee: number;
   paidAmount: number;
   remainingAmount: number;
+  creditAmount: number;
   discountAmount: number;
   scholarshipAmount: number;
+  scholarshipRemoved: boolean;
+  scholarshipRemovedAt?: string | null;
+  scholarshipRemovalReason?: string | null;
   minimumAmountForAdmission: number;
   status: FeeAccountStatus;
   admissionFeeAccount: boolean;
@@ -105,6 +112,35 @@ export interface PaymentResponse {
   rejectionReason?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+export interface FeeReceiptResponse {
+  paymentId: number;
+  receiptNumber: string;
+  receiptTitle: string;
+  issuedOn: string;
+  collegeId: number;
+  collegeCode: string;
+  collegeName: string;
+  collegeLogoUrl?: string | null;
+  collegeAddress?: string | null;
+  collegeCity?: string | null;
+  collegeState?: string | null;
+  collegePincode?: string | null;
+  collegeContactEmail?: string | null;
+  collegeContactPhone?: string | null;
+  studentName: string;
+  admissionNumber: string;
+  prn?: string | null;
+  departmentName: string;
+  courseName: string;
+  academicYear: string;
+  paymentDate: string;
+  amount: number;
+  paymentMode: PaymentMode;
+  transactionReference: string;
+  verifiedAt: string;
+  verifiedByName?: string | null;
+  remark: string;
 }
 export interface AdmissionFeeSummaryResponse {
   account: StudentFeeAccountResponse | null;

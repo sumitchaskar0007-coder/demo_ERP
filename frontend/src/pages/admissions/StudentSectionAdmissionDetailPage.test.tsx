@@ -126,6 +126,67 @@ describe("StudentSectionAdmissionDetailPage", () => {
     expect(screen.getByRole("button", { name: "Cancel Changes" })).toBeInTheDocument();
   });
 
+  it("shows the available category names after Student Section selects Other", async () => {
+    const user = userEvent.setup();
+    vi.mocked(admissionApi.getPublicAdmissionCategories).mockResolvedValue([
+      { category: "OPEN", label: "OPEN" },
+      { category: "OTHER", customCategoryName: "NT-C", label: "NT-C" },
+      { category: "OTHER", customCategoryName: "MINORITY", label: "MINORITY" },
+    ]);
+    render(
+      <MemoryRouter initialEntries={["/student-section/admissions/42"]}>
+        <Routes>
+          <Route
+            path="/student-section/admissions/:admissionId"
+            element={<StudentSectionAdmissionDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Change Information" }));
+    await user.selectOptions(screen.getByLabelText("Student category"), "OTHER");
+
+    const customCategory = await screen.findByLabelText("Other category");
+    expect(customCategory).toHaveValue("");
+    expect(screen.getByRole("option", { name: "NT-C" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "MINORITY" })).toBeInTheDocument();
+    await user.selectOptions(customCategory, "NT-C");
+    expect(customCategory).toHaveValue("NT-C");
+  });
+
+  it("preserves the saved Other category when category loading fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue({
+      ...admission,
+      studentCategory: "OTHER",
+      customCategoryName: "NT",
+      gender: "Male",
+    });
+    vi.mocked(admissionApi.getPublicAdmissionCategories).mockRejectedValue(
+      new Error("Category service unavailable"),
+    );
+    render(
+      <MemoryRouter initialEntries={["/student-section/admissions/42"]}>
+        <Routes>
+          <Route
+            path="/student-section/admissions/:admissionId"
+            element={<StudentSectionAdmissionDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Change Information" }));
+
+    expect(await screen.findByLabelText("Other category")).toHaveValue("NT");
+    expect(screen.getByRole("option", { name: "NT" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Gender")).toHaveValue("MALE");
+    expect(
+      screen.queryByText("No Other category is available for this department."),
+    ).not.toBeInTheDocument();
+  });
+
   it("approves when all available required documents are verified", async () => {
     const user = userEvent.setup();
     vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue({

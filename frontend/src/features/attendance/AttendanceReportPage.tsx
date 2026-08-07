@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -108,29 +108,32 @@ export function AttendanceReportPage() {
         ? "/api/hod/attendance/report"
         : "/api/class-teacher/attendance/division";
 
-  const load = (next = applied) => {
-    setLoading(true);
-    setError("");
-    attendanceApi
-      .report(path, {
-        from: next.from,
-        to: next.to,
-        departmentId: next.departmentId,
-        divisionId: next.divisionId,
-        teacherId: "",
-        subjectId: "",
-      })
-      .then(setData)
-      .catch((e) => {
-        const message = handleApiError(e).message;
-        setError(message);
-        toast.error(message);
-      })
-      .finally(() => setLoading(false));
-  };
+  const load = useCallback(
+    (next: Filters) => {
+      setLoading(true);
+      setError("");
+      attendanceApi
+        .report(path, {
+          from: next.from,
+          to: next.to,
+          departmentId: next.departmentId,
+          divisionId: next.divisionId,
+          teacherId: "",
+          subjectId: "",
+        })
+        .then(setData)
+        .catch((e) => {
+          const message = handleApiError(e).message;
+          setError(message);
+          toast.error(message);
+        })
+        .finally(() => setLoading(false));
+    },
+    [path],
+  );
   useEffect(() => {
     load(applied);
-  }, [path]);
+  }, [applied, load]);
   useEffect(() => {
     weeklyTimetableApi
       .divisions()
@@ -277,7 +280,6 @@ export function AttendanceReportPage() {
     setApplied(draft);
     setDrill({});
     setRegisterPage(1);
-    load(draft);
   };
   const reset = () => {
     const clean = emptyFilters();
@@ -286,7 +288,6 @@ export function AttendanceReportPage() {
     setDrill({});
     setRiskView(undefined);
     setStudentSearch("");
-    load(clean);
   };
   const showRiskStudents = (risk: RiskView) => {
     setRiskView(risk);

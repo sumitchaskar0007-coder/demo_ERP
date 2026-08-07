@@ -291,7 +291,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
       const principalGroups: Record<string, boolean> = {
         [ROUTES.studentSectionAdmissions]:
           location.pathname.startsWith("/student-section/admissions") ||
-          location.pathname.startsWith("/principal/admissions"),
+          location.pathname.startsWith("/principal/admissions") ||
+          location.pathname === ROUTES.studentSectionDocuments,
         [ROUTES.principalAcademics]:
           location.pathname.startsWith("/departments") ||
           location.pathname.startsWith("/principal/course-years") ||

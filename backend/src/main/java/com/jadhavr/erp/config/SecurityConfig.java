@@ -44,26 +44,32 @@ public class SecurityConfig {
     private final LoginRateLimitFilter loginRateLimitFilter;
     private final StudentAdmissionAccessFilter studentAdmissionAccessFilter;
     private final List<String> allowedOrigins;
+    private final boolean cookieSecure;
+    private final String cookieSameSite;
 
     public SecurityConfig(ObjectMapper objectMapper,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           CustomUserDetailsService userDetailsService, LoginRateLimitFilter loginRateLimitFilter,
                           StudentAdmissionAccessFilter studentAdmissionAccessFilter,
-                          @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins) {
+                          @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins,
+                          @Value("${app.auth.cookie-secure:false}") boolean cookieSecure,
+                          @Value("${app.auth.cookie-same-site:Strict}") String cookieSameSite) {
         this.objectMapper = objectMapper;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userDetailsService = userDetailsService;
         this.loginRateLimitFilter = loginRateLimitFilter;
         this.studentAdmissionAccessFilter = studentAdmissionAccessFilter;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
+        this.cookieSecure = cookieSecure;
+        this.cookieSameSite = cookieSameSite;
     }
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> {
-                    CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-                    repository.setCookiePath("/");
+                    CookieCsrfTokenRepository repository =
+                            csrfTokenRepository(cookieSecure, cookieSameSite);
                     CsrfTokenRequestAttributeHandler handler = new CsrfTokenRequestAttributeHandler();
                     handler.setCsrfRequestAttributeName("_csrf");
                     csrf.csrfTokenRepository(repository).csrfTokenRequestHandler(handler)
@@ -116,6 +122,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/student-section/**").hasAnyRole("STUDENT_SECTION", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/staff/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/principal/admissions/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
+                        .requestMatchers("/api/principal/students/*/fee-adjustments/**").hasRole("PRINCIPAL")
                         .requestMatchers("/api/principal/**").hasAnyRole("PRINCIPAL", "SUPER_ADMIN")
                         .requestMatchers("/api/student/**").hasRole("STUDENT")
                         .requestMatchers("/api/notices/**").authenticated()
@@ -135,6 +142,13 @@ public class SecurityConfig {
                                         "Access denied", request.getRequestURI()))
                 )
                 .build();
+    }
+
+    static CookieCsrfTokenRepository csrfTokenRepository(boolean secure, String sameSite) {
+        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookiePath("/");
+        repository.setCookieCustomizer(cookie -> cookie.secure(secure).sameSite(sameSite));
+        return repository;
     }
 
     /*

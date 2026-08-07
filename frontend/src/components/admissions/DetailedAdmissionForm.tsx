@@ -9,7 +9,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
@@ -17,7 +17,22 @@ import { DocumentViewer } from "@/components/common/DocumentViewer";
 import { Input } from "@/components/common/Input";
 import { Select } from "@/components/common/Select";
 import { Textarea } from "@/components/common/Textarea";
+import {
+  AdmissionDocumentsStep,
+  AdmissionInformationStep,
+  AdmissionStepNavigation,
+  AdmissionValidationSummary,
+  type AdmissionFormStep,
+} from "@/components/admissions/AdmissionFormSteps";
+import {
+  useAdmissionDocumentUploadQueue,
+  type AdmissionUploadQueueState,
+} from "@/components/admissions/useAdmissionDocumentUploadQueue";
 import * as api from "@/features/admissions/api";
+import {
+  validateAdmissionDocumentFile,
+  validateAdmissionPhotoFile,
+} from "@/features/admissions/fileValidation";
 import type {
   AcademicRecord,
   AdmissionCourseYearOption,
@@ -29,6 +44,7 @@ import type {
 } from "@/features/admissions/types";
 import { handleApiError } from "@/lib/handleApiError";
 import { cn } from "@/lib/utils";
+import { detailedAdmissionInformationSchema } from "@/lib/validators";
 
 const qualifications: AcademicRecord["qualification"][] = ["10TH", "12TH", "DIPLOMA", "GRADUATION"];
 
@@ -59,11 +75,12 @@ const defaultDocumentDefinitions: {
 const yearLabels = { FIRST_YEAR: "FY", SECOND_YEAR: "SY", THIRD_YEAR: "TY" } as const;
 
 type DocumentTransferState = {
-  stage: AdmissionDocumentTransferStage | "error" | "cancelled";
+  stage: "queued" | AdmissionDocumentTransferStage | "error" | "cancelled";
   message?: string;
 };
 
 const documentTransferLabels: Record<DocumentTransferState["stage"], string> = {
+  queued: "Waiting for an upload slot…",
   hashing: "Checking file integrity…",
   "requesting-upload": "Preparing secure upload…",
   uploading: "Uploading directly to secure storage…",
@@ -74,26 +91,59 @@ const documentTransferLabels: Record<DocumentTransferState["stage"], string> = {
   cancelled: "Upload cancelled",
 };
 
+function normalizedSubmission(values: DetailedAdmissionRequest): DetailedAdmissionRequest {
+  return {
+    ...values,
+    entranceExams: values.entranceExams
+      .filter((exam) => exam.examName.trim() && exam.result.trim())
+      .map((exam) => ({ examName: exam.examName.trim(), result: exam.result.trim() })),
+  };
+}
+
+function zodFieldErrors(error: { issues: Array<{ path: PropertyKey[]; message: string }> }) {
+  const errors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const field = issue.path.reduce<string>(
+      (path, part) =>
+        typeof part === "number"
+          ? `${path}[${part}]`
+          : path
+            ? `${path}.${String(part)}`
+            : String(part),
+      "",
+    );
+    if (field && !errors[field]) errors[field] = issue.message;
+  }
+  return errors;
+}
+
 function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionRequest {
-  const records = qualifications.map(
-    (qualification) =>
-      a.academicRecords?.find((record) => record.qualification === qualification) ?? {
-        qualification,
-        instituteName: "",
-        boardUniversity: "",
-        yearOfPassing: "",
-        totalMarks: undefined,
-        obtainedMarks: undefined,
-        marksPercentage: undefined,
-      },
-  );
+  const records = qualifications.map((qualification) => {
+    const saved = a.academicRecords?.find((record) => record.qualification === qualification);
+    return saved
+      ? {
+          ...saved,
+          gradingType: saved.gradingType ?? (saved.cgpa != null ? "CGPA" : "PERCENTAGE"),
+        }
+      : {
+          qualification,
+          instituteName: "",
+          boardUniversity: "",
+          yearOfPassing: "",
+          totalMarks: undefined,
+          obtainedMarks: undefined,
+          gradingType: "PERCENTAGE" as const,
+          marksPercentage: undefined,
+          cgpa: undefined,
+        };
+  });
   return {
     courseYearId: a.courseYearId ?? 0,
     fullName: a.fullName,
     email: a.email,
     phone: a.phone,
     dateOfBirth: a.dateOfBirth,
-    gender: a.gender,
+    gender: a.gender?.toUpperCase() ?? "",
     placeOfBirth: a.placeOfBirth ?? "",
     maritalStatus: a.maritalStatus ?? "UNMARRIED",
     aadhaarNumber: a.aadhaarNumber ?? "",
@@ -102,6 +152,7 @@ function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionReq
     religion: a.religion ?? "",
     caste: a.caste ?? "",
     studentCategory: a.studentCategory,
+    customCategoryName: a.customCategoryName ?? "",
     parentName: a.parentName,
     parentPhone: a.parentPhone,
     parentEmail: a.parentEmail ?? "",
@@ -132,6 +183,33 @@ function initialValues(a: StudentSectionAdmissionResponse): DetailedAdmissionReq
   };
 }
 
+function restoredDraftValues(
+  admission: StudentSectionAdmissionResponse,
+  draft: Partial<DetailedAdmissionRequest> | null,
+): DetailedAdmissionRequest {
+  const initial = initialValues(admission);
+  if (!draft) return initial;
+  const draftRecords = Array.isArray(draft.academicRecords) ? draft.academicRecords : [];
+  return {
+    ...initial,
+    ...draft,
+    academicRecords: initial.academicRecords.map((record) => {
+      const saved = draftRecords.find((item) => item.qualification === record.qualification);
+      if (!saved) return record;
+      const gradingType = saved.gradingType ?? (saved.cgpa != null ? "CGPA" : "PERCENTAGE");
+      return {
+        ...record,
+        ...saved,
+        gradingType,
+        totalMarks: gradingType === "CGPA" ? undefined : saved.totalMarks,
+        obtainedMarks: gradingType === "CGPA" ? undefined : saved.obtainedMarks,
+        marksPercentage: gradingType === "CGPA" ? undefined : saved.marksPercentage,
+        cgpa: gradingType === "CGPA" ? saved.cgpa : undefined,
+      };
+    }),
+  };
+}
+
 export function DetailedAdmissionForm({
   admission,
   onSaved,
@@ -142,7 +220,13 @@ export function DetailedAdmissionForm({
   studentOwned?: boolean;
 }) {
   const [values, setValues] = useState(() => initialValues(admission));
+  const [activeStep, setActiveStep] = useState<AdmissionFormStep>("information");
+  const [informationValidated, setInformationValidated] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [validatingInformation, setValidatingInformation] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoUploaded, setPhotoUploaded] = useState(admission.photoAvailable);
+  const [photoTransfer, setPhotoTransfer] = useState<DocumentTransferState | undefined>();
   const [documents, setDocuments] = useState<Partial<Record<AdmissionDocumentType, File>>>({});
   const [locallyUploadedDocuments, setLocallyUploadedDocuments] = useState<AdmissionDocumentType[]>(
     [],
@@ -151,6 +235,19 @@ export function DetailedAdmissionForm({
     Partial<Record<AdmissionDocumentType, DocumentTransferState>>
   >({});
   const [courseYears, setCourseYears] = useState<AdmissionCourseYearOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<
+    Awaited<ReturnType<typeof api.getPublicAdmissionCategories>>
+  >(() =>
+    admission.studentCategory === "OTHER" && admission.customCategoryName
+      ? [
+          {
+            category: "OTHER",
+            customCategoryName: admission.customCategoryName,
+            label: admission.customCategoryName,
+          },
+        ]
+      : [],
+  );
   const [documentDefinitions, setDocumentDefinitions] = useState(defaultDocumentDefinitions);
   const [courseYearsLoading, setCourseYearsLoading] = useState(true);
   const [sameAddress, setSameAddress] = useState(false);
@@ -165,9 +262,47 @@ export function DetailedAdmissionForm({
   const draftBlocked = useRef(false);
   const lastSavedDraft = useRef("");
   const uploadAbortController = useRef<AbortController | null>(null);
+  const photoUploadController = useRef<AbortController | null>(null);
+  const rememberUploadedDocument = useCallback((type: AdmissionDocumentType) => {
+    setLocallyUploadedDocuments((current) =>
+      current.includes(type) ? current : [...current, type],
+    );
+  }, []);
+  const uploadStudentDocument = useCallback(
+    (
+      type: AdmissionDocumentType,
+      file: File,
+      options: import("@/features/admissions/types").AdmissionDocumentTransferOptions,
+    ) => api.uploadMyAdmissionDocument(type, file, options),
+    [],
+  );
+  const {
+    transfers: studentDocumentTransfers,
+    enqueue: enqueueStudentDocument,
+    cancel: cancelStudentDocument,
+    retry: retryStudentDocument,
+    clear: clearStudentDocument,
+    reset: resetStudentDocumentQueue,
+    hasPendingUploads: hasPendingDocumentUploads,
+    hasFailedUploads: hasFailedDocumentUploads,
+  } = useAdmissionDocumentUploadQueue({
+    upload: uploadStudentDocument,
+    onUploaded: rememberUploadedDocument,
+    maxConcurrent: 2,
+  });
   const uploadedDocumentTypes = useMemo(
     () => new Set([...(admission.uploadedDocuments ?? []), ...locallyUploadedDocuments]),
     [admission.uploadedDocuments, locallyUploadedDocuments],
+  );
+  const missingRequiredDocuments = useMemo(
+    () =>
+      documentDefinitions.filter(
+        (item) =>
+          item.required &&
+          !uploadedDocumentTypes.has(item.type) &&
+          (!documents[item.type] || studentOwned),
+      ),
+    [documentDefinitions, documents, studentOwned, uploadedDocumentTypes],
   );
   const aadhaarValid = /^\d{12}$/.test(values.aadhaarNumber);
   const permanentPinValid = /^\d{6}$/.test(values.pincode);
@@ -186,7 +321,7 @@ export function DetailedAdmissionForm({
         Boolean(record.yearOfPassing?.trim()),
     );
     return [
-      { label: "Photo", complete: admission.photoAvailable || Boolean(photo) },
+      { label: "Photo", complete: photoUploaded || (!studentOwned && Boolean(photo)) },
       { label: "Course", complete: values.courseYearId > 0 },
       {
         label: "Applicant",
@@ -224,19 +359,31 @@ export function DetailedAdmissionForm({
     ];
   }, [
     aadhaarValid,
-    admission.photoAvailable,
+    photoUploaded,
     correspondencePinValid,
     documentDefinitions,
     documents,
     permanentPinValid,
     photo,
+    studentOwned,
     uploadedDocumentTypes,
     values,
   ]);
   const completedSteps = formSteps.filter((step) => step.complete).length;
   const completionPercentage = Math.round((completedSteps / formSteps.length) * 100);
 
-  useEffect(() => setValues(initialValues(admission)), [admission]);
+  useEffect(() => {
+    if (!studentOwned) setValues(initialValues(admission));
+  }, [admission, studentOwned]);
+  useEffect(() => {
+    setActiveStep("information");
+    setInformationValidated(false);
+    setFieldErrors({});
+    setPhotoUploaded(admission.photoAvailable);
+    setPhotoTransfer(undefined);
+    photoUploadController.current?.abort();
+    resetStudentDocumentQueue();
+  }, [admission.id, admission.photoAvailable, resetStudentDocumentQueue]);
   useEffect(() => {
     if (!studentOwned) return;
     let active = true;
@@ -248,9 +395,7 @@ export function DetailedAdmissionForm({
       .then((draft) => {
         if (!active) return;
         draftVersion.current = draft.version;
-        const restored = draft.values
-          ? { ...initialValues(admission), ...draft.values }
-          : initialValues(admission);
+        const restored = restoredDraftValues(admission, draft.values);
         setValues(restored);
         lastSavedDraft.current = JSON.stringify(restored);
         setDraftStatus(draft.values ? "saved" : "idle");
@@ -264,7 +409,7 @@ export function DetailedAdmissionForm({
     return () => {
       active = false;
     };
-  }, [admission.id, studentOwned]);
+  }, [admission, admission.id, studentOwned]);
 
   useEffect(() => {
     if (!studentOwned || !draftReady || draftBlocked.current || saving) return;
@@ -301,6 +446,7 @@ export function DetailedAdmissionForm({
   useEffect(
     () => () => {
       uploadAbortController.current?.abort();
+      photoUploadController.current?.abort();
     },
     [],
   );
@@ -325,6 +471,47 @@ export function DetailedAdmissionForm({
       active = false;
     };
   }, [admission.id, studentOwned]);
+  useEffect(() => {
+    let active = true;
+    const savedCategory =
+      admission.studentCategory === "OTHER" && admission.customCategoryName
+        ? [
+            {
+              category: "OTHER" as const,
+              customCategoryName: admission.customCategoryName,
+              label: admission.customCategoryName,
+            },
+          ]
+        : [];
+    setCategoryOptions(savedCategory);
+    api
+      .getPublicAdmissionCategories(admission.collegeCode, admission.departmentId, {
+        gender: values.gender || undefined,
+        academicYear: admission.academicYear,
+        courseYear: courseYears.find((year) => year.id === Number(values.courseYearId))
+          ?.displayName,
+      })
+      .then((options) => {
+        if (active) setCategoryOptions(options);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setCategoryOptions(savedCategory);
+        toast.error(`Fee categories could not be loaded: ${handleApiError(error).message}`);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    admission.collegeCode,
+    admission.customCategoryName,
+    admission.departmentId,
+    admission.studentCategory,
+    admission.academicYear,
+    courseYears,
+    values.courseYearId,
+    values.gender,
+  ]);
   useEffect(() => {
     let active = true;
     const request = studentOwned
@@ -373,18 +560,40 @@ export function DetailedAdmissionForm({
     };
   }, [admission.id, admission.photoAvailable, photo, studentOwned]);
 
-  const set = (name: keyof DetailedAdmissionRequest, value: string | number | undefined) =>
+  const clearFieldError = (field: string) =>
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  const markInformationChanged = (field: string) => {
+    clearFieldError(field);
+    if (studentOwned) setInformationValidated(false);
+  };
+  const set = (name: keyof DetailedAdmissionRequest, value: string | number | undefined) => {
+    markInformationChanged(String(name));
     setValues((current) => ({ ...current, [name]: value }));
+  };
   const updateRecord = (
     index: number,
     name: keyof AcademicRecord,
     value: string | number | undefined,
-  ) =>
+  ) => {
+    markInformationChanged(`academicRecords[${index}].${String(name)}`);
     setValues((current) => ({
       ...current,
       academicRecords: current.academicRecords.map((record, recordIndex) => {
         if (recordIndex !== index) return record;
         const updated = { ...record, [name]: value };
+        if (name === "gradingType") {
+          if (value === "PERCENTAGE") updated.cgpa = undefined;
+          if (value === "CGPA") {
+            updated.totalMarks = undefined;
+            updated.obtainedMarks = undefined;
+            updated.marksPercentage = undefined;
+          }
+        }
         if (name === "totalMarks" || name === "obtainedMarks") {
           const total = Number(updated.totalMarks);
           const obtained = Number(updated.obtainedMarks);
@@ -396,16 +605,20 @@ export function DetailedAdmissionForm({
         return updated;
       }),
     }));
+  };
 
-  const updateEntranceExam = (index: number, name: keyof EntranceExam, value: string) =>
+  const updateEntranceExam = (index: number, name: keyof EntranceExam, value: string) => {
+    markInformationChanged(`entranceExams[${index}].${String(name)}`);
     setValues((current) => ({
       ...current,
       entranceExams: current.entranceExams.map((exam, examIndex) =>
         examIndex === index ? { ...exam, [name]: value } : exam,
       ),
     }));
+  };
 
-  const addEntranceExam = () =>
+  const addEntranceExam = () => {
+    setInformationValidated(false);
     setValues((current) => ({
       ...current,
       entranceExams:
@@ -413,8 +626,15 @@ export function DetailedAdmissionForm({
           ? current.entranceExams
           : [...current.entranceExams, { examName: "", result: "" }],
     }));
+  };
 
-  const removeEntranceExam = (index: number) =>
+  const removeEntranceExam = (index: number) => {
+    setInformationValidated(false);
+    setFieldErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([field]) => !field.startsWith("entranceExams[")),
+      ),
+    );
     setValues((current) => ({
       ...current,
       entranceExams:
@@ -422,10 +642,20 @@ export function DetailedAdmissionForm({
           ? [{ examName: "", result: "" }]
           : current.entranceExams.filter((_, examIndex) => examIndex !== index),
     }));
+  };
 
   const copyPermanentAddress = (checked: boolean) => {
     setSameAddress(checked);
     if (!checked) return;
+    setInformationValidated(false);
+    for (const field of [
+      "correspondenceAddress",
+      "correspondenceCity",
+      "correspondencePincode",
+      "correspondenceState",
+    ]) {
+      clearFieldError(field);
+    }
     setValues((current) => ({
       ...current,
       correspondenceAddress: [current.addressLine1, current.addressLine2]
@@ -437,8 +667,85 @@ export function DetailedAdmissionForm({
     }));
   };
 
+  const focusInformationField = (field: string) => {
+    const named = document.getElementsByName(field)[0];
+    const element = named ?? document.getElementById(field);
+    if (!element) return;
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      if (element instanceof HTMLSelectElement && element.offsetParent === null) {
+        element.parentElement?.querySelector<HTMLButtonElement>("button")?.focus();
+      } else {
+        element.focus();
+      }
+    }, 350);
+  };
+
+  const validateInformation = async () => {
+    setValidatingInformation(true);
+    setFieldErrors({});
+    const parsed = detailedAdmissionInformationSchema.safeParse(values);
+    if (!parsed.success) {
+      const errors = zodFieldErrors(parsed.error);
+      setFieldErrors(errors);
+      const first = Object.keys(errors)[0];
+      if (first) focusInformationField(first);
+      toast.error("Please correct the highlighted information before continuing.");
+      setValidatingInformation(false);
+      return;
+    }
+    try {
+      await api.validateMyAdmissionDetails(normalizedSubmission(values));
+      setInformationValidated(true);
+      setActiveStep("documents");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      const detail = handleApiError(error);
+      setFieldErrors(detail.fieldErrors);
+      const first = Object.keys(detail.fieldErrors)[0];
+      if (first) focusInformationField(first);
+      toast.error(first ? detail.fieldErrors[first] : detail.message);
+    } finally {
+      setValidatingInformation(false);
+    }
+  };
+
+  const uploadPhotoImmediately = async (selected: File) => {
+    setPhoto(selected);
+    if (!studentOwned) return;
+    photoUploadController.current?.abort();
+    const controller = new AbortController();
+    photoUploadController.current = controller;
+    setPhotoTransfer({ stage: "uploading" });
+    try {
+      await api.uploadMyAdmissionPhoto(selected, controller.signal);
+      if (controller.signal.aborted) return;
+      setPhotoUploaded(true);
+      setPhotoTransfer({ stage: "completed" });
+    } catch (error) {
+      const cancelled = controller.signal.aborted;
+      setPhotoTransfer({
+        stage: cancelled ? "cancelled" : "error",
+        message: cancelled
+          ? "Upload cancelled. You can retry when ready."
+          : handleApiError(error).message,
+      });
+    } finally {
+      if (photoUploadController.current === controller) photoUploadController.current = null;
+    }
+  };
+
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (studentOwned && activeStep === "information") {
+      await validateInformation();
+      return;
+    }
+    if (studentOwned && !informationValidated) {
+      setActiveStep("information");
+      toast.error("Review and validate your information before submitting documents.");
+      return;
+    }
     const invalidField = !aadhaarValid
       ? { id: "aadhaar-number", message: "Aadhaar number must contain exactly 12 digits" }
       : !permanentPinValid
@@ -459,12 +766,35 @@ export function DetailedAdmissionForm({
       window.setTimeout(() => field?.focus(), 350);
       return;
     }
-    if (!admission.photoAvailable && !photo) {
+    if (!photoUploaded && (!photo || studentOwned)) {
       toast.error("Passport-size photo is required");
       return;
     }
     if (!values.courseYearId) {
       toast.error("Select FY, SY, or TY for the chosen department");
+      return;
+    }
+    if (values.studentCategory === "OTHER" && !values.customCategoryName?.trim()) {
+      toast.error("Select an Other category");
+      document.getElementById("other-category")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
+    }
+    const categoryConfigured = categoryOptions.some(
+      (option) =>
+        option.category === values.studentCategory &&
+        (values.studentCategory !== "OTHER" ||
+          option.customCategoryName?.toUpperCase() ===
+            values.customCategoryName?.trim().toUpperCase()),
+    );
+    if (!categoryConfigured) {
+      toast.error("Select an active fee category for this course year and gender");
+      document.getElementById("student-category")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
     const incompleteExam = values.entranceExams.find(
@@ -477,38 +807,51 @@ export function DetailedAdmissionForm({
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    const missing = documentDefinitions.filter(
-      (item) => item.required && !uploadedDocumentTypes.has(item.type) && !documents[item.type],
-    );
-    if (missing.length) {
-      toast.error(`Upload required documents: ${missing.map((item) => item.label).join(", ")}`);
+    if (missingRequiredDocuments.length) {
+      toast.error(
+        `Upload required documents: ${missingRequiredDocuments.map((item) => item.label).join(", ")}`,
+      );
+      document
+        .getElementById("required-documents")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (studentOwned && hasPendingDocumentUploads) {
+      toast.error("Wait for the selected documents to finish uploading.");
+      return;
+    }
+    if (studentOwned && hasFailedDocumentUploads) {
+      toast.error("Retry or replace the documents whose upload failed.");
+      return;
+    }
+    if (studentOwned && photoTransfer?.stage === "uploading") {
+      toast.error("Wait for the passport photo to finish uploading.");
+      return;
+    }
+    if (
+      studentOwned &&
+      (photoTransfer?.stage === "error" || photoTransfer?.stage === "cancelled")
+    ) {
+      toast.error("Retry the passport photo upload or remove the failed replacement.");
       return;
     }
     setSaving(true);
     const controller = new AbortController();
     uploadAbortController.current = controller;
     try {
-      if (photo) {
-        if (studentOwned) await api.uploadMyAdmissionPhoto(photo);
-        else await api.uploadAdmissionPhoto(admission.id, photo);
-      }
-      const selectedDocuments = Object.entries(documents) as [AdmissionDocumentType, File][];
+      if (!studentOwned && photo) await api.uploadAdmissionPhoto(admission.id, photo);
+      const selectedDocuments = studentOwned
+        ? []
+        : (Object.entries(documents) as [AdmissionDocumentType, File][]);
       setCanCancelUploads(selectedDocuments.length > 0);
       for (const [type, file] of selectedDocuments) {
         const onProgress = ({ stage }: { stage: AdmissionDocumentTransferStage }) =>
           setDocumentTransfers((current) => ({ ...current, [type]: { stage } }));
         try {
-          if (studentOwned) {
-            await api.uploadMyAdmissionDocument(type, file, {
-              signal: controller.signal,
-              onProgress,
-            });
-          } else {
-            await api.uploadAdmissionDocument(admission.id, type, file, {
-              signal: controller.signal,
-              onProgress,
-            });
-          }
+          await api.uploadAdmissionDocument(admission.id, type, file, {
+            signal: controller.signal,
+            onProgress,
+          });
           setLocallyUploadedDocuments((current) =>
             current.includes(type) ? current : [...current, type],
           );
@@ -532,12 +875,7 @@ export function DetailedAdmissionForm({
         }
       }
       setCanCancelUploads(false);
-      const submission = {
-        ...values,
-        entranceExams: values.entranceExams
-          .filter((exam) => exam.examName.trim() && exam.result.trim())
-          .map((exam) => ({ examName: exam.examName.trim(), result: exam.result.trim() })),
-      };
+      const submission = normalizedSubmission(values);
       if (studentOwned) await api.submitMyAdmissionDetails(submission);
       else await api.updateAdmissionDetails(admission.id, submission);
       toast.success(
@@ -551,6 +889,13 @@ export function DetailedAdmissionForm({
         toast.error("Document upload cancelled. No automatic retry was attempted.");
       } else {
         const apiError = handleApiError(error);
+        if (studentOwned && Object.keys(apiError.fieldErrors).length > 0) {
+          setFieldErrors(apiError.fieldErrors);
+          setInformationValidated(false);
+          setActiveStep("information");
+          const first = Object.keys(apiError.fieldErrors)[0];
+          window.setTimeout(() => focusInformationField(first), 0);
+        }
         toast.error(Object.values(apiError.fieldErrors)[0] ?? apiError.message);
       }
     } finally {
@@ -561,7 +906,7 @@ export function DetailedAdmissionForm({
   };
 
   return (
-    <form onSubmit={save} className="space-y-5">
+    <form onSubmit={save} noValidate={studentOwned} className="space-y-5">
       <Card className="overflow-hidden border-blue-100 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -629,556 +974,882 @@ export function DetailedAdmissionForm({
         </div>
       </Card>
 
-      <Section
-        title="Passport-size photo"
-        description="Use a recent, clear, front-facing photograph."
-        complete={formSteps[0].complete}
-      >
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div
-            className={cn(
-              "grid h-44 w-36 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 bg-slate-50 shadow-sm",
-              preview ? "border-emerald-300" : "border-dashed border-slate-300",
-            )}
-          >
-            {preview ? (
-              <img src={preview} alt="Student passport" className="h-full w-full object-cover" />
-            ) : (
-              <div className="px-3 text-center text-slate-400">
-                <ImagePlus className="mx-auto h-8 w-8" />
-                <span className="mt-2 block text-xs">No photo selected</span>
-              </div>
-            )}
-          </div>
-          <div className="flex-1">
+      {studentOwned && (
+        <AdmissionStepNavigation
+          activeStep={activeStep}
+          informationComplete={informationValidated}
+        />
+      )}
+
+      <AdmissionDocumentsStep active={!studentOwned || activeStep === "documents"}>
+        <Section
+          title="Passport-size photo"
+          description="Use a recent, clear, front-facing photograph."
+          complete={formSteps[0].complete}
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <div
               className={cn(
-                "rounded-2xl border p-4 transition-colors",
-                photo
-                  ? "border-blue-200 bg-blue-50"
-                  : admission.photoAvailable
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-dashed border-slate-300 bg-slate-50",
+                "grid h-44 w-36 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 bg-slate-50 shadow-sm",
+                preview ? "border-emerald-300" : "border-dashed border-slate-300",
               )}
             >
-              <div className="flex items-start gap-3">
-                {photo || admission.photoAvailable ? (
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                ) : (
-                  <UploadCloud className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+              {preview ? (
+                <img src={preview} alt="Student passport" className="h-full w-full object-cover" />
+              ) : (
+                <div className="px-3 text-center text-slate-400">
+                  <ImagePlus className="mx-auto h-8 w-8" />
+                  <span className="mt-2 block text-xs">No photo selected</span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <div
+                className={cn(
+                  "rounded-2xl border p-4 transition-colors",
+                  photoTransfer?.stage === "error" || photoTransfer?.stage === "cancelled"
+                    ? "border-rose-200 bg-rose-50"
+                    : photo
+                      ? "border-blue-200 bg-blue-50"
+                      : photoUploaded
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-dashed border-slate-300 bg-slate-50",
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-800">
-                    {photo
-                      ? "New photo ready to upload"
-                      : admission.photoAvailable
-                        ? "Photo uploaded"
-                        : "Choose a passport photo"}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-slate-500">
-                    {photo?.name ?? "JPEG or PNG, maximum 2 MB"}
-                  </p>
+              >
+                <div className="flex items-start gap-3">
+                  {photoUploaded ? (
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                  ) : (
+                    <UploadCloud className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-800">
+                      {photoTransfer?.stage === "uploading"
+                        ? "Uploading photo…"
+                        : photoTransfer?.stage === "error" || photoTransfer?.stage === "cancelled"
+                          ? "Photo upload needs attention"
+                          : photoUploaded
+                            ? "Photo uploaded"
+                            : photo
+                              ? "New photo ready to upload"
+                              : "Choose a passport photo"}
+                    </p>
+                    {photoTransfer && (
+                      <p
+                        role={photoTransfer.stage === "error" ? "alert" : "status"}
+                        className={cn(
+                          "mt-2 text-xs font-semibold",
+                          photoTransfer.stage === "completed" && "text-emerald-700",
+                          (photoTransfer.stage === "error" ||
+                            photoTransfer.stage === "cancelled") &&
+                            "text-rose-700",
+                          photoTransfer.stage === "uploading" && "text-blue-700",
+                        )}
+                      >
+                        {documentTransferLabels[photoTransfer.stage]}
+                        {photoTransfer.message ? ` ${photoTransfer.message}` : ""}
+                      </p>
+                    )}
+                    <p className="mt-1 truncate text-xs text-slate-500">
+                      {photo?.name ?? "JPEG or PNG, maximum 2 MB"}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <input
-              id="passport-photo"
-              type="file"
-              accept="image/jpeg,image/png"
-              onChange={(event) => {
-                const selected = event.target.files?.[0] ?? null;
-                if (selected && selected.size > 2 * 1024 * 1024) {
-                  toast.error("Passport photo must be 2 MB or smaller");
-                  event.target.value = "";
-                  setPhoto(null);
-                  return;
-                }
-                setPhoto(selected);
-              }}
-              className="sr-only"
-            />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <label
-                htmlFor="passport-photo"
-                className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
-              >
-                <UploadCloud className="h-4 w-4" />
-                {photo || admission.photoAvailable ? "Change photo" : "Choose photo"}
-              </label>
-              {photo && (
-                <button
-                  type="button"
-                  onClick={() => setPhoto(null)}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              <input
+                id="passport-photo"
+                type="file"
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                onChange={(event) => {
+                  const selected = event.target.files?.[0] ?? null;
+                  const validationError = selected ? validateAdmissionPhotoFile(selected) : null;
+                  if (validationError) {
+                    toast.error(validationError);
+                    event.target.value = "";
+                    setPhoto(null);
+                    return;
+                  }
+                  if (selected) void uploadPhotoImmediately(selected);
+                }}
+                disabled={photoTransfer?.stage === "uploading"}
+                className="sr-only"
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <label
+                  htmlFor="passport-photo"
+                  aria-disabled={photoTransfer?.stage === "uploading"}
+                  className={cn(
+                    "inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700",
+                    photoTransfer?.stage === "uploading"
+                      ? "pointer-events-none cursor-not-allowed opacity-60"
+                      : "cursor-pointer",
+                  )}
                 >
-                  <X className="h-4 w-4" /> Remove selection
-                </button>
-              )}
+                  <UploadCloud className="h-4 w-4" />
+                  {photoUploaded || photo ? "Change photo" : "Choose photo"}
+                </label>
+                {photo &&
+                  (!studentOwned ||
+                    ["error", "cancelled"].includes(photoTransfer?.stage ?? "")) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhoto(null);
+                        setPhotoTransfer(undefined);
+                      }}
+                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                    >
+                      <X className="h-4 w-4" /> Remove selection
+                    </button>
+                  )}
+                {studentOwned &&
+                  photo &&
+                  ["error", "cancelled"].includes(photoTransfer?.stage ?? "") && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void uploadPhotoImmediately(photo)}
+                    >
+                      Retry upload
+                    </Button>
+                  )}
+                {studentOwned && photoTransfer?.stage === "uploading" && (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => photoUploadController.current?.abort()}
+                  >
+                    Cancel upload
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </Section>
+        </Section>
+      </AdmissionDocumentsStep>
 
-      <Section
-        title="Department and course year"
-        description="Confirm your department and select the year you are applying for."
-        complete={formSteps[1].complete}
-      >
-        <Grid>
-          <Input
-            label="Selected department"
-            value={admission.departmentName}
-            readOnly
-            className="bg-slate-100"
-          />
-          <Select
-            label="Course year"
-            required
-            disabled={courseYearsLoading || courseYears.length === 0}
-            value={values.courseYearId || ""}
-            onChange={(event) => set("courseYearId", Number(event.target.value))}
-            options={[
-              { label: courseYearsLoading ? "Loading years..." : "Select FY / SY / TY", value: "" },
-              ...courseYears.map((year) => ({
-                label: `${yearLabels[year.yearName]} — ${year.displayName} (${year.academicYear})`,
-                value: year.id,
-              })),
-            ]}
-          />
-        </Grid>
-        {!courseYearsLoading && courseYears.length === 0 && (
-          <p className="mt-3 text-sm text-amber-700">
-            No active FY, SY, or TY has been created for this department. Ask the Principal or HOD
-            to create one.
-          </p>
-        )}
-      </Section>
+      <AdmissionInformationStep active={!studentOwned || activeStep === "information"}>
+        <AdmissionValidationSummary errors={fieldErrors} onSelect={focusInformationField} />
+        <Section
+          title="Department and course year"
+          description="Confirm your department and select the year you are applying for."
+          complete={formSteps[1].complete}
+        >
+          <Grid>
+            <Input
+              label="Selected department"
+              value={admission.departmentName}
+              readOnly
+              className="bg-slate-100"
+            />
+            <Select
+              name="courseYearId"
+              label="Course year"
+              required
+              disabled={courseYearsLoading || courseYears.length === 0}
+              value={values.courseYearId || ""}
+              error={fieldErrors.courseYearId}
+              onChange={(event) => set("courseYearId", Number(event.target.value))}
+              options={[
+                {
+                  label: courseYearsLoading ? "Loading years..." : "Select FY / SY / TY",
+                  value: "",
+                },
+                ...courseYears.map((year) => ({
+                  label: `${yearLabels[year.yearName]} — ${year.displayName} (${year.academicYear})`,
+                  value: year.id,
+                })),
+              ]}
+            />
+          </Grid>
+          {!courseYearsLoading && courseYears.length === 0 && (
+            <p className="mt-3 text-sm text-amber-700">
+              No active FY, SY, or TY has been created for this department. Ask the Principal or HOD
+              to create one.
+            </p>
+          )}
+        </Section>
 
-      <Section
-        title="Applicant details"
-        description="Enter personal details exactly as they appear on official documents."
-        complete={formSteps[2].complete}
-      >
-        <Grid>
-          <Input
-            label="Full name"
-            required
-            value={values.fullName}
-            onChange={(e) => set("fullName", e.target.value)}
-          />
-          <Input
-            label="Applicant mobile"
-            required
-            value={values.phone}
-            onChange={(e) => set("phone", e.target.value)}
-          />
-          <Input
-            label="Applicant email"
-            type="email"
-            required
-            readOnly={studentOwned}
-            className={studentOwned ? "bg-slate-100" : undefined}
-            value={values.email}
-            onChange={(e) => set("email", e.target.value)}
-          />
-          <Input
-            label="Date of birth"
-            type="date"
-            required
-            value={values.dateOfBirth}
-            onChange={(e) => set("dateOfBirth", e.target.value)}
-          />
-          <Select
-            label="Gender"
-            value={values.gender}
-            onChange={(e) => set("gender", e.target.value)}
-            options={[
-              { label: "Select gender", value: "" },
-              { label: "Male", value: "MALE" },
-              { label: "Female", value: "FEMALE" },
-              { label: "Other", value: "OTHER" },
-            ]}
-          />
-          <Input
-            label="Place of birth"
-            required
-            value={values.placeOfBirth}
-            onChange={(e) => set("placeOfBirth", e.target.value)}
-          />
-          <Select
-            label="Marital status"
-            value={values.maritalStatus}
-            onChange={(e) => set("maritalStatus", e.target.value)}
-            options={[
-              { label: "Unmarried", value: "UNMARRIED" },
-              { label: "Married", value: "MARRIED" },
-              { label: "Other", value: "OTHER" },
-            ]}
-          />
-          <Input
-            id="aadhaar-number"
-            label="Aadhaar card number"
-            required
-            inputMode="numeric"
-            maxLength={12}
-            value={values.aadhaarNumber}
-            onChange={(e) => set("aadhaarNumber", e.target.value.replace(/\D/g, ""))}
-            error={
-              values.aadhaarNumber && !aadhaarValid
-                ? `${values.aadhaarNumber.length}/12 digits entered`
-                : undefined
-            }
-          />
-          <Input
-            label="APAAR ID"
-            value={values.apaarId ?? ""}
-            onChange={(e) => set("apaarId", e.target.value)}
-          />
-          <Input
-            label="Nationality"
-            required
-            value={values.nationality}
-            onChange={(e) => set("nationality", e.target.value)}
-          />
-          <Input
-            label="Religion"
-            required
-            value={values.religion}
-            onChange={(e) => set("religion", e.target.value)}
-          />
-          <Input
-            label="Caste"
-            required
-            value={values.caste}
-            onChange={(e) => set("caste", e.target.value)}
-          />
-          <Select
-            label="Student category"
-            value={values.studentCategory}
-            onChange={(e) => set("studentCategory", e.target.value)}
-            options={["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"].map((value) => ({
-              label: value,
-              value,
-            }))}
-          />
-        </Grid>
-      </Section>
+        <Section
+          title="Applicant details"
+          description="Enter personal details exactly as they appear on official documents."
+          complete={formSteps[2].complete}
+        >
+          <Grid>
+            <Input
+              name="fullName"
+              label="Full name"
+              required
+              value={values.fullName}
+              error={fieldErrors.fullName}
+              onChange={(e) => set("fullName", e.target.value)}
+            />
+            <Input
+              name="phone"
+              label="Applicant mobile"
+              required
+              value={values.phone}
+              error={fieldErrors.phone}
+              onChange={(e) => set("phone", e.target.value)}
+            />
+            <Input
+              name="email"
+              label="Applicant email"
+              type="email"
+              required
+              readOnly={studentOwned}
+              className={studentOwned ? "bg-slate-100" : undefined}
+              value={values.email}
+              error={fieldErrors.email}
+              onChange={(e) => set("email", e.target.value)}
+            />
+            <Input
+              name="dateOfBirth"
+              label="Date of birth"
+              type="date"
+              required
+              value={values.dateOfBirth}
+              error={fieldErrors.dateOfBirth}
+              onChange={(e) => set("dateOfBirth", e.target.value)}
+            />
+            <Select
+              name="gender"
+              label="Gender"
+              value={values.gender}
+              error={fieldErrors.gender}
+              onChange={(e) => set("gender", e.target.value)}
+              options={[
+                { label: "Select gender", value: "" },
+                { label: "Male", value: "MALE" },
+                { label: "Female", value: "FEMALE" },
+              ]}
+            />
+            <Input
+              name="placeOfBirth"
+              label="Place of birth"
+              required
+              value={values.placeOfBirth}
+              error={fieldErrors.placeOfBirth}
+              onChange={(e) => set("placeOfBirth", e.target.value)}
+            />
+            <Select
+              name="maritalStatus"
+              label="Marital status"
+              value={values.maritalStatus}
+              error={fieldErrors.maritalStatus}
+              onChange={(e) => set("maritalStatus", e.target.value)}
+              options={[
+                { label: "Unmarried", value: "UNMARRIED" },
+                { label: "Married", value: "MARRIED" },
+                { label: "Other", value: "OTHER" },
+              ]}
+            />
+            <Input
+              id="aadhaar-number"
+              name="aadhaarNumber"
+              label="Aadhaar card number"
+              required
+              inputMode="numeric"
+              maxLength={12}
+              value={values.aadhaarNumber}
+              onChange={(e) => set("aadhaarNumber", e.target.value.replace(/\D/g, ""))}
+              error={
+                fieldErrors.aadhaarNumber ||
+                (values.aadhaarNumber && !aadhaarValid
+                  ? `${values.aadhaarNumber.length}/12 digits entered`
+                  : undefined)
+              }
+            />
+            <Input
+              name="apaarId"
+              label="APAAR ID"
+              value={values.apaarId ?? ""}
+              error={fieldErrors.apaarId}
+              onChange={(e) => set("apaarId", e.target.value)}
+            />
+            <Input
+              name="nationality"
+              label="Nationality"
+              required
+              value={values.nationality}
+              error={fieldErrors.nationality}
+              onChange={(e) => set("nationality", e.target.value)}
+            />
+            <Input
+              name="religion"
+              label="Religion"
+              required
+              value={values.religion}
+              error={fieldErrors.religion}
+              onChange={(e) => set("religion", e.target.value)}
+            />
+            <Input
+              name="caste"
+              label="Caste"
+              required
+              value={values.caste}
+              error={fieldErrors.caste}
+              onChange={(e) => set("caste", e.target.value)}
+            />
+            <Select
+              id="student-category"
+              name="studentCategory"
+              label="Student category"
+              value={values.studentCategory}
+              error={fieldErrors.studentCategory}
+              onChange={(e) => {
+                set("studentCategory", e.target.value);
+                if (e.target.value !== "OTHER") set("customCategoryName", "");
+              }}
+              options={[
+                {
+                  label: categoryOptions.length
+                    ? "Select category"
+                    : "No active fee category configured",
+                  value: "",
+                },
+                ...categoryOptions
+                  .filter(
+                    (option, index, all) =>
+                      all.findIndex((candidate) => candidate.category === option.category) ===
+                      index,
+                  )
+                  .map((option) => ({ label: option.category, value: option.category })),
+              ]}
+            />
+            {values.studentCategory === "OTHER" && (
+              <div id="other-category" className="space-y-1.5">
+                <Select
+                  id="custom-category"
+                  name="customCategoryName"
+                  label="Other category"
+                  value={values.customCategoryName ?? ""}
+                  error={fieldErrors.customCategoryName}
+                  onChange={(e) => set("customCategoryName", e.target.value)}
+                  options={[
+                    { label: "Select category", value: "" },
+                    ...categoryOptions
+                      .filter((option) => option.category === "OTHER" && option.customCategoryName)
+                      .filter(
+                        (option, index, all) =>
+                          all.findIndex(
+                            (candidate) =>
+                              candidate.customCategoryName?.toUpperCase() ===
+                              option.customCategoryName?.toUpperCase(),
+                          ) === index,
+                      )
+                      .map((option) => ({
+                        label: option.customCategoryName!,
+                        value: option.customCategoryName!,
+                      })),
+                  ]}
+                />
+                {!categoryOptions.some(
+                  (option) => option.category === "OTHER" && option.customCategoryName,
+                ) && (
+                  <p className="text-xs text-amber-700">
+                    No Other category is available for this department.
+                  </p>
+                )}
+              </div>
+            )}
+          </Grid>
+        </Section>
 
-      <Section
-        title="Father / guardian details"
-        description="Provide the primary guardian contact for admission communication."
-        complete={formSteps[3].complete}
-      >
-        <Grid>
-          <Input
-            label="Father / guardian name"
-            required
-            value={values.parentName}
-            onChange={(e) => set("parentName", e.target.value)}
-          />
-          <Input
-            label="Mobile number"
-            required
-            value={values.parentPhone}
-            onChange={(e) => set("parentPhone", e.target.value)}
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={values.parentEmail ?? ""}
-            onChange={(e) => set("parentEmail", e.target.value)}
-          />
-        </Grid>
-      </Section>
+        <Section
+          title="Father / guardian details"
+          description="Provide the primary guardian contact for admission communication."
+          complete={formSteps[3].complete}
+        >
+          <Grid>
+            <Input
+              name="parentName"
+              label="Father / guardian name"
+              required
+              value={values.parentName}
+              error={fieldErrors.parentName}
+              onChange={(e) => set("parentName", e.target.value)}
+            />
+            <Input
+              name="parentPhone"
+              label="Mobile number"
+              required
+              value={values.parentPhone}
+              error={fieldErrors.parentPhone}
+              onChange={(e) => set("parentPhone", e.target.value)}
+            />
+            <Input
+              name="parentEmail"
+              label="Email"
+              type="email"
+              value={values.parentEmail ?? ""}
+              error={fieldErrors.parentEmail}
+              onChange={(e) => set("parentEmail", e.target.value)}
+            />
+          </Grid>
+        </Section>
 
-      <Section title="Permanent address" complete={formSteps[4].complete}>
-        <Grid>
-          <Textarea
-            label="Address"
-            required
-            value={values.addressLine1}
-            onChange={(e) => set("addressLine1", e.target.value)}
-          />
-          <Textarea
-            label="Address line 2"
-            value={values.addressLine2 ?? ""}
-            onChange={(e) => set("addressLine2", e.target.value)}
-          />
-          <Input
-            label="City"
-            required
-            value={values.city}
-            onChange={(e) => set("city", e.target.value)}
-          />
-          <Input
-            id="permanent-pin"
-            label="PIN code"
-            required
-            inputMode="numeric"
-            maxLength={6}
-            value={values.pincode}
-            onChange={(e) => set("pincode", e.target.value.replace(/\D/g, ""))}
-            error={
-              values.pincode && !permanentPinValid
-                ? `${values.pincode.length}/6 digits entered`
-                : undefined
-            }
-          />
-          <Input
-            label="State"
-            required
-            value={values.state}
-            onChange={(e) => set("state", e.target.value)}
-          />
-        </Grid>
-      </Section>
+        <Section title="Permanent address" complete={formSteps[4].complete}>
+          <Grid>
+            <Textarea
+              name="addressLine1"
+              label="Address"
+              required
+              value={values.addressLine1}
+              error={fieldErrors.addressLine1}
+              onChange={(e) => set("addressLine1", e.target.value)}
+            />
+            <Textarea
+              name="addressLine2"
+              label="Address line 2"
+              value={values.addressLine2 ?? ""}
+              error={fieldErrors.addressLine2}
+              onChange={(e) => set("addressLine2", e.target.value)}
+            />
+            <Input
+              name="city"
+              label="City"
+              required
+              value={values.city}
+              error={fieldErrors.city}
+              onChange={(e) => set("city", e.target.value)}
+            />
+            <Input
+              id="permanent-pin"
+              name="pincode"
+              label="PIN code"
+              required
+              inputMode="numeric"
+              maxLength={6}
+              value={values.pincode}
+              onChange={(e) => set("pincode", e.target.value.replace(/\D/g, ""))}
+              error={
+                fieldErrors.pincode ||
+                (values.pincode && !permanentPinValid
+                  ? `${values.pincode.length}/6 digits entered`
+                  : undefined)
+              }
+            />
+            <Input
+              name="state"
+              label="State"
+              required
+              value={values.state}
+              error={fieldErrors.state}
+              onChange={(e) => set("state", e.target.value)}
+            />
+          </Grid>
+        </Section>
 
-      <Section
-        title="Correspondence address"
-        description="This address will be used for official correspondence."
-        complete={formSteps[5].complete}
-      >
-        <label className="mb-4 flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700">
-          <input
-            type="checkbox"
-            checked={sameAddress}
-            onChange={(event) => copyPermanentAddress(event.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-brand-600"
-          />
-          Correspondence address is the same as permanent address
-        </label>
-        <Grid>
-          <Textarea
-            label="Address"
-            required
-            value={values.correspondenceAddress}
-            onChange={(e) => set("correspondenceAddress", e.target.value)}
-          />
-          <Input
-            label="City"
-            required
-            value={values.correspondenceCity}
-            onChange={(e) => set("correspondenceCity", e.target.value)}
-          />
-          <Input
-            id="correspondence-pin"
-            label="PIN code"
-            required
-            inputMode="numeric"
-            maxLength={6}
-            value={values.correspondencePincode}
-            onChange={(e) => set("correspondencePincode", e.target.value.replace(/\D/g, ""))}
-            error={
-              values.correspondencePincode && !correspondencePinValid
-                ? `${values.correspondencePincode.length}/6 digits entered`
-                : undefined
-            }
-          />
-          <Input
-            label="State"
-            required
-            value={values.correspondenceState}
-            onChange={(e) => set("correspondenceState", e.target.value)}
-          />
-        </Grid>
-      </Section>
+        <Section
+          title="Correspondence address"
+          description="This address will be used for official correspondence."
+          complete={formSteps[5].complete}
+        >
+          <label className="mb-4 flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={sameAddress}
+              onChange={(event) => copyPermanentAddress(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-brand-600"
+            />
+            Correspondence address is the same as permanent address
+          </label>
+          <Grid>
+            <Textarea
+              name="correspondenceAddress"
+              label="Address"
+              required
+              value={values.correspondenceAddress}
+              error={fieldErrors.correspondenceAddress}
+              onChange={(e) => set("correspondenceAddress", e.target.value)}
+            />
+            <Input
+              name="correspondenceCity"
+              label="City"
+              required
+              value={values.correspondenceCity}
+              error={fieldErrors.correspondenceCity}
+              onChange={(e) => set("correspondenceCity", e.target.value)}
+            />
+            <Input
+              id="correspondence-pin"
+              name="correspondencePincode"
+              label="PIN code"
+              required
+              inputMode="numeric"
+              maxLength={6}
+              value={values.correspondencePincode}
+              onChange={(e) => set("correspondencePincode", e.target.value.replace(/\D/g, ""))}
+              error={
+                fieldErrors.correspondencePincode ||
+                (values.correspondencePincode && !correspondencePinValid
+                  ? `${values.correspondencePincode.length}/6 digits entered`
+                  : undefined)
+              }
+            />
+            <Input
+              name="correspondenceState"
+              label="State"
+              required
+              value={values.correspondenceState}
+              error={fieldErrors.correspondenceState}
+              onChange={(e) => set("correspondenceState", e.target.value)}
+            />
+          </Grid>
+        </Section>
 
-      <Section
-        title="Academic record"
-        description="Add the qualifications that apply to you; percentage is calculated automatically."
-        complete={formSteps[6].complete}
-      >
-        <div className="responsive-table">
-          <table>
-            <thead>
-              <tr className="border-b text-left text-slate-500">
-                <th className="p-2">Qualification</th>
-                <th>School / College / Institute</th>
-                <th>Board / University</th>
-                <th>Year of passing</th>
-                <th>Total marks</th>
-                <th>Obtained marks</th>
-                <th>Percentage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {values.academicRecords.map((record, index) => (
-                <tr className="border-b" key={record.qualification}>
-                  <td className="p-2 font-semibold">{record.qualification}</td>
-                  <td className="p-2">
-                    <input
-                      className="h-10 w-full rounded-lg border px-2"
-                      value={record.instituteName ?? ""}
-                      onChange={(e) => updateRecord(index, "instituteName", e.target.value)}
-                    />
-                  </td>
-                  <td className="p-2">
-                    <input
-                      className="h-10 w-full rounded-lg border px-2"
-                      value={record.boardUniversity ?? ""}
-                      onChange={(e) => updateRecord(index, "boardUniversity", e.target.value)}
-                    />
-                  </td>
-                  <td className="p-2">
-                    <input
-                      className="h-10 w-full rounded-lg border px-2"
-                      maxLength={4}
-                      value={record.yearOfPassing ?? ""}
-                      onChange={(e) =>
-                        updateRecord(index, "yearOfPassing", e.target.value.replace(/\D/g, ""))
-                      }
-                    />
-                  </td>
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      className="h-10 w-28 rounded-lg border px-2"
-                      value={record.totalMarks ?? ""}
-                      onChange={(e) =>
-                        updateRecord(
-                          index,
-                          "totalMarks",
-                          e.target.value === "" ? undefined : Number(e.target.value),
-                        )
-                      }
-                    />
-                  </td>
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max={record.totalMarks ?? undefined}
-                      step="0.01"
-                      className="h-10 w-28 rounded-lg border px-2"
-                      value={record.obtainedMarks ?? ""}
-                      onChange={(e) =>
-                        updateRecord(
-                          index,
-                          "obtainedMarks",
-                          e.target.value === "" ? undefined : Number(e.target.value),
-                        )
-                      }
-                    />
-                  </td>
-                  <td className="p-2">
-                    <input
-                      readOnly
-                      className="h-10 w-28 rounded-lg border bg-slate-50 px-2 font-semibold"
-                      value={record.marksPercentage == null ? "" : `${record.marksPercentage}%`}
-                    />
-                  </td>
+        <Section
+          title="Academic record"
+          description="Add the qualifications that apply to you; percentage is calculated automatically."
+          complete={formSteps[6].complete}
+        >
+          <div className="responsive-table">
+            <table>
+              <thead>
+                <tr className="border-b text-left text-slate-500">
+                  <th className="p-2">Qualification</th>
+                  <th>School / College / Institute</th>
+                  <th>Board / University</th>
+                  <th>Year of passing</th>
+                  <th>Total Marks</th>
+                  <th>Obtained Marks</th>
+                  <th>Result type</th>
+                  <th>Percentage / CGPA</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
-      <Section title="Entrance exams and last graduation">
-        <div id="entrance-exams" className="mb-6 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-800">Entrance exam results</p>
-              <p className="text-xs text-slate-500">
-                Add every exam attempted by the student (maximum 10).
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={addEntranceExam}
-              disabled={values.entranceExams.length >= 10}
-            >
-              <Plus className="h-4 w-4" /> Add entrance exam
-            </Button>
+              </thead>
+              <tbody>
+                {values.academicRecords.map((record, index) => (
+                  <tr className="border-b" key={record.qualification}>
+                    <td className="p-2 font-semibold">{record.qualification}</td>
+                    <td className="p-2">
+                      <input
+                        name={`academicRecords[${index}].instituteName`}
+                        aria-invalid={Boolean(
+                          fieldErrors[`academicRecords[${index}].instituteName`],
+                        )}
+                        className="h-10 w-full rounded-lg border px-2"
+                        value={record.instituteName ?? ""}
+                        onChange={(e) => updateRecord(index, "instituteName", e.target.value)}
+                      />
+                      {fieldErrors[`academicRecords[${index}].instituteName`] && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {fieldErrors[`academicRecords[${index}].instituteName`]}
+                        </p>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <input
+                        name={`academicRecords[${index}].boardUniversity`}
+                        aria-invalid={Boolean(
+                          fieldErrors[`academicRecords[${index}].boardUniversity`],
+                        )}
+                        className="h-10 w-full rounded-lg border px-2"
+                        value={record.boardUniversity ?? ""}
+                        onChange={(e) => updateRecord(index, "boardUniversity", e.target.value)}
+                      />
+                      {fieldErrors[`academicRecords[${index}].boardUniversity`] && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {fieldErrors[`academicRecords[${index}].boardUniversity`]}
+                        </p>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <input
+                        name={`academicRecords[${index}].yearOfPassing`}
+                        aria-invalid={Boolean(
+                          fieldErrors[`academicRecords[${index}].yearOfPassing`],
+                        )}
+                        className="h-10 w-full rounded-lg border px-2"
+                        maxLength={4}
+                        value={record.yearOfPassing ?? ""}
+                        onChange={(e) =>
+                          updateRecord(index, "yearOfPassing", e.target.value.replace(/\D/g, ""))
+                        }
+                      />
+                      {fieldErrors[`academicRecords[${index}].yearOfPassing`] && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {fieldErrors[`academicRecords[${index}].yearOfPassing`]}
+                        </p>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {record.gradingType === "PERCENTAGE" ? (
+                        <>
+                          <input
+                            name={`academicRecords[${index}].totalMarks`}
+                            aria-label={`${record.qualification} total marks`}
+                            aria-invalid={Boolean(
+                              fieldErrors[`academicRecords[${index}].totalMarks`],
+                            )}
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            className="h-10 w-28 rounded-lg border px-2"
+                            value={record.totalMarks ?? ""}
+                            onChange={(event) =>
+                              updateRecord(
+                                index,
+                                "totalMarks",
+                                event.target.value === "" ? undefined : Number(event.target.value),
+                              )
+                            }
+                          />
+                          {fieldErrors[`academicRecords[${index}].totalMarks`] && (
+                            <p className="mt-1 text-xs text-rose-600">
+                              {fieldErrors[`academicRecords[${index}].totalMarks`]}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {record.gradingType === "PERCENTAGE" ? (
+                        <>
+                          <input
+                            name={`academicRecords[${index}].obtainedMarks`}
+                            aria-label={`${record.qualification} obtained marks`}
+                            aria-invalid={Boolean(
+                              fieldErrors[`academicRecords[${index}].obtainedMarks`],
+                            )}
+                            type="number"
+                            min="0"
+                            max={record.totalMarks ?? undefined}
+                            step="0.01"
+                            className="h-10 w-28 rounded-lg border px-2"
+                            value={record.obtainedMarks ?? ""}
+                            onChange={(event) =>
+                              updateRecord(
+                                index,
+                                "obtainedMarks",
+                                event.target.value === "" ? undefined : Number(event.target.value),
+                              )
+                            }
+                          />
+                          {fieldErrors[`academicRecords[${index}].obtainedMarks`] && (
+                            <p className="mt-1 text-xs text-rose-600">
+                              {fieldErrors[`academicRecords[${index}].obtainedMarks`]}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <select
+                        name={`academicRecords[${index}].gradingType`}
+                        aria-label={`${record.qualification} result type`}
+                        className="h-10 w-32 rounded-lg border bg-white px-2"
+                        value={record.gradingType}
+                        onChange={(event) =>
+                          updateRecord(
+                            index,
+                            "gradingType",
+                            event.target.value as AcademicRecord["gradingType"],
+                          )
+                        }
+                      >
+                        <option value="PERCENTAGE">Percentage</option>
+                        <option value="CGPA">CGPA</option>
+                      </select>
+                    </td>
+                    <td className="p-2">
+                      <input
+                        name={`academicRecords[${index}].${record.gradingType === "CGPA" ? "cgpa" : "marksPercentage"}`}
+                        aria-invalid={Boolean(
+                          fieldErrors[
+                            `academicRecords[${index}].${record.gradingType === "CGPA" ? "cgpa" : "marksPercentage"}`
+                          ],
+                        )}
+                        type="number"
+                        min="0"
+                        max={record.gradingType === "CGPA" ? 10 : 100}
+                        step="0.01"
+                        className="h-10 w-28 rounded-lg border px-2"
+                        placeholder={record.gradingType === "CGPA" ? "0–10" : "0–100"}
+                        value={
+                          record.gradingType === "CGPA"
+                            ? (record.cgpa ?? "")
+                            : (record.marksPercentage ?? "")
+                        }
+                        readOnly={record.gradingType === "PERCENTAGE"}
+                        onChange={(e) =>
+                          record.gradingType === "CGPA" &&
+                          updateRecord(
+                            index,
+                            "cgpa",
+                            e.target.value === "" ? undefined : Number(e.target.value),
+                          )
+                        }
+                      />
+                      {fieldErrors[
+                        `academicRecords[${index}].${record.gradingType === "CGPA" ? "cgpa" : "marksPercentage"}`
+                      ] && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {
+                            fieldErrors[
+                              `academicRecords[${index}].${record.gradingType === "CGPA" ? "cgpa" : "marksPercentage"}`
+                            ]
+                          }
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          {values.entranceExams.map((exam, index) => (
-            <div
-              key={index}
-              className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
-            >
-              <Input
-                label={`Entrance exam name ${index + 1}`}
-                maxLength={120}
-                placeholder="e.g. MH-CET, JEE, NEET"
-                value={exam.examName}
-                onChange={(event) => updateEntranceExam(index, "examName", event.target.value)}
-              />
-              <Input
-                label="Result / score"
-                maxLength={100}
-                placeholder="e.g. 92.5 percentile, Rank 120"
-                value={exam.result}
-                onChange={(event) => updateEntranceExam(index, "result", event.target.value)}
-              />
+        </Section>
+
+        <Section title="Entrance exams and last graduation">
+          <div id="entrance-exams" className="mb-6 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Entrance exam results</p>
+                <p className="text-xs text-slate-500">
+                  Add every exam attempted by the student (maximum 10).
+                </p>
+              </div>
               <Button
                 type="button"
-                variant="danger"
-                className="px-3"
-                onClick={() => removeEntranceExam(index)}
-                aria-label={`Remove entrance exam ${index + 1}`}
+                variant="secondary"
+                onClick={addEntranceExam}
+                disabled={values.entranceExams.length >= 10}
               >
-                <Trash2 className="h-4 w-4" /> <span className="md:hidden">Remove</span>
+                <Plus className="h-4 w-4" /> Add entrance exam
               </Button>
             </div>
-          ))}
-        </div>
-        <Grid>
-          <Input
-            label="Last graduation college name"
-            value={values.lastGraduationCollegeName ?? ""}
-            onChange={(e) => set("lastGraduationCollegeName", e.target.value)}
-          />
-          <Textarea
-            label="Last graduation college address"
-            value={values.lastGraduationCollegeAddress ?? ""}
-            onChange={(e) => set("lastGraduationCollegeAddress", e.target.value)}
-          />
-        </Grid>
-      </Section>
-
-      <Section
-        title="Admission documents"
-        description="Files turn blue when selected and green after they have been uploaded."
-        complete={formSteps[7].complete}
-      >
-        <p className="mb-4 text-sm text-slate-500">
-          Upload PDF, JPEG, or PNG files up to 2 MB each. Required documents must be uploaded before
-          submission.
-        </p>
-        <div className="grid gap-4 md:grid-cols-2">
-          {documentDefinitions.map((item) => (
-            <DocumentUpload
-              key={item.type}
-              label={item.label}
-              required={item.required}
-              available={uploadedDocumentTypes.has(item.type)}
-              file={documents[item.type] ?? null}
-              transfer={documentTransfers[item.type]}
-              disabled={saving}
-              onChange={(file) => {
-                if (file && file.size > 2 * 1024 * 1024) {
-                  toast.error("Document must not exceed 2 MB");
-                  return;
-                }
-                setDocuments((current) => {
-                  const next = { ...current };
-                  if (file) next[item.type] = file;
-                  else delete next[item.type];
-                  return next;
-                });
-                setDocumentTransfers((current) => {
-                  const next = { ...current };
-                  delete next[item.type];
-                  return next;
-                });
-              }}
+            {values.entranceExams.map((exam, index) => (
+              <div
+                key={index}
+                className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+              >
+                <Input
+                  name={`entranceExams[${index}].examName`}
+                  label={`Entrance exam name ${index + 1}`}
+                  maxLength={120}
+                  placeholder="e.g. MH-CET, JEE, NEET"
+                  value={exam.examName}
+                  error={fieldErrors[`entranceExams[${index}].examName`]}
+                  onChange={(event) => updateEntranceExam(index, "examName", event.target.value)}
+                />
+                <Input
+                  name={`entranceExams[${index}].result`}
+                  label="Result / score"
+                  maxLength={100}
+                  placeholder="e.g. 92.5 percentile, Rank 120"
+                  value={exam.result}
+                  error={fieldErrors[`entranceExams[${index}].result`]}
+                  onChange={(event) => updateEntranceExam(index, "result", event.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="danger"
+                  className="px-3"
+                  onClick={() => removeEntranceExam(index)}
+                  aria-label={`Remove entrance exam ${index + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" /> <span className="md:hidden">Remove</span>
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Grid>
+            <Input
+              name="lastGraduationCollegeName"
+              label="Last graduation college name"
+              value={values.lastGraduationCollegeName ?? ""}
+              error={fieldErrors.lastGraduationCollegeName}
+              onChange={(e) => set("lastGraduationCollegeName", e.target.value)}
             />
-          ))}
+            <Textarea
+              name="lastGraduationCollegeAddress"
+              label="Last graduation college address"
+              value={values.lastGraduationCollegeAddress ?? ""}
+              error={fieldErrors.lastGraduationCollegeAddress}
+              onChange={(e) => set("lastGraduationCollegeAddress", e.target.value)}
+            />
+          </Grid>
+        </Section>
+      </AdmissionInformationStep>
+
+      <AdmissionDocumentsStep active={!studentOwned || activeStep === "documents"}>
+        {studentOwned && (!photoUploaded || missingRequiredDocuments.length > 0) && (
+          <Card className="border-amber-300 bg-amber-50 p-4" role="status">
+            <p className="font-bold text-amber-900">Required items still need to be uploaded</p>
+            <p className="mt-1 text-sm text-amber-800">
+              Upload only the items listed below before submitting your admission form.
+            </p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm font-semibold text-amber-900">
+              {!photoUploaded && <li>Passport-size photo</li>}
+              {missingRequiredDocuments.map((item) => (
+                <li key={item.type}>{item.label}</li>
+              ))}
+            </ul>
+          </Card>
+        )}
+        <div id="required-documents">
+          <Section
+            title="Admission documents"
+            description="Files turn blue when selected and green after they have been uploaded."
+            complete={formSteps[7].complete}
+          >
+            <p className="mb-4 text-sm text-slate-500">
+              Upload PDF, JPEG, or PNG files up to 2 MB each. Required documents must be uploaded
+              before submission.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {documentDefinitions.map((item) => (
+                <DocumentUpload
+                  key={item.type}
+                  label={item.label}
+                  required={item.required}
+                  available={uploadedDocumentTypes.has(item.type)}
+                  file={
+                    studentOwned
+                      ? (studentDocumentTransfers[item.type]?.file ?? null)
+                      : (documents[item.type] ?? null)
+                  }
+                  transfer={
+                    studentOwned
+                      ? studentDocumentTransfers[item.type]
+                      : documentTransfers[item.type]
+                  }
+                  disabled={saving}
+                  onChange={(file) => {
+                    const validationError = file ? validateAdmissionDocumentFile(file) : null;
+                    if (validationError) {
+                      toast.error(validationError);
+                      return;
+                    }
+                    if (studentOwned) {
+                      if (file) enqueueStudentDocument(item.type, file);
+                      else clearStudentDocument(item.type);
+                      return;
+                    }
+                    setDocuments((current) => {
+                      const next = { ...current };
+                      if (file) next[item.type] = file;
+                      else delete next[item.type];
+                      return next;
+                    });
+                    setDocumentTransfers((current) => {
+                      const next = { ...current };
+                      delete next[item.type];
+                      return next;
+                    });
+                  }}
+                  onRetry={studentOwned ? () => retryStudentDocument(item.type) : undefined}
+                  onCancel={studentOwned ? () => cancelStudentDocument(item.type) : undefined}
+                />
+              ))}
+            </div>
+          </Section>
         </div>
-      </Section>
+      </AdmissionDocumentsStep>
 
       <Card className="sticky bottom-3 z-20 border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1204,11 +1875,28 @@ export function DetailedAdmissionForm({
                   : "Complete the remaining sections"}
               </p>
               <p className="text-xs text-slate-500">
-                Selected files are uploaded when you submit this form.
+                {studentOwned
+                  ? activeStep === "information"
+                    ? "Your information is checked before the document step opens."
+                    : "Each selected document uploads immediately and can be retried separately."
+                  : "Selected files are uploaded when you submit this form."}
               </p>
             </div>
           </div>
           <div className="flex w-full gap-2 sm:w-auto">
+            {studentOwned && activeStep === "documents" && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1 sm:flex-none"
+                onClick={() => {
+                  setActiveStep("information");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Back to information
+              </Button>
+            )}
             {canCancelUploads && (
               <Button
                 type="button"
@@ -1219,12 +1907,20 @@ export function DetailedAdmissionForm({
                 Cancel upload
               </Button>
             )}
-            <Button type="submit" loading={saving} className="flex-1 sm:flex-none">
+            <Button
+              type="submit"
+              loading={saving || validatingInformation}
+              className="flex-1 sm:flex-none"
+            >
               {studentOwned
-                ? admission.status === "STUDENT_SECTION_REJECTED" ||
-                  admission.status === "PRINCIPAL_REJECTED"
-                  ? "Resubmit admission form"
-                  : "Submit admission form"
+                ? activeStep === "information"
+                  ? validatingInformation
+                    ? "Checking information..."
+                    : "Next: documents"
+                  : admission.status === "STUDENT_SECTION_REJECTED" ||
+                      admission.status === "PRINCIPAL_REJECTED"
+                    ? "Resubmit admission form"
+                    : "Submit admission form"
                 : "Save detailed admission form"}
             </Button>
           </div>
@@ -1309,7 +2005,7 @@ export function DetailedAdmissionView({
     try {
       const url = studentOwned
         ? await api.getMyAdmissionDocument(type)
-        : await api.getAdmissionDocument(admission.id, type);
+        : await api.getAdmissionDocument(admission.id, type, { principal });
       const blob = await fetch(url).then((response) => response.blob());
       URL.revokeObjectURL(url);
       setDocumentPreview({
@@ -1369,9 +2065,10 @@ export function DetailedAdmissionView({
                 <th>Institute</th>
                 <th>Board / University</th>
                 <th>Year</th>
-                <th>Total marks</th>
-                <th>Obtained marks</th>
-                <th>Percentage</th>
+                <th>Total Marks</th>
+                <th>Obtained Marks</th>
+                <th>Result type</th>
+                <th>Result</th>
               </tr>
             </thead>
             <tbody>
@@ -1381,9 +2078,18 @@ export function DetailedAdmissionView({
                   <td>{record.instituteName || "-"}</td>
                   <td>{record.boardUniversity || "-"}</td>
                   <td>{record.yearOfPassing || "-"}</td>
-                  <td>{record.totalMarks ?? "-"}</td>
-                  <td>{record.obtainedMarks ?? "-"}</td>
-                  <td>{record.marksPercentage == null ? "-" : `${record.marksPercentage}%`}</td>
+                  <td>{record.gradingType === "CGPA" ? "-" : (record.totalMarks ?? "-")}</td>
+                  <td>{record.gradingType === "CGPA" ? "-" : (record.obtainedMarks ?? "-")}</td>
+                  <td>{record.gradingType === "CGPA" ? "CGPA" : "Percentage"}</td>
+                  <td>
+                    {record.gradingType === "CGPA"
+                      ? record.cgpa == null
+                        ? "-"
+                        : `${record.cgpa} CGPA`
+                      : record.marksPercentage == null
+                        ? "-"
+                        : `${record.marksPercentage}%`}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1480,17 +2186,25 @@ function DocumentUpload({
   transfer,
   disabled,
   onChange,
+  onRetry,
+  onCancel,
 }: {
   label: string;
   required: boolean;
   available: boolean;
   file: File | null;
-  transfer?: DocumentTransferState;
+  transfer?: DocumentTransferState | AdmissionUploadQueueState;
   disabled?: boolean;
   onChange: (file: File | null) => void;
+  onRetry?: () => void;
+  onCancel?: () => void;
 }) {
   const inputId = useId();
-  const state = file ? "selected" : available ? "uploaded" : "empty";
+  const state =
+    available || transfer?.stage === "completed" ? "uploaded" : file ? "selected" : "empty";
+  const transferActive = Boolean(
+    transfer && !["completed", "error", "cancelled"].includes(transfer.stage),
+  );
   return (
     <div
       className={cn(
@@ -1499,6 +2213,8 @@ function DocumentUpload({
         state === "uploaded" && "border-emerald-200 bg-emerald-50/70",
         state === "empty" && required && "border-dashed border-rose-200 bg-rose-50/40",
         state === "empty" && !required && "border-dashed border-slate-200 bg-slate-50/70",
+        (transfer?.stage === "error" || transfer?.stage === "cancelled") &&
+          "border-rose-300 bg-rose-50",
       )}
     >
       <div className="flex items-start gap-3">
@@ -1571,11 +2287,13 @@ function DocumentUpload({
       <input
         id={inputId}
         type="file"
-        accept="application/pdf,image/jpeg,image/png"
-        required={required && !available && !file}
+        accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
         disabled={disabled}
         className="sr-only"
-        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        onChange={(event) => {
+          onChange(event.target.files?.[0] ?? null);
+          event.target.value = "";
+        }}
       />
       <div className="mt-4 flex flex-wrap gap-2 border-t border-current/10 pt-3">
         <label
@@ -1589,7 +2307,7 @@ function DocumentUpload({
           <UploadCloud className="h-3.5 w-3.5" />
           {available || file ? "Replace file" : "Choose file"}
         </label>
-        {file && (
+        {file && state === "selected" && !transferActive && (
           <button
             type="button"
             disabled={disabled}
@@ -1597,6 +2315,26 @@ function DocumentUpload({
             className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <X className="h-3.5 w-3.5" /> Clear
+          </button>
+        )}
+        {(transfer?.stage === "error" || transfer?.stage === "cancelled") && onRetry && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onRetry}
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+          >
+            Retry upload
+          </button>
+        )}
+        {transferActive && onCancel && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onCancel}
+            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-60"
+          >
+            Cancel upload
           </button>
         )}
       </div>

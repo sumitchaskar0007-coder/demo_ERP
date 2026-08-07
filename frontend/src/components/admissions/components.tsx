@@ -162,6 +162,8 @@ export function HistoryTimeline({
   );
 }
 
+// This pure formatter is intentionally colocated with the admission status components.
+// eslint-disable-next-line react-refresh/only-export-components
 export function statusExplanation(status?: AdmissionStatus) {
   const copy: Record<AdmissionStatus, string> = {
     STUDENT_DETAILS_PENDING: "Waiting for the student to complete the detailed form",

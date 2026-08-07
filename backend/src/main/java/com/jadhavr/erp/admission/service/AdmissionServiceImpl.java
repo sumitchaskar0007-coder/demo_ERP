@@ -16,6 +16,7 @@ import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
 import com.jadhavr.erp.admission.enums.AdmissionAction;
 import com.jadhavr.erp.admission.enums.AdmissionSource;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.admission.exception.AdmissionInformationValidationException;
 import com.jadhavr.erp.admission.mapper.AdmissionMapper;
 import com.jadhavr.erp.admission.mapper.AdmissionPrintMapper;
 import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
@@ -34,7 +35,6 @@ import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
-import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
@@ -54,16 +54,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.fee.service.FeeService;
+import com.jadhavr.erp.fee.service.FeeCategoryRules;
+import com.jadhavr.erp.fee.repository.FeeStructureRepository;
+import com.jadhavr.erp.fee.enums.FeeStructureStatus;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -109,9 +112,14 @@ public class AdmissionServiceImpl implements AdmissionService {
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
     private FeeService feeService;
+    private FeeStructureRepository feeStructures;
     private AdmissionPrintMapper printMapper;
+    private AdmissionInformationValidationService informationValidation;
     @Autowired(required = false)
     public void setFeeService(FeeService service) { this.feeService = service; }
+
+    @Autowired(required = false)
+    public void setFeeStructures(FeeStructureRepository repository) { this.feeStructures = repository; }
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
@@ -124,6 +132,11 @@ public class AdmissionServiceImpl implements AdmissionService {
     @Autowired
     public void setPrintMapper(AdmissionPrintMapper mapper) {
         this.printMapper = mapper;
+    }
+
+    @Autowired
+    public void setInformationValidation(AdmissionInformationValidationService validator) {
+        this.informationValidation = validator;
     }
 
     @Autowired
@@ -216,15 +229,20 @@ public class AdmissionServiceImpl implements AdmissionService {
         if (department.getStatus() != DepartmentStatus.ACTIVE) {
             throw new BadRequestException("Department is not accepting admissions currently");
         }
+        String admissionAcademicYear = academicYear();
+        String customCategory = validateConfiguredCategory(
+                college, department, admissionAcademicYear, request.gender(),
+                request.studentCategory(), request.customCategoryName(), null);
 
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
-            throw new DuplicateResourceException("User already exists with this email");
+            throw new AdmissionInformationValidationException(Map.of(
+                    "email", "This email is already registered. Use another email or sign in."));
         }
         if (admissionFormRepository.existsByEmailAndCollegeIdAndStatusNotIn(
                 email, college.getId(), CLOSED_STATUSES)) {
-            throw new DuplicateResourceException(
-                    "Admission already submitted for this email in this college");
+            throw new AdmissionInformationValidationException(Map.of(
+                    "email", "An admission has already been submitted with this email for this college."));
         }
 
         Role studentRole = roleRepository.findByName(RoleName.STUDENT)
@@ -253,7 +271,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         profile.setDepartment(department);
         profile.setAdmissionNumber(generateAdmissionNumber(college.getCode()));
         profile.setStudentCategory(request.studentCategory());
-        profile.setCustomCategoryName(normalizeCustomCategory(request.studentCategory(), request.customCategoryName()));
+        profile.setCustomCategoryName(customCategory);
         copyStudentFields(profile, request, fullName, email);
         profile.setStatus(StudentStatus.ADMISSION_SUBMITTED);
         StudentProfile savedProfile = studentProfileRepository.save(profile);
@@ -265,9 +283,9 @@ public class AdmissionServiceImpl implements AdmissionService {
         admissionForm.setDepartment(department);
         admissionForm.setStudent(savedProfile);
         admissionForm.setStudentUser(savedUser);
-        admissionForm.setAcademicYear(academicYear());
+        admissionForm.setAcademicYear(admissionAcademicYear);
         admissionForm.setStudentCategory(request.studentCategory());
-        admissionForm.setCustomCategoryName(normalizeCustomCategory(request.studentCategory(), request.customCategoryName()));
+        admissionForm.setCustomCategoryName(customCategory);
         copyAdmissionFields(admissionForm, request, fullName, email);
         admissionForm.setStatus(AdmissionStatus.SUBMITTED);
         admissionForm.setSource(AdmissionSource.PUBLIC_LINK);
@@ -377,6 +395,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         if (!studentCanEdit(admission)) {
             throw new BadRequestException("The admission form is read-only while it is pending or approved");
         }
+        informationValidation.validate(admission, request);
         if (admission.getPhotoStorageName() == null) {
             throw new BadRequestException("Upload the passport-size photo before submitting the admission form");
         }
@@ -424,6 +443,18 @@ public class AdmissionServiceImpl implements AdmissionService {
                     saved.getStudentUser(), saved.getAdmissionReferenceNumber());
         }
         return detailedAdmissionMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.jadhavr.erp.admission.dto.AdmissionInformationValidationResponse
+            validateMyAdmissionDetails(DetailedAdmissionRequest request) {
+        AdmissionForm admission = findMyAdmission();
+        if (!studentCanEdit(admission)) {
+            throw new BadRequestException("The admission form is read-only while it is pending or approved");
+        }
+        informationValidation.validate(admission, request);
+        return new com.jadhavr.erp.admission.dto.AdmissionInformationValidationResponse(true);
     }
 
     private AdmissionForm findMyAdmission() {
@@ -477,7 +508,10 @@ public class AdmissionServiceImpl implements AdmissionService {
         admission.setReligion(request.religion().trim());
         admission.setCaste(request.caste().trim());
         admission.setStudentCategory(request.studentCategory());
-        admission.setCustomCategoryName(normalizeCustomCategory(request.studentCategory(), null));
+        admission.setCustomCategoryName(validateConfiguredCategory(
+                admission.getCollege(), admission.getDepartment(), admission.getAcademicYear(),
+                request.gender(), request.studentCategory(), request.customCategoryName(),
+                admission.getCourseYear() == null ? null : admission.getCourseYear().getName()));
         admission.setParentName(request.parentName().trim());
         admission.setParentPhone(request.parentPhone().trim());
         admission.setParentEmail(normalizeOptionalEmail(request.parentEmail()));
@@ -520,6 +554,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         student.setParentPhone(admission.getParentPhone());
         student.setParentEmail(admission.getParentEmail());
         student.setStudentCategory(admission.getStudentCategory());
+        student.setCustomCategoryName(admission.getCustomCategoryName());
 
         User user = admission.getStudentUser();
         user.setFullName(admission.getFullName());
@@ -559,19 +594,34 @@ public class AdmissionServiceImpl implements AdmissionService {
     }
 
     private AdmissionAcademicRecord academicRecord(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
-        BigDecimal total = record.totalMarks();
-        BigDecimal obtained = record.obtainedMarks();
-        if ((total == null) != (obtained == null)) {
-            throw new BadRequestException("Enter both total and obtained marks for " + record.qualification());
-        }
-        if (total != null && (total.signum() <= 0 || obtained.signum() < 0 || obtained.compareTo(total) > 0)) {
-            throw new BadRequestException("Obtained marks must be between zero and total marks for " + record.qualification());
-        }
-        BigDecimal percentage = total == null ? null
-                : obtained.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
+        validateAcademicResult(record);
         return new AdmissionAcademicRecord(record.qualification(), trimToNull(record.instituteName()),
                 trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()),
-                total, obtained, percentage);
+                record.gradingType(), record.totalMarks(), record.obtainedMarks(),
+                record.marksPercentage(), record.cgpa());
+    }
+
+    private void validateAcademicResult(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
+        if ((record.gradingType() == com.jadhavr.erp.admission.enums.AcademicGradingType.PERCENTAGE
+                && record.cgpa() != null)
+                || (record.gradingType() == com.jadhavr.erp.admission.enums.AcademicGradingType.CGPA
+                && (record.totalMarks() != null || record.obtainedMarks() != null
+                || record.marksPercentage() != null))) {
+            throw new BadRequestException(
+                    "Enter either Percentage or CGPA for " + record.qualification() + ", not both");
+        }
+        validateMarks(record);
+    }
+
+    private void validateMarks(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
+        if ((record.totalMarks() == null) != (record.obtainedMarks() == null)) {
+            throw new BadRequestException("Enter both Total Marks and Obtained Marks for "
+                    + record.qualification());
+        }
+        if (record.totalMarks() != null && record.obtainedMarks().compareTo(record.totalMarks()) > 0) {
+            throw new BadRequestException("Obtained Marks cannot exceed Total Marks for "
+                    + record.qualification());
+        }
     }
 
     private void saveStudentSubmissionHistory(
@@ -655,15 +705,32 @@ public class AdmissionServiceImpl implements AdmissionService {
     }
 
     private String normalizeCustomCategory(com.jadhavr.erp.fee.enums.StudentCategory category, String value) {
-        String normalized = trimToNull(value);
-        if (category == com.jadhavr.erp.fee.enums.StudentCategory.OTHER) {
-            if (normalized == null || normalized.length() < 2) {
-                throw new BadRequestException("Custom category is required for OTHER");
-            }
-            return normalized.toUpperCase(Locale.ROOT);
+        return FeeCategoryRules.normalizeCustomCategory(category, value);
+    }
+
+    private String validateConfiguredCategory(
+            College college,
+            Department department,
+            String academicYear,
+            String gender,
+            com.jadhavr.erp.fee.enums.StudentCategory category,
+            String customCategoryName,
+            String courseYear) {
+        String custom = normalizeCustomCategory(category, customCategoryName);
+        if (feeStructures == null) return custom;
+        boolean configured = !feeStructures.findConfiguredAssessments(
+                college.getId(), department.getId(),
+                FeeCategoryRules.academicYearVariants(academicYear), category, custom,
+                FeeCategoryRules.normalizeGender(gender), courseYear,
+                FeeStructureStatus.ACTIVE).isEmpty();
+        if (!configured) {
+            String label = custom == null ? category.name() : custom;
+            throw new BadRequestException(
+                    "No active " + label
+                            + " fee structure is configured for this department, gender, academic year"
+                            + (courseYear == null ? "" : " and course year"));
         }
-        if (normalized != null) throw new BadRequestException("Custom category is allowed only for OTHER");
-        return null;
+        return custom;
     }
 
     private Long currentUserId() {

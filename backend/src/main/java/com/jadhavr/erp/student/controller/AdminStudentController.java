@@ -71,21 +71,28 @@ public class AdminStudentController {
         var student = students.findById(id).orElseThrow(() -> new ResourceNotFoundException("Student not found"));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("profile", adminStudentService.getStudentById(id));
-        feeAccounts.findTopByStudentIdOrderByCreatedAtDesc(id).ifPresent(account ->
-                result.put("fees", Map.of(
-                        "feeAccountId", account.getId(),
-                        "totalFee", account.getTotalFee(),
-                        "paidAmount", account.getPaidAmount(),
-                        "scholarshipAmount", account.getDiscountAmount(),
-                        "remainingAmount", account.getRemainingAmount(),
-                        "minimumAmountForAdmission", account.getMinimumAmountForAdmission(),
-                        "status", account.getStatus())));
+        feeAccounts.findFirstByStudentIdAndFeeStructureIsNotNullOrderByCreatedAtDesc(id).ifPresent(account -> {
+            Map<String, Object> fees = new LinkedHashMap<>();
+            fees.put("feeAccountId", account.getId());
+            fees.put("totalFee", account.getTotalFee());
+            fees.put("paidAmount", account.getPaidAmount());
+            fees.put("scholarshipAmount", account.getDiscountAmount());
+            fees.put("remainingAmount", account.getRemainingAmount());
+            fees.put("creditAmount", account.getCreditAmount());
+            fees.put("minimumAmountForAdmission", account.getMinimumAmountForAdmission());
+            fees.put("scholarshipRemoved", account.isScholarshipRemoved());
+            fees.put("scholarshipRemovedAt", account.getScholarshipRemovedAt());
+            fees.put("scholarshipRemovalReason", account.getScholarshipRemovalReason());
+            fees.put("status", account.getStatus());
+            result.put("fees", fees);
+        });
         admissions.findTopByStudentIdOrderByCreatedAtDesc(id).ifPresent(a -> {
             Map<String, Object> admission = new LinkedHashMap<>();
             admission.put("id", a.getId());
             admission.put("referenceNumber", a.getAdmissionReferenceNumber());
             admission.put("academicYear", a.getAcademicYear());
             admission.put("status", a.getStatus());
+            admission.put("caste", a.getCaste());
             admission.put("submittedAt", a.getSubmittedAt());
             result.put("admission", admission);
         });

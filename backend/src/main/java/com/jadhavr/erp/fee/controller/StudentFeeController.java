@@ -2,10 +2,12 @@ package com.jadhavr.erp.fee.controller;
 
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.fee.dto.FeeTransactionResponse;
+import com.jadhavr.erp.fee.dto.FeeReceiptResponse;
 import com.jadhavr.erp.fee.dto.PaymentResponse;
 import com.jadhavr.erp.fee.dto.StudentFeeAccountResponse;
 import com.jadhavr.erp.fee.dto.SubmitPaymentRequest;
 import com.jadhavr.erp.fee.service.FeeService;
+import com.jadhavr.erp.fee.service.FeeReceiptService;
 import com.jadhavr.erp.fee.service.PaymentProofStorageService;
 import com.jadhavr.erp.college.service.CollegeImageStorageService;
 import jakarta.validation.Valid;
@@ -32,12 +34,14 @@ public class StudentFeeController {
     private final FeeService service;
     private final PaymentProofStorageService proofStorage;
     private final CollegeImageStorageService collegeImages;
+    private final FeeReceiptService receipts;
 
     public StudentFeeController(FeeService service, PaymentProofStorageService proofStorage,
-            CollegeImageStorageService collegeImages) {
+            CollegeImageStorageService collegeImages, FeeReceiptService receipts) {
         this.service = service;
         this.proofStorage = proofStorage;
         this.collegeImages = collegeImages;
+        this.receipts = receipts;
     }
 
     @GetMapping("/me")
@@ -78,6 +82,12 @@ public class StudentFeeController {
     @GetMapping("/payments")
     public ApiResponse<List<PaymentResponse>> payments() {
         return ApiResponse.success("Payments retrieved", service.myPayments());
+    }
+
+    @GetMapping("/payments/{paymentId}/receipt")
+    public ApiResponse<FeeReceiptResponse> receipt(@PathVariable Long paymentId) {
+        return ApiResponse.success("Payment receipt retrieved",
+                receipts.currentStudentReceipt(paymentId));
     }
 
     @GetMapping("/transactions")

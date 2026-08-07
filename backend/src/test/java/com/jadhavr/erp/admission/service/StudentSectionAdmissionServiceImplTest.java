@@ -223,7 +223,9 @@ class StudentSectionAdmissionServiceImplTest {
         admission.setQualifyingEntranceSeatNumber("CET-101");
         admission.setAcademicRecords(List.of(new AdmissionAcademicRecord(
                 "12TH", "ABC College", "State Board", "2025",
-                new BigDecimal("100"), new BigDecimal("82.50"), new BigDecimal("82.50"))));
+                com.jadhavr.erp.admission.enums.AcademicGradingType.PERCENTAGE,
+                new BigDecimal("500"), new BigDecimal("412.50"),
+                new BigDecimal("82.50"), null)));
         when(admissions.findById(100L)).thenReturn(Optional.of(admission));
 
         var result = service.getPrintData(100L);

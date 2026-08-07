@@ -1,8 +1,10 @@
 package com.jadhavr.erp.admission.dto;
 
+import com.jadhavr.erp.admission.enums.AcademicGradingType;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -14,5 +16,7 @@ public record AcademicRecordDto(
         @Pattern(regexp = "^$|^[0-9]{4}$", message = "Year must contain four digits") String yearOfPassing,
         @DecimalMin("0.01") BigDecimal totalMarks,
         @DecimalMin("0.00") BigDecimal obtainedMarks,
-        @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal marksPercentage
+        @NotNull AcademicGradingType gradingType,
+        @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal marksPercentage,
+        @DecimalMin("0.00") @DecimalMax("10.00") BigDecimal cgpa
 ) {}

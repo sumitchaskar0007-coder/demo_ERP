@@ -4,6 +4,7 @@ import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
 import com.jadhavr.erp.admission.repository.AdmissionStatusHistoryRepository;
+import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.repository.CollegeRepository;
@@ -12,6 +13,7 @@ import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
 import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.fee.dto.VerifyPaymentRequest;
+import com.jadhavr.erp.fee.dto.UpdateFeeStructureRequest;
 import com.jadhavr.erp.fee.entity.FeePayment;
 import com.jadhavr.erp.fee.entity.FeeStructure;
 import com.jadhavr.erp.fee.entity.StudentFeeAccount;
@@ -86,9 +88,10 @@ class FeeServiceImplTest {
         structure.setTotalFee(new BigDecimal("12000.00"));
         structure.setMinimumAmountForAdmission(new BigDecimal("2000.00"));
         when(accounts.existsByAdmissionFormIdAndFeeStructureIsNotNull(40L)).thenReturn(false);
-        when(structures.findFirstByCollegeIdAndDepartmentIdAndAcademicYearInAndStudentCategoryAndCustomCategoryNameIsNullAndGenderIgnoreCaseAndStatus(
-                1L, 10L, List.of("2026-2027", "2026-27"), StudentCategory.SC, "FEMALE", FeeStructureStatus.ACTIVE))
-                .thenReturn(Optional.of(structure));
+        when(structures.findConfiguredAssessments(
+                1L, 10L, List.of("2026-2027", "2026-27"), StudentCategory.SC,
+                null, "FEMALE", "First Year", FeeStructureStatus.ACTIVE))
+                .thenReturn(List.of(structure));
 
         service.createRegularFeeAccount(admission);
 
@@ -97,6 +100,53 @@ class FeeServiceImplTest {
         assertEquals(StudentCategory.SC, captor.getValue().getStudentCategory());
         assertSame(structure, captor.getValue().getFeeStructure());
         assertEquals(new BigDecimal("12000.00"), captor.getValue().getRemainingAmount());
+    }
+
+    @Test
+    void existingFeeStructureGenderCannotBeChanged() {
+        FeeStructure structure = feeStructure("MALE");
+        when(structures.findById(50L)).thenReturn(Optional.of(structure));
+
+        BadRequestException error = assertThrows(BadRequestException.class,
+                () -> service.updateStructure(50L, updateRequest("FEMALE", "30000.00")));
+
+        assertEquals(
+                "Gender is part of the fee structure identity and cannot be changed. "
+                        + "Create a separate gender-specific structure instead.",
+                error.getMessage());
+        verify(structures, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void feeStructureRecalculationLocksLinkedAccountsBeforeUpdatingBalances() {
+        FeeStructure structure = feeStructure("FEMALE");
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setTotalFee(new BigDecimal("80000.00"));
+        account.setPaidAmount(new BigDecimal("30000.00"));
+        account.setDiscountAmount(new BigDecimal("50000.00"));
+        account.setRemainingAmount(BigDecimal.ZERO.setScale(2));
+        account.setCreditAmount(BigDecimal.ZERO.setScale(2));
+        account.setMinimumAmountForAdmission(new BigDecimal("10000.00"));
+        when(structures.findById(50L)).thenReturn(Optional.of(structure));
+        when(structures.saveAndFlush(structure)).thenReturn(structure);
+        when(accounts.findByFeeStructureIdForUpdate(50L)).thenReturn(List.of(account));
+        User actor = new User();
+        actor.setId(99L);
+        actor.setFullName("Super Admin");
+        when(users.findById(99L)).thenReturn(Optional.of(actor));
+
+        service.updateStructure(50L, updateRequest("FEMALE", "30000.00"));
+
+        verify(accounts).findByFeeStructureIdForUpdate(50L);
+        ArgumentCaptor<com.jadhavr.erp.fee.entity.FeeTransaction> audit =
+                ArgumentCaptor.forClass(com.jadhavr.erp.fee.entity.FeeTransaction.class);
+        verify(transactions).save(audit.capture());
+        assertEquals(com.jadhavr.erp.fee.enums.FeeTransactionType.FEE_ADJUSTMENT,
+                audit.getValue().getTransactionType());
+        assertEquals(new BigDecimal("20000.00"), audit.getValue().getNewRemainingAmount());
+        assertEquals(new BigDecimal("30000.00"), account.getDiscountAmount());
+        assertEquals(new BigDecimal("20000.00"), account.getRemainingAmount());
+        assertEquals(BigDecimal.ZERO, account.getCreditAmount());
     }
 
     @Test
@@ -208,6 +258,9 @@ class FeeServiceImplTest {
         admission.setAcademicYear("2026-2027");
         admission.setStudentCategory(category);
         admission.setGender("Female");
+        AcademicClass courseYear = new AcademicClass();
+        courseYear.setName("First Year");
+        admission.setCourseYear(courseYear);
         return admission;
     }
 
@@ -219,6 +272,38 @@ class FeeServiceImplTest {
         payment.setAmount(amount);
         payment.setStatus(status);
         return payment;
+    }
+
+    private FeeStructure feeStructure(String gender) {
+        College college = college();
+        college.setName("College");
+        college.setCode("COL");
+        Department department = new Department();
+        department.setId(10L);
+        department.setName("Science");
+        department.setCode("SCI");
+        department.setCollege(college);
+        FeeStructure structure = new FeeStructure();
+        structure.setId(50L);
+        structure.setCollege(college);
+        structure.setDepartment(department);
+        structure.setAcademicYear("2026-2027");
+        structure.setCourseYear("First Year");
+        structure.setStudentCategory(StudentCategory.OBC);
+        structure.setGender(gender);
+        structure.setTitle("OBC fee");
+        structure.setTotalFee(new BigDecimal("80000.00"));
+        structure.setScholarshipAmount(new BigDecimal("50000.00"));
+        structure.setMinimumAmountForAdmission(new BigDecimal("10000.00"));
+        return structure;
+    }
+
+    private UpdateFeeStructureRequest updateRequest(String gender, String scholarship) {
+        return new UpdateFeeStructureRequest(
+                "OBC fee", null, new BigDecimal("80000.00"),
+                new BigDecimal("10000.00"), BigDecimal.ZERO, new BigDecimal("80000.00"),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                new BigDecimal(scholarship), gender, null);
     }
 
     private College college() {

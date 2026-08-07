@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BookOpen, CalendarDays, Filter, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -102,7 +102,7 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
     loadYearOptions(v);
   };
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     const p =
       kind === "classes"
@@ -116,10 +116,10 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
     p.then(setRows)
       .catch((e) => toast.error(handleApiError(e).message))
       .finally(() => setLoading(false));
-  };
+  }, [deptFilter, kind, yearFilter]);
   useEffect(() => {
     load();
-  }, [kind, deptFilter, yearFilter]);
+  }, [load]);
   return (
     <Shell title={kind[0].toUpperCase() + kind.slice(1)} subtitle={`Manage academic ${kind}.`}>
       {kind === "subjects" ? (

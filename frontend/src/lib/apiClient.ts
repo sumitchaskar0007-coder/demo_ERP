@@ -25,12 +25,36 @@ let csrfPromise: Promise<void> | null = null;
 
 const unsafeMethods = new Set(["post", "put", "patch", "delete"]);
 
-function csrfTokenFromCookie() {
+export function requiresCsrfProtection(method?: string, requestUrl?: string) {
+  if (!unsafeMethods.has(method?.toLowerCase() ?? "")) return false;
+  if (!requestUrl) return true;
+
+  let path = requestUrl;
+  try {
+    path = new URL(requestUrl, window.location.origin).pathname;
+  } catch {
+    // Axios will report malformed URLs. Keep CSRF enabled by default.
+  }
+  return path !== "/api/v1/auth/login" && !path.startsWith("/api/public/admissions/");
+}
+
+function clearCsrfCookie() {
+  document.cookie = "XSRF-TOKEN=; Path=/; Max-Age=0; SameSite=Strict";
+}
+
+export function csrfTokenFromCookie() {
   const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith("XSRF-TOKEN="));
-  return entry ? decodeURIComponent(entry.slice("XSRF-TOKEN=".length)) : null;
+  if (!entry) return null;
+  try {
+    return decodeURIComponent(entry.slice("XSRF-TOKEN=".length));
+  } catch {
+    clearCsrfCookie();
+    return null;
+  }
 }
 
 async function ensureCsrfToken(force = false) {
+  if (force) clearCsrfCookie();
   if (!force && csrfTokenFromCookie()) return;
   if (!csrfPromise) {
     csrfPromise = authClient
@@ -50,7 +74,7 @@ apiClient.interceptors.request.use(async (config) => {
   ) {
     config.headers.set("Content-Type", "multipart/form-data");
   }
-  if (unsafeMethods.has(config.method?.toLowerCase() ?? "")) {
+  if (requiresCsrfProtection(config.method, config.url)) {
     await ensureCsrfToken();
     const token = csrfTokenFromCookie();
     if (token) config.headers.set("X-XSRF-TOKEN", token);
@@ -100,7 +124,7 @@ apiClient.interceptors.response.use(
         original &&
         !original._csrfRetried &&
         !authRequest &&
-        unsafeMethods.has(original.method?.toLowerCase() ?? "")
+        requiresCsrfProtection(original.method, original.url)
       ) {
         original._csrfRetried = true;
         await ensureCsrfToken(true);
@@ -112,7 +136,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-
-export async function initializeCsrf() {
-  await ensureCsrfToken(true);
-}

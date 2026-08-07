@@ -19,6 +19,7 @@ playwright-report/
 *.pem
 *.key
 backend/uploads/
+/uploads/
 backups/
 output/
 tmp/

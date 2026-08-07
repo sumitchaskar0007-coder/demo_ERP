@@ -1,11 +1,9 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse } from "@/types/api";
 import type { AuthUser, LoginRequest, UpdateOwnProfileValues } from "./types";
-import { initializeCsrf } from "@/lib/apiClient";
 
 export async function login(request: LoginRequest): Promise<AuthUser> {
   const { data } = await apiClient.post<ApiResponse<AuthUser>>("/api/v1/auth/login", request);
-  await initializeCsrf();
   return data.data;
 }
 
@@ -19,7 +17,6 @@ export async function logout(): Promise<void> {
 }
 
 export async function bootstrapSession(): Promise<AuthUser> {
-  await initializeCsrf();
   return getProfile();
 }
 

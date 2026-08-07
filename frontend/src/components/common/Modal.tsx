@@ -36,7 +36,7 @@ export function Modal({
       aria-modal="true"
     >
       <div
-        className={`max-h-[calc(100dvh-1rem)] w-full min-w-0 overflow-y-auto overflow-x-hidden rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl sm:pb-0 ${sizes[size]}`}
+        className={`max-h-[100dvh] w-full min-w-0 max-w-full overscroll-contain overflow-y-auto overflow-x-hidden rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl sm:pb-0 ${sizes[size]}`}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-white px-4 py-4 sm:px-6 sm:py-5">
           <div className="min-w-0">
@@ -51,7 +51,7 @@ export function Modal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="min-w-0 p-4 sm:p-6">{children}</div>
+        <div className="min-w-0 px-3 py-4 sm:p-6">{children}</div>
       </div>
     </div>
   );

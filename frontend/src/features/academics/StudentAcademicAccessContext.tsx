@@ -69,6 +69,8 @@ export function StudentAcademicAccessProvider({ children }: PropsWithChildren) {
   );
 }
 
+// The provider and its hook share one context and must remain colocated.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useStudentAcademicAccess() {
   return useContext(StudentAcademicAccessContext);
 }

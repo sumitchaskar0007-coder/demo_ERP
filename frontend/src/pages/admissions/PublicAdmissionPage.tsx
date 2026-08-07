@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  AlertCircle,
   ArrowRight,
   BadgeCheck,
   BookOpen,
@@ -19,7 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -38,12 +39,38 @@ import type {
 
 type FormValues = z.infer<typeof publicAdmissionSchema>;
 
+const publicAdmissionFields = new Set<keyof FormValues>([
+  "departmentId",
+  "studentCategory",
+  "customCategoryName",
+  "firstName",
+  "middleName",
+  "lastName",
+  "email",
+  "phone",
+  "dateOfBirth",
+  "gender",
+]);
+
+function focusAdmissionField(field: string) {
+  const element = document.getElementsByName(field)[0] ?? document.getElementById(field);
+  if (!(element instanceof HTMLElement)) return;
+
+  element.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  if (element instanceof HTMLSelectElement && element.offsetParent === null) {
+    element.parentElement?.querySelector<HTMLButtonElement>("button")?.focus();
+    return;
+  }
+  element.focus();
+}
+
 export function PublicAdmissionPage() {
   const { collegeCode = "" } = useParams();
   const [info, setInfo] = useState<PublicAdmissionInfoResponse | null>(null);
   const [result, setResult] = useState<SubmitAdmissionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<
     Array<{
       category: FormValues["studentCategory"];
@@ -51,12 +78,13 @@ export function PublicAdmissionPage() {
       label: string;
     }>
   >([]);
-  const [categorySelection, setCategorySelection] = useState("OPEN");
   const {
     register,
     setValue,
     watch,
     handleSubmit,
+    clearErrors,
+    setError: setFieldError,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(publicAdmissionSchema),
@@ -72,14 +100,23 @@ export function PublicAdmissionPage() {
     },
   });
   const departmentId = watch("departmentId");
+  const studentCategory = watch("studentCategory");
+  const gender = watch("gender");
 
   useEffect(() => {
-    if (!departmentId) return setCategoryOptions([]);
+    setValue("customCategoryName", "");
+    if (!departmentId) {
+      setCategoryOptions([]);
+      return;
+    }
     api
-      .getPublicAdmissionCategories(collegeCode, Number(departmentId))
+      .getPublicAdmissionCategories(collegeCode, Number(departmentId), {
+        gender: gender || undefined,
+        academicYear: info?.academicYear,
+      })
       .then(setCategoryOptions)
       .catch(() => setCategoryOptions([]));
-  }, [collegeCode, departmentId]);
+  }, [collegeCode, departmentId, gender, info?.academicYear, setValue]);
 
   useEffect(() => {
     setLoading(true);
@@ -91,13 +128,48 @@ export function PublicAdmissionPage() {
   }, [collegeCode]);
 
   const onSubmit = async (values: FormValues) => {
+    setSubmitError("");
+    clearErrors();
+    const categoryConfigured = categoryOptions.some(
+      (option) =>
+        option.category === values.studentCategory &&
+        (values.studentCategory !== "OTHER" ||
+          option.customCategoryName?.toUpperCase() ===
+            values.customCategoryName?.trim().toUpperCase()),
+    );
+    if (!categoryConfigured) {
+      const message = "Select an active fee category configured for this department and gender";
+      setFieldError("studentCategory", { type: "manual", message });
+      setSubmitError("Please correct the highlighted field below.");
+      focusAdmissionField("studentCategory");
+      toast.error(message);
+      return;
+    }
     try {
       const submitted = await api.submitAdmission(collegeCode, values);
       setResult(submitted);
       toast.success("Registration completed successfully");
     } catch (err) {
-      toast.error(handleApiError(err).message);
+      const apiError = handleApiError(err);
+      let firstInvalidField: string | undefined;
+      Object.entries(apiError.fieldErrors).forEach(([field, message]) => {
+        if (!publicAdmissionFields.has(field as keyof FormValues)) return;
+        firstInvalidField ??= field;
+        setFieldError(field as keyof FormValues, { type: "server", message });
+      });
+
+      setSubmitError(
+        firstInvalidField ? "Please correct the highlighted field below." : apiError.message,
+      );
+      if (firstInvalidField) focusAdmissionField(firstInvalidField);
+      toast.error(apiError.message);
     }
+  };
+
+  const onInvalid = (formErrors: FieldErrors<FormValues>) => {
+    const firstInvalidField = Object.keys(formErrors)[0];
+    setSubmitError("Please complete the highlighted required fields.");
+    if (firstInvalidField) focusAdmissionField(firstInvalidField);
   };
 
   if (loading)
@@ -240,7 +312,20 @@ export function PublicAdmissionPage() {
         </div>
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form
+            noValidate
+            onChange={() => setSubmitError("")}
+            onSubmit={handleSubmit(onSubmit, onInvalid)}
+          >
+            {submitError && (
+              <div
+                role="alert"
+                className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{submitError}</span>
+              </div>
+            )}
             <Card className="overflow-hidden">
               <FormSection
                 step="01"
@@ -267,30 +352,79 @@ export function PublicAdmissionPage() {
                 description="Use the same name and contact details as your official documents."
               >
                 <Select
+                  id="student-category"
+                  name="studentCategory"
                   label="Student category"
-                  options={(categoryOptions.length
-                    ? categoryOptions
-                    : [{ category: "OPEN" as const, label: "Open" }]
-                  ).map((option) => ({
-                    label: option.label,
-                    value: option.customCategoryName
-                      ? `OTHER:${option.customCategoryName}`
-                      : option.category,
-                  }))}
-                  value={categorySelection}
+                  options={[
+                    {
+                      label: categoryOptions.length
+                        ? "Select category"
+                        : "No active fee category configured",
+                      value: "",
+                    },
+                    ...categoryOptions
+                      .filter(
+                        (option, index, all) =>
+                          all.findIndex((candidate) => candidate.category === option.category) ===
+                          index,
+                      )
+                      .map((option) => ({ label: option.category, value: option.category })),
+                  ]}
+                  value={studentCategory}
                   onChange={(event) => {
-                    const value = event.target.value;
-                    const custom = value.startsWith("OTHER:") ? value.slice(6) : "";
-                    setCategorySelection(value);
                     setValue(
                       "studentCategory",
-                      custom ? "OTHER" : (value as FormValues["studentCategory"]),
+                      event.target.value as FormValues["studentCategory"],
                       { shouldValidate: true },
                     );
-                    setValue("customCategoryName", custom, { shouldValidate: true });
+                    if (event.target.value !== "OTHER") {
+                      setValue("customCategoryName", "", { shouldValidate: true });
+                    }
                   }}
                   error={errors.studentCategory?.message}
                 />
+                {studentCategory === "OTHER" && (
+                  <div className="space-y-1.5">
+                    <Select
+                      id="custom-category"
+                      name="customCategoryName"
+                      label="Other category"
+                      options={[
+                        { label: "Select category", value: "" },
+                        ...categoryOptions
+                          .filter(
+                            (option) => option.category === "OTHER" && option.customCategoryName,
+                          )
+                          .filter(
+                            (option, index, all) =>
+                              all.findIndex(
+                                (candidate) =>
+                                  candidate.customCategoryName?.toUpperCase() ===
+                                  option.customCategoryName?.toUpperCase(),
+                              ) === index,
+                          )
+                          .map((option) => ({
+                            label: option.customCategoryName!,
+                            value: option.customCategoryName!,
+                          })),
+                      ]}
+                      value={watch("customCategoryName") ?? ""}
+                      onChange={(event) =>
+                        setValue("customCategoryName", event.target.value, {
+                          shouldValidate: true,
+                        })
+                      }
+                      error={errors.customCategoryName?.message}
+                    />
+                    {!categoryOptions.some(
+                      (option) => option.category === "OTHER" && option.customCategoryName,
+                    ) && (
+                      <p className="text-xs text-amber-700">
+                        No Other category is available for this department.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <Input
                   label="First name"
                   placeholder="Enter first name"

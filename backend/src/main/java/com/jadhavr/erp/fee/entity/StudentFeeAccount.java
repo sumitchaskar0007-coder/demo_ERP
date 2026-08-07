@@ -11,6 +11,7 @@ import com.jadhavr.erp.user.entity.User;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "student_fee_accounts")
@@ -30,6 +31,10 @@ public class StudentFeeAccount extends BaseAuditEntity {
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal paidAmount = BigDecimal.ZERO;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal remainingAmount;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal discountAmount = BigDecimal.ZERO;
+    @Column(name = "scholarship_removed", nullable = false) private boolean scholarshipRemoved;
+    @Column(name = "scholarship_removed_at") private LocalDateTime scholarshipRemovedAt;
+    @Column(name = "scholarship_removal_reason", length = 500) private String scholarshipRemovalReason;
+    @Column(name = "credit_amount", nullable = false, precision = 12, scale = 2) private BigDecimal creditAmount = BigDecimal.ZERO;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal minimumAmountForAdmission;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 25) private FeeAccountStatus status = FeeAccountStatus.PENDING;
 
@@ -61,6 +66,14 @@ public class StudentFeeAccount extends BaseAuditEntity {
     public void setRemainingAmount(BigDecimal value) { remainingAmount = value; }
     public BigDecimal getDiscountAmount() { return discountAmount; }
     public void setDiscountAmount(BigDecimal value) { discountAmount = value; }
+    public boolean isScholarshipRemoved() { return scholarshipRemoved; }
+    public void setScholarshipRemoved(boolean value) { scholarshipRemoved = value; }
+    public LocalDateTime getScholarshipRemovedAt() { return scholarshipRemovedAt; }
+    public void setScholarshipRemovedAt(LocalDateTime value) { scholarshipRemovedAt = value; }
+    public String getScholarshipRemovalReason() { return scholarshipRemovalReason; }
+    public void setScholarshipRemovalReason(String value) { scholarshipRemovalReason = value; }
+    public BigDecimal getCreditAmount() { return creditAmount; }
+    public void setCreditAmount(BigDecimal value) { creditAmount = value; }
     public BigDecimal getMinimumAmountForAdmission() { return minimumAmountForAdmission; }
     public void setMinimumAmountForAdmission(BigDecimal value) { minimumAmountForAdmission = value; }
     public FeeAccountStatus getStatus() { return status; }

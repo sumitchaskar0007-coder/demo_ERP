@@ -58,7 +58,7 @@ export function AuditLogPage() {
 
   useEffect(() => load(), [load]);
 
-  const teachers = data?.teachers ?? [];
+  const teachers = useMemo(() => data?.teachers ?? [], [data?.teachers]);
   const departments = useMemo(
     () => Array.from(new Set(teachers.map((teacher) => teacher.department))).sort(),
     [teachers],

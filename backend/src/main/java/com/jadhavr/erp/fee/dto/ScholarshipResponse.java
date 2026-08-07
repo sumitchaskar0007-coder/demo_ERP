@@ -14,6 +14,10 @@ public record ScholarshipResponse(
         BigDecimal paidAmount,
         BigDecimal scholarshipAmount,
         BigDecimal remainingAmount,
+        BigDecimal creditAmount,
+        boolean scholarshipRemoved,
+        LocalDateTime scholarshipRemovedAt,
+        String scholarshipRemovalReason,
         FeeAccountStatus status,
         String approvedBy,
         LocalDateTime approvedAt) {

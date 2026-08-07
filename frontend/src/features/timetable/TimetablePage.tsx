@@ -38,9 +38,7 @@ export function WeeklyTimetablePage() {
       setLoading(true);
       const tables = await timetableApi.list();
       setTimetables(tables);
-      if (tables.length > 0 && !selectedId) {
-        setSelectedId(tables[0].id);
-      }
+      if (tables.length > 0) setSelectedId((current) => current ?? tables[0].id);
     } catch (e) {
       toast.error(handleApiError(e).message);
     } finally {

@@ -174,8 +174,9 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
       </Card>
     );
   }
-  const percentage = account.totalFee
-    ? Math.min(100, Math.round((account.paidAmount / account.totalFee) * 100))
+  const payableFee = Math.max(0, account.totalFee - account.scholarshipAmount);
+  const percentage = payableFee
+    ? Math.min(100, Math.round((account.paidAmount / payableFee) * 100))
     : 0;
   const money = (amount: number) => `₹${Number(amount).toLocaleString("en-IN")}`;
   return (
@@ -188,7 +189,7 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
             </p>
             <h2 className="mt-1 text-xl font-bold">Student Fee Information</h2>
             <p className="mt-1 text-sm text-blue-100">
-              {account.academicYear} · {account.studentCategory}
+              {account.academicYear} · {account.customCategoryName || account.studentCategory}
             </p>
           </div>
           <StatusBadge status={account.status} />
@@ -215,11 +216,12 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
           </div>
         </div>
       </div>
-      <div className="grid gap-3 border-b bg-slate-50/70 p-5 sm:grid-cols-3">
+      <div className="grid gap-3 border-b bg-slate-50/70 p-5 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Paid Fee", account.paidAmount],
           ["Minimum Required", account.minimumAmountForAdmission],
           ["Discount", account.discountAmount],
+          ["Credit / Refund Due", account.creditAmount],
         ].map(([label, amount]) => (
           <div key={String(label)} className="rounded-xl border bg-white px-4 py-3">
             <p className="text-xs font-bold uppercase text-slate-400">{label}</p>
@@ -227,6 +229,14 @@ function FeeInformationCard({ fees }: { fees: AdmissionFeeSummaryResponse | null
           </div>
         ))}
       </div>
+      {account.scholarshipRemoved && (
+        <div className="border-b border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-900">
+          <p className="font-bold">Scholarship removed by Principal</p>
+          {account.scholarshipRemovalReason && (
+            <p className="mt-1">Reason: {account.scholarshipRemovalReason}</p>
+          )}
+        </div>
+      )}
       <div className="p-6">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-bold">Payment Submissions</h3>

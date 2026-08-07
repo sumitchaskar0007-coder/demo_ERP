@@ -1,10 +1,11 @@
-import { ClipboardCheck, FileText } from "lucide-react";
+import { ClipboardCheck, FileText, FolderOpen } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Admission Records", to: ROUTES.studentSectionAdmissions, icon: FileText },
+  { label: "Uploaded Documents", to: ROUTES.studentSectionDocuments, icon: FolderOpen },
   { label: "Final Admission Review", to: ROUTES.principalReviewReady, icon: ClipboardCheck },
 ];
 

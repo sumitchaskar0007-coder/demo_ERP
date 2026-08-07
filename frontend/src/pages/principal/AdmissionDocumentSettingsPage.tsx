@@ -1,5 +1,5 @@
 import { FilePlus2, Pencil, Power, Save, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
@@ -23,7 +23,7 @@ export function AdmissionDocumentSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!departmentId) {
       setItems([]);
       setLoading(false);
@@ -37,7 +37,7 @@ export function AdmissionDocumentSettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [departmentId]);
 
   useEffect(() => {
     searchDepartments({ status: "ACTIVE", page: 0, size: 100, sortBy: "name", sortDir: "asc" })
@@ -51,7 +51,7 @@ export function AdmissionDocumentSettingsPage() {
   useEffect(() => {
     setEditingId(null);
     void load();
-  }, [departmentId]);
+  }, [load]);
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();

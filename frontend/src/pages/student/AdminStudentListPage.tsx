@@ -35,6 +35,7 @@ import * as api from "@/features/student/api";
 import { useAuth } from "@/features/auth/authStore";
 import type {
   AdminStudentDetails,
+  FeeCategoryAssessmentOption,
   StudentProfileResponse,
   StudentStatus,
 } from "@/features/student/types";
@@ -227,7 +228,7 @@ export function AdminStudentListPage() {
       render: (row) => (
         <Button
           variant="secondary"
-          className="h-9 whitespace-nowrap px-3"
+          className="h-10 w-full whitespace-nowrap px-3 sm:h-9 sm:w-auto"
           onClick={() => void openDetails(row.id)}
           aria-label={`View ${row.fullName}`}
         >
@@ -262,7 +263,7 @@ export function AdminStudentListPage() {
             {(keyword || (!principal && collegeId) || status) && (
               <Button
                 variant="ghost"
-                className="h-9 px-3"
+                className="h-10 w-full px-3 sm:h-9 sm:w-auto"
                 onClick={() => {
                   setKeyword("");
                   setCollegeId("");
@@ -375,35 +376,102 @@ function StudentDetailContent({
   onScholarshipApproved: () => void;
 }) {
   const p = details.profile;
-  const [otherCategories, setOtherCategories] = useState<
-    Array<{ customCategoryName?: string | null; label: string }>
-  >([]);
-  const [selectedOtherCategory, setSelectedOtherCategory] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState<FeeCategoryAssessmentOption[]>([]);
+  const [selectedStructureId, setSelectedStructureId] = useState("");
+  const [categoryCaste, setCategoryCaste] = useState(details.admission?.caste || "");
+  const [categoryReason, setCategoryReason] = useState("");
+  const [scholarshipReason, setScholarshipReason] = useState("");
   const [changingCategory, setChangingCategory] = useState(false);
+  const [removingScholarship, setRemovingScholarship] = useState(false);
+  const [loadingCategoryOptions, setLoadingCategoryOptions] = useState(false);
+  const [categoryOptionsError, setCategoryOptionsError] = useState("");
   useEffect(() => {
-    if (!principal || p.studentCategory !== "OTHER") return;
+    let cancelled = false;
+    setCategoryCaste(details.admission?.caste || "");
+    setCategoryReason("");
+    setScholarshipReason("");
+    setSelectedStructureId("");
+    setCategoryOptions([]);
+    setCategoryOptionsError("");
+    if (!principal || !details.fees) {
+      setLoadingCategoryOptions(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    setLoadingCategoryOptions(true);
     api
-      .getAvailableOtherCategories(p.collegeCode, p.departmentId)
-      .then(setOtherCategories)
-      .catch(() => setOtherCategories([]));
-  }, [principal, p.collegeCode, p.departmentId, p.studentCategory]);
+      .getFeeCategoryOptions(p.id)
+      .then((options) => {
+        if (!cancelled) setCategoryOptions(options);
+      })
+      .catch((error) => {
+        if (!cancelled) setCategoryOptionsError(handleApiError(error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCategoryOptions(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [details.admission?.caste, details.fees, p.id, principal]);
+
+  const selectedCategory = categoryOptions.find(
+    (option) => String(option.feeStructureId) === selectedStructureId,
+  );
   const changeCategory = async () => {
-    if (!selectedOtherCategory) return toast.error("Select a configured category");
+    if (!selectedCategory) return toast.error("Select a configured category");
+    if (!categoryCaste.trim()) return toast.error("Enter the verified caste");
+    if (categoryReason.trim().length < 3) return toast.error("Enter a reason for the change");
     if (
       !window.confirm(
-        `Change ${p.fullName}'s category to ${selectedOtherCategory} and recalculate fees?`,
+        `Change ${p.fullName}'s category to ${selectedCategory.label}?\n\n` +
+          `Gender assessment: ${selectedCategory.gender}\n` +
+          `Total fee: ₹${selectedCategory.totalFee.toLocaleString("en-IN")}\n` +
+          `Scholarship: ₹${selectedCategory.scholarshipAmount.toLocaleString("en-IN")}\n` +
+          `Configured payable: ₹${selectedCategory.payableFee.toLocaleString("en-IN")}\n\n` +
+          "Verified payments will be preserved.",
       )
     )
       return;
     setChangingCategory(true);
     try {
-      await api.changeOtherCategory(p.id, selectedOtherCategory);
+      await api.changeStudentCategory(p.id, {
+        studentCategory: selectedCategory.studentCategory,
+        customCategoryName: selectedCategory.customCategoryName || undefined,
+        caste: categoryCaste.trim(),
+        reason: categoryReason.trim(),
+      });
       toast.success("Category and fee account updated");
       onScholarshipApproved();
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
       setChangingCategory(false);
+    }
+  };
+
+  const removeScholarship = async () => {
+    if (scholarshipReason.trim().length < 3)
+      return toast.error("Enter a reason for removing the scholarship");
+    const scholarship = details.fees?.scholarshipAmount || 0;
+    if (!scholarship) return toast.error("This student has no active scholarship");
+    if (
+      !window.confirm(
+        `Remove the full scholarship of ₹${scholarship.toLocaleString("en-IN")} for ${p.fullName}?\n\n` +
+          "Verified payments will remain unchanged and the remaining balance will increase.",
+      )
+    )
+      return;
+    setRemovingScholarship(true);
+    try {
+      await api.removeScholarship(p.id, scholarshipReason.trim());
+      toast.success("Scholarship removed and fee balance recalculated");
+      onScholarshipApproved();
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setRemovingScholarship(false);
     }
   };
   const attendanceTone =
@@ -418,14 +486,14 @@ function StudentDetailContent({
       ? "warning"
       : "success";
   return (
-    <div className="space-y-4 sm:space-y-5">
-      <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-5 text-white shadow-lg shadow-blue-900/10 sm:p-6">
+    <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-5">
+      <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-4 text-white shadow-lg shadow-blue-900/10 sm:p-6">
         <div
           className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full border-[34px] border-white/10"
           aria-hidden="true"
         />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl border border-white/25 bg-white/15 text-2xl font-black shadow-inner backdrop-blur">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-white/25 bg-white/15 text-xl font-black shadow-inner backdrop-blur sm:h-20 sm:w-20 sm:text-2xl">
             {initials(p.fullName)}
           </div>
           <div className="min-w-0 flex-1">
@@ -608,7 +676,7 @@ function StudentDetailContent({
       </div>
 
       <Card className="overflow-hidden">
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-emerald-50/60 px-4 py-4 sm:px-5">
+        <div className="flex items-start gap-3 border-b border-slate-100 bg-emerald-50/60 px-4 py-4 sm:items-center sm:px-5">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-700">
             <Award className="h-5 w-5" />
           </span>
@@ -621,7 +689,7 @@ function StudentDetailContent({
         </div>
         {details.fees ? (
           <div className="space-y-4 p-4 sm:p-5">
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <FeeMetric label="Total fee" value={details.fees.totalFee} />
               <FeeMetric label="Paid" value={details.fees.paidAmount} tone="text-blue-700" />
               <FeeMetric
@@ -634,24 +702,123 @@ function StudentDetailContent({
                 value={details.fees.remainingAmount}
                 tone="text-rose-700"
               />
+              <FeeMetric
+                label="Credit / refund due"
+                value={details.fees.creditAmount || 0}
+                tone="text-amber-700"
+                className="col-span-2 lg:col-span-1"
+              />
             </div>
-            {principal && p.studentCategory === "OTHER" && (
-              <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/40 p-4 md:grid-cols-[1fr_auto] md:items-end">
-                <Select
-                  label="Correct OTHER category"
-                  value={selectedOtherCategory}
-                  options={[
-                    { label: "Select configured category", value: "" },
-                    ...otherCategories.map((option) => ({
-                      label: option.label,
-                      value: option.customCategoryName || "",
-                    })),
-                  ]}
-                  onChange={(event) => setSelectedOtherCategory(event.target.value)}
-                />
-                <Button loading={changingCategory} onClick={() => void changeCategory()}>
-                  Change category & recalculate
-                </Button>
+            {details.fees.scholarshipRemoved && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <b>Scholarship removed</b>
+                {details.fees.scholarshipRemovalReason
+                  ? ` — ${details.fees.scholarshipRemovalReason}`
+                  : ""}
+              </div>
+            )}
+            {principal && (
+              <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="min-w-0 space-y-3 rounded-2xl border border-rose-100 bg-rose-50/40 p-3 sm:p-4">
+                  <div>
+                    <h4 className="font-bold text-slate-900">Remove scholarship</h4>
+                    <p className="text-xs text-slate-600">
+                      Removes the complete scholarship and preserves all verified payments.
+                    </p>
+                  </div>
+                  <Input
+                    label="Mandatory reason"
+                    value={scholarshipReason}
+                    maxLength={500}
+                    disabled={details.fees.scholarshipAmount <= 0}
+                    onChange={(event) => setScholarshipReason(event.target.value)}
+                  />
+                  <Button
+                    variant="danger"
+                    className="h-auto min-h-11 w-full whitespace-normal py-3 text-center sm:w-auto"
+                    loading={removingScholarship}
+                    disabled={details.fees.scholarshipAmount <= 0}
+                    onClick={() => void removeScholarship()}
+                  >
+                    Remove all scholarship
+                  </Button>
+                </div>
+
+                <div className="min-w-0 space-y-3 rounded-2xl border border-blue-100 bg-blue-50/40 p-3 sm:p-4">
+                  <div>
+                    <h4 className="font-bold text-slate-900">Change caste / fee category</h4>
+                    <p className="text-xs text-slate-600">
+                      Only exact {p.gender} fee configurations for this course year are available.
+                    </p>
+                  </div>
+                  <Select
+                    label="New configured category"
+                    value={selectedStructureId}
+                    disabled={loadingCategoryOptions || Boolean(categoryOptionsError)}
+                    options={[
+                      {
+                        label: loadingCategoryOptions
+                          ? "Loading configured categories..."
+                          : "Select configured category",
+                        value: "",
+                      },
+                      ...categoryOptions.map((option) => ({
+                        label: `${option.label} · ₹${option.payableFee.toLocaleString("en-IN")} payable · ${option.gender}`,
+                        value: option.feeStructureId,
+                      })),
+                    ]}
+                    onChange={(event) => setSelectedStructureId(event.target.value)}
+                  />
+                  {categoryOptionsError && (
+                    <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                      Categories could not be loaded: {categoryOptionsError}
+                    </p>
+                  )}
+                  {!loadingCategoryOptions &&
+                    !categoryOptionsError &&
+                    categoryOptions.length === 0 && (
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                        No fee category is configured for this student&apos;s gender, course year
+                        and academic year.
+                      </p>
+                    )}
+                  <Input
+                    label="Verified caste"
+                    value={categoryCaste}
+                    maxLength={150}
+                    onChange={(event) => setCategoryCaste(event.target.value)}
+                  />
+                  <Input
+                    label="Mandatory reason"
+                    value={categoryReason}
+                    maxLength={500}
+                    onChange={(event) => setCategoryReason(event.target.value)}
+                  />
+                  {selectedCategory && (
+                    <div className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3 text-xs text-slate-700 ring-1 ring-blue-100 min-[420px]:grid-cols-3">
+                      <span>
+                        <b className="block text-slate-500">Total</b>₹
+                        {selectedCategory.totalFee.toLocaleString("en-IN")}
+                      </span>
+                      <span>
+                        <b className="block text-slate-500">Scholarship</b>₹
+                        {selectedCategory.scholarshipAmount.toLocaleString("en-IN")}
+                      </span>
+                      <span>
+                        <b className="block text-slate-500">Payable</b>₹
+                        {selectedCategory.payableFee.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+                  <Button
+                    className="h-auto min-h-11 w-full whitespace-normal py-3 text-center sm:w-auto"
+                    loading={changingCategory}
+                    disabled={loadingCategoryOptions || !selectedCategory}
+                    onClick={() => void changeCategory()}
+                  >
+                    Change category & recalculate
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -669,14 +836,18 @@ function FeeMetric({
   label,
   value,
   tone = "text-slate-900",
+  className = "",
 }: {
   label: string;
   value: number;
   tone?: string;
+  className?: string;
 }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-      <p className={`text-xl font-black ${tone}`}>₹{Number(value).toLocaleString("en-IN")}</p>
+    <div className={`min-w-0 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100 ${className}`}>
+      <p className={`break-words text-lg font-black sm:text-xl ${tone}`}>
+        ₹{Number(value).toLocaleString("en-IN")}
+      </p>
       <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );

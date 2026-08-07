@@ -4,12 +4,15 @@ import com.jadhavr.erp.admission.dto.AdmissionStatusHistoryResponse;
 import com.jadhavr.erp.admission.dto.StudentSectionAdmissionResponse;
 import com.jadhavr.erp.admission.service.PrincipalAdmissionService;
 import com.jadhavr.erp.admission.service.AdmissionPhotoService;
+import com.jadhavr.erp.admission.service.AdmissionDocumentService;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.fee.dto.AdmissionFeeSummaryResponse;
 import com.jadhavr.erp.fee.service.FeeService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,14 +26,17 @@ import java.util.List;
 public class PrincipalAdmissionController {
     private final PrincipalAdmissionService principalAdmissionService;
     private final AdmissionPhotoService photoService;
+    private final AdmissionDocumentService documentService;
     private final FeeService feeService;
 
     public PrincipalAdmissionController(
             PrincipalAdmissionService principalAdmissionService,
             AdmissionPhotoService photoService,
+            AdmissionDocumentService documentService,
             FeeService feeService) {
         this.principalAdmissionService = principalAdmissionService;
         this.photoService = photoService;
+        this.documentService = documentService;
         this.feeService = feeService;
     }
 
@@ -77,6 +83,19 @@ public class PrincipalAdmissionController {
         return ResponseEntity.ok().contentType(photo.mediaType())
                 .header("Content-Disposition", "inline; filename=\"student-photo\"")
                 .body(photo.resource());
+    }
+
+    @GetMapping("/{admissionId}/documents/{type}")
+    public ResponseEntity<Resource> getDocument(
+            @PathVariable Long admissionId,
+            @PathVariable String type) {
+        var document = documentService.load(admissionId, type);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(document.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                        .build().toString())
+                .contentType(document.mediaType())
+                .body(document.resource());
     }
 
 }

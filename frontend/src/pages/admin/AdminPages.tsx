@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -767,25 +767,27 @@ export function AdminFeeSetupPage() {
     minimumAmountForAdmission: "",
   });
 
-  const load = (requestedPage = page) =>
-    api
-      .searchAdminFeeStructures({
-        collegeId: filter.collegeId || undefined,
-        departmentId: filter.departmentId || undefined,
-        studentCategory: filter.studentCategory || undefined,
-        page: requestedPage,
-        size: 10,
-      })
-      .then((r) => {
-        setRows(r.content);
-        setPage(r.page);
-        setTotalPages(r.totalPages);
-        setTotalElements(r.totalElements);
-      })
-      .catch((e) => toast.error(handleApiError(e).message));
+  const load = useCallback(
+    (requestedPage: number) =>
+      api
+        .searchAdminFeeStructures({
+          collegeId: filter.collegeId || undefined,
+          departmentId: filter.departmentId || undefined,
+          studentCategory: filter.studentCategory || undefined,
+          page: requestedPage,
+          size: 10,
+        })
+        .then((r) => {
+          setRows(r.content);
+          setPage(r.page);
+          setTotalPages(r.totalPages);
+          setTotalElements(r.totalElements);
+        })
+        .catch((e) => toast.error(handleApiError(e).message)),
+    [filter],
+  );
 
   useEffect(() => {
-    void load();
     getActiveColleges()
       .then(setColleges)
       .catch((error) => toast.error(handleApiError(error).message))
@@ -794,7 +796,7 @@ export function AdminFeeSetupPage() {
 
   useEffect(() => {
     void load(0);
-  }, [filter]);
+  }, [load]);
 
   useEffect(() => {
     if (!v.collegeId || !v.departmentId) {
@@ -902,7 +904,7 @@ export function AdminFeeSetupPage() {
       } else await api.createAdminFeeStructure(payload);
       toast.success(editingId ? "Fee structure updated" : "Fee structure created");
       setEditingId(null);
-      void load();
+      void load(page);
     } catch (error) {
       toast.error(handleApiError(error).message);
     } finally {
@@ -1057,7 +1059,7 @@ export function AdminFeeSetupPage() {
                     try {
                       await api.deleteAdminFeeStructure(r.id);
                       toast.success("Fee structure deleted");
-                      void load();
+                      void load(page);
                     } catch (error) {
                       toast.error(handleApiError(error).message);
                     }

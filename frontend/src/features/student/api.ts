@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse, PageResponse } from "@/types/api";
 import type {
   AdminStudentDetails,
+  FeeCategoryAssessmentOption,
   ScholarshipResponse,
   StudentProfileResponse,
   StudentStatus,
@@ -45,10 +46,33 @@ export async function approveScholarship(
   return data.data;
 }
 
-export async function changeOtherCategory(studentId: number, customCategoryName: string) {
+export async function getFeeCategoryOptions(studentId: number) {
+  const { data } = await apiClient.get<ApiResponse<FeeCategoryAssessmentOption[]>>(
+    `/api/principal/students/${studentId}/fee-adjustments/category-options`,
+  );
+  return data.data;
+}
+
+export async function removeScholarship(studentId: number, reason: string) {
+  const { data } = await apiClient.post<ApiResponse<ScholarshipResponse>>(
+    `/api/principal/students/${studentId}/fee-adjustments/scholarship/remove`,
+    { reason },
+  );
+  return data.data;
+}
+
+export async function changeStudentCategory(
+  studentId: number,
+  values: {
+    studentCategory: import("@/features/admissions/types").StudentCategory;
+    customCategoryName?: string;
+    caste: string;
+    reason: string;
+  },
+) {
   const { data } = await apiClient.patch<ApiResponse<unknown>>(
-    `/api/principal/fee-structures/students/${studentId}/other-category`,
-    { customCategoryName },
+    `/api/principal/students/${studentId}/fee-adjustments/category`,
+    values,
   );
   return data.data;
 }

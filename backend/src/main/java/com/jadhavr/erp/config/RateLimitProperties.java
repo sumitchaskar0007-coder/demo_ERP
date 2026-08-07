@@ -17,7 +17,7 @@ public class RateLimitProperties {
     @NotNull private Duration window = Duration.ofMinutes(1);
     @Min(1024) private int maxAuthBodyBytes = 65_536;
     @Valid private Policy login = new Policy(20, 5);
-    @Valid private Policy signup = new Policy(10, 3);
+    @Valid private Policy signup = new Policy(10, 10);
     @Valid private Policy password = new Policy(10, 5);
     @Valid private Policy refresh = new Policy(60, 30);
     @Valid private Policy otherAuth = new Policy(20, 10);

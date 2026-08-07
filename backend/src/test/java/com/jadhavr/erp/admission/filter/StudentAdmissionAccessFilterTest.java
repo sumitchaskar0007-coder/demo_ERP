@@ -102,10 +102,35 @@ class StudentAdmissionAccessFilterTest {
     }
 
     @Test
+    void allowsPendingStudentToLoadPublicAdmissionCategories() throws Exception {
+        authenticateStudent(21L);
+        MockHttpServletRequest request = request(
+                "/api/public/admissions/college/JCE/departments/5/categories");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter().doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        verify(admissions, never()).findTopByStudentUserIdOrderByCreatedAtDesc(21L);
+    }
+
+    @Test
     void allowsPendingStudentToLoadAdmissionDocumentRequirements() throws Exception {
         authenticateStudent(21L);
         MockHttpServletRequest request =
                 request("/api/admission-document-requirements/me");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter().doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        verify(admissions, never()).findTopByStudentUserIdOrderByCreatedAtDesc(21L);
+    }
+
+    @Test
+    void allowsPendingStudentToUseAuthenticatedNoticeStream() throws Exception {
+        authenticateStudent(21L);
+        MockHttpServletRequest request = request("/api/notices/stream");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter().doFilter(request, response, chain);

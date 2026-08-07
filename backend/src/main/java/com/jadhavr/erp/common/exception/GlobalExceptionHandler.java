@@ -75,6 +75,16 @@ public class GlobalExceptionHandler {
                 exception.getMessage(), "The request is invalid")));
     }
 
+    @ExceptionHandler(com.jadhavr.erp.admission.exception.AdmissionInformationValidationException.class)
+    public ResponseEntity<ErrorResponse> handleAdmissionInformationValidation(
+            com.jadhavr.erp.admission.exception.AdmissionInformationValidationException exception) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(
+                false,
+                exception.getMessage(),
+                LocalDateTime.now(),
+                exception.getFieldErrors()));
+    }
+
     @ExceptionHandler(TooManyRequestsException.class)
     public ResponseEntity<ErrorResponse> handleTooManyRequests(
             TooManyRequestsException exception, HttpServletRequest request) {
@@ -129,9 +139,32 @@ public class GlobalExceptionHandler {
             DataIntegrityViolationException exception, HttpServletRequest request) {
         return hiddenFailure(
                 HttpStatus.CONFLICT,
-                "The request conflicts with existing or related data",
+                dataIntegrityMessage(exception, request),
                 exception,
                 request);
+    }
+
+    private String dataIntegrityMessage(
+            DataIntegrityViolationException exception, HttpServletRequest request) {
+        if (!"/api/student/admissions/me/details".equals(request.getRequestURI())) {
+            return "The request conflicts with existing or related data";
+        }
+
+        StringBuilder diagnostic = new StringBuilder();
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause.getMessage() != null) {
+                diagnostic.append(' ').append(cause.getMessage().toLowerCase(java.util.Locale.ROOT));
+            }
+            cause = cause.getCause();
+        }
+        String detail = diagnostic.toString();
+        if (detail.contains("student_fee_accounts") && detail.contains("fee_structure_id")) {
+            return "Admission fee account could not be created because the college fee setup "
+                    + "is incomplete. Please contact the college office.";
+        }
+        return "The admission form conflicts with an existing student record. "
+                + "Check the entered details and try again.";
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

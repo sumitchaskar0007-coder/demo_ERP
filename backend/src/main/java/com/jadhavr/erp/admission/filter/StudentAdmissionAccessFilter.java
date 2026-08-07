@@ -41,8 +41,10 @@ public class StudentAdmissionAccessFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         return HttpMethod.OPTIONS.matches(request.getMethod())
                 || !path.startsWith("/api/")
+                || path.startsWith("/api/public/")
                 || path.startsWith("/api/student/admissions/")
                 || path.startsWith("/api/student/fees/")
+                || path.startsWith("/api/notices/")
                 || path.equals("/api/admission-document-requirements/me")
                 || path.startsWith("/api/v1/auth/")
                 || path.equals("/api/auth/change-password")

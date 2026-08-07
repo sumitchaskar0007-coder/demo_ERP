@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Circle } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
@@ -7,6 +8,8 @@ import { Input } from "@/components/common/Input";
 import { handleApiError } from "@/lib/handleApiError";
 import { ROUTES } from "@/lib/constants";
 import * as api from "@/features/auth/api";
+import { isValidAccountPassword, passwordRequirements } from "@/features/auth/passwordRules";
+
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
@@ -58,10 +61,13 @@ export function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const requirements = passwordRequirements(password);
   const submit = async () => {
     if (!token) return toast.error("Reset token is missing");
     if (password !== confirm) return toast.error("Passwords do not match");
-    if (password.length < 8) return toast.error("Password must contain at least 8 characters");
+    if (!isValidAccountPassword(password)) {
+      return toast.error("Password does not meet all the requirements shown below");
+    }
     setLoading(true);
     try {
       await api.resetPassword(token, password);
@@ -80,13 +86,33 @@ export function ResetPasswordPage() {
         label="New password"
         type="password"
         autoComplete="new-password"
+        value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
+      <div
+        aria-label="Password requirements"
+        className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3"
+      >
+        <p className="text-xs font-bold text-slate-700">Your password must contain:</p>
+        {requirements.map(({ label, met }) => {
+          const Icon = met ? CheckCircle2 : Circle;
+          return (
+            <div
+              key={label}
+              className={`flex items-start gap-2 text-xs font-medium ${met ? "text-emerald-700" : "text-slate-500"}`}
+            >
+              <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{label}</span>
+            </div>
+          );
+        })}
+      </div>
       <Input
         className="mt-4"
         label="Confirm password"
         type="password"
         autoComplete="new-password"
+        value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
       />
       <Button className="mt-5 w-full" loading={loading} onClick={submit}>

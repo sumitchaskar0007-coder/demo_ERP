@@ -33,6 +33,27 @@ class GlobalExceptionHandlerSecurityTest {
     }
 
     @Test
+    void admissionFeeSchemaConflictReturnsSafeActionableMessage() {
+        var request = new MockHttpServletRequest(
+                "PUT", "/api/student/admissions/me/details");
+        var exception = new DataIntegrityViolationException(
+                "student_fee_accounts fee_structure_id rejected",
+                new SQLException("private database diagnostics", "23502"));
+
+        var response = handler.handleDataIntegrity(exception, request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(
+                "Admission fee account could not be created because the college fee setup "
+                        + "is incomplete. Please contact the college office.",
+                response.getBody().message());
+        assertFalse(response.getBody().toString().contains("student_fee_accounts"));
+        assertFalse(response.getBody().toString().contains("fee_structure_id"));
+        assertFalse(response.getBody().toString().contains("private database diagnostics"));
+    }
+
+    @Test
     void arbitraryIllegalArgumentMessageIsNeverReturned() {
         var response = handler.handleIllegalArgument(
                 new IllegalArgumentException("C:\\app\\private\\config.yml: JDBC failure"),

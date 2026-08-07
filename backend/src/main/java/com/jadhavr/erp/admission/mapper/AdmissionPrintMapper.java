@@ -84,7 +84,10 @@ public class AdmissionPrintMapper {
                                         record.getQualification(), record.getInstituteName(),
                                         record.getBoardUniversity(), record.getYearOfPassing(),
                                         record.getTotalMarks(), record.getObtainedMarks(),
-                                        record.getMarksPercentage()))
+                                        record.getGradingType() == null
+                                                ? com.jadhavr.erp.admission.enums.AcademicGradingType.PERCENTAGE
+                                                : record.getGradingType(),
+                                        record.getMarksPercentage(), record.getCgpa()))
                                 .toList(),
                         admission.getEntranceExams().stream()
                                 .filter(Objects::nonNull)

@@ -74,6 +74,14 @@ public class StudentAdmissionController {
                 admissionService.submitMyAdmissionDetails(request));
     }
 
+    @PostMapping("/me/details/validate")
+    public ApiResponse<com.jadhavr.erp.admission.dto.AdmissionInformationValidationResponse>
+            validateDetails(@Valid @RequestBody DetailedAdmissionRequest request) {
+        return ApiResponse.success(
+                "Admission information is valid",
+                admissionService.validateMyAdmissionDetails(request));
+    }
+
     @GetMapping("/me/details/draft")
     public ApiResponse<com.jadhavr.erp.admission.dto.AdmissionDetailDraftResponse> getDraft() {
         return ApiResponse.success("Admission draft retrieved", admissionService.getMyAdmissionDetailDraft());

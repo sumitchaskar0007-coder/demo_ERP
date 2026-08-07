@@ -21,10 +21,13 @@ import java.util.List;
 public class FeeSectionController {
     private final FeeService service;
     private final PaymentProofStorageService proofStorage;
+    private final com.jadhavr.erp.fee.service.FeeReceiptService receipts;
 
-    public FeeSectionController(FeeService service, PaymentProofStorageService proofStorage) {
+    public FeeSectionController(FeeService service, PaymentProofStorageService proofStorage,
+            com.jadhavr.erp.fee.service.FeeReceiptService receipts) {
         this.service = service;
         this.proofStorage = proofStorage;
+        this.receipts = receipts;
     }
 
     @GetMapping("/dashboard")
@@ -83,6 +86,11 @@ public class FeeSectionController {
     @GetMapping("/payments/{id}")
     public ApiResponse<PaymentResponse> payment(@PathVariable Long id) {
         return ApiResponse.success("Payment retrieved", service.getPayment(id));
+    }
+
+    @GetMapping("/payments/{id}/receipt")
+    public ApiResponse<FeeReceiptResponse> receipt(@PathVariable Long id) {
+        return ApiResponse.success("Payment receipt retrieved", receipts.collegeStaffReceipt(id));
     }
 
     @GetMapping("/payments/{id}/proof")

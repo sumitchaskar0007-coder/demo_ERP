@@ -46,9 +46,10 @@ public class ScholarshipService {
         if (!SecurityUtils.isPrincipal()) {
             throw new AccessDeniedException("Only Principal can approve scholarships");
         }
-        StudentFeeAccount found = accounts.findTopByStudentIdOrderByCreatedAtDesc(studentId)
+        StudentFeeAccount found = accounts
+                .findFirstByStudentIdAndFeeStructureIsNotNullOrderByCreatedAtDesc(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Fee account is not generated for this student"));
+                        "Regular fee account is not generated for this student"));
         StudentFeeAccount account = accounts.findByIdForUpdate(found.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Fee account not found"));
         Long ownCollege = SecurityUtils.requireCurrentUser().getCollegeId();
@@ -69,6 +70,10 @@ public class ScholarshipService {
         BigDecimal previousRemaining = account.getRemainingAmount();
         BigDecimal newRemaining = previousRemaining.subtract(amount);
         account.setDiscountAmount(account.getDiscountAmount().add(amount));
+        account.setScholarshipRemoved(false);
+        account.setScholarshipRemovedAt(null);
+        account.setScholarshipRemovalReason(null);
+        account.setCreditAmount(BigDecimal.ZERO.setScale(2));
         account.setRemainingAmount(newRemaining);
         account.setStatus(newRemaining.signum() == 0
                 ? FeeAccountStatus.PAID
@@ -105,9 +110,10 @@ public class ScholarshipService {
 
     @Transactional(readOnly = true)
     public ScholarshipResponse details(Long studentId) {
-        StudentFeeAccount account = accounts.findTopByStudentIdOrderByCreatedAtDesc(studentId)
+        StudentFeeAccount account = accounts
+                .findFirstByStudentIdAndFeeStructureIsNotNullOrderByCreatedAtDesc(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Fee account is not generated for this student"));
+                        "Regular fee account is not generated for this student"));
         Long ownCollege = SecurityUtils.requireCurrentUser().getCollegeId();
         if (!SecurityUtils.isSuperAdmin()
                 && (ownCollege == null || !ownCollege.equals(account.getCollege().getId()))) {
@@ -122,6 +128,8 @@ public class ScholarshipService {
                 account.getId(), account.getStudent().getId(), account.getStudent().getFullName(),
                 account.getStudent().getAdmissionNumber(), account.getTotalFee(),
                 account.getPaidAmount(), account.getDiscountAmount(), account.getRemainingAmount(),
+                account.getCreditAmount(), account.isScholarshipRemoved(),
+                account.getScholarshipRemovedAt(), account.getScholarshipRemovalReason(),
                 account.getStatus(), approvedBy == null ? null : approvedBy.getFullName(), approvedAt);
     }
 

@@ -30,7 +30,9 @@ import com.jadhavr.erp.student.enums.StudentStatus;
 import com.jadhavr.erp.user.entity.User;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.fee.service.FeeService;
-import com.jadhavr.erp.fee.entity.StudentFeeAccount;
+import com.jadhavr.erp.fee.service.FeeCategoryRules;
+import com.jadhavr.erp.fee.repository.FeeStructureRepository;
+import com.jadhavr.erp.fee.enums.FeeStructureStatus;
 import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.academic.entity.AcademicClass;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
@@ -46,7 +48,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -72,10 +73,16 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     private final AdmissionDocumentRepository documents;
     private AdmissionDocumentRequirementRepository documentRequirements;
     private EmailNotificationService emailNotifications;
+    private FeeStructureRepository feeStructures;
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) {
         this.emailNotifications = service;
+    }
+
+    @Autowired(required = false)
+    public void setFeeStructures(FeeStructureRepository repository) {
+        this.feeStructures = repository;
     }
 
     @Autowired(required = false)
@@ -117,17 +124,6 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
             int page, int size, String sortBy, String sortDir) {
         validatePage(page, size);
         Specification<AdmissionForm> spec = buildSpec(keyword, scopedCollegeId(), departmentId, status);
-        spec = spec.and((root, query, cb) -> {
-            var paidAccounts = query.subquery(Long.class);
-            var account = paidAccounts.from(StudentFeeAccount.class);
-            paidAccounts.select(account.get("admissionForm").get("id"))
-                    .where(
-                            cb.equal(account.get("admissionForm").get("id"), root.get("id")),
-                            cb.greaterThanOrEqualTo(
-                                    account.get("paidAmount"),
-                                    account.get("minimumAmountForAdmission")));
-            return cb.exists(paidAccounts);
-        });
         return PageResponse.from(admissions.findAll(
                 spec,
                 PageRequest.of(page, size, Sort.by(directionOrDefault(sortDir), safeSort(sortBy)))
@@ -200,6 +196,9 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         admission.setReligion(request.religion().trim());
         admission.setCaste(request.caste().trim());
         admission.setStudentCategory(request.studentCategory());
+        String customCategory = validateConfiguredCategory(
+                admission, request.studentCategory(), request.customCategoryName(), request.gender());
+        admission.setCustomCategoryName(customCategory);
         admission.setParentName(request.parentName().trim());
         admission.setParentPhone(request.parentPhone().trim());
         admission.setParentEmail(trimToNull(request.parentEmail()));
@@ -243,6 +242,7 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         student.setParentPhone(admission.getParentPhone());
         student.setParentEmail(admission.getParentEmail());
         student.setStudentCategory(admission.getStudentCategory());
+        student.setCustomCategoryName(customCategory);
 
         var studentUser = admission.getStudentUser();
         studentUser.setFullName(admission.getFullName());
@@ -286,18 +286,34 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     }
 
     private AdmissionAcademicRecord academicRecord(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
-        BigDecimal total = record.totalMarks();
-        BigDecimal obtained = record.obtainedMarks();
-        if ((total == null) != (obtained == null)) {
-            throw new BadRequestException("Enter both total and obtained marks for " + record.qualification());
-        }
-        if (total != null && (total.signum() <= 0 || obtained.signum() < 0 || obtained.compareTo(total) > 0)) {
-            throw new BadRequestException("Obtained marks must be between zero and total marks for " + record.qualification());
-        }
-        BigDecimal percentage = total == null ? null
-                : obtained.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
+        validateAcademicResult(record);
         return new AdmissionAcademicRecord(record.qualification(), trimToNull(record.instituteName()),
-                trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()), total, obtained, percentage);
+                trimToNull(record.boardUniversity()), trimToNull(record.yearOfPassing()),
+                record.gradingType(), record.totalMarks(), record.obtainedMarks(),
+                record.marksPercentage(), record.cgpa());
+    }
+
+    private void validateAcademicResult(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
+        if ((record.gradingType() == com.jadhavr.erp.admission.enums.AcademicGradingType.PERCENTAGE
+                && record.cgpa() != null)
+                || (record.gradingType() == com.jadhavr.erp.admission.enums.AcademicGradingType.CGPA
+                && (record.totalMarks() != null || record.obtainedMarks() != null
+                || record.marksPercentage() != null))) {
+            throw new BadRequestException(
+                    "Enter either Percentage or CGPA for " + record.qualification() + ", not both");
+        }
+        validateMarks(record);
+    }
+
+    private void validateMarks(com.jadhavr.erp.admission.dto.AcademicRecordDto record) {
+        if ((record.totalMarks() == null) != (record.obtainedMarks() == null)) {
+            throw new BadRequestException("Enter both Total Marks and Obtained Marks for "
+                    + record.qualification());
+        }
+        if (record.totalMarks() != null && record.obtainedMarks().compareTo(record.totalMarks()) > 0) {
+            throw new BadRequestException("Obtained Marks cannot exceed Total Marks for "
+                    + record.qualification());
+        }
     }
     @Transactional
     @Override
@@ -325,9 +341,10 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
         if (request.studentCategory() == null) {
             throw new BadRequestException("Student category must be verified before approval");
         }
+        String customCategory = validateConfiguredCategory(
+                admission, request.studentCategory(), request.customCategoryName(), admission.getGender());
         admission.setStudentCategory(request.studentCategory());
         admission.getStudent().setStudentCategory(request.studentCategory());
-        String customCategory = normalizeVerifiedCategory(request.studentCategory(), request.customCategoryName());
         admission.setCustomCategoryName(customCategory);
         admission.getStudent().setCustomCategoryName(customCategory);
         admission.setStatus(AdmissionStatus.STUDENT_SECTION_APPROVED);
@@ -352,13 +369,32 @@ public class StudentSectionAdmissionServiceImpl implements StudentSectionAdmissi
     }
 
     private String normalizeVerifiedCategory(com.jadhavr.erp.fee.enums.StudentCategory category, String value) {
-        String custom = trimToNull(value);
-        if (category == com.jadhavr.erp.fee.enums.StudentCategory.OTHER) {
-            if (custom == null) throw new BadRequestException("Select a configured OTHER category");
-            return custom.toUpperCase(Locale.ROOT);
+        return FeeCategoryRules.normalizeCustomCategory(category, value);
+    }
+
+    private String validateConfiguredCategory(
+            AdmissionForm admission,
+            com.jadhavr.erp.fee.enums.StudentCategory category,
+            String customCategoryName,
+            String gender) {
+        String custom = normalizeVerifiedCategory(category, customCategoryName);
+        if (feeStructures == null) return custom;
+        String courseYear = admission.getCourseYear() == null ? null : admission.getCourseYear().getName();
+        if (courseYear == null) {
+            throw new BadRequestException("Select an active course year before verifying the category");
         }
-        if (custom != null) throw new BadRequestException("Custom category is allowed only for OTHER");
-        return null;
+        boolean configured = !feeStructures.findConfiguredAssessments(
+                admission.getCollege().getId(), admission.getDepartment().getId(),
+                FeeCategoryRules.academicYearVariants(admission.getAcademicYear()),
+                category, custom, FeeCategoryRules.normalizeGender(gender), courseYear,
+                FeeStructureStatus.ACTIVE).isEmpty();
+        if (!configured) {
+            String label = custom == null ? category.name() : custom;
+            throw new BadRequestException(
+                    "No active " + label
+                            + " fee structure is configured for this course year, gender and academic year");
+        }
+        return custom;
     }
 
     @Override

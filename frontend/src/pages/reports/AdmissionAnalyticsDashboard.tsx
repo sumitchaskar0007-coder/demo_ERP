@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -98,7 +98,7 @@ export function AdmissionAnalyticsDashboard() {
   const [selected, setSelected] = useState<AdmissionAnalyticsRow>();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [trendMode, setTrendMode] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
-  const load = (f = applied, p = page, s = size) => {
+  const load = useCallback((f: Filters, p: number, s: number) => {
     setLoading(true);
     setError("");
     getAdmissionAnalytics({
@@ -122,8 +122,8 @@ export function AdmissionAnalyticsDashboard() {
         toast.error(m);
       })
       .finally(() => setLoading(false));
-  };
-  useEffect(() => load(applied, page, size), [page, size]);
+  }, []);
+  useEffect(() => load(applied, page, size), [applied, load, page, size]);
   const colleges = useMemo(
     () =>
       uniqueBy(data?.rows ?? [], (r) => r.collegeId).map((r) => ({
@@ -147,7 +147,6 @@ export function AdmissionAnalyticsDashboard() {
     setApplied(draft);
     setPage(0);
     setDrill({});
-    load(draft, 0, size);
   };
   const reset = () => {
     const f = initial(user?.collegeId);
@@ -155,7 +154,6 @@ export function AdmissionAnalyticsDashboard() {
     setApplied(f);
     setPage(0);
     setDrill({});
-    load(f, 0, size);
   };
   const quick = (kind: string) => {
     const f = { ...draft, status: "", from: draft.from, to: draft.to };
@@ -181,7 +179,6 @@ export function AdmissionAnalyticsDashboard() {
     setDraft(f);
     setApplied(f);
     setPage(0);
-    load(f, 0, size);
   };
   const fetchExportRows = async (selectedOnly = false) => {
     if (selectedOnly) return visibleRows.filter((r) => selectedIds.has(r.id));
@@ -425,7 +422,7 @@ export function AdmissionAnalyticsDashboard() {
             const f = { ...draft, status: "SUBMITTED" };
             setDraft(f);
             setApplied(f);
-            load(f, 0, size);
+            setPage(0);
           }}
           className="rounded-full border bg-white px-4 py-2 text-xs font-bold"
         >

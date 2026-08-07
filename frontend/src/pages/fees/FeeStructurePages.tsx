@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
@@ -17,7 +17,13 @@ import { handleApiError } from "@/lib/handleApiError";
 import * as api from "@/features/fees/api";
 import type { CreateFeeStructureRequest, FeeStructureResponse } from "@/features/fees/types";
 
-const ACADEMIC_YEAR = "2026-2027";
+const currentAcademicYear = () => {
+  const today = new Date();
+  const startYear = today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1;
+  return `${startYear}-${startYear + 1}`;
+};
+const ACADEMIC_YEAR = currentAcademicYear();
+const RESERVED_CATEGORY_NAMES = new Set(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]);
 const categoryOptions = ["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"].map((value) => ({
   label: value,
   value,
@@ -53,26 +59,29 @@ export function FeeStructureListPage() {
     minimumAmountForAdmission: "",
   });
 
-  const load = (requestedPage = page) => {
-    if (!collegeId) return Promise.resolve();
-    const request = ++latestRequest.current;
-    return api
-      .searchFeeStructures({
-        collegeId,
-        departmentId: filter.departmentId || undefined,
-        studentCategory: filter.studentCategory || undefined,
-        page: requestedPage,
-        size: 10,
-      })
-      .then((response) => {
-        if (request !== latestRequest.current) return;
-        setRows(response.content);
-        setPage(response.page);
-        setTotalPages(response.totalPages);
-        setTotalElements(response.totalElements);
-      })
-      .catch((error) => toast.error(handleApiError(error).message));
-  };
+  const load = useCallback(
+    (requestedPage: number) => {
+      if (!collegeId) return Promise.resolve();
+      const request = ++latestRequest.current;
+      return api
+        .searchFeeStructures({
+          collegeId,
+          departmentId: filter.departmentId || undefined,
+          studentCategory: filter.studentCategory || undefined,
+          page: requestedPage,
+          size: 10,
+        })
+        .then((response) => {
+          if (request !== latestRequest.current) return;
+          setRows(response.content);
+          setPage(response.page);
+          setTotalPages(response.totalPages);
+          setTotalElements(response.totalElements);
+        })
+        .catch((error) => toast.error(handleApiError(error).message));
+    },
+    [collegeId, filter],
+  );
 
   useEffect(() => {
     if (!collegeId) return;
@@ -82,7 +91,7 @@ export function FeeStructureListPage() {
   }, [collegeId]);
   useEffect(() => {
     void load(0);
-  }, [collegeId, filter]);
+  }, [load]);
 
   useEffect(() => {
     if (!values.departmentId) {
@@ -147,6 +156,11 @@ export function FeeStructureListPage() {
       return toast.error("Check total and minimum fee amounts");
     if (values.studentCategory === "OTHER" && values.customCategoryName.trim().length < 2)
       return toast.error("Enter the custom category name");
+    if (
+      values.studentCategory === "OTHER" &&
+      RESERVED_CATEGORY_NAMES.has(values.customCategoryName.trim().toUpperCase())
+    )
+      return toast.error("Use the standard category option instead of creating it under Other");
     setSaving(true);
     try {
       const payload = {
@@ -259,6 +273,7 @@ export function FeeStructureListPage() {
               label="Custom Category Name"
               maxLength={80}
               value={values.customCategoryName}
+              disabled={Boolean(editingId)}
               onChange={(event) => setValues({ ...values, customCategoryName: event.target.value })}
             />
           )}
@@ -269,6 +284,7 @@ export function FeeStructureListPage() {
               { label: "Male", value: "MALE" },
             ]}
             value={values.gender}
+            disabled={Boolean(editingId)}
             onChange={(event) => setValues({ ...values, gender: event.target.value })}
           />
           <Input
@@ -360,7 +376,7 @@ export function FeeStructureListPage() {
                     try {
                       await api.deleteFeeStructure(row.id);
                       toast.success("Fee structure deleted");
-                      await load();
+                      await load(page);
                     } catch (error) {
                       toast.error(handleApiError(error).message);
                     }

@@ -16,6 +16,9 @@ import {
   resolveAdmissionDocumentDownload,
   uploadAdmissionDocumentWithFallback,
 } from "./documentTransfer";
+import { normalizeAdmissionPhotoUpload } from "./fileValidation";
+
+const ADMISSION_UPLOAD_TIMEOUT_MS = 120_000;
 
 export async function getPublicAdmissionInfo(collegeCode: string) {
   const { data } = await apiClient.get<ApiResponse<PublicAdmissionInfoResponse>>(
@@ -23,7 +26,11 @@ export async function getPublicAdmissionInfo(collegeCode: string) {
   );
   return data.data;
 }
-export async function getPublicAdmissionCategories(collegeCode: string, departmentId: number) {
+export async function getPublicAdmissionCategories(
+  collegeCode: string,
+  departmentId: number,
+  filters?: { gender?: string; academicYear?: string; courseYear?: string },
+) {
   const { data } = await apiClient.get<
     ApiResponse<
       Array<{
@@ -32,7 +39,9 @@ export async function getPublicAdmissionCategories(collegeCode: string, departme
         label: string;
       }>
     >
-  >(`/api/public/admissions/college/${collegeCode}/departments/${departmentId}/categories`);
+  >(`/api/public/admissions/college/${collegeCode}/departments/${departmentId}/categories`, {
+    params: filters,
+  });
   return data.data;
 }
 export async function submitAdmission(collegeCode: string, values: SubmitAdmissionRequest) {
@@ -135,6 +144,15 @@ export async function submitMyAdmissionDetails(values: import("./types").Detaile
   );
   return data.data;
 }
+export async function validateMyAdmissionDetails(
+  values: import("./types").DetailedAdmissionRequest,
+) {
+  const { data } = await apiClient.post<ApiResponse<{ valid: boolean }>>(
+    "/api/student/admissions/me/details/validate",
+    values,
+  );
+  return data.data;
+}
 export async function getMyAdmissionDetailDraft() {
   const { data } = await apiClient.get<
     ApiResponse<{
@@ -158,13 +176,17 @@ export async function saveMyAdmissionDetailDraft(
   >("/api/student/admissions/me/details/draft", { values, version });
   return data.data;
 }
-export async function uploadMyAdmissionPhoto(file: File) {
+export async function uploadMyAdmissionPhoto(file: File, signal?: AbortSignal) {
   const body = new FormData();
-  body.append("file", file);
+  body.append("file", normalizeAdmissionPhotoUpload(file));
   const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
     "/api/student/admissions/me/photo",
     body,
-    { headers: { "Content-Type": "multipart/form-data" } },
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: ADMISSION_UPLOAD_TIMEOUT_MS,
+      signal,
+    },
   );
   return data.data;
 }
@@ -333,11 +355,11 @@ export async function updateAdmissionDetails(
 
 export async function uploadAdmissionPhoto(id: number, file: File) {
   const body = new FormData();
-  body.append("file", file);
+  body.append("file", normalizeAdmissionPhotoUpload(file));
   const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
     `/api/student-section/admissions/${id}/photo`,
     body,
-    { headers: { "Content-Type": "multipart/form-data" } },
+    { headers: { "Content-Type": "multipart/form-data" }, timeout: ADMISSION_UPLOAD_TIMEOUT_MS },
   );
   return data.data;
 }
@@ -397,9 +419,14 @@ export async function uploadAdmissionDocument(
 export async function getAdmissionDocument(
   id: number,
   type: import("./types").AdmissionDocumentType,
-  options: Pick<AdmissionDocumentTransferOptions, "signal" | "directTransferEnabled"> = {},
+  options: Pick<AdmissionDocumentTransferOptions, "signal" | "directTransferEnabled"> & {
+    principal?: boolean;
+  } = {},
 ) {
-  const endpoint = `/api/student-section/admissions/${id}/documents/${type}`;
+  const prefix = options.principal
+    ? "/api/principal/admissions"
+    : "/api/student-section/admissions";
+  const endpoint = `${prefix}/${id}/documents/${type}`;
   const result = await resolveAdmissionDocumentDownload(
     endpoint,
     {
@@ -416,9 +443,14 @@ export async function getAdmissionDocument(
 export async function downloadAdmissionDocument(
   id: number,
   type: import("./types").AdmissionDocumentType,
-  options: Pick<AdmissionDocumentTransferOptions, "signal" | "directTransferEnabled"> = {},
+  options: Pick<AdmissionDocumentTransferOptions, "signal" | "directTransferEnabled"> & {
+    principal?: boolean;
+  } = {},
 ) {
-  const endpoint = `/api/student-section/admissions/${id}/documents/${type}`;
+  const prefix = options.principal
+    ? "/api/principal/admissions"
+    : "/api/student-section/admissions";
+  const endpoint = `${prefix}/${id}/documents/${type}`;
   const result = await resolveAdmissionDocumentDownload(
     endpoint,
     {
@@ -478,7 +510,11 @@ async function uploadAdmissionDocumentMultipart(
   const { data } = await apiClient.post<ApiResponse<StudentSectionAdmissionResponse>>(
     endpoint,
     body,
-    { headers: { "Content-Type": "multipart/form-data" }, signal },
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      signal,
+      timeout: ADMISSION_UPLOAD_TIMEOUT_MS,
+    },
   );
   return data.data;
 }

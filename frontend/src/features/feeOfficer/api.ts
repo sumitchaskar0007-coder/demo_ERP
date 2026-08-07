@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 import type { ApiResponse } from "@/types/api";
+import type { FeeReceiptResponse } from "@/features/fees/types";
 export type MoneyPoint = { label: string; value: number };
 export type Summary = {
   totalFeeAccounts: number;
@@ -135,6 +136,8 @@ export const paymentProof = async (id: number) => {
   });
   return response.data;
 };
+export const paymentReceipt = (id: number) =>
+  unwrap<FeeReceiptResponse>(apiClient.get(`/api/fee-section/payments/${id}/receipt`));
 export const verify = (id: number, remarks = "") =>
   unwrap(apiClient.patch(`/api/fee-section/payments/${id}/verify`, { remarks }));
 export const reject = (id: number, rejectionReason: string) =>

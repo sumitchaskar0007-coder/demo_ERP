@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  Download,
   FileImage,
   QrCode,
   ShieldCheck,
@@ -19,6 +20,7 @@ import { StatusBadge } from "@/components/common/Badge";
 import { handleApiError } from "@/lib/handleApiError";
 import { localDateString } from "@/lib/date";
 import * as api from "@/features/fees/api";
+import { downloadFeeReceipt } from "@/features/fees/feeReceiptPdf";
 import type {
   FeeTransactionResponse,
   PaymentMode,
@@ -45,7 +47,9 @@ export function StudentFeesPage() {
     );
   if (!a) return <div className="page-container">Loading fee account…</div>;
   const payableFee = Math.max(0, a.totalFee - a.scholarshipAmount);
-  const pct = payableFee ? Math.round((a.paidAmount / payableFee) * 100) : 100;
+  const pct = payableFee
+    ? Math.min(100, Math.max(0, Math.round((a.paidAmount / payableFee) * 100)))
+    : 100;
   const rejectedPayment = p.find((payment) => payment.status === "REJECTED");
   return (
     <div className="page-container space-y-5">
@@ -60,11 +64,7 @@ export function StudentFeesPage() {
           <Button>Submit Payment Proof</Button>
         </Link>
       </div>
-      <div
-        className={`grid gap-4 sm:grid-cols-2 ${
-          a.admissionFeeAccount ? "xl:grid-cols-5" : "xl:grid-cols-6"
-        }`}
-      >
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Total Fee", a.totalFee],
           ["Minimum Fee", a.minimumAmountForAdmission],
@@ -74,6 +74,9 @@ export function StudentFeesPage() {
           ["Payable Fee", payableFee],
           ["Paid", a.paidAmount],
           ["Remaining", a.remainingAmount],
+          ...(Number(a.creditAmount) > 0
+            ? ([["Credit / Refund Due", a.creditAmount]] as [string, number][])
+            : []),
         ].map(([k, v]) => (
           <Card key={String(k)} className="p-5">
             <p className="text-xs font-bold uppercase text-slate-400">{k}</p>
@@ -81,6 +84,18 @@ export function StudentFeesPage() {
           </Card>
         ))}
       </div>
+      {a.scholarshipRemoved && !a.admissionFeeAccount && (
+        <Card className="border-amber-200 bg-amber-50 p-5 text-amber-900">
+          <h2 className="font-bold">Scholarship removed by Principal</h2>
+          <p className="mt-1 text-sm">
+            Your payable fee has been recalculated. Verified payments remain credited to this
+            account.
+          </p>
+          {a.scholarshipRemovalReason && (
+            <p className="mt-1 text-sm">Reason: {a.scholarshipRemovalReason}</p>
+          )}
+        </Card>
+      )}
       {rejectedPayment && (
         <Card className="border-rose-200 bg-rose-50 p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -412,6 +427,17 @@ export function MyFeeTransactionsPage() {
   );
 }
 function PaymentList({ data }: { data: PaymentResponse[] }) {
+  const [receiptLoading, setReceiptLoading] = useState<number | null>(null);
+  const receipt = async (paymentId: number) => {
+    setReceiptLoading(paymentId);
+    try {
+      await downloadFeeReceipt(await api.getMyPaymentReceipt(paymentId));
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setReceiptLoading(null);
+    }
+  };
   return (
     <div className="mt-4 divide-y">
       {data.length ? (
@@ -423,7 +449,20 @@ function PaymentList({ data }: { data: PaymentResponse[] }) {
                 {x.transactionReference} · {x.paymentMode}
               </p>
             </div>
-            <StatusBadge status={x.status} />
+            <div className="flex items-center gap-2">
+              <StatusBadge status={x.status} />
+              {x.status === "VERIFIED" && (
+                <Button
+                  variant="secondary"
+                  className="h-9 px-3 sm:h-9"
+                  loading={receiptLoading === x.id}
+                  onClick={() => void receipt(x.id)}
+                >
+                  <Download className="h-4 w-4" />
+                  Receipt
+                </Button>
+              )}
+            </div>
             {x.status === "REJECTED" && x.rejectionReason && (
               <p className="w-full text-sm text-rose-700">Reason: {x.rejectionReason}</p>
             )}

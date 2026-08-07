@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -39,20 +40,43 @@ public class PublicAdmissionController {
 
     @GetMapping("/college/{collegeCode}/departments/{departmentId}/categories")
     public ApiResponse<java.util.List<FeeCategoryOptionResponse>> categories(
-            @PathVariable String collegeCode, @PathVariable Long departmentId) {
+            @PathVariable String collegeCode,
+            @PathVariable Long departmentId,
+            @RequestParam(required = false) String gender,
+            @RequestParam(required = false) String academicYear,
+            @RequestParam(required = false) String courseYear) {
         var college = colleges.findByCode(collegeCode.trim().toUpperCase(java.util.Locale.ROOT))
                 .orElseThrow(() -> new ResourceNotFoundException("College not found"));
-        var configured = feeStructures.findPublicCategoryOptions(college.getId(), departmentId);
+        String normalizedGender = gender == null || gender.isBlank() ? null
+                : com.jadhavr.erp.fee.service.FeeCategoryRules.normalizeGender(gender);
+        java.util.List<String> academicYears = academicYear == null || academicYear.isBlank() ? null
+                : com.jadhavr.erp.fee.service.FeeCategoryRules.academicYearVariants(academicYear);
+        String normalizedCourseYear = courseYear == null || courseYear.isBlank()
+                ? null : courseYear.trim();
+        var configured = feeStructures.findPublicCategoryOptions(college.getId(), departmentId)
+                .stream()
+                .filter(f -> f.getGender() != null)
+                .filter(f -> normalizedGender == null || normalizedGender.equalsIgnoreCase(f.getGender()))
+                .filter(f -> academicYears == null || academicYears.contains(f.getAcademicYear()))
+                .filter(f -> normalizedCourseYear == null
+                        || normalizedCourseYear.equalsIgnoreCase(f.getCourseYear()))
+                .toList();
         var options = new java.util.LinkedHashMap<String, FeeCategoryOptionResponse>();
-        for (StudentCategory category : StudentCategory.values()) {
-            if (category != StudentCategory.OTHER) options.put(category.name(),
-                    new FeeCategoryOptionResponse(category, null, category.name()));
-        }
-        configured.stream().filter(f -> f.getStudentCategory() == StudentCategory.OTHER)
-                .filter(f -> f.getCustomCategoryName() != null)
-                .forEach(f -> options.putIfAbsent("OTHER:" + f.getCustomCategoryName().toUpperCase(java.util.Locale.ROOT),
-                        new FeeCategoryOptionResponse(StudentCategory.OTHER, f.getCustomCategoryName(), f.getCustomCategoryName())));
-        options.put("OTHER", new FeeCategoryOptionResponse(StudentCategory.OTHER, null, "Other (not listed)"));
+        configured.forEach(f -> {
+            StudentCategory category = f.getStudentCategory();
+            if (category != StudentCategory.OTHER) {
+                options.putIfAbsent(category.name(),
+                        new FeeCategoryOptionResponse(category, null, category.name()));
+                return;
+            }
+            String custom = f.getCustomCategoryName();
+            if (custom == null
+                    || com.jadhavr.erp.fee.service.FeeCategoryRules.isReservedCustomCategory(custom)) {
+                return;
+            }
+            options.putIfAbsent("OTHER:" + custom.toUpperCase(java.util.Locale.ROOT),
+                    new FeeCategoryOptionResponse(StudentCategory.OTHER, custom, custom));
+        });
         return ApiResponse.success("Admission categories retrieved", java.util.List.copyOf(options.values()));
     }
 

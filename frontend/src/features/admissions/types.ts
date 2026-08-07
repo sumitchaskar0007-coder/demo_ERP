@@ -33,7 +33,9 @@ export interface AcademicRecord {
   yearOfPassing?: string | null;
   totalMarks?: number | null;
   obtainedMarks?: number | null;
+  gradingType: "PERCENTAGE" | "CGPA";
   marksPercentage?: number | null;
+  cgpa?: number | null;
 }
 
 export interface EntranceExam {

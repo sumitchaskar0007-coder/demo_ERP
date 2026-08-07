@@ -507,14 +507,21 @@ function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
     record.instituteName || "",
     record.boardUniversity || "",
     record.yearOfPassing || "",
-    record.totalMarks ?? "",
-    record.obtainedMarks ?? "",
-    record.marksPercentage ?? "",
+    record.gradingType === "CGPA" ? "" : (record.totalMarks ?? ""),
+    record.gradingType === "CGPA" ? "" : (record.obtainedMarks ?? ""),
+    record.gradingType === "CGPA" ? "CGPA" : "Percentage",
+    record.gradingType === "CGPA"
+      ? record.cgpa == null
+        ? ""
+        : `${record.cgpa} CGPA`
+      : record.marksPercentage == null
+        ? ""
+        : `${record.marksPercentage}%`,
   ]);
   const rows = savedRows?.length
     ? savedRows
     : [
-        ["10th", "", "", "", "", "", ""],
+        ["10th", "", "", "", "", "", "Percentage", ""],
         [
           data.academic.previousClassName || "12th / Graduation",
           data.academic.previousSchoolName || "",
@@ -522,21 +529,23 @@ function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
           "",
           "",
           "",
-          data.academic.previousPercentage ?? "",
+          "Percentage",
+          data.academic.previousPercentage == null ? "" : `${data.academic.previousPercentage}%`,
         ],
       ];
-  while (rows.length < 4) rows.push(["", "", "", "", "", "", ""]);
+  while (rows.length < 4) rows.push(["", "", "", "", "", "", "", ""]);
   return (
     <section className="mt-7 break-inside-avoid">
       <SectionHeading>Academic Record</SectionHeading>
       <table className="admission-pdf-table mt-4 w-full table-fixed text-center text-[10px] leading-[14px]">
         <colgroup>
-          <col className="w-[13%]" />
-          <col className="w-[25%]" />
-          <col className="w-[20%]" />
           <col className="w-[11%]" />
+          <col className="w-[22%]" />
+          <col className="w-[17%]" />
           <col className="w-[10%]" />
-          <col className="w-[11%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
           <col className="w-[10%]" />
         </colgroup>
         <thead className="table-header-group">
@@ -548,7 +557,8 @@ function AcademicRecordTable({ data }: { data: AdmissionPrintResponse }) {
               "Year of Passing",
               "Total Marks",
               "Obtained Marks",
-              "Percentage",
+              "Result Type",
+              "Percentage / CGPA",
             ].map((head) => (
               <th
                 key={head}

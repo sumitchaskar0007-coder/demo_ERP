@@ -27,6 +27,7 @@ public record DetailedAdmissionRequest(
         @NotBlank @Size(max = 80) String religion,
         @NotBlank @Size(max = 100) String caste,
         @NotNull StudentCategory studentCategory,
+        @Size(max = 80) String customCategoryName,
         @NotBlank @Size(max = 150) String parentName,
         @NotBlank @Size(max = 20) String parentPhone,
         @Email @Size(max = 150) String parentEmail,

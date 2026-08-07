@@ -9,6 +9,7 @@ export interface NormalizedApiError {
 
 const GENERIC_MESSAGE = "The request could not be completed. Please try again.";
 const MAX_CLIENT_MESSAGE_LENGTH = 300;
+const NON_FIELD_ERROR_KEYS = new Set(["correlationId", "requestId", "traceId", "path"]);
 const SENSITIVE_DETAIL_PATTERN = new RegExp(
   [
     "(?:[A-Za-z]:\\\\|/(?:home|users|var|tmp|opt|srv|app|etc)/)",
@@ -57,12 +58,27 @@ function safeMessage(value: unknown, fallback: string) {
 export function handleApiError(error: unknown): NormalizedApiError {
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
     const response = error.response;
+    if (!response && ["ECONNABORTED", "ETIMEDOUT"].includes(error.code ?? "")) {
+      return {
+        message: "The request took too long on this connection. Check your network and try again.",
+        fieldErrors: {},
+      };
+    }
+    if (!response) {
+      return {
+        message: "The server could not be reached. Check your network connection and try again.",
+        fieldErrors: {},
+      };
+    }
     const payload = response?.data;
     const fallback = statusFallback(response?.status);
     const fieldErrors: Record<string, string> = {};
     if (payload?.errors && !Array.isArray(payload.errors)) {
       for (const [field, value] of Object.entries(payload.errors)) {
-        if (/^[A-Za-z][A-Za-z0-9_.-]{0,99}$/.test(field)) {
+        if (
+          !NON_FIELD_ERROR_KEYS.has(field) &&
+          /^[A-Za-z](?:[A-Za-z0-9_.-]|\[\d+\]){0,119}$/.test(field)
+        ) {
           const message = safeMessage(value, "This value is invalid.");
           if (message !== "This value is invalid." || typeof value === "string") {
             fieldErrors[field] = message;

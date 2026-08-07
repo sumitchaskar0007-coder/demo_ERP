@@ -112,8 +112,8 @@ public class StudentSectionAdmissionMapper {
                         .map(record -> new com.jadhavr.erp.admission.dto.AcademicRecordDto(
                                 record.getQualification(), record.getInstituteName(),
                                 record.getBoardUniversity(), record.getYearOfPassing(),
-                                record.getTotalMarks(), record.getObtainedMarks(),
-                                record.getMarksPercentage()))
+                                record.getTotalMarks(), record.getObtainedMarks(), gradingType(record),
+                                record.getMarksPercentage(), record.getCgpa()))
                         .toList(),
                 admission.getEntranceExams().stream()
                         .filter(Objects::nonNull)
@@ -147,5 +147,12 @@ public class StudentSectionAdmissionMapper {
     private boolean available(Set<String> uploadedDocuments,
             String type, String legacyStorageName) {
         return legacyStorageName != null || uploadedDocuments.contains(type);
+    }
+
+    private com.jadhavr.erp.admission.enums.AcademicGradingType gradingType(
+            com.jadhavr.erp.admission.entity.AdmissionAcademicRecord record) {
+        return record.getGradingType() == null
+                ? com.jadhavr.erp.admission.enums.AcademicGradingType.PERCENTAGE
+                : record.getGradingType();
     }
 }

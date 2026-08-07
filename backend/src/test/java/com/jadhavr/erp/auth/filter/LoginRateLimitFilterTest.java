@@ -102,6 +102,23 @@ class LoginRateLimitFilterTest {
     }
 
     @Test
+    void publicAdmissionAllowsTenAttemptsPerIpAndEmail() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "POST", "/api/public/admissions/college/ABC001/submit");
+        request.setContentType("application/json");
+        request.setContent("{\"email\":\" Student@Example.com \"}"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        when(clientIps.resolve(request)).thenReturn("198.51.100.40");
+
+        filter.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
+
+        verify(limiter).check(eq("http:auth:signup:ip"), eq("198.51.100.40"),
+                eq(10L), any(Duration.class));
+        verify(limiter).check(eq("http:auth:signup:account"), eq("student@example.com"),
+                eq(10L), any(Duration.class));
+    }
+
+    @Test
     void failedLoginRecordsBackoffAndNextAttemptReturnsRetryAfter() throws Exception {
         MockHttpServletRequest request = loginRequest("student@example.com");
         when(clientIps.resolve(request)).thenReturn("198.51.100.40");

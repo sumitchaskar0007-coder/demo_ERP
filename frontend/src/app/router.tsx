@@ -525,8 +525,11 @@ export function AppRouter() {
                 />
               </Route>
 
-              <Route element={<RoleRoute roles={[ROLES.STUDENT_SECTION]} />}>
+              <Route element={<RoleRoute roles={[ROLES.PRINCIPAL, ROLES.STUDENT_SECTION]} />}>
                 <Route path={ROUTES.studentSectionDocuments} element={<StudentDocumentsPage />} />
+              </Route>
+
+              <Route element={<RoleRoute roles={[ROLES.STUDENT_SECTION]} />}>
                 <Route
                   path="/student-section/admissions/:admissionId/print"
                   element={<AdmissionPrintPage />}

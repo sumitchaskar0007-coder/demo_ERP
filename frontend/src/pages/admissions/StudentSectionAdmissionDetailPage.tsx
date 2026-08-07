@@ -141,7 +141,12 @@ export function StudentSectionAdmissionDetailPage() {
           ["College", admission.collegeName],
           ["Department", admission.departmentName],
           ["Academic Year", admission.academicYear],
-          ["Requested Category", admission.studentCategory],
+          [
+            "Requested Category",
+            admission.studentCategory === "OTHER" && admission.customCategoryName
+              ? `OTHER - ${admission.customCategoryName}`
+              : admission.studentCategory,
+          ],
           ["Submitted", formatDate(admission.submittedAt)],
         ]}
       />
@@ -197,6 +202,15 @@ export function StudentSectionAdmissionDetailPage() {
                   money(fees.account.totalFee - fees.account.scholarshipAmount),
                 ],
                 ["Remaining Amount", money(fees.account.remainingAmount)],
+                ["Credit / Refund Due", money(fees.account.creditAmount)],
+                [
+                  "Scholarship Status",
+                  fees.account.scholarshipRemoved
+                    ? "Removed by Principal"
+                    : Number(fees.account.scholarshipAmount) > 0
+                      ? "Applied"
+                      : "Not configured",
+                ],
                 ["Fee Status", fees.account.status.replaceAll("_", " ")],
               ]
             : [["Fee Account", "Not generated yet"]]
@@ -298,16 +312,25 @@ function ActionModal({
       label: string;
     }>
   >([]);
-  const [categorySelection, setCategorySelection] = useState(
-    admission.customCategoryName ? `OTHER:${admission.customCategoryName}` : requestedCategory,
-  );
+  const selectedCategory = approveForm.watch("studentCategory");
   useEffect(() => {
     if (modal !== "approve") return;
     api
-      .getPublicAdmissionCategories(admission.collegeCode, admission.departmentId)
+      .getPublicAdmissionCategories(admission.collegeCode, admission.departmentId, {
+        gender: admission.gender,
+        academicYear: admission.academicYear,
+        courseYear: admission.courseYearDisplayName ?? undefined,
+      })
       .then(setCategoryOptions)
       .catch(() => setCategoryOptions([]));
-  }, [modal, admission.collegeCode, admission.departmentId]);
+  }, [
+    modal,
+    admission.academicYear,
+    admission.collegeCode,
+    admission.courseYearDisplayName,
+    admission.departmentId,
+    admission.gender,
+  ]);
   const rejectForm = useForm<z.infer<typeof rejectAdmissionSchema>>({
     resolver: zodResolver(rejectAdmissionSchema),
     defaultValues: { rejectionReason: "" },
@@ -317,6 +340,18 @@ function ActionModal({
   >({});
   const submit = async (values: Record<string, string | boolean>) => {
     try {
+      if (modal === "approve") {
+        const selectedCustom = String(values.customCategoryName || "");
+        const categoryConfigured = categoryOptions.some(
+          (option) =>
+            option.category === values.studentCategory &&
+            (values.studentCategory !== "OTHER" ||
+              option.customCategoryName?.toUpperCase() === selectedCustom.toUpperCase()),
+        );
+        if (!categoryConfigured) {
+          throw new Error("Select an active fee category for this course year and gender");
+        }
+      }
       if (modal === "approve")
         if (requirements.some((item) => item.required && !documentCustody[item.documentKey])) {
           throw new Error("Select Original, Xerox, or both for every required document");
@@ -371,32 +406,65 @@ function ActionModal({
           className="space-y-4"
         >
           <Select
+            id="verified-student-category"
             label="Verified student category"
-            options={(categoryOptions.length
-              ? categoryOptions
-              : [{ category: "OPEN" as const, label: "Open" }]
-            )
-              .filter((option) => option.category !== "OTHER" || option.customCategoryName)
-              .map((option) => ({
-                label: option.label,
-                value: option.customCategoryName
-                  ? `OTHER:${option.customCategoryName}`
-                  : option.category,
-              }))}
-            value={categorySelection}
+            options={[
+              {
+                label: categoryOptions.length
+                  ? "Select category"
+                  : "No active fee category configured",
+                value: "",
+              },
+              ...categoryOptions
+                .filter(
+                  (option, index, all) =>
+                    all.findIndex((candidate) => candidate.category === option.category) === index,
+                )
+                .map((option) => ({ label: option.category, value: option.category })),
+            ]}
+            value={selectedCategory}
             onChange={(event) => {
-              const value = event.target.value;
-              const custom = value.startsWith("OTHER:") ? value.slice(6) : "";
-              setCategorySelection(value);
               approveForm.setValue(
                 "studentCategory",
-                custom ? "OTHER" : (value as StudentSectionAdmissionResponse["studentCategory"]),
+                event.target.value as StudentSectionAdmissionResponse["studentCategory"],
                 { shouldValidate: true },
               );
-              approveForm.setValue("customCategoryName", custom, { shouldValidate: true });
+              if (event.target.value !== "OTHER") {
+                approveForm.setValue("customCategoryName", "", { shouldValidate: true });
+              }
             }}
             error={approveForm.formState.errors.studentCategory?.message}
           />
+          {selectedCategory === "OTHER" && (
+            <Select
+              id="verified-custom-category"
+              label="Other category"
+              options={[
+                { label: "Select category", value: "" },
+                ...categoryOptions
+                  .filter((option) => option.category === "OTHER" && option.customCategoryName)
+                  .filter(
+                    (option, index, all) =>
+                      all.findIndex(
+                        (candidate) =>
+                          candidate.customCategoryName?.toUpperCase() ===
+                          option.customCategoryName?.toUpperCase(),
+                      ) === index,
+                  )
+                  .map((option) => ({
+                    label: option.customCategoryName!,
+                    value: option.customCategoryName!,
+                  })),
+              ]}
+              value={approveForm.watch("customCategoryName") ?? ""}
+              onChange={(event) =>
+                approveForm.setValue("customCategoryName", event.target.value, {
+                  shouldValidate: true,
+                })
+              }
+              error={approveForm.formState.errors.customCategoryName?.message}
+            />
+          )}
           <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
             <div>
               <p className="text-sm font-bold">Required document verification</p>

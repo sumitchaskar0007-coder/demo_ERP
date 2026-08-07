@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { attendanceApi, Session } from "./api";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -15,17 +15,22 @@ export function AttendancePage() {
     [selected, setSelected] = useState<Session>(),
     [marks, setMarks] = useState<Record<number, string>>({}),
     [error, setError] = useState("");
-  const load = () =>
-    attendanceApi
-      .sessions(from, to)
-      .then((x) => {
-        setRows(x);
-        if (selected) setSelected(x.find((s) => s.id === selected.id));
-      })
-      .catch((e) => setError(handleApiError(e).message));
+  const load = useCallback(
+    () =>
+      attendanceApi
+        .sessions(from, to)
+        .then((x) => {
+          setRows(x);
+          setSelected((current) =>
+            current ? x.find((session) => session.id === current.id) : current,
+          );
+        })
+        .catch((e) => setError(handleApiError(e).message)),
+    [from, to],
+  );
   useEffect(() => {
     void load();
-  }, [from, to]);
+  }, [load]);
   async function submit() {
     if (!selected) return;
     try {

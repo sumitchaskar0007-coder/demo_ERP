@@ -68,7 +68,7 @@ export function UserListPage() {
     } finally {
       setLoading(false);
     }
-  }, [collegeId, keyword, page, role, status]);
+  }, [collegeId, keyword, page, status]);
   useEffect(() => {
     const timer = setTimeout(load, 250);
     return () => clearTimeout(timer);

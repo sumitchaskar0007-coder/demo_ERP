@@ -7,6 +7,7 @@ import com.jadhavr.erp.admission.dto.EntranceExamDto;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.entity.AdmissionStatusHistory;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
+import com.jadhavr.erp.admission.exception.AdmissionInformationValidationException;
 import com.jadhavr.erp.admission.mapper.AdmissionMapper;
 import com.jadhavr.erp.admission.mapper.StudentSectionAdmissionMapper;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
@@ -16,7 +17,6 @@ import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.BadRequestException;
-import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
@@ -72,6 +72,7 @@ class AdmissionServiceImplTest {
     @Mock private AdmissionFormRepository admissionFormRepository;
     @Mock private AdmissionStatusHistoryRepository admissionStatusHistoryRepository;
     @Mock private EmailNotificationService emailNotifications;
+    @Mock private AdmissionInformationValidationService informationValidation;
 
     private BCryptPasswordEncoder passwordEncoder;
     private AdmissionServiceImpl service;
@@ -92,6 +93,7 @@ class AdmissionServiceImplTest {
                 admissionStatusHistoryRepository
         );
         service.setEmailNotifications(emailNotifications);
+        service.setInformationValidation(informationValidation);
     }
 
     @AfterEach
@@ -249,8 +251,32 @@ class AdmissionServiceImplTest {
                 .thenReturn(Optional.of(department(10L, college, DepartmentStatus.ACTIVE)));
         when(userRepository.existsByEmail("aarav.patil@example.com")).thenReturn(true);
 
-        assertThrows(DuplicateResourceException.class,
+        AdmissionInformationValidationException exception = assertThrows(
+                AdmissionInformationValidationException.class,
                 () -> service.submitAdmission("ABC001", request()));
+
+        assertEquals(
+                "This email is already registered. Use another email or sign in.",
+                exception.getFieldErrors().get("email"));
+    }
+
+    @Test
+    void submitAdmissionShowsEmailFieldErrorWhenAnActiveAdmissionAlreadyExists() {
+        College college = college(1L, CollegeStatus.ACTIVE);
+        when(collegeRepository.findByCode("ABC001")).thenReturn(Optional.of(college));
+        when(departmentRepository.findById(10L))
+                .thenReturn(Optional.of(department(10L, college, DepartmentStatus.ACTIVE)));
+        when(userRepository.existsByEmail("aarav.patil@example.com")).thenReturn(false);
+        when(admissionFormRepository.existsByEmailAndCollegeIdAndStatusNotIn(
+                anyString(), any(), any())).thenReturn(true);
+
+        AdmissionInformationValidationException exception = assertThrows(
+                AdmissionInformationValidationException.class,
+                () -> service.submitAdmission("ABC001", request()));
+
+        assertEquals(
+                "An admission has already been submitted with this email for this college.",
+                exception.getFieldErrors().get("email"));
     }
 
     @Test
@@ -346,6 +372,41 @@ class AdmissionServiceImplTest {
         verify(admissionStatusHistoryRepository).save(history.capture());
         assertEquals(AdmissionStatus.STUDENT_SECTION_REJECTED, history.getValue().getOldStatus());
         assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING, history.getValue().getNewStatus());
+        verify(informationValidation).validate(admission, detailedRequest());
+    }
+
+    @Test
+    void informationStepUsesTheSameValidatorWithoutSubmittingTheAdmission() {
+        authenticateStudent(20L);
+        AdmissionForm admission = studentAdmission(AdmissionStatus.SUBMITTED);
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
+                .thenReturn(Optional.of(admission));
+
+        var result = service.validateMyAdmissionDetails(detailedRequest());
+
+        assertTrue(result.valid());
+        verify(informationValidation).validate(admission, detailedRequest());
+        verify(admissionFormRepository, never()).save(any());
+    }
+
+    @Test
+    void detailedAdmissionPersistsConfiguredOtherCategory() {
+        authenticateStudent(20L);
+        AdmissionForm admission = studentAdmission(AdmissionStatus.STUDENT_SECTION_REJECTED);
+        admission.setDetailsCompletedAt(LocalDateTime.now().minusDays(1));
+        admission.setPhotoStorageName("student-photo.jpg");
+        when(admissionFormRepository.findTopByStudentUserIdOrderByCreatedAtDesc(20L))
+                .thenReturn(Optional.of(admission));
+        when(admissionFormRepository.save(admission)).thenReturn(admission);
+
+        var result = service.submitMyAdmissionDetails(
+                detailedRequest(StudentCategory.OTHER, "NT-C"));
+
+        assertEquals(StudentCategory.OTHER, admission.getStudentCategory());
+        assertEquals("NT-C", admission.getCustomCategoryName());
+        assertEquals(StudentCategory.OTHER, admission.getStudent().getStudentCategory());
+        assertEquals("NT-C", admission.getStudent().getCustomCategoryName());
+        assertEquals("NT-C", result.customCategoryName());
     }
 
     @Test
@@ -373,7 +434,7 @@ class AdmissionServiceImplTest {
                 valid.courseYearId(), valid.fullName(), "attacker@example.com", valid.phone(), valid.dateOfBirth(),
                 valid.gender(), valid.placeOfBirth(), valid.maritalStatus(), valid.aadhaarNumber(),
                 valid.apaarId(), valid.nationality(), valid.religion(), valid.caste(),
-                valid.studentCategory(), valid.parentName(), valid.parentPhone(), valid.parentEmail(),
+                valid.studentCategory(), valid.customCategoryName(), valid.parentName(), valid.parentPhone(), valid.parentEmail(),
                 valid.addressLine1(), valid.addressLine2(), valid.city(), valid.pincode(), valid.state(),
                 valid.permanentPhone(), valid.permanentEmail(), valid.correspondenceAddress(),
                 valid.correspondenceCity(), valid.correspondencePincode(), valid.correspondenceState(),
@@ -413,17 +474,23 @@ class AdmissionServiceImplTest {
     }
 
     private DetailedAdmissionRequest detailedRequest() {
+        return detailedRequest(StudentCategory.SC, null);
+    }
+
+    private DetailedAdmissionRequest detailedRequest(StudentCategory category, String customCategoryName) {
         return new DetailedAdmissionRequest(
                 1L, "Aarav Rajesh Patil", "aarav.patil@example.com", "9876543210",
                 LocalDate.of(2007, 5, 14), "MALE", "Pune", "UNMARRIED",
                 "123456789012", "APAAR123", "Indian", "Hindu", "Patil",
-                StudentCategory.SC, "Rajesh Patil", "9876500001",
+                category, customCategoryName, "Rajesh Patil", "9876500001",
                 "rajesh@example.com", "Updated Pune address", "Near Bus Stand", "Pune",
                 "411001", "Maharashtra", "9876543210", "aarav.patil@example.com",
                 "Updated Pune address", "Pune", "411001", "Maharashtra", null,
                 "9876543210", "aarav.patil@example.com",
                 List.of(new AcademicRecordDto("12TH", "ABC College", "State Board", "2025",
-                        new BigDecimal("100"), new BigDecimal("78.50"), new BigDecimal("78.50"))),
+                        new BigDecimal("500"), new BigDecimal("392.50"),
+                        com.jadhavr.erp.admission.enums.AcademicGradingType.PERCENTAGE,
+                        new BigDecimal("78.50"), null)),
                 List.of(new EntranceExamDto("MH-CET", "92.5 percentile"),
                         new EntranceExamDto("CMAT", "Rank 120")),
                 "MHT123", new BigDecimal("82.00"), "ABC College", "Pune");

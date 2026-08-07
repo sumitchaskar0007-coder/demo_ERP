@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
@@ -52,11 +52,16 @@ export function FeeAccountsPage() {
   const [d, setD] = useState<StudentFeeAccountResponse[]>([]);
   const [q, setQ] = useState("");
   const [sendingReminder, setSendingReminder] = useState<number | null>(null);
-  const load = () =>
-    api.searchFeeAccounts({ keyword: q || undefined, size: 50 }).then((x) => setD(x.content));
+  const load = useCallback(
+    (keyword: string) =>
+      api
+        .searchFeeAccounts({ keyword: keyword || undefined, size: 50 })
+        .then((x) => setD(x.content)),
+    [],
+  );
   useEffect(() => {
-    load();
-  }, []);
+    void load("");
+  }, [load]);
   const remind = async (account: StudentFeeAccountResponse) => {
     setSendingReminder(account.id);
     try {
@@ -82,6 +87,11 @@ export function FeeAccountsPage() {
     { key: "total", header: "Total", render: (r) => `₹${r.totalFee}` },
     { key: "paid", header: "Paid", render: (r) => `₹${r.paidAmount}` },
     { key: "remaining", header: "Remaining", render: (r) => `₹${r.remainingAmount}` },
+    {
+      key: "credit",
+      header: "Credit / Refund",
+      render: (r) => `₹${r.creditAmount}`,
+    },
     { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
     {
       key: "action",
@@ -105,7 +115,7 @@ export function FeeAccountsPage() {
       <h1 className="page-title">Student Fee Accounts</h1>
       <Card className="flex gap-3 p-4">
         <Input placeholder="Search admission" value={q} onChange={(e) => setQ(e.target.value)} />
-        <Button onClick={load}>Search</Button>
+        <Button onClick={() => void load(q)}>Search</Button>
       </Card>
       <DataTable columns={cols} data={d} rowKey={(r) => r.id} />
     </div>
@@ -152,12 +162,14 @@ export function FeeAccountDetailsPage() {
             )}
           </div>
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           {[
             ["Student", a.admissionReferenceNumber],
             ["Department", a.departmentName],
+            ["Category", a.customCategoryName || a.studentCategory],
             ["Paid", `₹${a.paidAmount}`],
             ["Remaining", `₹${a.remainingAmount}`],
+            ["Credit / Refund Due", `₹${a.creditAmount}`],
           ].map(([k, v]) => (
             <div key={k} className="rounded-xl bg-slate-50 p-4">
               <small>{k}</small>
@@ -165,6 +177,14 @@ export function FeeAccountDetailsPage() {
             </div>
           ))}
         </div>
+        {a.scholarshipRemoved && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-bold">Scholarship removed by Principal</p>
+            {a.scholarshipRemovalReason && (
+              <p className="mt-1">Reason: {a.scholarshipRemovalReason}</p>
+            )}
+          </div>
+        )}
       </Card>
       <Card className="p-6">
         <h2 className="font-bold">Transactions</h2>
@@ -181,11 +201,13 @@ export function FeeAccountDetailsPage() {
 export function PaymentsPage() {
   const [d, setD] = useState<PaymentResponse[]>([]);
   const [s, setS] = useState<PaymentStatus | "">("PENDING");
-  const load = () =>
-    api.searchPayments({ status: s || undefined, size: 50 }).then((x) => setD(x.content));
+  const load = useCallback(
+    () => api.searchPayments({ status: s || undefined, size: 50 }).then((x) => setD(x.content)),
+    [s],
+  );
   useEffect(() => {
-    load();
-  }, [s]);
+    void load();
+  }, [load]);
   const cols: Column<PaymentResponse>[] = [
     {
       key: "student",
@@ -243,12 +265,12 @@ export function PaymentDetailsPage() {
     },
     [proofPreview],
   );
-  const load = () => {
+  const load = useCallback(() => {
     if (paymentId) api.getPaymentById(+paymentId).then(setP);
-  };
+  }, [paymentId]);
   useEffect(() => {
     load();
-  }, [paymentId]);
+  }, [load]);
   if (!p) return <div className="page-container">Loading…</div>;
   const verify = () =>
     api

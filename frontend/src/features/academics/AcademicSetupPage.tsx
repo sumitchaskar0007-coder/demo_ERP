@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { academicApi, Master } from "./api";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -35,14 +35,17 @@ export function AcademicSetupPage() {
     startTime: "",
     endTime: "",
   });
-  const load = () =>
-    academicApi
-      .masters(type)
-      .then(setRows)
-      .catch((e) => setError(handleApiError(e).message));
+  const load = useCallback(
+    () =>
+      academicApi
+        .masters(type)
+        .then(setRows)
+        .catch((e) => setError(handleApiError(e).message)),
+    [type],
+  );
   useEffect(() => {
     void load();
-  }, [type]);
+  }, [load]);
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");

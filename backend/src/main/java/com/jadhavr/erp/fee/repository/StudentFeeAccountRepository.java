@@ -26,6 +26,8 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
 
     Optional<StudentFeeAccount> findTopByStudentIdOrderByCreatedAtDesc(Long id);
 
+    Optional<StudentFeeAccount> findFirstByStudentIdAndFeeStructureIsNotNullOrderByCreatedAtDesc(Long id);
+
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from StudentFeeAccount a where a.id = :id")
     Optional<StudentFeeAccount> findByIdForUpdate(@Param("id") Long id);
@@ -38,7 +40,11 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
     boolean existsByAdmissionFormIdAndFeeStructureIsNotNull(Long id);
 
     boolean existsByFeeStructureId(Long id);
-    List<StudentFeeAccount> findByFeeStructureId(Long id);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from StudentFeeAccount a where a.feeStructure.id = :feeStructureId order by a.id")
+    List<StudentFeeAccount> findByFeeStructureIdForUpdate(
+            @Param("feeStructureId") Long feeStructureId);
 
     long countByCollegeId(Long id);
     List<StudentFeeAccount> findByCollegeId(Long id);

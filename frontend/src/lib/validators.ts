@@ -104,23 +104,208 @@ export const updateOwnProfileSchema = z.object({
   bio: z.string().max(500, "Bio cannot exceed 500 characters").optional().default(""),
 });
 
-export const publicAdmissionSchema = z.object({
-  departmentId: z.coerce.number().positive("Department is required"),
-  studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
-  customCategoryName: z.string().max(80).optional().default(""),
-  firstName: z.string().trim().min(2).max(80),
-  middleName: z.string().max(80).optional().default(""),
-  lastName: z.string().trim().min(2).max(80),
-  email: z.string().email("Enter a valid email").max(150),
-  phone: z.string().min(1, "Phone is required").max(20),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.string().min(1, "Gender is required").max(30),
-  addressLine1: z.string().max(250).optional().default(""),
-  addressLine2: z.string().max(250).optional().default(""),
-  city: z.string().max(100).optional().default(""),
-  state: z.string().max(100).optional().default(""),
-  pincode: z.string().max(10).optional().default(""),
-});
+export const publicAdmissionSchema = z
+  .object({
+    departmentId: z.coerce.number().positive("Department is required"),
+    studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"], {
+      message: "Student category is required",
+    }),
+    customCategoryName: z.string().max(80).optional().default(""),
+    firstName: z
+      .string()
+      .trim()
+      .min(1, "First name is required")
+      .min(2, "First name must contain at least 2 characters")
+      .max(80, "First name cannot exceed 80 characters"),
+    middleName: z.string().max(80).optional().default(""),
+    lastName: z
+      .string()
+      .trim()
+      .min(1, "Last name is required")
+      .min(2, "Last name must contain at least 2 characters")
+      .max(80, "Last name cannot exceed 80 characters"),
+    email: z
+      .string()
+      .trim()
+      .min(1, "Email is required")
+      .email("Enter a valid email")
+      .max(150, "Email cannot exceed 150 characters"),
+    phone: z.string().min(1, "Phone is required").max(20),
+    dateOfBirth: z.string().min(1, "Date of birth is required"),
+    gender: z.string().min(1, "Gender is required").max(30),
+    addressLine1: z.string().max(250).optional().default(""),
+    addressLine2: z.string().max(250).optional().default(""),
+    city: z.string().max(100).optional().default(""),
+    state: z.string().max(100).optional().default(""),
+    pincode: z.string().max(10).optional().default(""),
+  })
+  .superRefine((values, context) => {
+    if (values.studentCategory === "OTHER" && !values.customCategoryName.trim()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customCategoryName"],
+        message: "Select an Other category",
+      });
+    }
+  });
+
+const optionalAdmissionEmail = z
+  .string()
+  .max(150, "Email cannot exceed 150 characters")
+  .refine((value) => !value.trim() || z.string().email().safeParse(value).success, {
+    message: "Enter a valid email",
+  });
+
+const academicRecordSchema = z
+  .object({
+    qualification: z.enum(["10TH", "12TH", "DIPLOMA", "GRADUATION"]),
+    instituteName: z
+      .string()
+      .max(200, "Institute name cannot exceed 200 characters")
+      .optional()
+      .nullable(),
+    boardUniversity: z
+      .string()
+      .max(150, "Board or university cannot exceed 150 characters")
+      .optional()
+      .nullable(),
+    yearOfPassing: z
+      .string()
+      .regex(/^$|^\d{4}$/, "Year must contain four digits")
+      .optional()
+      .nullable(),
+    totalMarks: z.number().positive("Total Marks must be greater than zero").optional().nullable(),
+    obtainedMarks: z.number().min(0, "Obtained Marks cannot be negative").optional().nullable(),
+    gradingType: z.enum(["PERCENTAGE", "CGPA"]),
+    marksPercentage: z
+      .number()
+      .min(0, "Percentage cannot be negative")
+      .max(100, "Percentage cannot exceed 100")
+      .optional()
+      .nullable(),
+    cgpa: z
+      .number()
+      .min(0, "CGPA cannot be negative")
+      .max(10, "CGPA cannot exceed 10")
+      .optional()
+      .nullable(),
+  })
+  .superRefine((record, context) => {
+    if (record.gradingType === "PERCENTAGE" && record.cgpa != null) {
+      context.addIssue({
+        code: "custom",
+        path: ["cgpa"],
+        message: "Enter either Percentage or CGPA, not both",
+      });
+    }
+    if (record.gradingType === "CGPA" && record.marksPercentage != null) {
+      context.addIssue({
+        code: "custom",
+        path: ["marksPercentage"],
+        message: "Enter either Percentage or CGPA, not both",
+      });
+    }
+    if (
+      record.gradingType === "CGPA" &&
+      (record.totalMarks != null || record.obtainedMarks != null)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["totalMarks"],
+        message: "Total and Obtained Marks apply only to Percentage",
+      });
+    }
+    if ((record.totalMarks == null) !== (record.obtainedMarks == null)) {
+      context.addIssue({
+        code: "custom",
+        path: [record.totalMarks == null ? "totalMarks" : "obtainedMarks"],
+        message: "Enter both Total Marks and Obtained Marks",
+      });
+    }
+    if (
+      record.totalMarks != null &&
+      record.obtainedMarks != null &&
+      record.obtainedMarks > record.totalMarks
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["obtainedMarks"],
+        message: "Obtained Marks cannot exceed Total Marks",
+      });
+    }
+  });
+
+const entranceExamSchema = z
+  .object({
+    examName: z.string().max(120, "Exam name cannot exceed 120 characters"),
+    result: z.string().max(100, "Result cannot exceed 100 characters"),
+  })
+  .superRefine((exam, context) => {
+    if (Boolean(exam.examName.trim()) !== Boolean(exam.result.trim())) {
+      const missingField = exam.examName.trim() ? "result" : "examName";
+      context.addIssue({
+        code: "custom",
+        path: [missingField],
+        message: "Enter both the exam name and result, or remove this row",
+      });
+    }
+  });
+
+export const detailedAdmissionInformationSchema = z
+  .object({
+    courseYearId: z.coerce.number().positive("Select an active course year"),
+    fullName: z.string().trim().min(2, "Full name must contain at least 2 characters").max(150),
+    email: z
+      .string()
+      .trim()
+      .min(1, "Applicant email is required")
+      .email("Enter a valid email")
+      .max(150),
+    phone: z.string().trim().min(1, "Applicant mobile is required").max(20),
+    dateOfBirth: z.string().min(1, "Date of birth is required"),
+    gender: z.enum(["MALE", "FEMALE"], { message: "Select Male or Female" }),
+    placeOfBirth: z.string().trim().min(1, "Place of birth is required").max(120),
+    maritalStatus: z.string().trim().min(1, "Marital status is required").max(30),
+    aadhaarNumber: z.string().regex(/^\d{12}$/, "Aadhaar number must contain exactly 12 digits"),
+    apaarId: z.string().max(30).optional().default(""),
+    nationality: z.string().trim().min(1, "Nationality is required").max(80),
+    religion: z.string().trim().min(1, "Religion is required").max(80),
+    caste: z.string().trim().min(1, "Caste is required").max(100),
+    studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
+    customCategoryName: z.string().max(80).optional().default(""),
+    parentName: z.string().trim().min(1, "Father or guardian name is required").max(150),
+    parentPhone: z.string().trim().min(1, "Guardian mobile is required").max(20),
+    parentEmail: optionalAdmissionEmail.optional().default(""),
+    addressLine1: z.string().trim().min(1, "Permanent address is required").max(250),
+    addressLine2: z.string().max(250).optional().default(""),
+    city: z.string().trim().min(1, "Permanent-address city is required").max(100),
+    pincode: z.string().regex(/^\d{6}$/, "PIN code must contain exactly 6 digits"),
+    state: z.string().trim().min(1, "Permanent-address state is required").max(100),
+    permanentPhone: z.string().max(20).optional(),
+    permanentEmail: optionalAdmissionEmail.optional(),
+    correspondenceAddress: z.string().trim().min(1, "Correspondence address is required").max(500),
+    correspondenceCity: z.string().trim().min(1, "Correspondence city is required").max(100),
+    correspondencePincode: z.string().regex(/^\d{6}$/, "PIN code must contain exactly 6 digits"),
+    correspondenceState: z.string().trim().min(1, "Correspondence state is required").max(100),
+    correspondencePhone: z.string().max(20).optional(),
+    correspondenceMobile: z.string().max(20).optional(),
+    correspondenceEmail: optionalAdmissionEmail.optional(),
+    academicRecords: z.array(academicRecordSchema).max(4),
+    entranceExams: z.array(entranceExamSchema).max(10),
+    qualifyingEntranceSeatNumber: z.string().max(80).optional(),
+    qualifyingEntranceTotalScore: z.number().min(0).optional(),
+    lastGraduationCollegeName: z.string().max(200).optional(),
+    lastGraduationCollegeAddress: z.string().max(500).optional(),
+  })
+  .superRefine((values, context) => {
+    if (values.studentCategory === "OTHER" && !values.customCategoryName.trim()) {
+      context.addIssue({
+        code: "custom",
+        path: ["customCategoryName"],
+        message: "Select an Other category",
+      });
+    }
+  });
 
 export const createStudentSectionStaffSchema = z.object({
   collegeId: z.coerce.number().positive("College is required"),
@@ -211,12 +396,22 @@ export const divisionSchema = z.object({
   capacity: z.coerce.number().int().positive("Capacity must be positive"),
 });
 
-export const approveAdmissionSchema = z.object({
-  studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
-  customCategoryName: z.string().max(80).optional().default(""),
-  photoVerified: z.boolean().refine(Boolean, "Verify the passport photo"),
-  remarks: z.string().max(500).optional().default(""),
-});
+export const approveAdmissionSchema = z
+  .object({
+    studentCategory: z.enum(["OPEN", "OBC", "SC", "ST", "SBC", "VJNT", "EWS", "OTHER"]),
+    customCategoryName: z.string().max(80).optional().default(""),
+    photoVerified: z.boolean().refine(Boolean, "Verify the passport photo"),
+    remarks: z.string().max(500).optional().default(""),
+  })
+  .superRefine((values, context) => {
+    if (values.studentCategory === "OTHER" && !values.customCategoryName.trim()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customCategoryName"],
+        message: "Select an Other category",
+      });
+    }
+  });
 
 export const rejectAdmissionSchema = z.object({
   rejectionReason: z.string().trim().min(5).max(500),
