@@ -265,7 +265,7 @@ resource "aws_cloudfront_response_headers_policy" "security" {
 
   security_headers_config {
     content_security_policy {
-      content_security_policy = "default-src 'self'; img-src 'self' data: blob:; frame-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+      content_security_policy = "default-src 'self'; img-src 'self' data: blob:; frame-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
       override                = true
     }
     content_type_options { override = true }
