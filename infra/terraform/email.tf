@@ -51,10 +51,8 @@ resource "aws_route53_record" "ses_dmarc" {
   records = ["v=DMARC1; p=quarantine; rua=mailto:admin@${var.domain_name}; adkim=s; aspf=s"]
 }
 
-# Historical staging behavior below creates SMTP credentials and therefore
-# stores them in encrypted Terraform state. Do not apply this credential path
-# from a separate production state. Production mail credentials are populated
-# directly in Secrets Manager only after SES production access is approved.
+# Preproduction creates isolated SMTP credentials and stores them in its encrypted
+# Terraform state. Production mail credentials remain independently managed.
 resource "aws_iam_user" "ses_smtp" {
   count = local.external_production ? 0 : 1
   name  = "${local.name}-ses-smtp"
@@ -95,8 +93,8 @@ resource "aws_secretsmanager_secret_version" "mail" {
   })
 }
 
-# Preserve existing staging addresses while ensuring a separate production
-# state never creates SMTP credentials or writes secret values.
+# Preserve the existing non-production resource addresses while ensuring a
+# separate production state never creates SMTP credentials or secret values.
 moved {
   from = aws_iam_user.ses_smtp
   to   = aws_iam_user.ses_smtp[0]

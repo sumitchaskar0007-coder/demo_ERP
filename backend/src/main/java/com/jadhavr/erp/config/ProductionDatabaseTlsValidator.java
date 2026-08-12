@@ -5,9 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/** Ensures production PostgreSQL uses hostname and CA verification. */
+/** Ensures managed PostgreSQL environments use hostname and CA verification. */
 @Component
-@Profile("production")
+@Profile("preprod | production")
 public class ProductionDatabaseTlsValidator {
     private final String url;
     private final String rootCert;
@@ -19,7 +19,7 @@ public class ProductionDatabaseTlsValidator {
     @PostConstruct
     void validate() {
         if (url == null || !url.toLowerCase().contains("sslmode=verify-full")) {
-            throw new IllegalStateException("Production DB_URL must use sslmode=verify-full");
+            throw new IllegalStateException("Managed-environment DB_URL must use sslmode=verify-full");
         }
         if (rootCert == null || rootCert.isBlank() || rootCert.startsWith("${")) {
             throw new IllegalStateException("DB_SSL_ROOT_CERT must point to the current RDS CA bundle");

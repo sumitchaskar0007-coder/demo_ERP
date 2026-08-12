@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("production")
+@Profile("preprod | production")
 @RequestMapping("/api/principal/admissions/{admissionId}/documents")
 public class PrincipalAdmissionDocumentTransferController {
     private final AdmissionDocumentPresignedTransferService transfers;

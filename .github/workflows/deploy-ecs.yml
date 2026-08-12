@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirmation:
-        description: Type DEPLOY_PRODUCTION_ECS after the staging evidence and production approval are recorded
+        description: Type DEPLOY_PRODUCTION_ECS after the preproduction evidence and production approval are recorded
         required: true
         type: string
       external_migration_approval:
@@ -124,6 +124,8 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           FLYWAY_ENABLED: "true"
+          BOOTSTRAP_ENABLED: "false"
+          JPA_DDL_AUTO: validate
           RATE_LIMIT_REDIS_ENABLED: "true"
           REDIS_HOST: localhost
           REDIS_PORT: "6379"
@@ -132,13 +134,15 @@ jobs:
       - name: Apply and validate Flyway migrations on PostgreSQL
         working-directory: backend
         env:
-          SPRING_PROFILES_ACTIVE: docker
+          SPRING_PROFILES_ACTIVE: local
           DB_URL: jdbc:postgresql://localhost:5432/college_erp
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_POOL_MAX_SIZE: "4"
           DB_POOL_MIN_IDLE: "0"
           FLYWAY_ENABLED: "true"
+          BOOTSTRAP_ENABLED: "false"
+          JPA_DDL_AUTO: validate
           JWT_SECRET: ci-only-jwt-secret-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJK
           RATE_LIMIT_KEY_SECRET: ci-only-rate-limit-key-0123456789-abcdefghijklmnopqrstuvwxyz
           REDIS_HOST: localhost
@@ -167,6 +171,7 @@ jobs:
       - name: Verify and build frontend
         working-directory: frontend
         env:
+          VITE_APP_ENVIRONMENT: production
           VITE_API_BASE_URL: ""
         run: |
           set -euo pipefail
@@ -448,8 +453,9 @@ jobs:
             )
             | (.containerDefinitions[] | select(.name == "migration") | .image) = $image
             | (.containerDefinitions[] | select(.name == "migration") | .environment) |=
-                ((. // [] | map(select(.name != "APP_RELEASE"))) +
-                [{"name": "APP_RELEASE", "value": $release}])
+                ((. // [] | map(select(.name != "APP_RELEASE" and .name != "SPRING_PROFILES_ACTIVE"))) +
+                [{"name": "APP_RELEASE", "value": $release},
+                 {"name": "SPRING_PROFILES_ACTIVE", "value": "production"}])
           ' "$source_task_json" > "$release_task_json"
 
           migration_family="$(jq -r '.family' "$source_task_json")"
@@ -507,6 +513,11 @@ jobs:
                   (
                     [(.environment // [])[] | select(
                       .name == "APP_RELEASE" and .value == $release
+                    )] | length
+                  ) == 1 and
+                  (
+                    [(.environment // [])[] | select(
+                      .name == "SPRING_PROFILES_ACTIVE" and .value == "production"
                     )] | length
                   ) == 1
                 )] | length
@@ -694,8 +705,9 @@ jobs:
             )
             | (.containerDefinitions[] | select(.name == "backend") | .image) = $image
             | (.containerDefinitions[] | select(.name == "backend") | .environment) |=
-                ((. // [] | map(select(.name != "APP_RELEASE"))) +
-                [{"name": "APP_RELEASE", "value": $release}])
+                ((. // [] | map(select(.name != "APP_RELEASE" and .name != "SPRING_PROFILES_ACTIVE"))) +
+                [{"name": "APP_RELEASE", "value": $release},
+                 {"name": "SPRING_PROFILES_ACTIVE", "value": "production"}])
           ' "$source_task_json" > "$release_task_json"
           new_task="$(
             aws ecs register-task-definition \
@@ -721,6 +733,11 @@ jobs:
                   (
                     [(.environment // [])[] | select(
                       .name == "APP_RELEASE" and .value == $release
+                    )] | length
+                  ) == 1 and
+                  (
+                    [(.environment // [])[] | select(
+                      .name == "SPRING_PROFILES_ACTIVE" and .value == "production"
                     )] | length
                   ) == 1
                 )] | length
@@ -915,8 +932,9 @@ jobs:
             )
             | (.containerDefinitions[] | select(.name == "worker") | .image) = $image
             | (.containerDefinitions[] | select(.name == "worker") | .environment) |=
-                ((. // [] | map(select(.name != "APP_RELEASE"))) +
-                [{"name": "APP_RELEASE", "value": $release}])
+                ((. // [] | map(select(.name != "APP_RELEASE" and .name != "SPRING_PROFILES_ACTIVE"))) +
+                [{"name": "APP_RELEASE", "value": $release},
+                 {"name": "SPRING_PROFILES_ACTIVE", "value": "production"}])
           ' "$source_task_json" > "$release_task_json"
           new_task="$(
             aws ecs register-task-definition \
@@ -942,6 +960,11 @@ jobs:
                   (
                     [(.environment // [])[] | select(
                       .name == "APP_RELEASE" and .value == $release
+                    )] | length
+                  ) == 1 and
+                  (
+                    [(.environment // [])[] | select(
+                      .name == "SPRING_PROFILES_ACTIVE" and .value == "production"
                     )] | length
                   ) == 1
                 )] | length

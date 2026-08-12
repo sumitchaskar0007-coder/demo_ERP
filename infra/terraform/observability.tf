@@ -408,7 +408,7 @@ resource "aws_cloudwatch_dashboard" "capacity" {
         width  = 24
         height = 2
         properties = {
-          markdown = "Production RDS infrastructure and monitoring are externally owned. Correlate this dashboard with the RDS owner's approved dashboard during staging load tests."
+          markdown = "Production RDS infrastructure and monitoring are externally owned. Correlate this dashboard with the RDS owner's approved dashboard during preproduction load tests."
         }
       }
     ]

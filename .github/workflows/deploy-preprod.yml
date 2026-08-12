@@ -14,29 +14,47 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ap-south-1
-  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::814645955631:role/jadhavr-erp-preprod-github-deploy
-  ECR_REGISTRY: 814645955631.dkr.ecr.ap-south-1.amazonaws.com
-  ECR_REPOSITORY: jadhavr-erp-preprod-backend
-  ECS_CLUSTER: jadhavr-erp-preprod
-  ECS_SERVICE: jadhavr-erp-preprod-backend
-  ECS_BACKEND_TASK_FAMILY: jadhavr-erp-preprod-backend
-  ECS_MIGRATION_TASK_FAMILY: jadhavr-erp-preprod-migration
-  ECS_SUBNETS: subnet-0789e4adf26058962,subnet-0da9da23b0f4f2f53
-  ECS_SECURITY_GROUP: sg-0be5ff98dc4786c47
-  FRONTEND_BUCKET: jadhavr-erp-preprod-frontend-814645955631
-  CLOUDFRONT_DISTRIBUTION_ID: E38DLQDQFBJG28
-  APPLICATION_URL: https://d3vrkvv4lom6n0.cloudfront.net
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  ECS_BACKEND_TASK_FAMILY: ${{ vars.ECS_BACKEND_TASK_FAMILY }}
+  ECS_MIGRATION_TASK_FAMILY: ${{ vars.ECS_MIGRATION_TASK_FAMILY }}
+  ECS_WORKER_SERVICE: ${{ vars.ECS_WORKER_SERVICE }}
+  ECS_WORKER_TASK_FAMILY: ${{ vars.ECS_WORKER_TASK_FAMILY }}
+  ECS_SUBNETS: ${{ vars.ECS_SUBNETS }}
+  ECS_SECURITY_GROUP: ${{ vars.ECS_SECURITY_GROUP }}
+  FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+  APPLICATION_URL: ${{ vars.APPLICATION_URL }}
 
 jobs:
   deploy:
     name: Test and deploy sai to preproduction
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: preprod
 
     steps:
       - name: Check out sai commit
         uses: actions/checkout@v4
+
+      - name: Validate preproduction deployment configuration
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          for name in AWS_DEPLOY_ROLE_ARN AWS_REGION ECR_REGISTRY ECR_REPOSITORY \
+            ECS_CLUSTER ECS_SERVICE ECS_BACKEND_TASK_FAMILY ECS_MIGRATION_TASK_FAMILY \
+            ECS_WORKER_SERVICE ECS_WORKER_TASK_FAMILY ECS_SUBNETS ECS_SECURITY_GROUP \
+            FRONTEND_BUCKET CLOUDFRONT_DISTRIBUTION_ID APPLICATION_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub preprod variable or secret: ${name}"
+              exit 1
+            fi
+          done
+          [[ "$APPLICATION_URL" == https://* ]]
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -59,8 +77,9 @@ jobs:
       - name: Test and build frontend
         working-directory: frontend
         env:
+          VITE_APP_ENVIRONMENT: preprod
           VITE_API_BASE_URL: ""
-          VITE_ADMISSION_DIRECT_TRANSFER_ENABLED: "false"
+          VITE_ADMISSION_DIRECT_TRANSFER_ENABLED: "true"
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
@@ -71,7 +90,7 @@ jobs:
       - name: Configure AWS credentials using GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
@@ -94,7 +113,7 @@ jobs:
           echo "uri=${ECR_REGISTRY}/${ECR_REPOSITORY}@${digest}" >> "$GITHUB_OUTPUT"
           echo "release=${RELEASE_ID:0:12}" >> "$GITHUB_OUTPUT"
 
-      - name: Register migration and backend task revisions
+      - name: Register migration, backend and worker task revisions
         id: tasks
         env:
           IMAGE_URI: ${{ steps.image.outputs.uri }}
@@ -109,8 +128,10 @@ jobs:
               jq --arg image "$IMAGE_URI" --arg release "$RELEASE_ID" '
                 .containerDefinitions[0].image = $image |
                 .containerDefinitions[0].environment =
-                  ((.containerDefinitions[0].environment // [] | map(select(.name != "APP_RELEASE"))) +
-                   [{"name":"APP_RELEASE","value":$release}]) |
+                  ((.containerDefinitions[0].environment // [] |
+                    map(select(.name != "APP_RELEASE" and .name != "SPRING_PROFILES_ACTIVE"))) +
+                   [{"name":"APP_RELEASE","value":$release},
+                    {"name":"SPRING_PROFILES_ACTIVE","value":"preprod"}]) |
                 del(.taskDefinitionArn,.revision,.status,.requiresAttributes,
                     .compatibilities,.registeredAt,.registeredBy,.deregisteredAt)' > task.json
             arn="$(aws ecs register-task-definition \
@@ -121,6 +142,38 @@ jobs:
           }
           register_revision "$ECS_MIGRATION_TASK_FAMILY" migration
           register_revision "$ECS_BACKEND_TASK_FAMILY" backend
+          register_revision "$ECS_WORKER_TASK_FAMILY" worker
+
+      - name: Validate preproduction service parity
+        env:
+          WORKER_TASK: ${{ steps.tasks.outputs.worker }}
+        run: |
+          set -euo pipefail
+          services="$(aws ecs describe-services --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" "$ECS_WORKER_SERVICE" --output json)"
+          echo "$services" | jq -e --arg api "$ECS_SERVICE" --arg worker "$ECS_WORKER_SERVICE" '
+            (.failures | length) == 0 and
+            ([.services[] | select(.serviceName == $api and .status == "ACTIVE" and .desiredCount >= 2)] | length) == 1 and
+            ([.services[] | select(.serviceName == $worker and .status == "ACTIVE" and .desiredCount >= 1)] | length) == 1
+          ' >/dev/null
+          definition="$(aws ecs describe-task-definition --task-definition "$WORKER_TASK" \
+            --query taskDefinition --output json)"
+          echo "$definition" | jq -e '
+            .containerDefinitions[0] as $worker |
+            ($worker.environment | map({key:.name,value:.value}) | from_entries) as $env |
+            ($worker.secrets | map(.name)) as $secrets |
+            $env.SPRING_PROFILES_ACTIVE == "preprod" and
+            $env.MAIL_ENABLED == "true" and
+            $env.MAIL_TRANSPORT == "sqs" and
+            $env.EMAIL_SQS_CONSUMER_ENABLED == "true" and
+            $env.REPORT_SQS_CONSUMER_ENABLED == "true" and
+            ($env.EMAIL_SQS_QUEUE_URL | length) > 0 and
+            ($env.REPORT_SQS_QUEUE_URL | length) > 0 and
+            ($secrets | index("MAIL_HOST")) != null and
+            ($secrets | index("MAIL_USERNAME")) != null and
+            ($secrets | index("MAIL_PASSWORD")) != null and
+            ($secrets | index("MAIL_FROM_ADDRESS")) != null
+          ' >/dev/null
 
       - name: Run database migrations
         env:
@@ -145,6 +198,7 @@ jobs:
           fi
 
       - name: Deploy backend with rollback
+        id: backend_deploy
         env:
           BACKEND_TASK: ${{ steps.tasks.outputs.backend }}
           RELEASE_ID: ${{ steps.image.outputs.release }}
@@ -152,6 +206,7 @@ jobs:
           set -euo pipefail
           previous="$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
             --query 'services[0].taskDefinition' --output text)"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
           rollback() {
             echo "Deployment failed; restoring $previous"
             aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" \
@@ -166,6 +221,37 @@ jobs:
             --retry-delay 10 "${APPLICATION_URL}/api/health")"
           echo "$health" | jq -e --arg release "$RELEASE_ID" \
             '.success == true and .data.status == "UP" and .data.release == $release' >/dev/null
+          trap - ERR
+
+      - name: Deploy async worker with rollback
+        env:
+          WORKER_TASK: ${{ steps.tasks.outputs.worker }}
+          PREVIOUS_BACKEND_TASK: ${{ steps.backend_deploy.outputs.previous }}
+        run: |
+          set -euo pipefail
+          previous="$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_WORKER_SERVICE" \
+            --query 'services[0].taskDefinition' --output text)"
+          test "$previous" != "None"
+          rollback() {
+            echo "Worker deployment failed; restoring $previous"
+            aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_WORKER_SERVICE" \
+              --task-definition "$previous" --force-new-deployment >/dev/null || true
+            aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" \
+              --task-definition "$PREVIOUS_BACKEND_TASK" --force-new-deployment >/dev/null || true
+            aws ecs wait services-stable --cluster "$ECS_CLUSTER" \
+              --services "$ECS_WORKER_SERVICE" "$ECS_SERVICE" || true
+          }
+          trap rollback ERR
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_WORKER_SERVICE" \
+            --task-definition "$WORKER_TASK" --force-new-deployment >/dev/null
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_WORKER_SERVICE"
+          running="$(aws ecs list-tasks --cluster "$ECS_CLUSTER" --service-name "$ECS_WORKER_SERVICE" \
+            --desired-status RUNNING --query 'taskArns' --output text)"
+          test -n "$running"
+          task_definitions="$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks $running \
+            --query 'tasks[].taskDefinitionArn' --output text | tr '\t' '\n')"
+          test "$(echo "$task_definitions" | sed '/^$/d' | sort -u | wc -l)" -eq 1
+          echo "$task_definitions" | grep -Fx "$WORKER_TASK" >/dev/null
           trap - ERR
 
       - name: Publish frontend

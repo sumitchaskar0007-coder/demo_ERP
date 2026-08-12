@@ -77,7 +77,7 @@ resource "aws_iam_role_policy_attachment" "rds_monitoring" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
-# Historical staging behavior: Terraform generates the managed Valkey auth
+# Historical non-production behavior: Terraform generates the managed Valkey auth
 # token, which places that value in encrypted Terraform state. Do not extend
 # this pattern to externally owned production secrets; production secret values
 # must be populated directly through the approved Secrets Manager process.

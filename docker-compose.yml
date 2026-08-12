@@ -70,7 +70,8 @@ services:
     restart: unless-stopped
     init: true
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: local
+      APP_ENVIRONMENT: local
       APP_RELEASE: ${IMAGE_TAG:-local}
       SERVER_PORT: "8081"
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-college_erp}?sslmode=disable
@@ -79,6 +80,7 @@ services:
       DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-20}
       DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-5}
       FLYWAY_ENABLED: ${FLYWAY_ENABLED:-true}
+      JPA_DDL_AUTO: validate
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to at least 32 random characters}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-900000}
       RATE_LIMIT_KEY_SECRET: ${RATE_LIMIT_KEY_SECRET:?Set RATE_LIMIT_KEY_SECRET in .env}
@@ -88,7 +90,7 @@ services:
       REDIS_SSL_ENABLED: "false"
       RATE_LIMIT_REDIS_ENABLED: "true"
       CACHE_REDIS_ENABLED: "true"
-      CACHE_ENVIRONMENT: ${CACHE_ENVIRONMENT:-docker}
+      CACHE_ENVIRONMENT: ${CACHE_ENVIRONMENT:-local-compose}
       STORAGE_PROVIDER: local
       UPLOAD_DIR: /app/uploads
       FRONTEND_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN, for example https://erp.example.com}
@@ -174,6 +176,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ""
+        VITE_APP_ENVIRONMENT: local
     image: jadhavr-erp-frontend:${IMAGE_TAG:-local}
     restart: unless-stopped
     init: true

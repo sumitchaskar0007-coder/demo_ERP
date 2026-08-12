@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 import java.net.URI;
 import java.util.Arrays;
 
-/** Rejects unsafe URL/CORS defaults when running with the production profile. */
+/** Rejects unsafe URL/CORS defaults in preproduction and production. */
 @Component
-@Profile("production")
+@Profile("preprod | production")
 public class ProductionWebConfigValidator {
     private final String frontendUrl;
     private final String corsOrigins;

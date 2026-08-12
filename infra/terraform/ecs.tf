@@ -209,9 +209,9 @@ locals {
   async_worker_effective_count   = local.external_production && !var.production_database_access_ready ? 0 : var.async_worker_desired_count
 
   common_environment = [
-    # Staging keeps its environment identity while inheriting every hardened
-    # production setting and validator. Production activates only production.
-    { name = "SPRING_PROFILES_ACTIVE", value = local.external_production ? "production" : "staging,production" },
+    # Every deployed task activates exactly one environment profile. Preproduction
+    # has production-parity integrations without borrowing the production identity.
+    { name = "SPRING_PROFILES_ACTIVE", value = local.external_production ? "production" : "preprod" },
     # Keep private uploads on S3 even if profile composition changes later.
     { name = "STORAGE_PROVIDER", value = "s3" },
     { name = "DB_URL", value = "jdbc:postgresql://${local.database_endpoint}:${local.database_port}/${local.database_name}?sslmode=verify-full" },

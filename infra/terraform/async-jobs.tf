@@ -1,5 +1,5 @@
 # Review-only queue infrastructure. The application and dedicated ECS worker
-# are wired below, but async_queues_enabled must remain false until the staging
+# are wired below, but async_queues_enabled must remain false until the preproduction
 # plan/cost, database migrations, alert recipient, and SES production access
 # are approved. Queue messages contain only durable database IDs.
 

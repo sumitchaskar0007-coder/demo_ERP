@@ -4,12 +4,12 @@ variable "project_name" {
 }
 
 variable "environment" {
-  type    = string
-  default = "production"
+  type        = string
+  description = "Explicit AWS deployment environment. Local development does not use this stack."
 
   validation {
-    condition     = contains(["staging", "preprod", "production"], var.environment)
-    error_message = "environment must be staging, preprod, or production"
+    condition     = contains(["preprod", "production"], var.environment)
+    error_message = "AWS environment must be preprod or production; local runs outside Terraform"
   }
 }
 
@@ -253,7 +253,7 @@ variable "desired_count" {
 variable "backend_task_cpu" {
   type        = number
   default     = 1024
-  description = "Fargate CPU units for the backend task. Keep 1024 until staging load-test evidence justifies 2048."
+  description = "Fargate CPU units for the backend task. Keep 1024 until preproduction load-test evidence justifies 2048."
 
   validation {
     condition     = contains([256, 512, 1024, 2048, 4096, 8192, 16384], var.backend_task_cpu)
@@ -264,7 +264,7 @@ variable "backend_task_cpu" {
 variable "backend_task_memory" {
   type        = number
   default     = 2048
-  description = "Fargate task memory in MiB. Keep 2048 until staging load-test evidence justifies 4096."
+  description = "Fargate task memory in MiB. Keep 2048 until preproduction load-test evidence justifies 4096."
 
   validation {
     condition     = var.backend_task_memory >= 512 && var.backend_task_memory <= 122880
@@ -322,7 +322,7 @@ variable "backend_autoscaling_memory_target" {
 variable "backend_requests_per_target" {
   type        = number
   default     = 900
-  description = "ALB requests per target per one-minute period for target tracking. Tune only with staging evidence."
+  description = "ALB requests per target per one-minute period for target tracking. Tune only with preproduction evidence."
 
   validation {
     condition     = var.backend_requests_per_target >= 1
@@ -438,7 +438,7 @@ variable "alb_latency_p99_alarm_seconds" {
 variable "async_queues_enabled" {
   type        = bool
   default     = false
-  description = "Create email/report queues and a separate worker service after staging cost and deployment approval."
+  description = "Create email/report queues and a separate worker service; preproduction requires this production-parity path."
 }
 
 variable "async_worker_desired_count" {

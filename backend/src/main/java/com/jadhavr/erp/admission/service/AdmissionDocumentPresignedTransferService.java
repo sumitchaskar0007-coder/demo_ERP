@@ -41,7 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
-@Profile("production")
+@Profile("preprod | production")
 public class AdmissionDocumentPresignedTransferService {
     private static final long MAX_DOCUMENT_BYTES = 2L * 1024 * 1024;
     private static final Logger log =

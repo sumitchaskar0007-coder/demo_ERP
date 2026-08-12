@@ -47,6 +47,8 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           FLYWAY_ENABLED: 'true'
+          BOOTSTRAP_ENABLED: 'false'
+          JPA_DDL_AUTO: validate
           RATE_LIMIT_REDIS_ENABLED: 'true'
           REDIS_HOST: localhost
           REDIS_PORT: '6379'
@@ -54,13 +56,15 @@ jobs:
       - name: Apply and validate Flyway migrations on PostgreSQL
         working-directory: backend
         env:
-          SPRING_PROFILES_ACTIVE: docker
+          SPRING_PROFILES_ACTIVE: local
           DB_URL: jdbc:postgresql://localhost:5432/college_erp
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_POOL_MAX_SIZE: '4'
           DB_POOL_MIN_IDLE: '0'
           FLYWAY_ENABLED: 'true'
+          BOOTSTRAP_ENABLED: 'false'
+          JPA_DDL_AUTO: validate
           JWT_SECRET: ci-only-jwt-secret-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJK
           RATE_LIMIT_KEY_SECRET: ci-only-rate-limit-key-0123456789-abcdefghijklmnopqrstuvwxyz
           REDIS_HOST: localhost
@@ -105,6 +109,8 @@ jobs:
         run: npm ci
       - name: Build
         working-directory: frontend
+        env:
+          VITE_APP_ENVIRONMENT: local
         run: npm run build
       - name: Lint
         working-directory: frontend

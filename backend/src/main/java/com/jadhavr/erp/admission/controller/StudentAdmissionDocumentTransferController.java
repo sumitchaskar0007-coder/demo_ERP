@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("production")
+@Profile("preprod | production")
 @RequestMapping("/api/student/admissions/me/documents")
 public class StudentAdmissionDocumentTransferController {
     private final AdmissionDocumentPresignedTransferService transfers;

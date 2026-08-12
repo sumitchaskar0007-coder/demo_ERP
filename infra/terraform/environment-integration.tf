@@ -19,6 +19,31 @@ locals {
   migration_secret_arn = aws_db_instance.postgres[0].master_user_secret[0].secret_arn
 }
 
+resource "terraform_data" "deployment_environment_contract" {
+  input = {
+    environment          = var.environment
+    api_desired_count    = var.desired_count
+    async_queues_enabled = var.async_queues_enabled
+    worker_desired_count = var.async_worker_desired_count
+    mail_enabled         = var.mail_enabled
+  }
+
+  lifecycle {
+    precondition {
+      condition = var.environment != "preprod" || (
+        var.desired_count >= 2 &&
+        !var.temporary_domain &&
+        var.domain_name != "" &&
+        var.route53_zone_id != "" &&
+        var.async_queues_enabled &&
+        var.async_worker_desired_count >= 1 &&
+        var.mail_enabled
+      )
+      error_message = "Preproduction must have its own DNS domain and run at least two API tasks plus the async worker, SQS email/report queues, and SES mail delivery."
+    }
+  }
+}
+
 data "aws_vpc" "production" {
   count = 0
   id    = var.production_vpc_id

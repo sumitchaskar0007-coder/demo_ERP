@@ -103,7 +103,7 @@ resource "aws_wafv2_web_acl" "main" {
         # login control. The application separately limits normalized account
         # identifiers and authenticated user IDs in Redis, so legitimate users
         # sharing a campus NAT address are not governed only by this IP bucket.
-        # Tune the ceiling from sampled staging traffic before enabling a
+        # Tune the ceiling from sampled preproduction traffic before enabling a
         # production WAF change.
         limit                 = var.waf_public_auth_edge_limit
         evaluation_window_sec = 300

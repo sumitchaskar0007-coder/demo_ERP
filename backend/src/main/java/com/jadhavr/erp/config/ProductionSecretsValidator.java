@@ -9,9 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Prevents the production profile from starting with absent or development credentials. */
+/** Prevents managed AWS environments from starting with absent or development credentials. */
 @Component
-@Profile("production")
+@Profile("preprod | production")
 public class ProductionSecretsValidator {
     private final String databaseUrl;
     private final String databaseUsername;
@@ -99,7 +99,7 @@ public class ProductionSecretsValidator {
         }
 
         if (!invalid.isEmpty()) {
-            throw new IllegalStateException("Unsafe production configuration: " + String.join("; ", invalid));
+            throw new IllegalStateException("Unsafe managed-environment configuration: " + String.join("; ", invalid));
         }
     }
 
