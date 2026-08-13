@@ -30,6 +30,18 @@ resource "terraform_data" "deployment_environment_contract" {
 
   lifecycle {
     precondition {
+      condition     = var.environment != "production" || var.db_multi_az
+      error_message = "Production RDS must remain Multi-AZ. A reduction in database redundancy requires a separate architecture and outage review."
+    }
+    precondition {
+      condition     = var.environment != "production" || var.cache_cluster_count == 2
+      error_message = "Production Valkey must retain two nodes so a node replacement or failure does not remove the cache service."
+    }
+    precondition {
+      condition     = var.environment != "production" || var.desired_count == 0 || var.desired_count >= 2
+      error_message = "Production must use zero API tasks only during bootstrap, or at least two API tasks during service."
+    }
+    precondition {
       condition = var.environment != "preprod" || (
         var.desired_count >= 2 &&
         !var.temporary_domain &&

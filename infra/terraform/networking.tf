@@ -206,6 +206,17 @@ resource "aws_security_group" "database" {
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs.id]
   }
+
+  dynamic "ingress" {
+    for_each = var.database_additional_ingress_security_group_ids
+    content {
+      description     = "pgAdmin SSM bridge"
+      from_port       = 5432
+      to_port         = 5432
+      protocol        = "tcp"
+      security_groups = [ingress.value]
+    }
+  }
 }
 
 resource "aws_security_group" "redis" {

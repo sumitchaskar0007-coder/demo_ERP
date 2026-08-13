@@ -25,7 +25,7 @@ resource "aws_db_instance" "postgres" {
   count                           = local.manage_database ? 1 : 0
   identifier                      = "${local.name}-postgres"
   engine                          = "postgres"
-  engine_version                  = "17.5"
+  engine_version                  = var.db_engine_version
   instance_class                  = var.db_instance_class
   allocated_storage               = var.db_allocated_storage_gib
   max_allocated_storage           = 500
@@ -117,6 +117,10 @@ resource "aws_elasticache_replication_group" "redis" {
   security_group_ids         = [aws_security_group.redis.id]
   snapshot_retention_limit   = 7
   apply_immediately          = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret" "application" {

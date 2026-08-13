@@ -18,6 +18,17 @@ variable "aws_region" {
   default = "ap-south-1"
 }
 
+variable "container_insights_mode" {
+  type        = string
+  default     = "enabled"
+  description = "ECS Container Insights mode. Preserve enhanced during production migration; reduce it only in a separately reviewed observability-cost phase."
+
+  validation {
+    condition     = contains(["disabled", "enabled", "enhanced"], var.container_insights_mode)
+    error_message = "container_insights_mode must be disabled, enabled, or enhanced."
+  }
+}
+
 variable "domain_name" {
   type        = string
   default     = ""
@@ -76,6 +87,12 @@ variable "db_instance_class" {
   default = "db.t4g.medium"
 }
 
+variable "db_engine_version" {
+  type        = string
+  default     = "17.9"
+  description = "PostgreSQL engine version currently approved for the environment. Pin this to the live version before planning cost changes."
+}
+
 variable "db_allocated_storage_gib" {
   type    = number
   default = 50
@@ -89,6 +106,20 @@ variable "db_allocated_storage_gib" {
 variable "db_multi_az" {
   type    = bool
   default = true
+}
+
+variable "database_additional_ingress_security_group_ids" {
+  type        = set(string)
+  default     = []
+  description = "Additional security groups allowed to connect to managed PostgreSQL, such as a reviewed SSM-only administration bridge."
+
+  validation {
+    condition = alltrue([
+      for id in var.database_additional_ingress_security_group_ids :
+      can(regex("^sg-[0-9a-f]+$", id))
+    ])
+    error_message = "Every database additional ingress value must be an AWS security group ID."
+  }
 }
 
 variable "db_enhanced_monitoring_enabled" {
@@ -214,6 +245,12 @@ variable "alert_email" {
     ))
     error_message = "Production requires a valid operational alert_email."
   }
+}
+
+variable "alert_email_subscription_enabled" {
+  type        = bool
+  default     = true
+  description = "Create the SNS email subscription. Set false only to preserve a deliberately absent or separately managed subscription during a scoped change."
 }
 
 variable "mail_enabled" {

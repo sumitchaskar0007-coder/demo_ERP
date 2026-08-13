@@ -10,7 +10,7 @@ resource "aws_ecs_cluster" "main" {
   name = local.name
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = var.container_insights_mode
   }
 }
 
@@ -341,6 +341,11 @@ resource "aws_ecs_task_definition" "backend" {
   task_role_arn            = aws_iam_role.ecs_task.arn
 
   lifecycle {
+    # GitHub deployment registers immutable revisions and advances the service.
+    # Terraform owns the family and roles but must not roll production back to
+    # the revision that happened to be current at the last infrastructure apply.
+    ignore_changes = [container_definitions, cpu, memory]
+
     precondition {
       condition = try(
         contains(local.fargate_memory_by_cpu[tostring(var.backend_task_cpu)], var.backend_task_memory),
@@ -406,6 +411,10 @@ resource "aws_ecs_task_definition" "migration" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
+
   container_definitions = jsonencode([{
     name      = "migration"
     image     = var.backend_image
@@ -460,6 +469,8 @@ resource "aws_ecs_task_definition" "async_worker" {
   task_role_arn            = aws_iam_role.async_worker[0].arn
 
   lifecycle {
+    ignore_changes = [container_definitions, cpu, memory]
+
     precondition {
       condition = try(
         contains(local.fargate_memory_by_cpu[tostring(var.async_worker_task_cpu)], var.async_worker_task_memory),
@@ -626,7 +637,7 @@ resource "aws_ecs_service" "backend" {
   lifecycle {
     # Application Auto Scaling owns desired_count after service creation. The
     # production activation gate is enforced by the scalable target minimum.
-    ignore_changes = [desired_count]
+    ignore_changes = [desired_count, task_definition]
 
     precondition {
       condition = !local.external_production || (
@@ -697,6 +708,8 @@ resource "aws_ecs_service" "async_worker" {
   ]
 
   lifecycle {
+    ignore_changes = [task_definition]
+
     precondition {
       condition = !local.external_production || (
         var.production_database_access_ready ? var.async_worker_desired_count >= 1 : local.async_worker_effective_count == 0

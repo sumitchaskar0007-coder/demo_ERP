@@ -1,0 +1,28 @@
+# Phase 1 cost override for the live production stack.
+#
+# Apply this file only after the normal, private production.tfvars so these
+# safety pins win. This phase intentionally changes only the Valkey node type.
+# It does not resize RDS, reduce Multi-AZ capacity, reduce API task count, alter
+# networking, or disable migration telemetry.
+
+# Pin the current database configuration so the cancelled db.t3.micro request
+# cannot be reintroduced by a stale production variable file.
+db_instance_class = "db.t3.small"
+db_engine_version = "17.9"
+db_multi_az       = true
+
+# Retain a primary and replica in separate AZs while right-sizing the heavily
+# underutilized cache nodes.
+cache_node_type     = "cache.t4g.micro"
+cache_cluster_count = 2
+
+# Preserve the two healthy API targets observed before this plan.
+desired_count = 2
+
+# Detailed telemetry remains enabled until the resize and failover observation
+# period has completed. Disabling it belongs to a later cost phase.
+container_insights_mode = "enhanced"
+
+# The live SNS email subscription is absent. Do not recreate it in this cache
+# resize phase; alert delivery is repaired and confirmed separately.
+alert_email_subscription_enabled = false

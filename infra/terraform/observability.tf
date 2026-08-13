@@ -7,7 +7,7 @@ resource "aws_sns_topic" "alerts" {
 }
 
 resource "aws_sns_topic_subscription" "email" {
-  count     = var.alert_email == "" ? 0 : 1
+  count     = var.alert_email_subscription_enabled && var.alert_email != "" ? 1 : 0
   topic_arn = aws_sns_topic.alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
@@ -408,7 +408,7 @@ resource "aws_cloudwatch_dashboard" "capacity" {
         width  = 24
         height = 2
         properties = {
-          markdown = "Production RDS infrastructure and monitoring are externally owned. Correlate this dashboard with the RDS owner's approved dashboard during preproduction load tests."
+          markdown = "Production RDS infrastructure and monitoring are externally owned. Correlate this dashboard with the RDS owner's approved dashboard during staging load tests."
         }
       }
     ]
