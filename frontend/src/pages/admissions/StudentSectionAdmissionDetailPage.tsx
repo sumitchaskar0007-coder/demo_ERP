@@ -13,7 +13,7 @@ import { Select } from "@/components/common/Select";
 import { Textarea } from "@/components/common/Textarea";
 import { handleApiError } from "@/lib/handleApiError";
 import { approveAdmissionSchema, rejectAdmissionSchema } from "@/lib/validators";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatIndianCurrency } from "@/lib/utils";
 import {
   DetailedAdmissionForm,
   DetailedAdmissionView,
@@ -78,6 +78,9 @@ export function StudentSectionAdmissionDetailPage() {
     fees?.account?.admissionFeeAccount &&
       Number(fees.account.paidAmount) >= Number(fees.account.minimumAmountForAdmission),
   );
+  const admissionFeeLabel = fees?.account
+    ? formatIndianCurrency(fees.account.totalFee)
+    : "configured";
   const canChangeInformation =
     canManage &&
     Boolean(admission.detailsCompletedAt) &&
@@ -125,7 +128,7 @@ export function StudentSectionAdmissionDetailPage() {
         </div>
         {canVerify && !admissionFormFeeVerified && (
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Approval is locked until Fee Section verifies the ₹1,000 admission form fee.
+            {`Approval is locked until Fee Section verifies the ${admissionFeeLabel} admission form fee.`}
           </p>
         )}
       </Card>
@@ -275,7 +278,7 @@ export function StudentSectionAdmissionDetailPage() {
 }
 
 function money(value: number) {
-  return `₹${Number(value).toLocaleString("en-IN")}`;
+  return formatIndianCurrency(value);
 }
 
 function ActionModal({

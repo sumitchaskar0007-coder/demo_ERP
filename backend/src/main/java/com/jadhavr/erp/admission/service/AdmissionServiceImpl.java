@@ -30,6 +30,7 @@ import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.enums.CourseYearName;
 import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
+import com.jadhavr.erp.auth.password.InitialPasswordPolicy;
 import com.jadhavr.erp.auth.util.TemporaryPasswordGenerator;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
@@ -108,6 +109,7 @@ public class AdmissionServiceImpl implements AdmissionService {
     private final AdmissionStatusHistoryRepository statusHistories;
     private final AcademicClassRepository courseYears;
     private final AdmissionDocumentRepository documents;
+    private final InitialPasswordPolicy initialPasswordPolicy;
     private AdmissionDocumentRequirementRepository documentRequirements;
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
@@ -152,7 +154,8 @@ public class AdmissionServiceImpl implements AdmissionService {
             StudentSectionAdmissionMapper detailedAdmissionMapper,
             AdmissionStatusHistoryRepository statusHistories,
             AcademicClassRepository courseYears,
-            AdmissionDocumentRepository documents) {
+            AdmissionDocumentRepository documents,
+            InitialPasswordPolicy initialPasswordPolicy) {
         this.collegeRepository = collegeRepository;
         this.departmentRepository = departmentRepository;
         this.userRepository = userRepository;
@@ -165,6 +168,7 @@ public class AdmissionServiceImpl implements AdmissionService {
         this.statusHistories = statusHistories;
         this.courseYears = courseYears;
         this.documents = documents;
+        this.initialPasswordPolicy = initialPasswordPolicy;
     }
 
     public AdmissionServiceImpl(
@@ -180,7 +184,8 @@ public class AdmissionServiceImpl implements AdmissionService {
             AdmissionStatusHistoryRepository statusHistories) {
         this(collegeRepository, departmentRepository, userRepository, roleRepository,
                 studentProfileRepository, admissionFormRepository, passwordEncoder, admissionMapper,
-                detailedAdmissionMapper, statusHistories, null, null);
+                detailedAdmissionMapper, statusHistories, null, null,
+                phone -> TemporaryPasswordGenerator.generate());
     }
 
     @Override
@@ -249,7 +254,7 @@ public class AdmissionServiceImpl implements AdmissionService {
                 .orElseThrow(() -> new ResourceNotFoundException("STUDENT role not found"));
         String fullName = buildFullName(
                 request.firstName(), request.middleName(), request.lastName());
-        String temporaryPassword = TemporaryPasswordGenerator.generate();
+        String temporaryPassword = initialPasswordPolicy.create(request.phone());
 
         User user = new User();
         user.setCollege(college);

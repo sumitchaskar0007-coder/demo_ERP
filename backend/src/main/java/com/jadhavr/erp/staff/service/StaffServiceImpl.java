@@ -13,6 +13,7 @@ import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.security.SecurityUtils;
+import com.jadhavr.erp.auth.password.InitialPasswordPolicy;
 import com.jadhavr.erp.auth.util.TemporaryPasswordGenerator;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.college.entity.CollegeStatus;
@@ -82,6 +83,7 @@ public class StaffServiceImpl implements StaffService {
     private final StaffMapper mapper;
     private final RefreshTokenRepository refreshTokens;
     private final AuthorizationSnapshotService authorizationSnapshots;
+    private final InitialPasswordPolicy initialPasswordPolicy;
     private final SecureRandom random = new SecureRandom();
     private EmailNotificationService emailNotifications;
 
@@ -97,6 +99,22 @@ public class StaffServiceImpl implements StaffService {
             StaffMapper mapper,
             RefreshTokenRepository refreshTokens,
             AuthorizationSnapshotService authorizationSnapshots) {
+        this(staffProfiles, users, roles, colleges, passwordEncoder, mapper,
+                refreshTokens, authorizationSnapshots,
+                phone -> TemporaryPasswordGenerator.generate());
+    }
+
+    @Autowired
+    public StaffServiceImpl(
+            StaffProfileRepository staffProfiles,
+            UserRepository users,
+            RoleRepository roles,
+            CollegeRepository colleges,
+            PasswordEncoder passwordEncoder,
+            StaffMapper mapper,
+            RefreshTokenRepository refreshTokens,
+            AuthorizationSnapshotService authorizationSnapshots,
+            InitialPasswordPolicy initialPasswordPolicy) {
         this.staffProfiles = staffProfiles;
         this.users = users;
         this.roles = roles;
@@ -105,6 +123,7 @@ public class StaffServiceImpl implements StaffService {
         this.mapper = mapper;
         this.refreshTokens = refreshTokens;
         this.authorizationSnapshots = authorizationSnapshots;
+        this.initialPasswordPolicy = initialPasswordPolicy;
     }
 
     @Autowired
@@ -216,7 +235,7 @@ public class StaffServiceImpl implements StaffService {
         user.setEmail(email);
         String normalizedPhone = trimToNull(phone);
         user.setPhone(normalizedPhone);
-        String temporaryPassword = TemporaryPasswordGenerator.generate();
+        String temporaryPassword = initialPasswordPolicy.create(normalizedPhone);
         user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(mustChangePassword);
         user.setStatus(UserStatus.ACTIVE);

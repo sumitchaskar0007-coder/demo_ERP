@@ -19,6 +19,7 @@ import com.jadhavr.erp.user.repository.RoleRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
+import com.jadhavr.erp.auth.password.InitialPasswordPolicy;
 import com.jadhavr.erp.auth.util.TemporaryPasswordGenerator;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -45,6 +46,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper mapper;
     private final RefreshTokenRepository refreshTokens;
     private final AuthorizationSnapshotService authorizationSnapshots;
+    private final InitialPasswordPolicy initialPasswordPolicy;
     private EmailNotificationService emailNotifications;
 
     @Autowired(required = false)
@@ -54,6 +56,16 @@ public class UserServiceImpl implements UserService {
                            CollegeRepository colleges, PasswordEncoder passwordEncoder,
                            UserMapper mapper, RefreshTokenRepository refreshTokens,
                            AuthorizationSnapshotService authorizationSnapshots) {
+        this(users, roles, colleges, passwordEncoder, mapper, refreshTokens,
+                authorizationSnapshots, phone -> TemporaryPasswordGenerator.generate());
+    }
+
+    @Autowired
+    public UserServiceImpl(UserRepository users, RoleRepository roles,
+                           CollegeRepository colleges, PasswordEncoder passwordEncoder,
+                           UserMapper mapper, RefreshTokenRepository refreshTokens,
+                           AuthorizationSnapshotService authorizationSnapshots,
+                           InitialPasswordPolicy initialPasswordPolicy) {
         this.users = users;
         this.roles = roles;
         this.colleges = colleges;
@@ -61,6 +73,7 @@ public class UserServiceImpl implements UserService {
         this.mapper = mapper;
         this.refreshTokens = refreshTokens;
         this.authorizationSnapshots = authorizationSnapshots;
+        this.initialPasswordPolicy = initialPasswordPolicy;
     }
 
     @Override
@@ -86,7 +99,7 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.fullName().trim());
         user.setEmail(email);
         user.setPhone(request.phone());
-        String temporaryPassword = TemporaryPasswordGenerator.generate();
+        String temporaryPassword = initialPasswordPolicy.create(request.phone());
         user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(true);
         user.setStatus(UserStatus.ACTIVE);

@@ -12,6 +12,7 @@ import com.jadhavr.erp.user.mapper.UserMapper;
 import com.jadhavr.erp.user.repository.RoleRepository;
 import com.jadhavr.erp.user.repository.UserRepository;
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
+import com.jadhavr.erp.auth.password.LocalPhoneInitialPasswordPolicy;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException;
 import com.jadhavr.erp.email.service.EmailNotificationService;
@@ -69,6 +70,19 @@ class UserServiceImplTest {
         assertEquals(20, password.getValue().length());
         verify(emailNotifications).queuePrincipalCreatedEmail(
                 any(User.class), eq(password.getValue()));
+    }
+
+    @Test void localPolicyUsesPhoneAsPrincipalInitialPassword() {
+        stubValidCreation();
+        when(encoder.encode("9876543210")).thenReturn("$2a$local-phone");
+        when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
+        var localService = new UserServiceImpl(
+                users, roles, colleges, encoder, new UserMapper(), refreshTokens,
+                authorizationSnapshots, new LocalPhoneInitialPasswordPolicy());
+
+        localService.createPrincipal(request());
+
+        verify(encoder).encode("9876543210");
     }
 
     @Test void missingCollegeFails() {

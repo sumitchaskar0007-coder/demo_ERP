@@ -74,14 +74,14 @@ public class FeeReceiptService {
                 : account.getFeeStructure().getCourseYear();
         String courseName = joinCourse(payment.getDepartment().getName(), courseYear);
         String remark = provisional
-                ? "This provisional receipt confirms the verified admission payment. Admission remains subject to the selected college's admission rules and seat availability."
+                ? "This receipt confirms the verified admission form fee payment. Admission remains subject to the selected college's admission rules and seat availability."
                 : "This receipt confirms the verified fee payment recorded by the selected college.";
         LocalDate issuedOn = payment.getVerifiedAt().toLocalDate();
 
         return new FeeReceiptResponse(
                 payment.getId(),
                 receiptNumber(payment),
-                provisional ? "Provisional Fee Receipt" : "Fee Payment Receipt",
+                "Fee Receipt",
                 issuedOn,
                 college.getId(),
                 college.getCode(),

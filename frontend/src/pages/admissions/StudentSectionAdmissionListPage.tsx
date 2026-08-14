@@ -97,7 +97,7 @@ export function StudentSectionAdmissionListPage() {
       render: (row) => {
         const reviewable = canManage && row.status === "STUDENT_SECTION_REVIEW_PENDING";
         return (
-          <div className="flex flex-wrap gap-2">
+          <div className="table-action-group">
             {reviewable ? (
               <Button onClick={() => navigate(`/student-section/admissions/${row.id}`)}>
                 Review

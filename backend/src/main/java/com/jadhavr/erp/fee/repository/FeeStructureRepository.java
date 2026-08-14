@@ -102,6 +102,6 @@ public interface FeeStructureRepository extends JpaRepository<FeeStructure,Long>
  }
  boolean existsByCollegeIdAndDepartmentIdAndAcademicYearInAndStudentCategoryAndStatus(Long c,Long d,Collection<String> years,StudentCategory cat,FeeStructureStatus s);
  boolean existsByCollegeIdAndDepartmentIdAndAcademicYearInAndStudentCategoryAndCourseYearIgnoreCaseAndStatus(Long c,Long d,Collection<String> years,StudentCategory cat,String courseYear,FeeStructureStatus s);
- @Query("select distinct f from FeeStructure f where f.college.id=:collegeId and f.department.id=:departmentId and f.status=com.jadhavr.erp.fee.enums.FeeStructureStatus.ACTIVE order by f.studentCategory, f.customCategoryName")
+ @Query("select distinct f from FeeStructure f where f.college.id=:collegeId and f.department.id=:departmentId and f.status=com.jadhavr.erp.fee.enums.FeeStructureStatus.ACTIVE")
  List<FeeStructure> findPublicCategoryOptions(@Param("collegeId") Long collegeId,@Param("departmentId") Long departmentId);
 }

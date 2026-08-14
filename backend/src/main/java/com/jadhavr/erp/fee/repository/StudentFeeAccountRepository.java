@@ -46,6 +46,18 @@ public interface StudentFeeAccountRepository extends JpaRepository<StudentFeeAcc
     List<StudentFeeAccount> findByFeeStructureIdForUpdate(
             @Param("feeStructureId") Long feeStructureId);
 
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select a from StudentFeeAccount a
+            where a.department.id = :departmentId
+              and a.feeStructure is null
+              and a.paidAmount = 0
+              and a.status = com.jadhavr.erp.fee.enums.FeeAccountStatus.PENDING
+            order by a.id
+            """)
+    List<StudentFeeAccount> findUntouchedAdmissionFeeAccountsForUpdate(
+            @Param("departmentId") Long departmentId);
+
     long countByCollegeId(Long id);
     List<StudentFeeAccount> findByCollegeId(Long id);
     List<StudentFeeAccount> findByCollegeIdAndRemainingAmountGreaterThan(Long id, BigDecimal amount);

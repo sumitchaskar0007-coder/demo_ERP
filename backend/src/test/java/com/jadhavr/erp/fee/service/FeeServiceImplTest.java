@@ -16,10 +16,13 @@ import com.jadhavr.erp.department.repository.DepartmentRepository;
 import com.jadhavr.erp.email.service.EmailNotificationService;
 import com.jadhavr.erp.fee.dto.VerifyPaymentRequest;
 import com.jadhavr.erp.fee.dto.UpdateFeeStructureRequest;
+import com.jadhavr.erp.fee.dto.PaymentResponse;
 import com.jadhavr.erp.fee.entity.FeePayment;
 import com.jadhavr.erp.fee.entity.FeeStructure;
 import com.jadhavr.erp.fee.entity.StudentFeeAccount;
 import com.jadhavr.erp.fee.enums.FeeStructureStatus;
+import com.jadhavr.erp.fee.enums.FeeAccountStatus;
+import com.jadhavr.erp.fee.enums.FeePaymentPurpose;
 import com.jadhavr.erp.fee.enums.PaymentStatus;
 import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.fee.repository.FeePaymentRepository;
@@ -103,6 +106,81 @@ class FeeServiceImplTest {
         assertEquals(StudentCategory.SC, captor.getValue().getStudentCategory());
         assertSame(structure, captor.getValue().getFeeStructure());
         assertEquals(new BigDecimal("12000.00"), captor.getValue().getRemainingAmount());
+    }
+
+    @Test
+    void admissionFeeChangeUpdatesOnlyAccountsWithoutPaymentActivity() {
+        StudentFeeAccount untouched = new StudentFeeAccount();
+        untouched.setId(20L);
+        untouched.setTotalFee(new BigDecimal("2200.00"));
+        untouched.setPaidAmount(BigDecimal.ZERO);
+        untouched.setRemainingAmount(new BigDecimal("2200.00"));
+        untouched.setMinimumAmountForAdmission(new BigDecimal("2200.00"));
+        untouched.setStatus(FeeAccountStatus.PENDING);
+        StudentFeeAccount paymentSubmitted = new StudentFeeAccount();
+        paymentSubmitted.setId(21L);
+        paymentSubmitted.setTotalFee(new BigDecimal("2200.00"));
+        paymentSubmitted.setPaidAmount(BigDecimal.ZERO);
+        paymentSubmitted.setRemainingAmount(new BigDecimal("2200.00"));
+        paymentSubmitted.setMinimumAmountForAdmission(new BigDecimal("2200.00"));
+        paymentSubmitted.setStatus(FeeAccountStatus.PENDING);
+        when(accounts.findUntouchedAdmissionFeeAccountsForUpdate(10L))
+                .thenReturn(List.of(untouched, paymentSubmitted));
+        when(payments.existsByStudentFeeAccountId(20L)).thenReturn(false);
+        when(payments.existsByStudentFeeAccountId(21L)).thenReturn(true);
+
+        int updated = service.synchronizeUntouchedAdmissionFeeAccounts(
+                10L, new BigDecimal("3000.00"));
+
+        assertEquals(1, updated);
+        assertEquals(new BigDecimal("3000.00"), untouched.getTotalFee());
+        assertEquals(new BigDecimal("3000.00"), untouched.getRemainingAmount());
+        assertEquals(new BigDecimal("3000.00"), untouched.getMinimumAmountForAdmission());
+        assertEquals(new BigDecimal("2200.00"), paymentSubmitted.getTotalFee());
+        verify(accounts).saveAll(List.of(untouched));
+    }
+
+    @Test
+    void myPaymentsReturnsEveryAuthenticatedStudentAccountWithPurpose() {
+        User studentUser = new User();
+        studentUser.setId(99L);
+        StudentProfile student = new StudentProfile();
+        student.setId(12L);
+        student.setUser(studentUser);
+        student.setFullName("Test Student");
+        student.setAdmissionNumber("ADM-12");
+        College college = college();
+        college.setName("College");
+        Department department = new Department();
+        department.setId(10L);
+        department.setName("MBA");
+        department.setCollege(college);
+
+        StudentFeeAccount courseAccount = new StudentFeeAccount();
+        courseAccount.setId(21L);
+        courseAccount.setFeeStructure(new FeeStructure());
+        StudentFeeAccount admissionAccount = new StudentFeeAccount();
+        admissionAccount.setId(20L);
+
+        FeePayment coursePayment = payment(courseAccount, new BigDecimal("80000.00"), PaymentStatus.VERIFIED);
+        coursePayment.setStudent(student);
+        coursePayment.setStudentUser(studentUser);
+        coursePayment.setDepartment(department);
+        FeePayment admissionPayment = payment(admissionAccount, new BigDecimal("3000.00"), PaymentStatus.VERIFIED);
+        admissionPayment.setId(31L);
+        admissionPayment.setStudent(student);
+        admissionPayment.setStudentUser(studentUser);
+        admissionPayment.setDepartment(department);
+        when(payments.findByStudentUserIdOrderByCreatedAtDesc(99L))
+                .thenReturn(List.of(coursePayment, admissionPayment));
+
+        List<PaymentResponse> result = service.myPayments();
+
+        assertEquals(2, result.size());
+        assertEquals(FeePaymentPurpose.COURSE_FEE, result.get(0).paymentPurpose());
+        assertEquals(FeePaymentPurpose.ADMISSION_FORM_FEE, result.get(1).paymentPurpose());
+        verify(payments).findByStudentUserIdOrderByCreatedAtDesc(99L);
+        verify(accounts, never()).findTopByStudentUserIdOrderByCreatedAtDesc(99L);
     }
 
     @Test

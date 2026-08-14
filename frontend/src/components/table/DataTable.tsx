@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export interface Column<T> {
   key: string;
@@ -18,11 +19,17 @@ export function DataTable<T>({
 }) {
   return (
     <div className="data-table w-full min-w-0 overscroll-x-contain overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse text-left">
+      <table className="w-full min-w-max border-collapse text-left">
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.key} className={column.className || ""}>
+              <th
+                key={column.key}
+                className={cn(
+                  column.className,
+                  column.key === "actions" && "w-px whitespace-nowrap",
+                )}
+              >
                 {column.header}
               </th>
             ))}
@@ -35,7 +42,10 @@ export function DataTable<T>({
                 <td
                   key={column.key}
                   data-label={column.key === "actions" ? "" : column.header}
-                  className={column.className || ""}
+                  className={cn(
+                    column.className,
+                    column.key === "actions" && "w-px whitespace-nowrap [overflow-wrap:normal]",
+                  )}
                 >
                   {column.render(row)}
                 </td>

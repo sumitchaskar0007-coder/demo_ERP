@@ -10,7 +10,7 @@ import type { FeeReceiptResponse } from "./types";
 const receipt: FeeReceiptResponse = {
   paymentId: 31,
   receiptNumber: "RCP-AIMS-2026-000031",
-  receiptTitle: "Provisional Fee Receipt",
+  receiptTitle: "Fee Receipt",
   issuedOn: "2026-06-24",
   collegeId: 7,
   collegeCode: "AIMS",

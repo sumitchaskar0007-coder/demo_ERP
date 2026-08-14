@@ -13,6 +13,7 @@ import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
 import com.jadhavr.erp.department.mapper.DepartmentMapper;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
+import com.jadhavr.erp.fee.service.FeeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +43,9 @@ class DepartmentServiceImplTest {
     @Mock
     private CollegeRepository collegeRepository;
 
+    @Mock
+    private FeeService feeService;
+
     private DepartmentServiceImpl service;
 
     @BeforeEach
@@ -49,7 +53,8 @@ class DepartmentServiceImplTest {
         service = new DepartmentServiceImpl(
                 departmentRepository,
                 collegeRepository,
-                new DepartmentMapper()
+                new DepartmentMapper(),
+                feeService
         );
     }
 
@@ -149,6 +154,8 @@ class DepartmentServiceImplTest {
         assertEquals("BCA", result.code());
         assertEquals(1L, result.collegeId());
         assertEquals("Updated Department", result.name());
+        verify(feeService).synchronizeUntouchedAdmissionFeeAccounts(
+                10L, new BigDecimal("500.00"));
     }
 
     @Test

@@ -8,8 +8,11 @@ import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
 import * as admissionsApi from "@/features/admissions/api";
+import * as feesApi from "@/features/fees/api";
 import type { StudentSectionAdmissionResponse } from "@/features/admissions/types";
+import type { StudentFeeAccountResponse } from "@/features/fees/types";
 import { handleApiError } from "@/lib/handleApiError";
+import { formatIndianCurrency } from "@/lib/utils";
 import { STUDENT_ADMISSION_CHANGED_EVENT } from "@/routes/StudentAdmissionGate";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/lib/constants";
@@ -24,6 +27,7 @@ const studentSectionApprovedStatuses = new Set([
 export function StudentAdmissionPage() {
   const navigate = useNavigate();
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
+  const [feeAccount, setFeeAccount] = useState<StudentFeeAccountResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -31,7 +35,20 @@ export function StudentAdmissionPage() {
     setLoading(true);
     setError("");
     try {
-      setAdmission(await admissionsApi.getMyAdmission());
+      const admissionResponse = await admissionsApi.getMyAdmission();
+      setAdmission(admissionResponse);
+      if (
+        admissionResponse.status === "SUBMITTED" &&
+        Boolean(admissionResponse.detailsCompletedAt)
+      ) {
+        try {
+          setFeeAccount(await feesApi.getMyFeeAccount());
+        } catch {
+          setFeeAccount(null);
+        }
+      } else {
+        setFeeAccount(null);
+      }
     } catch (requestError) {
       setError(handleApiError(requestError).message);
     } finally {
@@ -70,6 +87,7 @@ export function StudentAdmissionPage() {
   const pending = admission.status === "STUDENT_SECTION_REVIEW_PENDING";
   const awaitingFeeVerification =
     admission.status === "SUBMITTED" && Boolean(admission.detailsCompletedAt);
+  const admissionFeeLabel = feeAccount ? formatIndianCurrency(feeAccount.totalFee) : "configured";
 
   return (
     <div className="page-container space-y-5">
@@ -97,8 +115,7 @@ export function StudentAdmissionPage() {
         )}
         {awaitingFeeVerification && (
           <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
-            Your form is complete. Pay the ₹1,000 admission form fee and wait for Fee Section
-            verification. It will then move to Student Section review automatically.
+            {`Your form is complete. Pay the ${admissionFeeLabel} admission form fee and wait for Fee Section verification. It will then move to Student Section review automatically.`}
           </p>
         )}
         {admission.detailsCompletedAt && !rejected && (

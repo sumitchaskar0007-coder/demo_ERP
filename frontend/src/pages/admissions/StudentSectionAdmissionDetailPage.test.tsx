@@ -95,14 +95,14 @@ const verifiedAdmissionFeeAccount = {
   departmentCode: "CS",
   academicYear: "2026-27",
   studentCategory: "OPEN",
-  totalFee: 1000,
-  paidAmount: 1000,
+  totalFee: 2200,
+  paidAmount: 2200,
   remainingAmount: 0,
   creditAmount: 0,
   discountAmount: 0,
   scholarshipAmount: 0,
   scholarshipRemoved: false,
-  minimumAmountForAdmission: 1000,
+  minimumAmountForAdmission: 2200,
   status: "PAID",
   admissionFeeAccount: true,
   collegeQrAccountName: "Jadhavar College",
@@ -268,7 +268,7 @@ describe("StudentSectionAdmissionDetailPage", () => {
       account: {
         ...verifiedAdmissionFeeAccount,
         paidAmount: 0,
-        remainingAmount: 1000,
+        remainingAmount: 2200,
         status: "PENDING",
       },
       payments: [],
@@ -287,7 +287,7 @@ describe("StudentSectionAdmissionDetailPage", () => {
 
     expect(
       await screen.findByText(
-        "Approval is locked until Fee Section verifies the ₹1,000 admission form fee.",
+        "Approval is locked until Fee Section verifies the ₹2,200 admission form fee.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();

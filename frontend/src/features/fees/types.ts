@@ -90,6 +90,7 @@ export interface SubmitPaymentRequest {
 export interface PaymentResponse {
   id: number;
   feeAccountId: number;
+  paymentPurpose: "ADMISSION_FORM_FEE" | "COURSE_FEE";
   studentId: number;
   studentName: string;
   admissionNumber: string;

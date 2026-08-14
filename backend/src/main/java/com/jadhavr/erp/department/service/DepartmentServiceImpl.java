@@ -14,6 +14,7 @@ import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.department.entity.DepartmentStatus;
 import com.jadhavr.erp.department.mapper.DepartmentMapper;
 import com.jadhavr.erp.department.repository.DepartmentRepository;
+import com.jadhavr.erp.fee.service.FeeService;
 import org.springframework.data.domain.Page;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
@@ -37,14 +38,17 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final CollegeRepository collegeRepository;
     private final DepartmentMapper departmentMapper;
+    private final FeeService feeService;
 
     public DepartmentServiceImpl(
             DepartmentRepository departmentRepository,
             CollegeRepository collegeRepository,
-            DepartmentMapper departmentMapper) {
+            DepartmentMapper departmentMapper,
+            FeeService feeService) {
         this.departmentRepository = departmentRepository;
         this.collegeRepository = collegeRepository;
         this.departmentMapper = departmentMapper;
+        this.feeService = feeService;
     }
 
     @Override
@@ -117,10 +121,18 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Transactional
     public DepartmentResponse updateDepartment(Long id, UpdateDepartmentRequest request) {
         Department department = findDepartment(id);
+        boolean admissionFormFeeChanged =
+                department.getAdmissionFormFee() == null
+                        || department.getAdmissionFormFee().compareTo(request.admissionFormFee()) != 0;
         department.setName(request.name().trim());
         department.setDescription(request.description());
         department.setAdmissionFormFee(request.admissionFormFee());
-        return departmentMapper.toResponse(departmentRepository.save(department));
+        Department savedDepartment = departmentRepository.save(department);
+        if (admissionFormFeeChanged) {
+            feeService.synchronizeUntouchedAdmissionFeeAccounts(
+                    savedDepartment.getId(), savedDepartment.getAdmissionFormFee());
+        }
+        return departmentMapper.toResponse(savedDepartment);
     }
 
     @Override

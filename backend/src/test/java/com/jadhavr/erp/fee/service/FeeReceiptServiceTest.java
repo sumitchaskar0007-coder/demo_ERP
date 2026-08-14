@@ -55,7 +55,7 @@ class FeeReceiptServiceTest {
         FeeReceiptResponse receipt = service().currentStudentReceipt(31L);
 
         assertEquals("RCP-AIMS-2026-000031", receipt.receiptNumber());
-        assertEquals("Provisional Fee Receipt", receipt.receiptTitle());
+        assertEquals("Fee Receipt", receipt.receiptTitle());
         assertEquals("Aditya Institute - First Year", receipt.courseName());
         assertEquals("UTR123456789012", receipt.transactionReference());
         assertEquals("/api/public/admissions/college/AIMS/logo", receipt.collegeLogoUrl());

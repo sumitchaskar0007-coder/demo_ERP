@@ -5,6 +5,7 @@ import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.fee.dto.*;
 import com.jadhavr.erp.fee.enums.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface FeeService {
@@ -19,6 +20,7 @@ public interface FeeService {
             String academicYear, StudentCategory category, FeeStructureStatus status,
             int page, int size, String sort, String direction);
     void createAccountForAdmission(AdmissionForm admission);
+    int synchronizeUntouchedAdmissionFeeAccounts(Long departmentId, BigDecimal admissionFormFee);
     void createRegularFeeAccount(AdmissionForm admission);
     boolean isAdmissionFormFeeVerified(Long admissionId);
     StudentFeeAccountResponse myAccount();

@@ -9,6 +9,7 @@ import com.jadhavr.erp.college.service.CollegeImageStorageService;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import com.jadhavr.erp.common.api.ApiResponse;
 import com.jadhavr.erp.fee.dto.FeeCategoryOptionResponse;
+import com.jadhavr.erp.fee.entity.FeeStructure;
 import com.jadhavr.erp.fee.enums.StudentCategory;
 import com.jadhavr.erp.fee.repository.FeeStructureRepository;
 import jakarta.validation.Valid;
@@ -25,6 +26,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/public/admissions")
 public class PublicAdmissionController {
+    private static final java.util.Comparator<FeeStructure> CATEGORY_DISPLAY_ORDER =
+            java.util.Comparator
+                    .comparingInt((FeeStructure fee) -> fee.getStudentCategory().displayOrder())
+                    .thenComparing(
+                            fee -> fee.getCustomCategoryName() == null
+                                    ? "" : fee.getCustomCategoryName(),
+                            String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(
+                            FeeStructure::getId,
+                            java.util.Comparator.nullsLast(Long::compareTo));
+
     private final AdmissionService admissionService;
     private final CollegeRepository colleges;
     private final CollegeImageStorageService images;
@@ -60,6 +72,7 @@ public class PublicAdmissionController {
                 .filter(f -> academicYears == null || academicYears.contains(f.getAcademicYear()))
                 .filter(f -> normalizedCourseYear == null
                         || normalizedCourseYear.equalsIgnoreCase(f.getCourseYear()))
+                .sorted(CATEGORY_DISPLAY_ORDER)
                 .toList();
         var options = new java.util.LinkedHashMap<String, FeeCategoryOptionResponse>();
         configured.forEach(f -> {

@@ -11,6 +11,15 @@ export function formatDate(value?: string | null) {
   return format(new Date(value), "dd MMM yyyy, hh:mm a");
 }
 
+export function formatIndianCurrency(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+}
+
 export function initials(name: string) {
   return name
     .split(" ")
