@@ -9,7 +9,10 @@ import { Card } from "@/components/common/Card";
 import { Loader } from "@/components/common/Loader";
 import * as admissionsApi from "@/features/admissions/api";
 import * as feesApi from "@/features/fees/api";
-import type { StudentSectionAdmissionResponse } from "@/features/admissions/types";
+import type {
+  AdmissionDocumentRequirement,
+  StudentSectionAdmissionResponse,
+} from "@/features/admissions/types";
 import type { StudentFeeAccountResponse } from "@/features/fees/types";
 import { handleApiError } from "@/lib/handleApiError";
 import { formatIndianCurrency } from "@/lib/utils";
@@ -28,6 +31,7 @@ export function StudentAdmissionPage() {
   const navigate = useNavigate();
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [feeAccount, setFeeAccount] = useState<StudentFeeAccountResponse | null>(null);
+  const [requirements, setRequirements] = useState<AdmissionDocumentRequirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -37,6 +41,7 @@ export function StudentAdmissionPage() {
     try {
       const admissionResponse = await admissionsApi.getMyAdmission();
       setAdmission(admissionResponse);
+      setRequirements(await admissionsApi.getMyAdmissionDocumentRequirements());
       if (
         admissionResponse.status === "SUBMITTED" &&
         Boolean(admissionResponse.detailsCompletedAt)
@@ -147,7 +152,11 @@ export function StudentAdmissionPage() {
       {editable ? (
         <DetailedAdmissionForm admission={admission} onSaved={afterSubmission} studentOwned />
       ) : (
-        <DetailedAdmissionView admission={admission} studentOwned />
+        <DetailedAdmissionView
+          admission={admission}
+          documentRequirements={requirements}
+          studentOwned
+        />
       )}
     </div>
   );

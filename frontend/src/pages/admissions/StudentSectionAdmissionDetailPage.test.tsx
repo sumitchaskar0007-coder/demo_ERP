@@ -157,6 +157,39 @@ describe("StudentSectionAdmissionDetailPage", () => {
     expect(screen.getByRole("button", { name: "Cancel Changes" })).toBeInTheDocument();
   });
 
+  it("shows configured names instead of internal custom document keys", async () => {
+    vi.mocked(admissionApi.getStudentSectionAdmission).mockResolvedValue({
+      ...admission,
+      uploadedDocuments: ["CUSTOM_7945150153D04552951354E2"],
+    });
+    vi.mocked(admissionApi.getAdmissionDocumentRequirements).mockResolvedValue([
+      {
+        id: 91,
+        departmentId: 2,
+        departmentName: "Computer Science",
+        documentKey: "CUSTOM_7945150153D04552951354E2",
+        documentName: "12th Certificate",
+        required: false,
+        active: true,
+        displayOrder: 100,
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/student-section/admissions/42"]}>
+        <Routes>
+          <Route
+            path="/student-section/admissions/:admissionId"
+            element={<StudentSectionAdmissionDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("button", { name: "12th Certificate" })).toBeInTheDocument();
+    expect(screen.queryByText("CUSTOM_7945150153D04552951354E2")).not.toBeInTheDocument();
+  });
+
   it("shows the available category names after Student Section selects Other", async () => {
     const user = userEvent.setup();
     vi.mocked(admissionApi.getPublicAdmissionCategories).mockResolvedValue([

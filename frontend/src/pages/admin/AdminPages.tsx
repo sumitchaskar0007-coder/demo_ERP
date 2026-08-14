@@ -50,7 +50,6 @@ import type { College } from "@/features/colleges/types";
 import { getActiveDepartmentsForAdmin } from "@/features/departments/api";
 import type { Department } from "@/features/departments/types";
 import type { FeeStructureResponse } from "@/features/fees/types";
-import type { PageResponse } from "@/types/api";
 import { weeklyTimetableApi, type WeeklyDivision } from "@/features/academics/api";
 import type { TeacherDay, TeacherLecture, TeacherTimetable } from "@/features/teacherTimetable/api";
 import {
@@ -1102,7 +1101,7 @@ export function AdminMoneyPage({
   principal?: boolean;
 }) {
   const { user } = useAuth();
-  const [result, setResult] = useState<PageResponse<
+  const [result, setResult] = useState<api.FeeReportPageResponse<
     api.FeeCollectionRow | api.PendingFeeRow
   > | null>(null);
   const [page, setPage] = useState(0);
@@ -1158,7 +1157,9 @@ export function AdminMoneyPage({
               size: 20,
             })
         )
-          .then((data) => setResult(data as PageResponse<api.FeeCollectionRow | api.PendingFeeRow>))
+          .then((data) =>
+            setResult(data as api.FeeReportPageResponse<api.FeeCollectionRow | api.PendingFeeRow>),
+          )
           .catch((e) => toast.error(handleApiError(e).message)),
       250,
     );
@@ -1166,14 +1167,7 @@ export function AdminMoneyPage({
   }, [page, pending, principal, filters]);
 
   const rows = result?.content ?? [];
-  const displayedAmount = rows.reduce(
-    (sum, row) =>
-      sum +
-      moneyValue(
-        pending ? (row as api.PendingFeeRow).remainingAmount : (row as api.FeeCollectionRow).amount,
-      ),
-    0,
-  );
+  const displayedAmount = moneyValue(result?.totalAmount);
   return (
     <div className="page-container">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -1427,6 +1421,9 @@ function CollectionTableRow({ row }: { row: api.FeeCollectionRow }) {
       <td className="px-5 py-4">
         <p className="text-sm font-semibold text-slate-700">{row.collegeName}</p>
         <p className="mt-0.5 text-xs text-slate-400">{row.departmentName}</p>
+        <p className="mt-0.5 text-xs text-slate-400">
+          {row.courseYear || "Unassigned class"} · {row.division || "Unassigned division"}
+        </p>
       </td>
       <td className="px-5 py-4">
         <CategoryBadge value={row.studentCategory} />
@@ -1458,6 +1455,9 @@ function PendingFeeTableRow({ row }: { row: api.PendingFeeRow }) {
       <td className="px-5 py-4">
         <p className="text-sm font-semibold text-slate-700">{row.collegeName}</p>
         <p className="mt-0.5 text-xs text-slate-400">{row.departmentName}</p>
+        <p className="mt-0.5 text-xs text-slate-400">
+          {row.courseYear || "Unassigned class"} · {row.division || "Unassigned division"}
+        </p>
       </td>
       <td className="px-5 py-4">
         <CategoryBadge value={row.studentCategory} />

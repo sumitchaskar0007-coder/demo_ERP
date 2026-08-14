@@ -29,6 +29,9 @@ export interface PendingFeeRow {
   paidAmount: number;
   remainingAmount: number;
 }
+export interface FeeReportPageResponse<T> extends PageResponse<T> {
+  totalAmount: number;
+}
 export interface AdminSummary {
   totalColleges: number;
   activeColleges: number;
@@ -84,13 +87,13 @@ export const getCourseYearOptions = (collegeId: number, departmentId: number) =>
     departmentId,
   });
 export const getCollections = (params?: object) =>
-  get<PageResponse<FeeCollectionRow>>("/api/super-admin/fees/collections", params);
+  get<FeeReportPageResponse<FeeCollectionRow>>("/api/super-admin/fees/collections", params);
 export const getPendingFees = (params?: object) =>
-  get<PageResponse<PendingFeeRow>>("/api/super-admin/fees/pending", params);
+  get<FeeReportPageResponse<PendingFeeRow>>("/api/super-admin/fees/pending", params);
 export const getPrincipalCollections = (params?: object) =>
-  get<PageResponse<FeeCollectionRow>>("/api/principal/fees/collections", params);
+  get<FeeReportPageResponse<FeeCollectionRow>>("/api/principal/fees/collections", params);
 export const getPrincipalPendingFees = (params?: object) =>
-  get<PageResponse<PendingFeeRow>>("/api/principal/fees/pending", params);
+  get<FeeReportPageResponse<PendingFeeRow>>("/api/principal/fees/pending", params);
 export const getCollectionSummary = () =>
   get<Record<string, number>>("/api/super-admin/fees/collection-summary");
 export const getPendingSummary = () =>

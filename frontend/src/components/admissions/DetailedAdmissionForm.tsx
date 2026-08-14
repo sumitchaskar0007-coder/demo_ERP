@@ -36,6 +36,7 @@ import {
 import type {
   AcademicRecord,
   AdmissionCourseYearOption,
+  AdmissionDocumentRequirement,
   AdmissionDocumentType,
   AdmissionDocumentTransferStage,
   DetailedAdmissionRequest,
@@ -1932,10 +1933,12 @@ export function DetailedAdmissionForm({
 
 export function DetailedAdmissionView({
   admission,
+  documentRequirements = [],
   principal = false,
   studentOwned = false,
 }: {
   admission: StudentSectionAdmissionResponse;
+  documentRequirements?: AdmissionDocumentRequirement[];
   principal?: boolean;
   studentOwned?: boolean;
 }) {
@@ -1946,6 +1949,14 @@ export function DetailedAdmissionView({
     contentType: string;
     title: string;
   } | null>(null);
+  const documentNames = useMemo(
+    () => new Map(documentRequirements.map((item) => [item.documentKey, item.documentName])),
+    [documentRequirements],
+  );
+  const documentLabel = (type: AdmissionDocumentType) =>
+    documentNames.get(type) ??
+    defaultDocumentDefinitions.find((item) => item.type === type)?.label ??
+    type;
   useEffect(
     () => () => {
       if (documentPreview && documentPreview.url !== photoUrl) {
@@ -2109,7 +2120,7 @@ export function DetailedAdmissionView({
               >
                 {openingDocument === type
                   ? "Opening..."
-                  : (defaultDocumentDefinitions.find((item) => item.type === type)?.label ?? type)}
+                  : documentLabel(type)}
               </button>
             ))
           ) : (

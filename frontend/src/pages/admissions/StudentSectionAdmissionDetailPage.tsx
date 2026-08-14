@@ -135,7 +135,7 @@ export function StudentSectionAdmissionDetailPage() {
       {canChangeInformation && editing ? (
         <DetailedAdmissionForm admission={admission} onSaved={finishEditing} />
       ) : (
-        <DetailedAdmissionView admission={admission} />
+        <DetailedAdmissionView admission={admission} documentRequirements={requirements} />
       )}
       <DetailSection
         title="Admission"

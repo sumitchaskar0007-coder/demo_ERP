@@ -16,6 +16,7 @@ import {
 import { DetailedAdmissionView } from "@/components/admissions/DetailedAdmissionForm";
 import * as api from "@/features/admissions/api";
 import type {
+  AdmissionDocumentRequirement,
   AdmissionStatusHistoryResponse,
   StudentSectionAdmissionResponse,
 } from "@/features/admissions/types";
@@ -27,6 +28,7 @@ export function PrincipalAdmissionDetailPage() {
   const [admission, setAdmission] = useState<StudentSectionAdmissionResponse | null>(null);
   const [history, setHistory] = useState<AdmissionStatusHistoryResponse[]>([]);
   const [fees, setFees] = useState<AdmissionFeeSummaryResponse | null>(null);
+  const [requirements, setRequirements] = useState<AdmissionDocumentRequirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const [remarks, setRemarks] = useState("");
@@ -34,14 +36,16 @@ export function PrincipalAdmissionDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [detail, timeline, feeInformation] = await Promise.all([
+      const [detail, timeline, feeInformation, configuredDocuments] = await Promise.all([
         api.getPrincipalAdmission(id),
         api.getPrincipalAdmissionHistory(id),
         api.getPrincipalAdmissionFees(id),
+        api.getAdmissionDocumentRequirements(id),
       ]);
       setAdmission(detail);
       setHistory(timeline);
       setFees(feeInformation);
+      setRequirements(configuredDocuments);
     } catch (err) {
       toast.error(handleApiError(err).message);
     } finally {
@@ -123,7 +127,11 @@ export function PrincipalAdmissionDetailPage() {
         )}
       </Card>
       <FeeInformationCard fees={fees} />
-      <DetailedAdmissionView admission={admission} principal />
+      <DetailedAdmissionView
+        admission={admission}
+        documentRequirements={requirements}
+        principal
+      />
       <DetailSection
         title="Admission"
         rows={[

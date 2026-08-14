@@ -5,9 +5,9 @@ import com.jadhavr.erp.analytics.repository.AdminAnalyticsReadRepository;
 import com.jadhavr.erp.college.entity.CollegeStatus;
 import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.api.ApiResponse;
-import com.jadhavr.erp.common.dto.PageResponse;
 import com.jadhavr.erp.common.exception.BadRequestException;
 import com.jadhavr.erp.fee.dto.FeeCollectionRow;
+import com.jadhavr.erp.fee.dto.FeeReportPageResponse;
 import com.jadhavr.erp.fee.dto.PendingFeeRow;
 import com.jadhavr.erp.fee.dto.PendingFeeSummary;
 import com.jadhavr.erp.fee.enums.StudentCategory;
@@ -87,7 +87,7 @@ public class SuperAdminFeeAnalyticsController {
     }
 
     @GetMapping("/fees/collections")
-    public ApiResponse<PageResponse<FeeCollectionRow>> collections(
+    public ApiResponse<FeeReportPageResponse<FeeCollectionRow>> collections(
             @RequestParam(required = false) Long collegeId,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) String academicYear,
@@ -98,19 +98,17 @@ public class SuperAdminFeeAnalyticsController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = page(page, size, "createdAt");
-        return ApiResponse.success(
-                "Fee collections",
-                PageResponse.from(payments.findVerifiedCollections(
-                        collegeId,
-                        departmentId,
-                        normalize(academicYear),
-                        studentCategory,
-                        normalizeKeyword(keyword), courseYearId, divisionId,
-                        pageable)));
+        String normalizedYear = normalize(academicYear);
+        String normalizedKeyword = normalizeKeyword(keyword);
+        return ApiResponse.success("Fee collections", FeeReportPageResponse.from(
+                payments.findVerifiedCollections(collegeId, departmentId, normalizedYear,
+                        studentCategory, normalizedKeyword, courseYearId, divisionId, pageable),
+                payments.sumVerifiedCollections(collegeId, departmentId, normalizedYear,
+                        studentCategory, normalizedKeyword, courseYearId, divisionId)));
     }
 
     @GetMapping("/fees/pending")
-    public ApiResponse<PageResponse<PendingFeeRow>> pending(
+    public ApiResponse<FeeReportPageResponse<PendingFeeRow>> pending(
             @RequestParam(required = false) Long collegeId,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) String academicYear,
@@ -121,15 +119,13 @@ public class SuperAdminFeeAnalyticsController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = page(page, size, "remainingAmount");
-        return ApiResponse.success(
-                "Pending fees",
-                PageResponse.from(accounts.findPendingFees(
-                        collegeId,
-                        departmentId,
-                        normalize(academicYear),
-                        studentCategory,
-                        normalizeKeyword(keyword), courseYearId, divisionId,
-                        pageable)));
+        String normalizedYear = normalize(academicYear);
+        String normalizedKeyword = normalizeKeyword(keyword);
+        return ApiResponse.success("Pending fees", FeeReportPageResponse.from(
+                accounts.findPendingFees(collegeId, departmentId, normalizedYear,
+                        studentCategory, normalizedKeyword, courseYearId, divisionId, pageable),
+                accounts.sumPendingFees(collegeId, departmentId, normalizedYear,
+                        studentCategory, normalizedKeyword, courseYearId, divisionId)));
     }
 
     @GetMapping("/analytics")

@@ -64,11 +64,15 @@ class SuperAdminFeeAnalyticsControllerTest {
                 isNull(), isNull(), isNull(), isNull(), eq(""), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
                         List.of(row), PageRequest.of(0, 20), 101));
+        when(payments.sumVerifiedCollections(
+                isNull(), isNull(), isNull(), isNull(), eq(""), isNull(), isNull()))
+                .thenReturn(new BigDecimal("125000.00"));
 
         var response = controller.collections(null, null, "  ", null, null, null, null, 0, 20);
 
         assertEquals(101, response.data().totalElements());
         assertEquals(20, response.data().size());
+        assertEquals(new BigDecimal("125000.00"), response.data().totalAmount());
         assertEquals("TXN-1", response.data().content().get(0).transactionReference());
         verify(payments, never()).findAll();
     }
