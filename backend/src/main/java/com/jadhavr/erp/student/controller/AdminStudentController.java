@@ -97,9 +97,12 @@ public class AdminStudentController {
             result.put("admission", admission);
         });
         enrollments.findFirstByStudentAndStatus(student, AcademicStatus.ACTIVE).ifPresent(e -> {
-            result.put("academic", Map.of("courseYear", e.getAcademicClass().getName(),
-                    "division", e.getSection().getName(), "academicYear", e.getAcademicYear(),
-                    "rollNumber", e.getRollNumber()));
+            Map<String, Object> academic = new LinkedHashMap<>();
+            academic.put("courseYear", e.getAcademicClass().getName());
+            academic.put("division", e.getSection().getName());
+            academic.put("academicYear", e.getAcademicYear());
+            academic.put("rollNumber", e.getRollNumber());
+            result.put("academic", academic);
         });
         var records = attendance.findByStudentIdOrderBySessionAttendanceDateDescSessionStartTimeDesc(id);
         long present = records.stream().filter(r -> r.getStatus().name().equals("PRESENT")).count();

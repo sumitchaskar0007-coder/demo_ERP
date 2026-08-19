@@ -40,7 +40,7 @@ export interface AdminStudentDetails {
     caste?: string | null;
     submittedAt?: string;
   };
-  academic?: { courseYear: string; division: string; academicYear: string; rollNumber: string };
+  academic?: { courseYear: string; division: string; academicYear: string; rollNumber: string | null };
   fees?: {
     feeAccountId: number;
     totalFee: number;
