@@ -1,5 +1,8 @@
 package com.jadhavr.erp.academic.entity;
 
+import com.jadhavr.erp.academic.enums.AcademicTermStatus;
+import com.jadhavr.erp.academic.enums.AcademicTermType;
+import com.jadhavr.erp.academic.enums.AcademicYearStatus;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.student.entity.StudentProfile;
@@ -20,11 +23,15 @@ public final class AcademicModels {
 
     @Entity(name="ManagedAcademicYear") @Table(name="academic_years", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","name"}))
     public static class AcademicYear extends TenantEntity {
+        @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="global_academic_year_id")
+        private GlobalAcademicYear globalAcademicYear;
         @Column(nullable=false,length=50) private String name;
         @Column(name="start_date",nullable=false) private LocalDate startDate;
         @Column(name="end_date",nullable=false) private LocalDate endDate;
         @Column(nullable=false) private boolean active;
-        public String getName(){return name;} public void setName(String v){name=v;} public LocalDate getStartDate(){return startDate;} public void setStartDate(LocalDate v){startDate=v;} public LocalDate getEndDate(){return endDate;} public void setEndDate(LocalDate v){endDate=v;} public boolean isActive(){return active;} public void setActive(boolean v){active=v;}
+        @Enumerated(EnumType.STRING) @Column(nullable=false,length=20)
+        private AcademicYearStatus status=AcademicYearStatus.DRAFT;
+        public GlobalAcademicYear getGlobalAcademicYear(){return globalAcademicYear;} public void setGlobalAcademicYear(GlobalAcademicYear v){globalAcademicYear=v;} public String getName(){return name;} public void setName(String v){name=v;} public LocalDate getStartDate(){return startDate;} public void setStartDate(LocalDate v){startDate=v;} public LocalDate getEndDate(){return endDate;} public void setEndDate(LocalDate v){endDate=v;} public boolean isActive(){return active;} public void setActive(boolean v){active=v;} public AcademicYearStatus getStatus(){return status;} public void setStatus(AcademicYearStatus v){status=v;active=v==AcademicYearStatus.ACTIVE;}
     }
 
     @Entity(name="ManagedAcademicTerm") @Table(name="academic_terms", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","academic_year_id","name"}))
@@ -33,7 +40,11 @@ public final class AcademicModels {
         @Column(nullable=false,length=80) private String name;
         @Column(name="start_date",nullable=false) private LocalDate startDate;
         @Column(name="end_date",nullable=false) private LocalDate endDate;
-        public AcademicYear getAcademicYear(){return academicYear;} public void setAcademicYear(AcademicYear v){academicYear=v;} public String getName(){return name;} public void setName(String v){name=v;} public LocalDate getStartDate(){return startDate;} public void setStartDate(LocalDate v){startDate=v;} public LocalDate getEndDate(){return endDate;} public void setEndDate(LocalDate v){endDate=v;}
+        @Enumerated(EnumType.STRING) @Column(name="term_type",nullable=false,length=10)
+        private AcademicTermType termType;
+        @Enumerated(EnumType.STRING) @Column(nullable=false,length=20)
+        private AcademicTermStatus status=AcademicTermStatus.PLANNED;
+        public AcademicYear getAcademicYear(){return academicYear;} public void setAcademicYear(AcademicYear v){academicYear=v;} public String getName(){return name;} public void setName(String v){name=v;} public LocalDate getStartDate(){return startDate;} public void setStartDate(LocalDate v){startDate=v;} public LocalDate getEndDate(){return endDate;} public void setEndDate(LocalDate v){endDate=v;} public AcademicTermType getTermType(){return termType;} public void setTermType(AcademicTermType v){termType=v;} public AcademicTermStatus getStatus(){return status;} public void setStatus(AcademicTermStatus v){status=v;}
     }
 
     @Entity(name="ManagedProgram") @Table(name="academic_programs", uniqueConstraints=@UniqueConstraint(columnNames={"college_id","code"}))

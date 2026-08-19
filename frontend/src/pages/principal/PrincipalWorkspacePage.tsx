@@ -27,6 +27,12 @@ const workspaces = {
     gradient: "from-blue-100 via-sky-100 to-cyan-100",
     items: [
       {
+        title: "Academic Years & Semesters",
+        description: "Control odd/even semesters, calendars, and student rollover.",
+        to: ROUTES.academicSessions,
+        icon: CalendarDays,
+      },
+      {
         title: "Departments",
         description: "Manage college departments and their academic scope.",
         to: ROUTES.departments,

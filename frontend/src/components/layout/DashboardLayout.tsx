@@ -16,10 +16,25 @@ import { handleApiError } from "@/lib/handleApiError";
 import { MobileSidebar } from "./MobileSidebar";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import {
+  isLeadershipAccount,
+  type LeadershipWorkspaceMode,
+  workspaceHome,
+  workspaceModeForPath,
+} from "./workspaceMode";
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const leadershipAccount = isLeadershipAccount(user?.roles);
+  const workspaceStorageKey = user ? `jadhavar:workspace:${user.id}` : null;
+  const [workspaceMode, setWorkspaceMode] = useState<LeadershipWorkspaceMode>(() => {
+    const pathMode = workspaceModeForPath(window.location.pathname);
+    if (pathMode) return pathMode;
+    const saved = user ? window.localStorage.getItem(`jadhavar:workspace:${user.id}`) : null;
+    return saved === "teaching" ? "teaching" : "leadership";
+  });
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navigationVisible, setNavigationVisible] = useState(
@@ -32,7 +47,6 @@ export function DashboardLayout() {
   const [acknowledgeSeconds, setAcknowledgeSeconds] = useState(8);
   const [acknowledging, setAcknowledging] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const location = useLocation();
   const unread = useMemo(() => notices.filter((notice) => !notice.seen), [notices]);
   const unreadIds = useMemo(() => unread.map((notice) => notice.id).join(","), [unread]);
   const priorityNotice =
@@ -40,6 +54,24 @@ export function DashboardLayout() {
       .filter((notice) => notice.priority !== "NORMAL" && !notice.acknowledged)
       .sort((a, b) => Number(b.priority === "URGENT") - Number(a.priority === "URGENT"))[0] ?? null;
   const priorityNoticeId = priorityNotice?.id;
+
+  useEffect(() => {
+    if (!leadershipAccount) return;
+    const routeMode = workspaceModeForPath(location.pathname);
+    if (routeMode) setWorkspaceMode(routeMode);
+  }, [leadershipAccount, location.pathname]);
+
+  useEffect(() => {
+    if (leadershipAccount && workspaceStorageKey) {
+      window.localStorage.setItem(workspaceStorageKey, workspaceMode);
+    }
+  }, [leadershipAccount, workspaceMode, workspaceStorageKey]);
+
+  function changeWorkspace(mode: LeadershipWorkspaceMode) {
+    setWorkspaceMode(mode);
+    setMobileOpen(false);
+    navigate(workspaceHome(mode, user?.roles));
+  }
 
   useEffect(() => {
     unreadCountRef.current = unreadCount;
@@ -224,9 +256,17 @@ export function DashboardLayout() {
       {navigationVisible && (
         <>
           <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
-            <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
+            <Sidebar
+              collapsed={collapsed}
+              onToggle={() => setCollapsed((value) => !value)}
+              workspaceMode={leadershipAccount ? workspaceMode : undefined}
+            />
           </div>
-          <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
+          <MobileSidebar
+            open={mobileOpen}
+            onClose={() => setMobileOpen(false)}
+            workspaceMode={leadershipAccount ? workspaceMode : undefined}
+          />
         </>
       )}
       {!navigationVisible && (
@@ -250,7 +290,12 @@ export function DashboardLayout() {
         }
       >
         {navigationVisible && (
-          <Topbar onMenu={() => setMobileOpen(true)} unreadNotices={unreadCount} />
+          <Topbar
+            onMenu={() => setMobileOpen(true)}
+            unreadNotices={unreadCount}
+            workspaceMode={leadershipAccount ? workspaceMode : undefined}
+            onWorkspaceModeChange={leadershipAccount ? changeWorkspace : undefined}
+          />
         )}
         <main className={navigationVisible ? "min-w-0 pt-16 lg:pt-0" : "min-w-0 pt-20"}>
           {priorityNotice ? (

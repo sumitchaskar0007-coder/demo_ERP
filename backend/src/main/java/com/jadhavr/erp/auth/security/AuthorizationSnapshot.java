@@ -13,5 +13,18 @@ public record AuthorizationSnapshot(
         UserStatus status,
         LocalDateTime lockedUntil,
         long sessionVersion,
+        Boolean mustChangePassword,
         List<String> authorities) {
+
+    /** Compatibility constructor for callers that do not need a forced-password state. */
+    public AuthorizationSnapshot(
+            Long userId,
+            Long collegeId,
+            String email,
+            UserStatus status,
+            LocalDateTime lockedUntil,
+            long sessionVersion,
+            List<String> authorities) {
+        this(userId, collegeId, email, status, lockedUntil, sessionVersion, false, authorities);
+    }
 }

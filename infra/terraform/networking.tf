@@ -75,9 +75,13 @@ resource "aws_route_table" "application" {
   count  = local.manage_network ? 2 : 0
   vpc_id = aws_vpc.main[0].id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main[var.nat_gateway_count == 1 ? 0 : count.index].id
+  dynamic "route" {
+    for_each = var.nat_gateway_count > 0 ? [true] : []
+
+    content {
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = aws_nat_gateway.main[var.nat_gateway_count == 1 ? 0 : count.index].id
+    }
   }
 }
 

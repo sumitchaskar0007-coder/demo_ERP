@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class ReportControllerSecurityTest {
@@ -100,6 +101,17 @@ class ReportControllerSecurityTest {
 
         assertThrows(BadRequestException.class,
                 () -> controller.export("attendance", null, null, null));
+    }
+
+    @Test
+    void admissionAnalyticsUsesWritableReportViewAuditPath() {
+        authenticate(RoleName.PRINCIPAL, 2L, 10L);
+
+        controller.admissionAnalytics(
+                null, null, "2026-2027", null, null, null,
+                null, null, null, 0, 20, "newest");
+
+        verify(audit).logReportView("Admission Analytics");
     }
 
     private void authenticate(RoleName role, Long userId, Long collegeId) {

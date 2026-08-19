@@ -26,6 +26,7 @@ import {
   type WeeklyDivision,
   type WeeklyEntry,
   type WeeklyEntryInput,
+  type WeeklyLectureType,
   type WeeklyPeriod,
   type WeeklyPeriodInput,
   type WeeklyTimetable,
@@ -60,7 +61,7 @@ type Editor = {
   subjectId: string;
   teacherId: string;
   room: string;
-  lectureType: string;
+  lectureType: WeeklyLectureType;
   remarks: string;
 };
 type SaveState = "idle" | "saving" | "saved";
@@ -624,6 +625,7 @@ export function TimetablePage() {
               ["Division", table.division],
               ["Class Teacher", table.classTeacher],
               ["Academic Year", table.academicYear],
+              ["Semester", table.semesterName ?? "Not configured"],
             ].map(([key, value]) => (
               <div
                 key={key}
@@ -864,8 +866,10 @@ export function TimetablePage() {
             <Select
               label="Lecture type"
               value={editor.lectureType}
-              onChange={(event) => setEditor({ ...editor, lectureType: event.target.value })}
-              options={["THEORY", "PRACTICAL", "LAB", "TUTORIAL"].map((value) => ({
+              onChange={(event) =>
+                setEditor({ ...editor, lectureType: event.target.value as WeeklyLectureType })
+              }
+              options={(["THEORY", "LAB", "OTHER"] as const).map((value) => ({
                 label: value[0] + value.slice(1).toLowerCase(),
                 value,
               }))}
@@ -1018,11 +1022,7 @@ export function TimetablePage() {
                   ).length;
                   const next = await weeklyTimetableApi.updatePeriods(
                     table.id,
-                    times.map((period) => ({
-                      ...period,
-                      startTime: period.startTime.slice(0, 5),
-                      endTime: period.endTime.slice(0, 5),
-                    })),
+                    times,
                   );
                   setTable(next);
                   setTimes(next.periods);

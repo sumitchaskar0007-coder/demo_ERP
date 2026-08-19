@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface SectionRepository extends JpaRepository<Section, Long>, JpaSpecificationExecutor<Section> {
     long countByCollegeId(Long collegeId);
@@ -46,4 +47,14 @@ public interface SectionRepository extends JpaRepository<Section, Long>, JpaSpec
     List<Section> findByDepartmentIdAndStatus(Long departmentId, SectionStatus status);
     @EntityGraph(attributePaths = {"college", "department", "academicClass", "classTeacher"})
     List<Section> findByClassTeacherIdAndStatus(Long staffId, SectionStatus status);
+    @Query("""
+            select s from Section s
+            where s.college.id = :collegeId and s.department.id = :departmentId
+              and s.academicYear = :academicYear and s.academicClass.yearName = :yearName
+              and lower(s.code) = lower(:code) and s.status = :status
+            """)
+    Optional<Section> findRolloverTarget(@Param("collegeId") Long collegeId,
+            @Param("departmentId") Long departmentId, @Param("academicYear") String academicYear,
+            @Param("yearName") com.jadhavr.erp.academic.enums.CourseYearName yearName,
+            @Param("code") String code, @Param("status") SectionStatus status);
 }

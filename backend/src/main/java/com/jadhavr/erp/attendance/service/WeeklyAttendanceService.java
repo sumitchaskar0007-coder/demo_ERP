@@ -15,6 +15,8 @@ import com.jadhavr.erp.student.entity.StudentProfile;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
 import com.jadhavr.erp.timetable.entity.*;
 import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
+import com.jadhavr.erp.timetable.service.EffectiveLectureService;
+import com.jadhavr.erp.timetable.service.EffectiveLectureService.EffectiveLecture;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ public class WeeklyAttendanceService {
     private final StaffProfileRepository staff;
     private final StudentProfileRepository students;
     private final AuditLogRepository audits;
+    private final EffectiveLectureService effectiveLectures;
     private final int graceMinutes;
     private final WeeklyAttendanceRecord.Status defaultStatus;
 
@@ -44,6 +47,7 @@ public class WeeklyAttendanceService {
             WeeklyAttendanceSessionRepository sessions, WeeklyAttendanceRecordRepository records,
             StudentSectionEnrollmentRepository enrollments, StaffProfileRepository staff,
             StudentProfileRepository students, AuditLogRepository audits,
+            EffectiveLectureService effectiveLectures,
             @Value("${app.attendance.grace-minutes:0}") int graceMinutes,
             @Value("${app.attendance.default-status:PRESENT}") String defaultStatus) {
         this.entries = entries;
@@ -53,6 +57,7 @@ public class WeeklyAttendanceService {
         this.staff = staff;
         this.students = students;
         this.audits = audits;
+        this.effectiveLectures = effectiveLectures;
         this.graceMinutes = Math.max(0, graceMinutes);
         this.defaultStatus = parseStatus(defaultStatus);
     }
@@ -61,20 +66,16 @@ public class WeeklyAttendanceService {
         StaffProfile teacher = currentStaff();
         LocalDate date = LocalDate.now();
         LocalTime now = LocalTime.now();
-        return entries.findByTeacherIdAndTimetableStatusAndTimetableReviewStatusAndDayOfWeekOrderByPeriodStartTime(
-                        teacher.getId(), WeeklyTimetable.Status.ACTIVE,
-                        WeeklyTimetable.ReviewStatus.APPROVED, date.getDayOfWeek()).stream()
-                .filter(e -> isInWindow(e, now))
-                .findFirst().map(e -> lecture(e, date)).orElse(null);
+        return effectiveLectures.forTeacher(teacher, date).stream()
+                .filter(item -> isInWindow(item.entry(), now))
+                .findFirst().map(this::lecture).orElse(null);
     }
 
     public List<LectureResponse> todayLectures() {
         StaffProfile teacher = currentStaff();
         LocalDate today = LocalDate.now();
-        return entries.findByTeacherIdAndTimetableStatusAndTimetableReviewStatusAndDayOfWeekOrderByPeriodStartTime(
-                        teacher.getId(), WeeklyTimetable.Status.ACTIVE,
-                        WeeklyTimetable.ReviewStatus.APPROVED, today.getDayOfWeek()).stream()
-                .map(e -> lecture(e, today))
+        return effectiveLectures.forTeacher(teacher, today).stream()
+                .map(this::lecture)
                 .toList();
     }
 
@@ -157,7 +158,7 @@ public class WeeklyAttendanceService {
         StaffProfile profile = currentStaff();
         return report(from, to, subjectId, divisionId, departmentId, teacherId,
                 null,
-                s -> profile.belongsToDepartment(s.getDepartment().getId()));
+                s -> profile.canTeachInDepartment(s.getDepartment().getId()));
     }
 
     public ReportResponse principalReport(LocalDate from, LocalDate to, Long departmentId, Long divisionId,
@@ -307,12 +308,13 @@ public class WeeklyAttendanceService {
     }
 
     private WeeklyAttendanceSession createSession(WeeklyTimetableEntry entry, LocalDate date) {
+        EffectiveLecture lecture = effectiveLectures.forEntry(entry, date);
         WeeklyAttendanceSession session = new WeeklyAttendanceSession();
         session.setCollege(entry.getTimetable().getCollege());
         session.setTimetableEntry(entry);
         session.setSection(entry.getTimetable().getSection());
-        session.setSubject(entry.getSubject());
-        session.setTeacher(entry.getTeacher());
+        session.setSubject(lecture.subject());
+        session.setTeacher(lecture.teacher());
         session.setAttendanceDate(date);
         session.setStartTime(entry.getPeriod().getStartTime());
         session.setEndTime(entry.getPeriod().getEndTime());
@@ -351,7 +353,7 @@ public class WeeklyAttendanceService {
     private WeeklyTimetableEntry ownedActiveEntry(Long id, boolean enforceWindow) {
         WeeklyTimetableEntry entry = entries.findById(id).orElseThrow(() -> new ResourceNotFoundException("Scheduled lecture not found"));
         StaffProfile teacher = currentStaff();
-        if (!entry.getTeacher().getId().equals(teacher.getId())) throw new AccessDeniedException("You can mark only your own lecture");
+        if (!effectiveLectures.isEffectiveTeacher(entry, LocalDate.now(), teacher.getId())) throw new AccessDeniedException("You can mark only a lecture assigned to you today");
         if (entry.getTimetable().getStatus() != WeeklyTimetable.Status.ACTIVE) throw new BadRequestException("The timetable is not active");
         requireApproved(entry);
         if (enforceWindow) assertMarkingDay(entry);
@@ -397,6 +399,12 @@ public class WeeklyAttendanceService {
     }
 
     private LectureResponse lecture(WeeklyTimetableEntry e, LocalDate date) {
+        return lecture(effectiveLectures.forEntry(e, date));
+    }
+
+    private LectureResponse lecture(EffectiveLecture effective) {
+        WeeklyTimetableEntry e = effective.entry();
+        LocalDate date = effective.date();
         WeeklyAttendanceSession session = sessions.findByTimetableEntryIdAndAttendanceDate(e.getId(), date).orElse(null);
         Section section = e.getTimetable().getSection();
         boolean active = e.getDayOfWeek() == date.getDayOfWeek() && isInWindow(e, LocalTime.now());
@@ -406,7 +414,7 @@ public class WeeklyAttendanceService {
                 && (session == null || session.getStatus() == WeeklyAttendanceSession.Status.DRAFT);
         return new LectureResponse(e.getId(), session == null ? null : session.getId(), session == null ? null : session.getStatus().name(),
                 date, e.getPeriod().getLabel(), e.getPeriod().getPosition(), e.getPeriod().getStartTime(), e.getPeriod().getEndTime(),
-                e.getSubject().getId(), e.getSubject().getName(), e.getSubject().getCode(), section.getDepartment().getId(),
+                effective.subject().getId(), effective.subject().getName(), effective.subject().getCode(), section.getDepartment().getId(),
                 section.getDepartment().getName(), section.getId(), section.getAcademicClass().getName(), section.getName(),
                 e.getLectureType().name(), e.getRoom(), active, canMark);
     }

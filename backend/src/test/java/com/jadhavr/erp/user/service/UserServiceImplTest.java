@@ -16,6 +16,8 @@ import com.jadhavr.erp.auth.password.LocalPhoneInitialPasswordPolicy;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.security.AuthorizationStateUnavailableException;
 import com.jadhavr.erp.email.service.EmailNotificationService;
+import com.jadhavr.erp.staff.entity.StaffProfile;
+import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +45,7 @@ class UserServiceImplTest {
     @Mock PasswordEncoder encoder;
     @Mock RefreshTokenRepository refreshTokens;
     @Mock AuthorizationSnapshotService authorizationSnapshots;
+    @Mock StaffProfileRepository staffProfiles;
     @Mock EmailNotificationService emailNotifications;
     UserServiceImpl service;
     College college;
@@ -51,6 +54,7 @@ class UserServiceImplTest {
     @BeforeEach void setup() {
         service = new UserServiceImpl(users, roles, colleges, encoder, new UserMapper(),
                 refreshTokens, authorizationSnapshots);
+        service.setStaffProfiles(staffProfiles);
         service.setEmailNotifications(emailNotifications);
         college = college(CollegeStatus.ACTIVE);
         principalRole = new Role();
@@ -70,6 +74,9 @@ class UserServiceImplTest {
         assertEquals(20, password.getValue().length());
         verify(emailNotifications).queuePrincipalCreatedEmail(
                 any(User.class), eq(password.getValue()));
+        verify(staffProfiles).save(argThat(profile ->
+                profile.getStaffType() == com.jadhavr.erp.staff.enums.StaffType.TEACHER
+                        && profile.getCollege() == college));
     }
 
     @Test void localPolicyUsesPhoneAsPrincipalInitialPassword() {
@@ -79,6 +86,7 @@ class UserServiceImplTest {
         var localService = new UserServiceImpl(
                 users, roles, colleges, encoder, new UserMapper(), refreshTokens,
                 authorizationSnapshots, new LocalPhoneInitialPasswordPolicy());
+        localService.setStaffProfiles(staffProfiles);
 
         localService.createPrincipal(request());
 

@@ -68,7 +68,8 @@ export interface LectureLoadRow {
   weeklyLectures: number;
   weeklyMinutes: number;
   theoryLectures: number;
-  practicalLectures: number;
+  labLectures: number;
+  otherLectures: number;
 }
 export interface AdminCourseYearOption {
   id: number;

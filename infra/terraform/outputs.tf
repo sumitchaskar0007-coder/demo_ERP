@@ -113,3 +113,38 @@ output "malware_protection_plan_id" {
   description = "GuardDuty upload malware-protection plan ID when explicitly enabled."
   value       = try(aws_guardduty_malware_protection_plan.uploads[0].id, null)
 }
+
+output "green_ecs_service_name" {
+  description = "Isolated Green API service name when enabled."
+  value       = try(aws_ecs_service.green_backend[0].name, null)
+}
+
+output "green_target_group_arn" {
+  description = "Isolated Green target group used for health and rollback verification."
+  value       = try(aws_lb_target_group.green_backend[0].arn, null)
+}
+
+output "green_probe_url" {
+  description = "Sensitive Green readiness URL. Normal requests continue to use Blue."
+  value = var.green_enabled ? format(
+    "https://%s/actuator/health/readiness?deployment-slot=%s",
+    var.domain_name,
+    random_password.green_probe[0].result
+  ) : null
+  sensitive = true
+}
+
+output "green_cache_endpoint" {
+  description = "Green serverless Valkey endpoint when enabled."
+  value       = try(aws_elasticache_serverless_cache.green[0].endpoint[0].address, null)
+}
+
+output "green_worker_probe_url" {
+  description = "Sensitive passive Green worker readiness URL."
+  value = var.green_enabled && var.green_worker_enabled ? format(
+    "https://%s/actuator/health/readiness?deployment-worker-slot=%s",
+    var.domain_name,
+    random_password.green_worker_probe[0].result
+  ) : null
+  sensitive = true
+}

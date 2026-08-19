@@ -16,16 +16,11 @@ import java.util.List;
 
 @Service
 public class AuthorizationSnapshotService {
-    private static final DefaultRedisScript<Long> BEGIN_INVALIDATION =
-            new DefaultRedisScript<>("""
-                    redis.call('PSETEX', KEYS[2], ARGV[1], '1')
-                    redis.call('DEL', KEYS[1])
-                    return 1
-                    """, Long.class);
+    static final String INVALIDATING_MARKER = "__AUTHORIZATION_INVALIDATING__";
     private static final DefaultRedisScript<Long> WRITE_IF_NOT_INVALIDATING =
             new DefaultRedisScript<>("""
-                    if redis.call('EXISTS', KEYS[2]) == 1 then return 0 end
-                    redis.call('PSETEX', KEYS[1], ARGV[2], ARGV[1])
+                    if redis.call('GET', KEYS[1]) == ARGV[1] then return 0 end
+                    redis.call('PSETEX', KEYS[1], ARGV[3], ARGV[2])
                     return 1
                     """, Long.class);
 
@@ -71,20 +66,20 @@ public class AuthorizationSnapshotService {
         boolean cachePermitted = redisEnabled;
         if (redisEnabled) {
             try {
-                if (Boolean.TRUE.equals(redis.hasKey(guardKey(userId)))) {
+                String value = redis.opsForValue().get(snapshotKey(userId));
+                if (INVALIDATING_MARKER.equals(value)) {
                     misses.increment();
                     cachePermitted = false;
-                } else {
-                    String value = redis.opsForValue().get(snapshotKey(userId));
-                    if (value != null) {
-                        AuthorizationSnapshot snapshot =
-                                json.readValue(value, AuthorizationSnapshot.class);
-                        if (matches(snapshot, userId, expectedEmail)) {
-                            hits.increment();
-                            return new CustomUserDetails(snapshot);
-                        }
-                        redis.delete(snapshotKey(userId));
+                } else if (value != null) {
+                    AuthorizationSnapshot snapshot =
+                            json.readValue(value, AuthorizationSnapshot.class);
+                    if (matches(snapshot, userId, expectedEmail)) {
+                        hits.increment();
+                        return new CustomUserDetails(snapshot);
                     }
+                    redis.delete(snapshotKey(userId));
+                    misses.increment();
+                } else {
                     misses.increment();
                 }
             } catch (Exception exception) {
@@ -104,23 +99,18 @@ public class AuthorizationSnapshotService {
     }
 
     /**
-     * Starts a fail-safe invalidation before commit. A guard prevents another
-     * request from repopulating the old database state before the transaction
-     * commits. If Redis cannot establish the guard, the caller's transaction
-     * fails instead of leaving stale authorization cached.
+     * Starts a fail-safe invalidation before commit. The snapshot key becomes a
+     * short-lived marker, so readers fall back to Postgres and writers cannot
+     * repopulate pre-commit state. Keeping the operation single-key also makes
+     * it safe for cluster-mode and ElastiCache Serverless caches.
      */
     public void invalidateOrThrow(Long userId) {
         if (!redisEnabled || userId == null) {
             return;
         }
         try {
-            Long result = redis.execute(
-                    BEGIN_INVALIDATION,
-                    List.of(snapshotKey(userId), guardKey(userId)),
-                    Long.toString(invalidationGuardTtl.toMillis()));
-            if (result == null) {
-                throw new IllegalStateException("Redis returned no invalidation result");
-            }
+            redis.opsForValue().set(
+                    snapshotKey(userId), INVALIDATING_MARKER, invalidationGuardTtl);
         } catch (RuntimeException exception) {
             invalidationFailures.increment();
             throw new AuthorizationStateUnavailableException(
@@ -140,11 +130,13 @@ public class AuthorizationSnapshotService {
                 details.getStatus(),
                 details.getLockedUntil(),
                 details.getSessionVersion(),
+                details.isMustChangePassword(),
                 details.getAuthorities().stream().map(Object::toString).toList());
         try {
             redis.execute(
                     WRITE_IF_NOT_INVALIDATING,
-                    List.of(snapshotKey(details.getId()), guardKey(details.getId())),
+                    List.of(snapshotKey(details.getId())),
+                    INVALIDATING_MARKER,
                     json.writeValueAsString(snapshot),
                     Long.toString(ttl.toMillis()));
         } catch (Exception exception) {
@@ -158,6 +150,9 @@ public class AuthorizationSnapshotService {
                 && snapshot.email() != null
                 && expectedEmail.equalsIgnoreCase(snapshot.email())
                 && snapshot.status() != null
+                // Reject snapshots written by an older application version that did
+                // not carry this security-critical field during rolling deployment.
+                && snapshot.mustChangePassword() != null
                 && snapshot.authorities() != null;
     }
 
@@ -165,7 +160,4 @@ public class AuthorizationSnapshotService {
         return prefix + userId;
     }
 
-    private String guardKey(Long userId) {
-        return prefix + "invalidating:" + userId;
-    }
 }

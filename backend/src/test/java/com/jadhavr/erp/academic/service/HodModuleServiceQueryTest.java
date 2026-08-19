@@ -2,6 +2,7 @@ package com.jadhavr.erp.academic.service;
 
 import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.enums.SubjectStatus;
+import com.jadhavr.erp.academic.enums.SemesterOfferingStatus;
 import com.jadhavr.erp.academic.repository.ClassTeacherAssignmentHistoryRepository;
 import com.jadhavr.erp.academic.repository.SectionRepository;
 import com.jadhavr.erp.academic.repository.StudentDivisionTransferRepository;
@@ -87,8 +88,9 @@ class HodModuleServiceQueryTest {
         when(staff.findTeachingByCollegeAndDepartment(
                 10L, 20L, StaffStatus.ACTIVE, HodModuleServiceQueryTest.teachingTypes()))
                 .thenReturn(List.of());
-        when(timetables.findBySectionDepartmentIdAndStatus(
-                20L, WeeklyTimetable.Status.ACTIVE)).thenReturn(List.of());
+        when(timetables.findBySectionDepartmentIdAndSemesterOfferingStatusAndStatus(
+                20L, SemesterOfferingStatus.ACTIVE, WeeklyTimetable.Status.ACTIVE))
+                .thenReturn(List.of());
     }
 
     @AfterEach
@@ -124,6 +126,7 @@ class HodModuleServiceQueryTest {
 
     private static java.util.Set<com.jadhavr.erp.staff.enums.StaffType> teachingTypes() {
         return java.util.EnumSet.of(
+                com.jadhavr.erp.staff.enums.StaffType.HOD,
                 com.jadhavr.erp.staff.enums.StaffType.TEACHER,
                 com.jadhavr.erp.staff.enums.StaffType.CLASS_TEACHER,
                 com.jadhavr.erp.staff.enums.StaffType.SUBJECT_TEACHER);

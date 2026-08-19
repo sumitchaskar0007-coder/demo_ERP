@@ -1,6 +1,7 @@
 package com.jadhavr.erp.auth.service;
 
 import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
+import com.jadhavr.erp.auth.entity.RefreshToken;
 import com.jadhavr.erp.auth.dto.LoginRequest;
 import com.jadhavr.erp.auth.security.JwtService;
 import com.jadhavr.erp.auth.util.TokenHashUtil;
@@ -17,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 
 import java.util.Optional;
 import java.time.Duration;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -91,5 +93,26 @@ class AuthenticationServiceTest {
                 eq("student@example.com|203.0.113.8"),
                 eq(5L),
                 any(Duration.class));
+    }
+
+    @Test
+    void concurrentRefreshLoserIsTreatedAsTokenReuse() {
+        User user = new User();
+        user.setId(7L);
+        user.setFullName("User");
+        RefreshToken stored = new RefreshToken();
+        stored.setUser(user);
+        stored.setTokenHash("refresh-hash");
+        stored.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+        when(hashes.hash("refresh-token")).thenReturn("refresh-hash");
+        when(refreshTokens.findByTokenHash("refresh-hash")).thenReturn(Optional.of(stored));
+        when(refreshTokens.consume("refresh-hash")).thenReturn(0);
+
+        assertThrows(
+                org.springframework.security.authentication.AuthenticationCredentialsNotFoundException.class,
+                () -> service.rotate("refresh-token", "127.0.0.1", "test-agent"));
+
+        verify(securityEvents).refreshReuse(7L, "127.0.0.1", "test-agent");
+        verify(jwtService, never()).generateAccessToken(any());
     }
 }

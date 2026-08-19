@@ -9,6 +9,7 @@ import com.jadhavr.erp.security.TestSecurityUsers;
 import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import com.jadhavr.erp.student.repository.StudentProfileRepository;
 import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
+import com.jadhavr.erp.timetable.service.EffectiveLectureService;
 import com.jadhavr.erp.user.entity.RoleName;
 import java.time.LocalDate;
 import java.util.List;
@@ -34,12 +35,13 @@ class WeeklyAttendanceServiceQueryScopeTest {
     @Mock private StaffProfileRepository staff;
     @Mock private StudentProfileRepository students;
     @Mock private AuditLogRepository audits;
+    @Mock private EffectiveLectureService effectiveLectures;
     private WeeklyAttendanceService service;
 
     @BeforeEach
     void setUp() {
         service = new WeeklyAttendanceService(
-                entries, sessions, records, enrollments, staff, students, audits,
+                entries, sessions, records, enrollments, staff, students, audits, effectiveLectures,
                 0, "PRESENT");
         SecurityContextHolder.getContext().setAuthentication(
                 TestSecurityUsers.authentication(RoleName.PRINCIPAL, 99L, 10L));

@@ -147,13 +147,120 @@ variable "cache_cluster_count" {
   }
 }
 
+variable "legacy_cache_enabled" {
+  type        = bool
+  default     = true
+  description = "Keep the legacy provisioned Valkey replication group. Disable only after Green serverless Valkey is active, legacy tasks are stopped, and a manual snapshot is available."
+}
+
 variable "nat_gateway_count" {
   type    = number
   default = 2
 
   validation {
-    condition     = contains([1, 2], var.nat_gateway_count)
-    error_message = "nat_gateway_count must be 1 or 2."
+    condition     = contains([0, 1, 2], var.nat_gateway_count)
+    error_message = "nat_gateway_count must be 0, 1, or 2. Use zero only when no workloads depend on private-subnet internet egress."
+  }
+}
+
+variable "green_enabled" {
+  type        = bool
+  default     = false
+  description = "Create the isolated Green API and serverless Valkey resources without changing normal Blue traffic."
+}
+
+variable "green_cutover_enabled" {
+  type        = bool
+  default     = false
+  description = "Route normal CloudFront API traffic to Green while preserving Blue as the immediate fallback."
+}
+
+variable "green_desired_count" {
+  type        = number
+  default     = 0
+  description = "Green API task count. Keep zero until an immutable ARM64 image and database access are approved."
+
+  validation {
+    condition     = var.green_desired_count >= 0 && floor(var.green_desired_count) == var.green_desired_count
+    error_message = "green_desired_count must be a non-negative integer."
+  }
+}
+
+variable "green_backend_image" {
+  type        = string
+  default     = ""
+  description = "Immutable ARM64 ECR image URI used only by the Green API task definition."
+
+  validation {
+    condition = var.green_backend_image == "" || can(regex(
+      "^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$",
+      var.green_backend_image
+    ))
+    error_message = "green_backend_image must be an immutable ECR image URI pinned by sha256 digest."
+  }
+}
+
+variable "green_backend_task_cpu" {
+  type        = number
+  default     = 256
+  description = "Green API Fargate CPU units. Two 0.25-vCPU tasks retain redundancy with measured production headroom."
+}
+
+variable "green_backend_task_memory" {
+  type        = number
+  default     = 2048
+  description = "Green API Fargate memory in MiB. Current peak usage is above 1 GiB, so retain 2 GiB."
+}
+
+variable "green_worker_enabled" {
+  type        = bool
+  default     = false
+  description = "Create a separate passive Green async worker for dependency validation before worker cutover."
+}
+
+variable "green_worker_active" {
+  type        = bool
+  default     = false
+  description = "Enable SQS consumers on the Green worker after passive validation."
+}
+
+variable "green_worker_maintenance_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable Green worker database recovery/polling only after the Blue worker has stopped."
+}
+
+variable "green_worker_task_cpu" {
+  type        = number
+  default     = 256
+  description = "Green async worker Fargate CPU units."
+}
+
+variable "green_worker_task_memory" {
+  type        = number
+  default     = 1024
+  description = "Green async worker Fargate memory in MiB."
+}
+
+variable "green_cache_max_storage_gib" {
+  type        = number
+  default     = 1
+  description = "Maximum Green serverless Valkey data storage in GiB. The live cache uses under two percent of a small node."
+
+  validation {
+    condition     = var.green_cache_max_storage_gib >= 1 && var.green_cache_max_storage_gib <= 10
+    error_message = "green_cache_max_storage_gib must be between 1 and 10 GiB."
+  }
+}
+
+variable "green_cache_max_ecpu_per_second" {
+  type        = number
+  default     = 5000
+  description = "Maximum Green serverless Valkey ECPUs per second; this bounds scaling and cost during validation."
+
+  validation {
+    condition     = var.green_cache_max_ecpu_per_second >= 1000 && var.green_cache_max_ecpu_per_second <= 15000
+    error_message = "green_cache_max_ecpu_per_second must be between 1000 and 15000."
   }
 }
 
@@ -259,6 +366,20 @@ variable "mail_enabled" {
   description = "Enable SMTP delivery and require mail credentials in the application secret."
 }
 
+variable "mail_reply_to" {
+  type        = string
+  default     = ""
+  description = "Optional reply-to address for application email. When empty, the configured sender address is used."
+
+  validation {
+    condition = var.mail_reply_to == "" || can(regex(
+      "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      var.mail_reply_to
+    ))
+    error_message = "mail_reply_to must be empty or a valid email address."
+  }
+}
+
 variable "github_repository" {
   type        = string
   default     = "trijja/Jadhavr-ERP"
@@ -285,6 +406,12 @@ variable "desired_count" {
     condition     = var.desired_count >= 0
     error_message = "desired_count cannot be negative"
   }
+}
+
+variable "legacy_backend_enabled" {
+  type        = bool
+  default     = true
+  description = "Keep the legacy Blue API tasks running after Green cutover. Disable only after Green acceptance checks pass; the Blue service and task definition remain available for rollback."
 }
 
 variable "backend_task_cpu" {
@@ -487,6 +614,12 @@ variable "async_worker_desired_count" {
     condition     = var.async_worker_desired_count >= 1 && var.async_worker_desired_count <= 4
     error_message = "async_worker_desired_count must be between 1 and 4."
   }
+}
+
+variable "legacy_async_worker_enabled" {
+  type        = bool
+  default     = true
+  description = "Keep the legacy private-subnet X86 worker running until the Green worker is validated."
 }
 
 variable "async_worker_task_cpu" {

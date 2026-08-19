@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/teacher/timetable")
-@PreAuthorize("hasAnyRole('SUBJECT_TEACHER','CLASS_TEACHER')")
+@PreAuthorize("hasAnyRole('PRINCIPAL','HOD','SUBJECT_TEACHER','CLASS_TEACHER')")
 public class TeacherTimetableController {
     private final TeacherTimetableService service;
 

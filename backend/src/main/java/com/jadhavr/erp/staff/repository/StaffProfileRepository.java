@@ -36,10 +36,14 @@ public interface StaffProfileRepository extends JpaRepository<StaffProfile, Long
             select distinct staff
             from StaffProfile staff
             left join staff.departments assignedDepartment
+            left join staff.user.roles staffRole
             where staff.college.id = :collegeId
               and staff.status = :status
               and staff.staffType in :staffTypes
-              and (staff.department.id = :departmentId or assignedDepartment.id = :departmentId)
+              and (staff.department.id = :departmentId
+                   or assignedDepartment.id = :departmentId
+                   or staffRole.name in (com.jadhavr.erp.user.entity.RoleName.PRINCIPAL,
+                                         com.jadhavr.erp.user.entity.RoleName.HOD))
             order by staff.fullName
             """)
     List<StaffProfile> findTeachingByCollegeAndDepartment(

@@ -9,6 +9,7 @@ import {
   Mail,
   Pencil,
   Phone,
+  Send,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -20,8 +21,18 @@ import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Loader } from "@/components/common/Loader";
-import { getStaffDetails } from "@/features/staff/api";
-import type { StaffDetailResponse } from "@/features/staff/types";
+import {
+  cancelLectureForwarding,
+  forwardTodayLecture,
+  getAvailableSubstituteTeachers,
+  getStaffDetails,
+  getTodayTeacherLectures,
+} from "@/features/staff/api";
+import type {
+  AvailableSubstituteTeacher,
+  DailyTeacherSchedule,
+  StaffDetailResponse,
+} from "@/features/staff/types";
 import { handleApiError } from "@/lib/handleApiError";
 import { initials } from "@/lib/utils";
 import { useAuth } from "@/features/auth/authStore";
@@ -33,6 +44,14 @@ export function StaffDetailsPage() {
   const principal = isRole([ROLES.PRINCIPAL]);
   const [details, setDetails] = useState<StaffDetailResponse | null>(null);
   const [failed, setFailed] = useState(false);
+  const [schedule, setSchedule] = useState<DailyTeacherSchedule | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [forwardingEntry, setForwardingEntry] = useState<number | null>(null);
+  const [availableTeachers, setAvailableTeachers] = useState<AvailableSubstituteTeacher[]>([]);
+  const [substituteTeacherId, setSubstituteTeacherId] = useState("");
+  const [substituteSubjectId, setSubstituteSubjectId] = useState("");
+  const [reason, setReason] = useState("Teacher on leave");
+  const [savingForwarding, setSavingForwarding] = useState(false);
 
   useEffect(() => {
     setFailed(false);
@@ -43,6 +62,82 @@ export function StaffDetailsPage() {
         toast.error(handleApiError(error).message);
       });
   }, [id]);
+
+  const teachingStaff = details
+    ? details.staff.staffTypes.some((type) =>
+        ["HOD", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(type),
+      )
+    : false;
+
+  const loadSchedule = async () => {
+    if (!principal || !teachingStaff || !id) return;
+    setScheduleLoading(true);
+    try {
+      setSchedule(await getTodayTeacherLectures(Number(id)));
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (principal && teachingStaff) void loadSchedule();
+    // The staff response determines whether this principal-only API is applicable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [principal, teachingStaff, id]);
+
+  const beginForwarding = async (entryId: number) => {
+    if (!id) return;
+    setForwardingEntry(entryId);
+    setAvailableTeachers([]);
+    setSubstituteTeacherId("");
+    setSubstituteSubjectId("");
+    setReason("Teacher on leave");
+    try {
+      setAvailableTeachers(await getAvailableSubstituteTeachers(Number(id), entryId));
+    } catch (error) {
+      setForwardingEntry(null);
+      toast.error(handleApiError(error).message);
+    }
+  };
+
+  const selectedSubstitute = availableTeachers.find(
+    (teacher) => teacher.id === Number(substituteTeacherId),
+  );
+
+  const applyForwarding = async () => {
+    if (!forwardingEntry || !substituteTeacherId || !substituteSubjectId || !reason.trim()) return;
+    setSavingForwarding(true);
+    try {
+      await forwardTodayLecture({
+        timetableEntryId: forwardingEntry,
+        substituteTeacherId: Number(substituteTeacherId),
+        substituteSubjectId: Number(substituteSubjectId),
+        reason: reason.trim(),
+      });
+      toast.success("Today's lecture was forwarded successfully");
+      setForwardingEntry(null);
+      await loadSchedule();
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSavingForwarding(false);
+    }
+  };
+
+  const cancelForwarding = async (substitutionId: number) => {
+    setSavingForwarding(true);
+    try {
+      await cancelLectureForwarding(substitutionId);
+      toast.success("Lecture forwarding was cancelled");
+      await loadSchedule();
+    } catch (error) {
+      toast.error(handleApiError(error).message);
+    } finally {
+      setSavingForwarding(false);
+    }
+  };
 
   if (!details) {
     return (
@@ -93,7 +188,7 @@ export function StaffDetailsPage() {
                 ))}
               </div>
             </div>
-            {principal && (
+            {principal && !staff.roles.includes("PRINCIPAL") && (
               <Link to={`/staff/${staff.id}/edit`}>
                 <Button className="border-white/25 bg-white/10 text-white hover:bg-white/20">
                   <Pencil className="h-4 w-4" />
@@ -116,6 +211,162 @@ export function StaffDetailsPage() {
           <Info icon={UserRound} label="Staff type" value={staff.staffType.replaceAll("_", " ")} />
         </div>
       </Card>
+
+      {principal && teachingStaff && (
+        <section>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Today's lectures</h2>
+              <p className="text-sm text-slate-500">
+                Forward a lecture only for today when this teacher is unavailable.
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => void loadSchedule()} loading={scheduleLoading}>
+              Refresh schedule
+            </Button>
+          </div>
+          <Card className="overflow-hidden">
+            {scheduleLoading && !schedule ? (
+              <Loader label="Loading today's lectures..." />
+            ) : schedule?.lectures.length ? (
+              <div className="divide-y divide-slate-100">
+                {schedule.lectures.map((lecture) => (
+                  <div key={lecture.timetableEntryId} className="p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex min-w-0 gap-4">
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">
+                          <Clock3 className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-bold text-slate-900">
+                              {shortTime(lecture.startTime)} - {shortTime(lecture.endTime)}
+                            </p>
+                            <Badge tone="info">{lecture.period}</Badge>
+                            <Badge>{lecture.lectureType}</Badge>
+                          </div>
+                          <p className="mt-2 font-semibold text-slate-800">
+                            {lecture.subjectCode} - {lecture.subject}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {lecture.department} · {lecture.year} {lecture.division}
+                            {lecture.room ? ` · Room ${lecture.room}` : ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      {lecture.substitution ? (
+                        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 lg:min-w-80">
+                          <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                            Forwarded for today
+                          </p>
+                          <p className="mt-2 font-bold text-slate-900">
+                            {lecture.substitution.teacherName}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            {lecture.substitution.subjectCode} - {lecture.substitution.subject}
+                          </p>
+                          <p className="mt-2 text-xs text-slate-500">
+                            Reason: {lecture.substitution.reason}
+                          </p>
+                          <Button
+                            variant="danger"
+                            className="mt-3"
+                            loading={savingForwarding}
+                            onClick={() => void cancelForwarding(lecture.substitution!.id)}
+                          >
+                            Cancel forwarding
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          onClick={() => void beginForwarding(lecture.timetableEntryId)}
+                        >
+                          <Send className="h-4 w-4" />
+                          Forward lecture
+                        </Button>
+                      )}
+                    </div>
+
+                    {forwardingEntry === lecture.timetableEntryId && !lecture.substitution && (
+                      <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                        <div className="grid gap-4 lg:grid-cols-3">
+                          <label className="text-sm font-semibold text-slate-700">
+                            Free teacher
+                            <select
+                              className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal outline-none focus:border-blue-500"
+                              value={substituteTeacherId}
+                              onChange={(event) => {
+                                setSubstituteTeacherId(event.target.value);
+                                setSubstituteSubjectId("");
+                              }}
+                            >
+                              <option value="">Select teacher</option>
+                              {availableTeachers.map((teacher) => (
+                                <option key={teacher.id} value={teacher.id}>
+                                  {teacher.name} ({teacher.employeeCode})
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="text-sm font-semibold text-slate-700">
+                            Teaching subject
+                            <select
+                              className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal outline-none focus:border-blue-500 disabled:bg-slate-100"
+                              value={substituteSubjectId}
+                              disabled={!selectedSubstitute}
+                              onChange={(event) => setSubstituteSubjectId(event.target.value)}
+                            >
+                              <option value="">Select subject</option>
+                              {selectedSubstitute?.subjects.map((subject) => (
+                                <option key={subject.id} value={subject.id}>
+                                  {subject.code} - {subject.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="text-sm font-semibold text-slate-700">
+                            Reason
+                            <input
+                              className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal outline-none focus:border-blue-500"
+                              maxLength={300}
+                              value={reason}
+                              onChange={(event) => setReason(event.target.value)}
+                            />
+                          </label>
+                        </div>
+                        {!availableTeachers.length && (
+                          <p className="mt-3 text-sm font-medium text-amber-700">
+                            No eligible teacher is free for this period with a matching subject assignment.
+                          </p>
+                        )}
+                        <div className="mt-4 flex flex-wrap justify-end gap-2">
+                          <Button variant="ghost" onClick={() => setForwardingEntry(null)}>
+                            Close
+                          </Button>
+                          <Button
+                            loading={savingForwarding}
+                            disabled={!substituteTeacherId || !substituteSubjectId || !reason.trim()}
+                            onClick={() => void applyForwarding()}
+                          >
+                            Apply forwarding
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="No lectures today"
+                description="This teacher has no approved timetable lectures scheduled for today."
+              />
+            )}
+          </Card>
+        </section>
+      )}
 
       <section>
         <div className="mb-3">

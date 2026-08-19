@@ -1,6 +1,7 @@
 package com.jadhavr.erp.timetable.entity;
 
 import com.jadhavr.erp.academic.entity.Section;
+import com.jadhavr.erp.academic.entity.SemesterOffering;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import jakarta.persistence.*;
@@ -14,6 +15,7 @@ public class WeeklyTimetable extends BaseAuditEntity {
     @Version @Column(nullable = false) private long version;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "college_id", nullable = false) private College college;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "section_id", nullable = false) private Section section;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "semester_offering_id") private SemesterOffering semesterOffering;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private Status status = Status.ACTIVE;
     @Enumerated(EnumType.STRING) @Column(name="review_status",nullable=false,length=30,columnDefinition="varchar(30) default 'DRAFT'") private ReviewStatus reviewStatus=ReviewStatus.DRAFT;
     @Column(name="review_comment",length=1000) private String reviewComment;
@@ -21,6 +23,7 @@ public class WeeklyTimetable extends BaseAuditEntity {
     @Column(name="reviewed_at") private java.time.LocalDateTime reviewedAt;
     public Long getId(){return id;} public College getCollege(){return college;} public void setCollege(College v){college=v;}
     public Section getSection(){return section;} public void setSection(Section v){section=v;}
+    public SemesterOffering getSemesterOffering(){return semesterOffering;} public void setSemesterOffering(SemesterOffering v){semesterOffering=v;}
     public Status getStatus(){return status;} public void setStatus(Status v){status=v;}
     public ReviewStatus getReviewStatus(){return reviewStatus;} public void setReviewStatus(ReviewStatus v){reviewStatus=v;}
     public String getReviewComment(){return reviewComment;} public void setReviewComment(String v){reviewComment=v;}

@@ -12,7 +12,8 @@ public final class TeacherTimetableDtos {
     public record LectureResponse(Long id, String dayOfWeek, String periodKey, String periodLabel,
                                   LocalTime startTime, LocalTime endTime, Long subjectId,
                                   String subject, String department, String year, String division,
-                                  String lectureType, String remarks) {}
+                                  String lectureType, String remarks, boolean substituted,
+                                  String originalTeacher) {}
 
     public record TimetableResponse(String teacherName, String employeeId, long totalWeeklyLectures,
                                     long todayLectureCount, String currentDay,

@@ -11,7 +11,7 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/teacher/attendance")
-@PreAuthorize("hasAnyRole('SUBJECT_TEACHER','CLASS_TEACHER')")
+@PreAuthorize("hasAnyRole('PRINCIPAL','HOD','SUBJECT_TEACHER','CLASS_TEACHER')")
 public class TeacherWeeklyAttendanceController {
     private final WeeklyAttendanceService service;
     public TeacherWeeklyAttendanceController(WeeklyAttendanceService service){ this.service=service; }

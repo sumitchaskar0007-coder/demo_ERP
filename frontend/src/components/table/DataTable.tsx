@@ -12,14 +12,16 @@ export function DataTable<T>({
   columns,
   data,
   rowKey,
+  tableClassName,
 }: {
   columns: Column<T>[];
   data: T[];
   rowKey: (row: T) => string | number;
+  tableClassName?: string;
 }) {
   return (
     <div className="data-table w-full min-w-0 overscroll-x-contain overflow-x-auto">
-      <table className="w-full min-w-max border-collapse text-left">
+      <table className={cn("w-full min-w-max border-collapse text-left", tableClassName)}>
         <thead>
           <tr>
             {columns.map((column) => (

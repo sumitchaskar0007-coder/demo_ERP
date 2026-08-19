@@ -12,6 +12,7 @@ vi.mock("@/components/admissions/DetailedAdmissionForm", () => ({
 
 vi.mock("@/features/admissions/api", () => ({
   getMyAdmission: vi.fn(),
+  getMyAdmissionDocumentRequirements: vi.fn(),
 }));
 
 vi.mock("@/features/fees/api", () => ({
@@ -107,6 +108,7 @@ const feeAccount = {
 describe("StudentAdmissionPage", () => {
   beforeEach(() => {
     vi.mocked(admissionsApi.getMyAdmission).mockResolvedValue(admission);
+    vi.mocked(admissionsApi.getMyAdmissionDocumentRequirements).mockResolvedValue([]);
     vi.mocked(feesApi.getMyFeeAccount).mockResolvedValue(feeAccount);
   });
 

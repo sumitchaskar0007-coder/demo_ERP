@@ -250,6 +250,7 @@ function StaffTableRow({
   onEdit: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
+  const principalAccount = row.roles.includes("PRINCIPAL");
   return (
     <tr
       className="cursor-pointer align-top transition hover:bg-slate-50/70"
@@ -297,7 +298,7 @@ function StaffTableRow({
       <td className="px-5 py-4">
         <StatusBadge status={row.status} />
       </td>
-      {!admin && (
+      {!admin && !principalAccount && (
         <td className="px-5 py-4 text-right">
           <div className="flex justify-end gap-2">
             <Button
@@ -341,6 +342,7 @@ function StaffCard({
   onEdit: () => void;
   onToggle: (row: StaffResponse) => void;
 }) {
+  const principalAccount = row.roles.includes("PRINCIPAL");
   return (
     <article
       className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md"
@@ -403,7 +405,7 @@ function StaffCard({
           View details
           <ChevronRight className="h-4 w-4" />
         </Button>
-        {!admin && (
+        {!admin && !principalAccount && (
           <>
             <Button
               variant="secondary"

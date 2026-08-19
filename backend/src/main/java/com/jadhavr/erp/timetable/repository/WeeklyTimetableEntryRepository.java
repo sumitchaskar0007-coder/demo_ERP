@@ -4,10 +4,13 @@ public interface WeeklyTimetableEntryRepository extends JpaRepository<WeeklyTime
  interface LectureLoadProjection {
   Long getStaffId(); String getEmployeeCode(); String getStaffName(); Long getCollegeId();
   String getCollegeName(); Long getDepartmentId(); String getDepartmentName();
-  Long getWeeklyLectures(); Long getWeeklyMinutes(); Long getTheoryLectures(); Long getPracticalLectures();
+  Long getWeeklyLectures(); Long getWeeklyMinutes(); Long getTheoryLectures(); Long getLabLectures(); Long getOtherLectures();
  }
  List<WeeklyTimetableEntry> findByTimetableId(Long id); List<WeeklyTimetableEntry> findByPeriodId(Long id); Optional<WeeklyTimetableEntry> findByTimetableIdAndDayOfWeekAndPeriodId(Long id,DayOfWeek day,Long periodId);
  List<WeeklyTimetableEntry> findByTeacherId(Long teacherId);
+ @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+ @Query("select entry from WeeklyTimetableEntry entry where entry.id=:id")
+ Optional<WeeklyTimetableEntry> findByIdForUpdate(@Param("id")Long id);
  long countByTimetableId(Long timetableId);
  long countByTeacherIdAndTimetableStatusAndTimetableReviewStatus(
   Long teacherId,com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status status,
@@ -53,7 +56,8 @@ public interface WeeklyTimetableEntryRepository extends JpaRepository<WeeklyTime
     count(entry.id) "weeklyLectures",
     coalesce(sum(extract(epoch from (period.end_time-period.start_time))/60),0)::bigint "weeklyMinutes",
     count(entry.id) filter(where entry.lecture_type='THEORY') "theoryLectures",
-    count(entry.id) filter(where entry.lecture_type='PRACTICAL') "practicalLectures"
+    count(entry.id) filter(where entry.lecture_type='LAB') "labLectures",
+    count(entry.id) filter(where entry.lecture_type='OTHER') "otherLectures"
   from weekly_timetable_entries entry
   join weekly_timetables timetable on timetable.id=entry.timetable_id
   join course_year_divisions section on section.id=timetable.section_id
@@ -75,6 +79,8 @@ public interface WeeklyTimetableEntryRepository extends JpaRepository<WeeklyTime
   @Param("courseYearId")Long courseYearId,@Param("divisionId")Long divisionId,@Param("staffId")Long staffId);
  @Query("select e from WeeklyTimetableEntry e where e.timetable.college.id=:college and e.timetable.status<>com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status.ARCHIVED and (e.timetable.id=:currentTimetable or e.timetable.section.id<>:section) and e.dayOfWeek=:day and e.teacher.id=:teacher and e.period.startTime < :end and e.period.endTime > :start and (:exclude is null or e.id<>:exclude) order by e.period.startTime")
  List<WeeklyTimetableEntry> teacherConflicts(@Param("college")Long college,@Param("currentTimetable")Long currentTimetable,@Param("section")Long section,@Param("day")DayOfWeek day,@Param("teacher")Long teacher,@Param("start")LocalTime start,@Param("end")LocalTime end,@Param("exclude")Long exclude);
+ @Query("select count(entry) from WeeklyTimetableEntry entry where entry.timetable.college.id=:college and entry.timetable.status=com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status.ACTIVE and entry.timetable.reviewStatus=com.jadhavr.erp.timetable.entity.WeeklyTimetable.ReviewStatus.APPROVED and entry.dayOfWeek=:day and entry.teacher.id=:teacher and entry.period.startTime < :end and entry.period.endTime > :start")
+ long countApprovedTeacherConflicts(@Param("college")Long college,@Param("day")DayOfWeek day,@Param("teacher")Long teacher,@Param("start")LocalTime start,@Param("end")LocalTime end);
  @Query("select count(e) from WeeklyTimetableEntry e where e.timetable.college.id=:college and e.timetable.status<>com.jadhavr.erp.timetable.entity.WeeklyTimetable.Status.ARCHIVED and (e.timetable.id=:currentTimetable or e.timetable.section.id<>:section) and e.dayOfWeek=:day and lower(e.room)=lower(:room) and e.period.startTime < :end and e.period.endTime > :start and (:exclude is null or e.id<>:exclude)")
  long roomConflicts(@Param("college")Long college,@Param("currentTimetable")Long currentTimetable,@Param("section")Long section,@Param("day")DayOfWeek day,@Param("room")String room,@Param("start")LocalTime start,@Param("end")LocalTime end,@Param("exclude")Long exclude);
 }

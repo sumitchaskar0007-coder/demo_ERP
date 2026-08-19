@@ -274,6 +274,7 @@ public class StaffServiceImpl implements StaffService {
         }
         StaffProfile profile = findStaff(id);
         ensureStaffVisible(profile);
+        rejectPrincipalAccountMutation(profile);
 
         Set<StaffType> staffTypes = new LinkedHashSet<>(request.staffTypes());
         if (staffTypes.contains(StaffType.CLASS_TEACHER)) {
@@ -485,6 +486,7 @@ public class StaffServiceImpl implements StaffService {
     public StaffResponse activateStaff(Long id) {
         StaffProfile profile = findStaff(id);
         ensureStaffVisible(profile);
+        rejectPrincipalAccountMutation(profile);
         if (profile.getCollege().getStatus() != CollegeStatus.ACTIVE) {
             throw new BadRequestException("Cannot activate staff for an inactive college");
         }
@@ -505,6 +507,7 @@ public class StaffServiceImpl implements StaffService {
     public StaffResponse deactivateStaff(Long id) {
         StaffProfile profile = findStaff(id);
         ensureStaffVisible(profile);
+        rejectPrincipalAccountMutation(profile);
         profile.setStatus(StaffStatus.INACTIVE);
         profile.getUser().setStatus(UserStatus.INACTIVE);
         profile.getUser().setSessionVersion(
@@ -518,6 +521,15 @@ public class StaffServiceImpl implements StaffService {
     private StaffProfile findStaff(Long id) {
         return staffProfiles.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff not found"));
+    }
+
+    private void rejectPrincipalAccountMutation(StaffProfile profile) {
+        boolean principal = profile.getUser().getRoles().stream()
+                .anyMatch(role -> role.getName() == RoleName.PRINCIPAL);
+        if (principal) {
+            throw new BadRequestException(
+                    "Principal teaching access is managed through the Principal account");
+        }
     }
 
     private void ensureStaffVisible(StaffProfile profile) {

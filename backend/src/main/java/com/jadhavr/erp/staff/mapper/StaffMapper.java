@@ -28,6 +28,7 @@ public class StaffMapper {
                 profile.getStaffType(),
                 profile.getUser().getRoles().stream()
                         .map(role -> switch (role.getName()) {
+                            case PRINCIPAL -> com.jadhavr.erp.staff.enums.StaffType.TEACHER;
                             case HOD -> com.jadhavr.erp.staff.enums.StaffType.HOD;
                             case CLASS_TEACHER -> com.jadhavr.erp.staff.enums.StaffType.CLASS_TEACHER;
                             case SUBJECT_TEACHER -> com.jadhavr.erp.staff.enums.StaffType.SUBJECT_TEACHER;

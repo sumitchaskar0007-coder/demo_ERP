@@ -37,6 +37,7 @@ class TeacherTimetableServiceTest {
     @Mock StaffProfileRepository staff;
     @Mock WeeklyTimetableEntryRepository entries;
     @Mock WeeklyPeriodRepository periods;
+    @Mock EffectiveLectureService effectiveLectures;
     private TeacherTimetableService service;
 
     @BeforeEach
@@ -52,7 +53,7 @@ class TeacherTimetableServiceTest {
         user.setRoles(Set.of(role));
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 new CustomUserDetails(user), null, List.of(new SimpleGrantedAuthority("ROLE_SUBJECT_TEACHER"))));
-        service = new TeacherTimetableService(staff, entries, periods,
+        service = new TeacherTimetableService(staff, entries, periods, effectiveLectures,
                 Clock.fixed(Instant.parse("2026-07-16T08:00:00Z"), ZoneId.of("Asia/Kolkata")));
     }
 

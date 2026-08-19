@@ -101,6 +101,7 @@ export interface WeeklyPeriod {
   endTime: string;
   kind: "TEACHING" | "SHORT_BREAK" | "LUNCH_BREAK";
 }
+export type WeeklyLectureType = "THEORY" | "LAB" | "OTHER";
 export interface WeeklyEntry {
   id: number;
   dayOfWeek: string;
@@ -110,8 +111,10 @@ export interface WeeklyEntry {
   teacherId: number;
   teacher: string;
   room?: string;
-  lectureType: string;
-  remarks?: string;
+    lectureType: WeeklyLectureType;
+    remarks?: string;
+    substituted?: boolean;
+    originalTeacher?: string | null;
 }
 export interface WeeklyTimetable {
   id: number;
@@ -122,6 +125,9 @@ export interface WeeklyTimetable {
   division: string;
   classTeacher: string;
   academicYear: string;
+  semesterId?: number | null;
+  semesterNumber?: number | null;
+  semesterName?: string | null;
   status: string;
   reviewComment?: string | null;
   editable: boolean;
@@ -140,13 +146,23 @@ export type WeeklyPeriodInput = {
   endTime: string;
   kind: "TEACHING" | "SHORT_BREAK" | "LUNCH_BREAK";
 };
+
+function serializeWeeklyPeriod(period: WeeklyPeriodInput): WeeklyPeriodInput {
+  return {
+    ...(period.id === undefined ? {} : { id: period.id }),
+    label: period.label,
+    startTime: period.startTime.slice(0, 5),
+    endTime: period.endTime.slice(0, 5),
+    kind: period.kind,
+  };
+}
 export type WeeklyEntryInput = {
   dayOfWeek: string;
   periodId: number;
   subjectId: number;
   teacherId: number;
   room?: string;
-  lectureType: string;
+  lectureType: WeeklyLectureType;
   remarks?: string;
 };
 export const weeklyTimetableApi = {
@@ -187,7 +203,9 @@ export const weeklyTimetableApi = {
     ),
   updatePeriods: async (id: number, periods: WeeklyPeriodInput[]) =>
     unwrap<WeeklyTimetable>(
-      await apiClient.put(`/api/weekly-timetables/${id}/periods`, { periods }),
+      await apiClient.put(`/api/weekly-timetables/${id}/periods`, {
+        periods: periods.map(serializeWeeklyPeriod),
+      }),
     ),
   submitReview: async (id: number) =>
     unwrap<WeeklyTimetable>(await apiClient.post(`/api/weekly-timetables/${id}/submit-review`)),

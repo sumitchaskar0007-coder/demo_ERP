@@ -8,13 +8,13 @@ import com.jadhavr.erp.department.entity.Department;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "course_year_subjects", uniqueConstraints =
-        @UniqueConstraint(columnNames = {"academic_class_id", "academic_year", "code"}))
+@Table(name = "course_year_subjects")
 public class Subject extends BaseAuditEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "college_id", nullable = false) private College college;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "department_id", nullable = false) private Department department;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "academic_class_id", nullable = false) private AcademicClass academicClass;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "curriculum_semester_id") private CurriculumSemester curriculumSemester;
     @Column(name = "academic_year", nullable = false, length = 20) private String academicYear;
     @Column(nullable = false, length = 150) private String name;
     @Column(nullable = false, length = 30) private String code;
@@ -30,6 +30,8 @@ public class Subject extends BaseAuditEntity {
     public void setDepartment(Department value) { department = value; }
     public AcademicClass getAcademicClass() { return academicClass; }
     public void setAcademicClass(AcademicClass value) { academicClass = value; }
+    public CurriculumSemester getCurriculumSemester() { return curriculumSemester; }
+    public void setCurriculumSemester(CurriculumSemester value) { curriculumSemester = value; }
     public String getAcademicYear() { return academicYear; }
     public void setAcademicYear(String value) { academicYear = value; }
     public String getName() { return name; }

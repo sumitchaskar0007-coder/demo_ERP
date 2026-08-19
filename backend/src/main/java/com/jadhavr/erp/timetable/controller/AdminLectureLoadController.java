@@ -34,7 +34,8 @@ public class AdminLectureLoadController {
 
     public record LectureLoadRow(Long staffId, String employeeCode, String staffName,
             Long collegeId, String collegeName, Long departmentId, String departmentName,
-            long weeklyLectures, long weeklyMinutes, long theoryLectures, long practicalLectures) {}
+            long weeklyLectures, long weeklyMinutes, long theoryLectures, long labLectures,
+            long otherLectures) {}
 
     @GetMapping
     public ApiResponse<List<LectureLoadRow>> list(
@@ -46,7 +47,8 @@ public class AdminLectureLoadController {
         List<LectureLoadRow> result = entries.lectureLoad(collegeId, departmentId, courseYearId, divisionId, staffId)
                 .stream().map(row -> new LectureLoadRow(row.getStaffId(), row.getEmployeeCode(), row.getStaffName(),
                         row.getCollegeId(), row.getCollegeName(), row.getDepartmentId(), row.getDepartmentName(),
-                        row.getWeeklyLectures(), row.getWeeklyMinutes(), row.getTheoryLectures(), row.getPracticalLectures()))
+                        row.getWeeklyLectures(), row.getWeeklyMinutes(), row.getTheoryLectures(),
+                        row.getLabLectures(), row.getOtherLectures()))
                 .toList();
         return ApiResponse.success("Staff lecture load retrieved", result);
     }
@@ -58,13 +60,14 @@ public class AdminLectureLoadController {
 
     private static final class MutableLoad {
         private final WeeklyTimetableEntry first;
-        private long count, minutes, theory, practical;
+        private long count, minutes, theory, lab, other;
         private MutableLoad(WeeklyTimetableEntry first) { this.first = first; }
         private void add(WeeklyTimetableEntry entry) {
             count++;
             minutes += Duration.between(entry.getPeriod().getStartTime(), entry.getPeriod().getEndTime()).toMinutes();
             if (entry.getLectureType() == WeeklyTimetableEntry.LectureType.THEORY) theory++;
-            else practical++;
+            else if (entry.getLectureType() == WeeklyTimetableEntry.LectureType.LAB) lab++;
+            else other++;
         }
         private LectureLoadRow row() {
             var teacher = first.getTeacher();
@@ -72,7 +75,7 @@ public class AdminLectureLoadController {
             var college = first.getTimetable().getCollege();
             return new LectureLoadRow(teacher.getId(), teacher.getEmployeeCode(), teacher.getFullName(),
                     college.getId(), college.getName(), department.getId(), department.getName(),
-                    count, minutes, theory, practical);
+                    count, minutes, theory, lab, other);
         }
     }
 }

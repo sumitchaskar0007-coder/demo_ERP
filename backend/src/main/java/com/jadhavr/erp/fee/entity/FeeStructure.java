@@ -4,6 +4,7 @@ import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.fee.enums.FeeStructureStatus;
+import com.jadhavr.erp.fee.enums.FeeBillingCycle;
 import com.jadhavr.erp.fee.enums.StudentCategory;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ public class FeeStructure extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "department_id", nullable = false) private Department department;
     @Column(nullable = false, length = 20) private String academicYear;
     @Column(name = "course_year", length = 150) private String courseYear;
+    @Enumerated(EnumType.STRING) @Column(name="billing_cycle",nullable=false,length=20) private FeeBillingCycle billingCycle=FeeBillingCycle.ANNUAL;
     @Enumerated(EnumType.STRING) @Column(name = "student_category", nullable = false, length = 20) private StudentCategory studentCategory = StudentCategory.OPEN;
     @Column(name = "custom_category_name", length = 80) private String customCategoryName;
     @Column(length = 10) private String gender;
@@ -33,6 +35,7 @@ public class FeeStructure extends BaseAuditEntity {
     public Long getId(){return id;} public void setId(Long v){id=v;} public long getVersion(){return version;} public void setVersion(long v){version=v;}
     public College getCollege(){return college;} public void setCollege(College v){college=v;} public Department getDepartment(){return department;} public void setDepartment(Department v){department=v;}
     public String getAcademicYear(){return academicYear;} public void setAcademicYear(String v){academicYear=v;} public String getCourseYear(){return courseYear;} public void setCourseYear(String v){courseYear=v;}
+    public FeeBillingCycle getBillingCycle(){return billingCycle;} public void setBillingCycle(FeeBillingCycle v){billingCycle=v;}
     public StudentCategory getStudentCategory(){return studentCategory;} public void setStudentCategory(StudentCategory v){studentCategory=v;} public String getCustomCategoryName(){return customCategoryName;} public void setCustomCategoryName(String v){customCategoryName=v;} public String getGender(){return gender;} public void setGender(String v){gender=v;}
     public String getTitle(){return title;} public void setTitle(String v){title=v;} public String getDescription(){return description;} public void setDescription(String v){description=v;}
     public BigDecimal getTotalFee(){return totalFee;} public void setTotalFee(BigDecimal v){totalFee=v;} public BigDecimal getScholarshipAmount(){return scholarshipAmount;} public void setScholarshipAmount(BigDecimal v){scholarshipAmount=v;}

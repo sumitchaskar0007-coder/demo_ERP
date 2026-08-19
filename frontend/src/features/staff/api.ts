@@ -9,6 +9,9 @@ import type {
   StaffStatus,
   StaffType,
   UpdateStaffAssignmentRequest,
+  AvailableSubstituteTeacher,
+  DailyTeacherSchedule,
+  LectureSubstitutionView,
 } from "./types";
 
 export async function createStaff(values: CreateStaffRequest) {
@@ -89,4 +92,35 @@ export async function deactivateStaff(id: number) {
     `/api/principal/staff/${id}/deactivate`,
   );
   return data.data;
+}
+
+export async function getTodayTeacherLectures(teacherId: number) {
+  const { data } = await apiClient.get<ApiResponse<DailyTeacherSchedule>>(
+    `/api/principal/staff/${teacherId}/today-lectures`,
+  );
+  return data.data;
+}
+
+export async function getAvailableSubstituteTeachers(teacherId: number, entryId: number) {
+  const { data } = await apiClient.get<ApiResponse<AvailableSubstituteTeacher[]>>(
+    `/api/principal/staff/${teacherId}/today-lectures/${entryId}/available-teachers`,
+  );
+  return data.data;
+}
+
+export async function forwardTodayLecture(values: {
+  timetableEntryId: number;
+  substituteTeacherId: number;
+  substituteSubjectId: number;
+  reason: string;
+}) {
+  const { data } = await apiClient.post<ApiResponse<LectureSubstitutionView>>(
+    "/api/principal/lecture-substitutions",
+    values,
+  );
+  return data.data;
+}
+
+export async function cancelLectureForwarding(id: number) {
+  await apiClient.delete(`/api/principal/lecture-substitutions/${id}`);
 }

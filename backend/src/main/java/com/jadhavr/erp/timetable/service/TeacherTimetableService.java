@@ -10,6 +10,7 @@ import com.jadhavr.erp.timetable.entity.WeeklyTimetable;
 import com.jadhavr.erp.timetable.entity.WeeklyTimetableEntry;
 import com.jadhavr.erp.timetable.repository.WeeklyPeriodRepository;
 import com.jadhavr.erp.timetable.repository.WeeklyTimetableEntryRepository;
+import com.jadhavr.erp.timetable.service.EffectiveLectureService.EffectiveLecture;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -28,22 +29,26 @@ public class TeacherTimetableService {
     private final StaffProfileRepository staff;
     private final WeeklyTimetableEntryRepository entries;
     private final WeeklyPeriodRepository periods;
+    private final EffectiveLectureService effectiveLectures;
     private final Clock clock;
 
     @Autowired
     public TeacherTimetableService(StaffProfileRepository staff,
                                    WeeklyTimetableEntryRepository entries,
-                                   WeeklyPeriodRepository periods) {
-        this(staff, entries, periods, Clock.systemDefaultZone());
+                                   WeeklyPeriodRepository periods,
+                                   EffectiveLectureService effectiveLectures) {
+        this(staff, entries, periods, effectiveLectures, Clock.systemDefaultZone());
     }
 
     TeacherTimetableService(StaffProfileRepository staff,
                             WeeklyTimetableEntryRepository entries,
                             WeeklyPeriodRepository periods,
+                            EffectiveLectureService effectiveLectures,
                             Clock clock) {
         this.staff = staff;
         this.entries = entries;
         this.periods = periods;
+        this.effectiveLectures = effectiveLectures;
         this.clock = clock;
     }
 
@@ -59,20 +64,33 @@ public class TeacherTimetableService {
 
     private TimetableResponse timetable(StaffProfile teacher) {
         List<WeeklyTimetableEntry> teacherEntries = teacherEntries(teacher);
-        DayOfWeek today = LocalDate.now(clock).getDayOfWeek();
+        LocalDate todayDate = LocalDate.now(clock);
+        DayOfWeek today = todayDate.getDayOfWeek();
         return new TimetableResponse(teacher.getFullName(), teacher.getEmployeeCode(),
-                teacherEntries.size(), teacherEntries.stream().filter(e -> e.getDayOfWeek() == today).count(),
+                teacherEntries.size(), effectiveLectures.forTeacher(teacher, todayDate).size(),
                 today.name(), aggregatePeriods(teacherEntries), teacherEntries.stream().map(this::map).toList());
     }
 
     public DayResponse today() {
-        return day(LocalDate.now(clock).getDayOfWeek().name());
+        StaffProfile teacher = currentTeacher();
+        LocalDate today = LocalDate.now(clock);
+        List<EffectiveLecture> lectures = effectiveLectures.forTeacher(teacher, today);
+        return new DayResponse(today.getDayOfWeek().name(),
+                aggregatePeriods(lectures.stream().map(EffectiveLecture::entry).toList()),
+                lectures.stream().map(this::map).toList());
     }
 
     public DayResponse day(String value) {
         StaffProfile teacher = currentTeacher();
         DayOfWeek selected = parseDay(value);
         List<WeeklyTimetableEntry> all = teacherEntries(teacher);
+        LocalDate today = LocalDate.now(clock);
+        if (selected == today.getDayOfWeek()) {
+            List<EffectiveLecture> lectures = effectiveLectures.forTeacher(teacher, today);
+            return new DayResponse(selected.name(),
+                    aggregatePeriods(lectures.stream().map(EffectiveLecture::entry).toList()),
+                    lectures.stream().map(this::map).toList());
+        }
         return new DayResponse(selected.name(), aggregatePeriods(all), all.stream()
                 .filter(e -> e.getDayOfWeek() == selected).map(this::map).toList());
     }
@@ -80,15 +98,22 @@ public class TeacherTimetableService {
     public NextLectureResponse next() {
         StaffProfile teacher = currentTeacher();
         LocalDateTime now = LocalDateTime.now(clock);
-        WeeklyTimetableEntry next = null;
+        EffectiveLecture next = null;
         LocalDateTime nextAt = null;
-        for (WeeklyTimetableEntry entry : teacherEntries(teacher)) {
-            int offset = (entry.getDayOfWeek().getValue() - now.getDayOfWeek().getValue() + 7) % 7;
-            LocalDateTime candidate = LocalDateTime.of(now.toLocalDate().plusDays(offset), entry.getPeriod().getStartTime());
-            if (!candidate.isAfter(now)) candidate = candidate.plusWeeks(1);
-            if (nextAt == null || candidate.isBefore(nextAt)) {
-                next = entry;
-                nextAt = candidate;
+        List<WeeklyTimetableEntry> permanent = teacherEntries(teacher);
+        for (int offset = 0; offset <= 7; offset++) {
+            LocalDate date = now.toLocalDate().plusDays(offset);
+            List<EffectiveLecture> candidates = offset == 0
+                    ? effectiveLectures.forTeacher(teacher, date)
+                    : permanent.stream().filter(entry -> entry.getDayOfWeek() == date.getDayOfWeek())
+                            .map(entry -> new EffectiveLecture(entry, date, entry.getTeacher(),
+                                    entry.getSubject(), entry.getTeacher(), null)).toList();
+            for (EffectiveLecture lecture : candidates) {
+                LocalDateTime candidate = LocalDateTime.of(date, lecture.entry().getPeriod().getStartTime());
+                if (candidate.isAfter(now) && (nextAt == null || candidate.isBefore(nextAt))) {
+                    next = lecture;
+                    nextAt = candidate;
+                }
             }
         }
         return next == null ? new NextLectureResponse(null, null)
@@ -121,12 +146,19 @@ public class TeacherTimetableService {
     }
 
     private LectureResponse map(WeeklyTimetableEntry entry) {
+        return map(new EffectiveLecture(entry, null, entry.getTeacher(), entry.getSubject(),
+                entry.getTeacher(), null));
+    }
+
+    private LectureResponse map(EffectiveLecture lecture) {
+        WeeklyTimetableEntry entry = lecture.entry();
         var section = entry.getTimetable().getSection();
         return new LectureResponse(entry.getId(), entry.getDayOfWeek().name(), key(entry.getPeriod()),
                 entry.getPeriod().getLabel(), entry.getPeriod().getStartTime(), entry.getPeriod().getEndTime(),
-                entry.getSubject().getId(), entry.getSubject().getName(), section.getDepartment().getName(),
+                lecture.subject().getId(), lecture.subject().getName(), section.getDepartment().getName(),
                 section.getAcademicClass().getName(), section.getName(), entry.getLectureType().name(),
-                entry.getRemarks());
+                entry.getRemarks(), lecture.substituted(),
+                lecture.substituted() ? lecture.originalTeacher().getFullName() : null);
     }
 
     private PeriodResponse period(WeeklyPeriod period) {

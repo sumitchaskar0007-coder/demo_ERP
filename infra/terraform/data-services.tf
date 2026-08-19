@@ -22,23 +22,26 @@ resource "aws_kms_alias" "database" {
 }
 
 resource "aws_db_instance" "postgres" {
-  count                           = local.manage_database ? 1 : 0
-  identifier                      = "${local.name}-postgres"
-  engine                          = "postgres"
-  engine_version                  = var.db_engine_version
-  instance_class                  = var.db_instance_class
-  allocated_storage               = var.db_allocated_storage_gib
-  max_allocated_storage           = 500
-  storage_type                    = "gp3"
-  storage_encrypted               = true
-  kms_key_id                      = local.external_production ? aws_kms_key.database[0].arn : null
-  db_name                         = var.db_name
-  username                        = var.db_master_username
-  manage_master_user_password     = true
-  multi_az                        = var.db_multi_az
-  publicly_accessible             = false
-  db_subnet_group_name            = aws_db_subnet_group.main[0].name
-  vpc_security_group_ids          = [aws_security_group.database[0].id]
+  count                       = local.manage_database ? 1 : 0
+  identifier                  = "${local.name}-postgres"
+  engine                      = "postgres"
+  engine_version              = var.db_engine_version
+  instance_class              = var.db_instance_class
+  allocated_storage           = var.db_allocated_storage_gib
+  max_allocated_storage       = 500
+  storage_type                = "gp3"
+  storage_encrypted           = true
+  kms_key_id                  = local.external_production ? aws_kms_key.database[0].arn : null
+  db_name                     = var.db_name
+  username                    = var.db_master_username
+  manage_master_user_password = true
+  multi_az                    = var.db_multi_az
+  publicly_accessible         = false
+  db_subnet_group_name        = aws_db_subnet_group.main[0].name
+  vpc_security_group_ids = concat(
+    [aws_security_group.database[0].id],
+    var.green_enabled ? [aws_security_group.green_database[0].id] : []
+  )
   backup_retention_period         = 14
   backup_window                   = "18:00-19:00"
   maintenance_window              = "sun:19:30-sun:20:30"
@@ -102,6 +105,7 @@ resource "aws_elasticache_subnet_group" "main" {
 }
 
 resource "aws_elasticache_replication_group" "redis" {
+  count                      = var.legacy_cache_enabled ? 1 : 0
   replication_group_id       = "${local.name}-redis"
   description                = "${local.name} distributed cache and rate limits"
   engine                     = "valkey"
@@ -118,9 +122,6 @@ resource "aws_elasticache_replication_group" "redis" {
   snapshot_retention_limit   = 7
   apply_immediately          = false
 
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "aws_secretsmanager_secret" "application" {

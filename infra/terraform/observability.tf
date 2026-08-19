@@ -1,6 +1,14 @@
 # The AWS-managed SNS key avoids a paid per-environment CMK for non-sensitive
 # operational alarm metadata. Topic access remains IAM-restricted.
 #tfsec:ignore:aws-sns-topic-encryption-use-cmk
+locals {
+  active_backend_service_name = var.green_cutover_enabled ? aws_ecs_service.green_backend[0].name : aws_ecs_service.backend.name
+  active_backend_target_group = var.green_cutover_enabled ? aws_lb_target_group.green_backend[0].arn_suffix : aws_lb_target_group.backend.arn_suffix
+  active_backend_log_group    = var.green_cutover_enabled ? aws_cloudwatch_log_group.green_backend[0].name : aws_cloudwatch_log_group.backend.name
+  active_backend_task_count   = var.green_cutover_enabled ? var.green_desired_count : local.backend_effective_min_capacity
+  active_worker_service_name  = var.green_worker_active ? aws_ecs_service.green_worker[0].name : aws_ecs_service.async_worker[0].name
+}
+
 resource "aws_sns_topic" "alerts" {
   name              = "${local.name}-alerts"
   kms_master_key_id = "alias/aws/sns"
@@ -24,7 +32,7 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
   comparison_operator = "GreaterThanThreshold"
   dimensions = {
     LoadBalancer = aws_lb.backend.arn_suffix
-    TargetGroup  = aws_lb_target_group.backend.arn_suffix
+    TargetGroup  = local.active_backend_target_group
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
   ok_actions    = [aws_sns_topic.alerts.arn]
@@ -56,7 +64,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_5xx" {
   treat_missing_data  = "notBreaching"
   dimensions = {
     LoadBalancer = aws_lb.backend.arn_suffix
-    TargetGroup  = aws_lb_target_group.backend.arn_suffix
+    TargetGroup  = local.active_backend_target_group
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
@@ -86,7 +94,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_latency" {
   treat_missing_data  = "notBreaching"
   dimensions = {
     LoadBalancer = aws_lb.backend.arn_suffix
-    TargetGroup  = aws_lb_target_group.backend.arn_suffix
+    TargetGroup  = local.active_backend_target_group
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
@@ -95,7 +103,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_latency" {
 # so this metric is backed by a real application log source.
 resource "aws_cloudwatch_log_metric_filter" "application_429" {
   name           = "${local.name}-application-429"
-  log_group_name = aws_cloudwatch_log_group.backend.name
+  log_group_name = local.active_backend_log_group
   pattern        = "\"completed with status 429\""
 
   metric_transformation {
@@ -122,7 +130,7 @@ resource "aws_cloudwatch_metric_alarm" "application_429" {
 # exception handler writes unexpected exception stacks to the backend log.
 resource "aws_cloudwatch_log_metric_filter" "hikari_timeouts" {
   name           = "${local.name}-hikari-timeouts"
-  log_group_name = aws_cloudwatch_log_group.backend.name
+  log_group_name = local.active_backend_log_group
   pattern        = "\"Connection is not available, request timed out after\""
 
   metric_transformation {
@@ -189,7 +197,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
-  count               = var.cache_cluster_count
+  count               = var.legacy_cache_enabled ? var.cache_cluster_count : 0
   alarm_name          = "${local.name}-redis-${count.index + 1}-cpu"
   namespace           = "AWS/ElastiCache"
   metric_name         = "EngineCPUUtilization"
@@ -200,13 +208,13 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
   dimensions = {
-    CacheClusterId = tolist(aws_elasticache_replication_group.redis.member_clusters)[count.index]
+    CacheClusterId = tolist(aws_elasticache_replication_group.redis[0].member_clusters)[count.index]
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_memory" {
-  count               = var.cache_cluster_count
+  count               = var.legacy_cache_enabled ? var.cache_cluster_count : 0
   alarm_name          = "${local.name}-redis-${count.index + 1}-memory"
   namespace           = "AWS/ElastiCache"
   metric_name         = "DatabaseMemoryUsagePercentage"
@@ -217,13 +225,13 @@ resource "aws_cloudwatch_metric_alarm" "redis_memory" {
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
   dimensions = {
-    CacheClusterId = tolist(aws_elasticache_replication_group.redis.member_clusters)[count.index]
+    CacheClusterId = tolist(aws_elasticache_replication_group.redis[0].member_clusters)[count.index]
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
-  count               = var.cache_cluster_count
+  count               = var.legacy_cache_enabled ? var.cache_cluster_count : 0
   alarm_name          = "${local.name}-redis-${count.index + 1}-evictions"
   namespace           = "AWS/ElastiCache"
   metric_name         = "Evictions"
@@ -234,7 +242,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
   dimensions = {
-    CacheClusterId = tolist(aws_elasticache_replication_group.redis.member_clusters)[count.index]
+    CacheClusterId = tolist(aws_elasticache_replication_group.redis[0].member_clusters)[count.index]
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
@@ -262,24 +270,24 @@ resource "aws_cloudwatch_metric_alarm" "ecs_utilization" {
   treat_missing_data  = "notBreaching"
   dimensions = {
     ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.backend.name
+    ServiceName = local.active_backend_service_name
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_running_tasks" {
   alarm_name          = "${local.name}-ecs-running-tasks"
-  namespace           = "ECS/ContainerInsights"
-  metric_name         = "RunningTaskCount"
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "HealthyHostCount"
   statistic           = "Minimum"
   period              = 60
   evaluation_periods  = 2
-  threshold           = local.backend_effective_min_capacity
+  threshold           = local.active_backend_task_count
   comparison_operator = "LessThanThreshold"
-  treat_missing_data  = local.backend_effective_min_capacity == 0 ? "notBreaching" : "breaching"
+  treat_missing_data  = local.active_backend_task_count == 0 ? "notBreaching" : "breaching"
   dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.backend.name
+    LoadBalancer = aws_lb.backend.arn_suffix
+    TargetGroup  = local.active_backend_target_group
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
@@ -307,25 +315,25 @@ resource "aws_cloudwatch_metric_alarm" "async_worker_utilization" {
   treat_missing_data  = "notBreaching"
   dimensions = {
     ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.async_worker[0].name
+    ServiceName = local.active_worker_service_name
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "async_worker_running_tasks" {
-  count               = var.async_queues_enabled ? 1 : 0
+  count               = var.green_worker_active ? 1 : 0
   alarm_name          = "${local.name}-async-worker-running-tasks"
-  namespace           = "ECS/ContainerInsights"
-  metric_name         = "RunningTaskCount"
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "HealthyHostCount"
   statistic           = "Minimum"
   period              = 60
   evaluation_periods  = 2
-  threshold           = local.async_worker_effective_count
+  threshold           = 1
   comparison_operator = "LessThanThreshold"
-  treat_missing_data  = local.async_worker_effective_count == 0 ? "notBreaching" : "breaching"
+  treat_missing_data  = "breaching"
   dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.async_worker[0].name
+    LoadBalancer = aws_lb.backend.arn_suffix
+    TargetGroup  = aws_lb_target_group.green_worker[0].arn_suffix
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
@@ -346,14 +354,16 @@ resource "aws_cloudwatch_dashboard" "capacity" {
           period = 60
           metrics = concat(
             [
-              ["AWS/ECS", "CPUUtilization", "ClusterName", aws_ecs_cluster.main.name, "ServiceName", aws_ecs_service.backend.name],
+              ["AWS/ECS", "CPUUtilization", "ClusterName", aws_ecs_cluster.main.name, "ServiceName", local.active_backend_service_name],
               [".", "MemoryUtilization", ".", ".", ".", "."],
-              ["ECS/ContainerInsights", "RunningTaskCount", "ClusterName", aws_ecs_cluster.main.name, "ServiceName", aws_ecs_service.backend.name]
+              ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", aws_lb.backend.arn_suffix, "TargetGroup", local.active_backend_target_group, { label = "Healthy API targets" }]
             ],
             var.async_queues_enabled ? [
-              ["AWS/ECS", "CPUUtilization", "ClusterName", aws_ecs_cluster.main.name, "ServiceName", aws_ecs_service.async_worker[0].name, { label = "Worker CPU" }],
-              [".", "MemoryUtilization", ".", ".", ".", ".", { label = "Worker memory" }],
-              ["ECS/ContainerInsights", "RunningTaskCount", "ClusterName", aws_ecs_cluster.main.name, "ServiceName", aws_ecs_service.async_worker[0].name, { label = "Worker tasks" }]
+              ["AWS/ECS", "CPUUtilization", "ClusterName", aws_ecs_cluster.main.name, "ServiceName", local.active_worker_service_name, { label = "Worker CPU" }],
+              [".", "MemoryUtilization", ".", ".", ".", ".", { label = "Worker memory" }]
+            ] : [],
+            var.green_worker_active ? [
+              ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", aws_lb.backend.arn_suffix, "TargetGroup", aws_lb_target_group.green_worker[0].arn_suffix, { label = "Healthy worker targets" }]
             ] : []
           )
         }
@@ -367,7 +377,7 @@ resource "aws_cloudwatch_dashboard" "capacity" {
           region = var.aws_region
           period = 60
           metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", aws_lb.backend.arn_suffix, "TargetGroup", aws_lb_target_group.backend.arn_suffix, { stat = "p95", label = "p95 latency" }],
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", aws_lb.backend.arn_suffix, "TargetGroup", local.active_backend_target_group, { stat = "p95", label = "p95 latency" }],
             [".", ".", ".", ".", ".", ".", { stat = "p99", label = "p99 latency" }],
             [".", "HTTPCode_Target_5XX_Count", ".", ".", ".", ".", { stat = "Sum", label = "Target 5xx" }]
           ]
@@ -382,9 +392,9 @@ resource "aws_cloudwatch_dashboard" "capacity" {
           region = var.aws_region
           period = 60
           metrics = concat(
-            [for cluster in tolist(aws_elasticache_replication_group.redis.member_clusters) :
+            [for cluster in(var.legacy_cache_enabled ? tolist(aws_elasticache_replication_group.redis[0].member_clusters) : []) :
             ["AWS/ElastiCache", "DatabaseMemoryUsagePercentage", "CacheClusterId", cluster]],
-            [for cluster in tolist(aws_elasticache_replication_group.redis.member_clusters) :
+            [for cluster in(var.legacy_cache_enabled ? tolist(aws_elasticache_replication_group.redis[0].member_clusters) : []) :
             ["AWS/ElastiCache", "Evictions", "CacheClusterId", cluster, { stat = "Sum" }]]
           )
         }

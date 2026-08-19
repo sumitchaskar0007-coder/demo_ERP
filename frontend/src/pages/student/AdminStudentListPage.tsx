@@ -324,7 +324,12 @@ export function AdminStudentListPage() {
           <Loader label="Loading students..." />
         ) : result.content.length ? (
           <>
-            <DataTable columns={columns} data={result.content} rowKey={(row) => row.id} />
+            <DataTable
+              columns={columns}
+              data={result.content}
+              rowKey={(row) => row.id}
+              tableClassName="min-w-[1080px] table-fixed"
+            />
             <div className="border-t p-4">
               <Pagination
                 page={result.page}

@@ -69,6 +69,11 @@ export function TeacherDashboardTimetable() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-900">{lecture.subject}</p>
+                    {lecture.substituted && (
+                      <p className="mt-1 text-xs font-semibold text-violet-700">
+                        Substitute lecture{lecture.originalTeacher ? ` for ${lecture.originalTeacher}` : ""}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-slate-500">
                       {lecture.year} - {lecture.division} · {lecture.lectureType}
                     </p>
@@ -89,6 +94,11 @@ export function TeacherDashboardTimetable() {
           {next.lecture ? (
             <>
               <p className="mt-7 text-xl font-bold text-slate-900">{next.lecture.subject}</p>
+              {next.lecture.substituted && (
+                <p className="mt-1 text-xs font-semibold text-violet-700">
+                  Substitute lecture{next.lecture.originalTeacher ? ` for ${next.lecture.originalTeacher}` : ""}
+                </p>
+              )}
               <p className="mt-2 text-sm text-slate-500">
                 {next.lecture.year} - {next.lecture.division}
               </p>

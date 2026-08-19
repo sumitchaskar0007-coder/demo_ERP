@@ -18,6 +18,7 @@ import {
 import {
   Activity,
   ArrowRight,
+  Bell,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -33,7 +34,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handleApiError";
-import { ROUTES } from "@/lib/constants";
+import { ROLES, ROUTES } from "@/lib/constants";
+import { useAuth } from "@/features/auth/authStore";
 import * as api from "@/features/teacherWorkspace/api";
 
 const input =
@@ -42,6 +44,7 @@ const primary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50";
 
 export function TeacherWorkspacePage() {
+  const { isRole } = useAuth();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const tab = params.get("tab") || "overview";
@@ -106,11 +109,15 @@ export function TeacherWorkspacePage() {
         <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <div className="mb-3 inline-flex rounded-full border border-white/20 bg-white/15 px-3 py-1 text-xs font-semibold text-blue-50 backdrop-blur-sm">
-              {data.classTeacher && data.subjectTeacher
-                ? "Class Teacher · Subject Teacher"
-                : data.classTeacher
-                  ? "Class Teacher"
-                  : "Subject Teacher"}
+              {isRole([ROLES.PRINCIPAL])
+                ? "Principal · Teacher"
+                : isRole([ROLES.HOD])
+                  ? "HOD · Teacher"
+                  : data.classTeacher && data.subjectTeacher
+                    ? "Class Teacher · Subject Teacher"
+                    : data.classTeacher
+                      ? "Class Teacher"
+                      : "Subject Teacher"}
             </div>
             <h1 className="text-3xl font-bold text-white">Welcome, {data.teacherName}</h1>
             <p className="mt-2 text-sm text-blue-50/90">
@@ -129,6 +136,18 @@ export function TeacherWorkspacePage() {
         </div>
       </header>
       {tab === "overview" && <Overview data={data} go={setTab} navigate={navigate} />}{" "}
+      {tab === "students-hub" && (
+        <TeacherModuleHub kind="students" data={data} go={setTab} navigate={navigate} />
+      )}{" "}
+      {tab === "teaching-hub" && (
+        <TeacherModuleHub kind="teaching" data={data} go={setTab} navigate={navigate} />
+      )}{" "}
+      {tab === "attendance-hub" && (
+        <TeacherModuleHub kind="attendance" data={data} go={setTab} navigate={navigate} />
+      )}{" "}
+      {tab === "updates-hub" && (
+        <TeacherModuleHub kind="updates" data={data} go={setTab} navigate={navigate} />
+      )}{" "}
       {tab === "class" && data.classTeacher && <MyClass data={data} go={setTab} />}{" "}
       {tab === "identifiers" && data.classTeacher && (
         <IdentifierManager students={data.students.content} reload={load} />
@@ -148,13 +167,182 @@ export function TeacherWorkspacePage() {
       )}{" "}
       {tab === "attendance" && <Attendance data={data} select={setSelected} />}{" "}
       {tab === "attention" && <Attention rows={data.attention} select={setSelected} />}{" "}
-      {tab === "coverage" && <Coverage rows={data.coverage} />}{" "}
       {tab === "workload" && <Workload data={data.workload} />}{" "}
       {tab === "schedule" && <Schedule rows={data.todaySchedule} navigate={navigate} />}{" "}
       {tab === "notices" && <Notices rows={data.notices} />}{" "}
       {tab === "notifications" && <Notifications data={data} reload={load} />}{" "}
       {selected && <StudentModal student={selected} close={() => setSelected(null)} />}
     </div>
+  );
+}
+
+type TeacherModuleKind = "students" | "teaching" | "attendance" | "updates";
+
+function TeacherModuleHub({
+  kind,
+  data,
+  go,
+  navigate,
+}: {
+  kind: TeacherModuleKind;
+  data: api.Workspace;
+  go: (tab: string) => void;
+  navigate: (to: string) => void;
+}) {
+  const definitions = {
+    students: {
+      eyebrow: "Student operations",
+      title: "Students",
+      subtitle: "Open class records, student details, identifiers, and attendance concerns.",
+      items: [
+        ...(data.classTeacher
+          ? [
+              {
+                title: "My Class",
+                description: "Review your assigned division, strength, and class insights.",
+                icon: GraduationCap,
+                action: () => go("class"),
+              },
+              {
+                title: "PRN & Roll Numbers",
+                description: "Create and maintain identifiers for students in your class.",
+                icon: Hash,
+                action: () => go("identifiers"),
+              },
+            ]
+          : []),
+        {
+          title: "Student Directory",
+          description: "Search students and open their academic and attendance details.",
+          icon: Users,
+          action: () => go("students"),
+        },
+        {
+          title: "Needs Attention",
+          description: "Review students identified from low or missing attendance activity.",
+          icon: ShieldCheck,
+          action: () => go("attention"),
+        },
+      ],
+    },
+    teaching: {
+      eyebrow: "Teaching operations",
+      title: "Teaching",
+      subtitle: "Track subject progress, workload, schedules, and your approved timetable.",
+      items: [
+        {
+          title: "Workload",
+          description: "Review weekly lectures, divisions, subjects, and pending attendance.",
+          icon: Activity,
+          action: () => go("workload"),
+        },
+        {
+          title: "Today's Schedule",
+          description: "See today's lecture timeline and open attendance actions.",
+          icon: CalendarDays,
+          action: () => go("schedule"),
+        },
+        {
+          title: "My Timetable",
+          description: "Open your approved semester timetable and day-wise schedule.",
+          icon: Eye,
+          action: () => navigate(ROUTES.teacherTimetable),
+        },
+      ],
+    },
+    attendance: {
+      eyebrow: "Attendance operations",
+      title: "Attendance",
+      subtitle: "Take attendance, monitor performance, and open class-level reports.",
+      items: [
+        {
+          title: "Take Attendance",
+          description: "Open the current lecture and mark student attendance.",
+          icon: CheckCircle2,
+          action: () => navigate(ROUTES.teacherAttendance),
+        },
+        {
+          title: "Attendance Analytics",
+          description: "Review daily, weekly, monthly, and student-level attendance.",
+          icon: Activity,
+          action: () => go("attendance"),
+        },
+        ...(data.classTeacher
+          ? [
+              {
+                title: "Attendance Reports",
+                description: "Analyze and export attendance for your assigned class.",
+                icon: Eye,
+                action: () => navigate(ROUTES.attendanceReport),
+              },
+            ]
+          : []),
+      ],
+    },
+    updates: {
+      eyebrow: "Communication center",
+      title: "Updates",
+      subtitle: "Read college notices and automatic updates from academic operations.",
+      items: [
+        {
+          title: "Notices",
+          description: "Read college and department announcements.",
+          icon: Bell,
+          action: () => go("notices"),
+        },
+        {
+          title: "Notifications",
+          description: "Review assignments, student, roll-number, and timetable updates.",
+          icon: Activity,
+          action: () => go("notifications"),
+        },
+      ],
+    },
+  } satisfies Record<
+    TeacherModuleKind,
+    {
+      eyebrow: string;
+      title: string;
+      subtitle: string;
+      items: Array<{
+        title: string;
+        description: string;
+        icon: typeof BookOpen;
+        action: () => void;
+      }>;
+    }
+  >;
+  const module = definitions[kind];
+
+  return (
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 via-sky-50 to-cyan-50 px-6 py-7 sm:px-8">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">
+          {module.eyebrow}
+        </p>
+        <h2 className="mt-2 text-2xl font-bold text-slate-950">{module.title}</h2>
+        <p className="mt-2 max-w-2xl text-sm text-slate-600">{module.subtitle}</p>
+      </div>
+      <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-7 xl:grid-cols-3">
+        {module.items.map(({ title, description, icon: Icon, action }) => (
+          <button
+            key={title}
+            type="button"
+            onClick={action}
+            className="group flex min-h-40 flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+              <Icon className="h-5 w-5" />
+            </span>
+            <span className="mt-4 font-bold text-slate-900">{title}</span>
+            <span className="mt-1 flex-1 text-sm leading-6 text-slate-500">{description}</span>
+            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-700">
+              Open <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -172,7 +360,7 @@ function Overview({
     ["Today's Lectures", k.todayLectures, CalendarDays, "schedule"],
     ["Pending Attendance", k.pendingAttendance, Clock3, "schedule"],
     ["Completed Attendance", k.completedAttendance, CheckCircle2, "attendance"],
-    ["My Subjects", k.subjects, BookOpen, "coverage"],
+    ["My Subjects", k.subjects, BookOpen, "workload"],
     ["My Divisions", k.divisions, Users, "class"],
     ["Class Strength", k.classStrength ?? "—", GraduationCap, "class"],
     ["Average Attendance", `${k.averageAttendance.toFixed(1)}%`, Activity, "attendance"],
@@ -589,47 +777,6 @@ function Attention({ rows, select }: { rows: api.Student[]; select: (x: api.Stud
     </Panel>
   );
 }
-function Coverage({ rows }: { rows: api.Coverage[] }) {
-  return (
-    <Panel
-      title="Subject coverage tracking"
-      subtitle="Planned lectures use subject credits and the current academic cycle"
-    >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {rows.map((r, i) => (
-          <div key={`${r.subjectId}-${i}`} className="rounded-2xl border border-slate-200 p-5">
-            <div className="flex justify-between gap-3">
-              <div>
-                <p className="font-bold text-slate-800">{r.subject}</p>
-                <p className="text-sm text-slate-500">{r.division}</p>
-              </div>
-              <Badge value={r.status} />
-            </div>
-            <div className="mt-5 flex justify-between text-sm">
-              <span>{r.completedLectures} completed</span>
-              <span>{r.remainingLectures} remaining</span>
-            </div>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-blue-600"
-                style={{ width: `${r.completionPercentage}%` }}
-              />
-            </div>
-            <p className="mt-2 text-right text-xs font-semibold text-slate-500">
-              {r.completionPercentage}% of {r.plannedLectures}
-            </p>
-          </div>
-        ))}
-        {!rows.length && (
-          <Empty
-            title="No subject coverage yet"
-            text="Coverage appears after timetable lectures are assigned."
-          />
-        )}
-      </div>
-    </Panel>
-  );
-}
 function Workload({ data }: { data: api.Workload }) {
   return (
     <>
@@ -693,7 +840,13 @@ function Schedule({
             <p className="text-sm text-slate-500">
               {r.division} · {r.lectureType}
             </p>
+            {r.substituted && (
+              <p className="mt-1 text-xs font-semibold text-violet-700">
+                Substitute lecture{r.originalTeacher ? ` for ${r.originalTeacher}` : ""}
+              </p>
+            )}
           </div>
+          {r.substituted && <Badge value="SUBSTITUTE" />}
           <Badge value={r.state} />
           {r.canTakeAttendance && (
             <button className={primary} onClick={() => navigate(ROUTES.teacherAttendance)}>

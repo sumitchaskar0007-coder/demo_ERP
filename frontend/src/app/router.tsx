@@ -22,6 +22,14 @@ function lazyNamed<TModule, TKey extends keyof TModule>(
 }
 
 const LoginPage = lazyNamed(() => import("@/pages/auth/LoginPage"), "LoginPage");
+const AcademicSessionPage = lazyNamed(
+  () => import("@/pages/academic/AcademicSessionPage"),
+  "AcademicSessionPage",
+);
+const GlobalAcademicYearPage = lazyNamed(
+  () => import("@/pages/admin/GlobalAcademicYearPage"),
+  "GlobalAcademicYearPage",
+);
 const ForgotPasswordPage = lazyNamed(
   () => import("@/pages/auth/PasswordRecoveryPages"),
   "ForgotPasswordPage",
@@ -381,9 +389,11 @@ export function AppRouter() {
                 <Route path={ROUTES.adminPendingFees} element={<AdminMoneyPage pending />} />
                 <Route path={ROUTES.adminAnalytics} element={<AdminAnalyticsPage />} />
                 <Route path={ROUTES.adminLectureLoad} element={<AdminLectureLoadPage />} />
+                <Route path={ROUTES.adminAcademicYears} element={<GlobalAcademicYearPage />} />
               </Route>
 
               <Route element={<RoleRoute roles={[ROLES.PRINCIPAL]} />}>
+                <Route path={ROUTES.academicSessions} element={<AcademicSessionPage />} />
                 <Route
                   path={ROUTES.principalAcademics}
                   element={<PrincipalWorkspacePage kind="academics" />}
@@ -539,7 +549,18 @@ export function AppRouter() {
               <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER]} />}>
                 <Route path={ROUTES.classTeacherClass} element={<MyClassRosterPage />} />
               </Route>
-              <Route element={<RoleRoute roles={[ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]} />}>
+              <Route
+                element={
+                  <RoleRoute
+                    roles={[
+                      ROLES.PRINCIPAL,
+                      ROLES.HOD,
+                      ROLES.CLASS_TEACHER,
+                      ROLES.SUBJECT_TEACHER,
+                    ]}
+                  />
+                }
+              >
                 <Route path={ROUTES.teacherWorkspace} element={<TeacherWorkspacePage />} />
                 <Route path={ROUTES.teacherTimetable} element={<TeacherTimetablePage />} />
                 <Route path={ROUTES.teacherAttendance} element={<TeacherAttendancePage />} />

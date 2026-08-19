@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class AuditLogService {
-    private static final Logger log = LoggerFactory.getLogger(AuditLogService.class);
     private static final int ANALYTICS_EVENT_LIMIT = 5_000;
     private final AuditLogRepository repo;
     private final UserRepository users;
@@ -54,20 +53,41 @@ public class AuditLogService {
         this.timetableEntries=timetableEntries;
     }
 
-    @Transactional(propagation=Propagation.REQUIRES_NEW)
+    @Transactional
     public void log(AuditModule module, AuditAction action, String type, Long id, String description) {
-        try { logWithUser(users.findById(SecurityUtils.getCurrentUserId()).orElse(null),module,action,type,id,description); }
-        catch(Exception e) { log.warn("Audit logging failed",e); }
+        persist(users.findById(SecurityUtils.getCurrentUserId()).orElse(null),module,action,type,id,description);
     }
 
-    @Transactional(propagation=Propagation.REQUIRES_NEW)
+    @Transactional
     public void logWithUser(User user, AuditModule module, AuditAction action, String type, Long id, String description) {
-        try { AuditLog row=new AuditLog(); row.setActorUser(user); row.setActorName(user==null?"System":user.getFullName());
-            row.setActorEmail(user==null?null:user.getEmail()); row.setActorRoles(user==null?"SYSTEM":user.getRoles().stream()
-                    .map(r->r.getName().name()).sorted().collect(Collectors.joining(",")));
-            row.setCollege(user==null?null:user.getCollege()); row.setModule(module); row.setAction(action);
-            row.setEntityType(type); row.setEntityId(id); row.setDescription(description); repo.save(row);
-        } catch(Exception e) { log.warn("Audit logging failed",e); }
+        persist(user,module,action,type,id,description);
+    }
+
+    /**
+     * Report controllers are intentionally read-only, but viewing a report is
+     * still an auditable event. Suspend the read-only transaction so PostgreSQL
+     * can persist this one independent audit record.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logReportView(String reportName) {
+        persist(users.findById(SecurityUtils.getCurrentUserId()).orElse(null),
+                AuditModule.REPORT, AuditAction.VIEW_REPORT, "Report", null,
+                "Viewed " + reportName + " report");
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logReportExport(String reportType) {
+        persist(users.findById(SecurityUtils.getCurrentUserId()).orElse(null),
+                AuditModule.REPORT, AuditAction.EXPORT, "Report", null,
+                "Generated and downloaded " + reportType + " report");
+    }
+
+    private void persist(User user, AuditModule module, AuditAction action, String type, Long id, String description) {
+        AuditLog row=new AuditLog(); row.setActorUser(user); row.setActorName(user==null?"System":user.getFullName());
+        row.setActorEmail(user==null?null:user.getEmail()); row.setActorRoles(user==null?"SYSTEM":user.getRoles().stream()
+                .map(r->r.getName().name()).sorted().collect(Collectors.joining(",")));
+        row.setCollege(user==null?null:user.getCollege()); row.setModule(module); row.setAction(action);
+        row.setEntityType(type); row.setEntityId(id); row.setDescription(description); repo.save(row);
     }
 
     @Transactional(readOnly=true)

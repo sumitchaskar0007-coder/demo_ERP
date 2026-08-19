@@ -1,6 +1,7 @@
 package com.jadhavr.erp.fee.entity;
 
 import com.jadhavr.erp.admission.entity.AdmissionForm;
+import com.jadhavr.erp.academic.entity.SemesterOffering;
 import com.jadhavr.erp.college.entity.College;
 import com.jadhavr.erp.common.entity.BaseAuditEntity;
 import com.jadhavr.erp.department.entity.Department;
@@ -24,6 +25,7 @@ public class StudentFeeAccount extends BaseAuditEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "college_id", nullable = false) private College college;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "department_id", nullable = false) private Department department;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "fee_structure_id") private FeeStructure feeStructure;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "semester_offering_id") private SemesterOffering semesterOffering;
     @Column(nullable = false, length = 20) private String academicYear;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'OPEN'") private StudentCategory studentCategory = StudentCategory.OPEN;
     @Column(name = "custom_category_name", length = 80) private String customCategoryName;
@@ -52,6 +54,8 @@ public class StudentFeeAccount extends BaseAuditEntity {
     public void setDepartment(Department value) { department = value; }
     public FeeStructure getFeeStructure() { return feeStructure; }
     public void setFeeStructure(FeeStructure value) { feeStructure = value; }
+    public SemesterOffering getSemesterOffering() { return semesterOffering; }
+    public void setSemesterOffering(SemesterOffering value) { semesterOffering = value; }
     public String getAcademicYear() { return academicYear; }
     public void setAcademicYear(String value) { academicYear = value; }
     public StudentCategory getStudentCategory() { return studentCategory; }

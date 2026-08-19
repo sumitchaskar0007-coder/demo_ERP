@@ -1,5 +1,6 @@
 package com.jadhavr.erp.college.service;
 
+import com.jadhavr.erp.academic.service.GlobalAcademicYearService;
 import com.jadhavr.erp.college.dto.CollegeResponse;
 import com.jadhavr.erp.college.dto.CreateCollegeRequest;
 import com.jadhavr.erp.college.dto.UpdateCollegeRequest;
@@ -31,10 +32,13 @@ public class CollegeServiceImpl implements CollegeService {
             "id", "name", "code", "city", "state", "status", "createdAt", "updatedAt");
     private final CollegeRepository collegeRepository;
     private final CollegeImageStorageService imageStorage;
+    private final GlobalAcademicYearService globalAcademicYears;
     public CollegeServiceImpl(CollegeRepository collegeRepository,
-            CollegeImageStorageService imageStorage) {
+            CollegeImageStorageService imageStorage,
+            GlobalAcademicYearService globalAcademicYears) {
         this.collegeRepository = collegeRepository;
         this.imageStorage = imageStorage;
+        this.globalAcademicYears = globalAcademicYears;
     }
 
     @Override
@@ -53,7 +57,9 @@ public class CollegeServiceImpl implements CollegeService {
         saved.setLogoUrl(imageStorage.claim(request.logoUrl(), saved.getId(), "logo", null));
         saved.setQrCodeUrl(imageStorage.claim(request.qrCodeUrl(), saved.getId(), "qr-code", null));
         saved.setPaymentQrAccountName(paymentQrName(request.paymentQrAccountName(), request.qrCodeUrl()));
-        return toResponse(collegeRepository.saveAndFlush(saved));
+        saved = collegeRepository.saveAndFlush(saved);
+        globalAcademicYears.provisionActiveYearForCollege(saved);
+        return toResponse(saved);
     }
 
     @Override
@@ -101,7 +107,9 @@ public class CollegeServiceImpl implements CollegeService {
     public CollegeResponse activateCollege(Long id) {
         College college = findById(id);
         college.setStatus(CollegeStatus.ACTIVE);
-        return toResponse(collegeRepository.save(college));
+        college = collegeRepository.saveAndFlush(college);
+        globalAcademicYears.provisionActiveYearForCollege(college);
+        return toResponse(college);
     }
 
     @Override

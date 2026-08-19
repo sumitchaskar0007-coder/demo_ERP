@@ -4,8 +4,6 @@ import com.jadhavr.erp.academic.repository.AttendanceRecordRepository;
 import com.jadhavr.erp.admission.entity.AdmissionForm;
 import com.jadhavr.erp.admission.enums.AdmissionStatus;
 import com.jadhavr.erp.admission.repository.AdmissionFormRepository;
-import com.jadhavr.erp.audit.enums.AuditAction;
-import com.jadhavr.erp.audit.enums.AuditModule;
 import com.jadhavr.erp.audit.service.AuditLogService;
 import com.jadhavr.erp.auth.security.SecurityUtils;
 import com.jadhavr.erp.common.api.ApiResponse;
@@ -108,10 +106,11 @@ public class ReportController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "newest") String sort) {
         ReportScope scope = scope(collegeId, departmentId);
-        viewed("Admission Analytics");
-        return ApiResponse.success("Admission analytics", admissionAnalytics.analytics(
+        var analytics = admissionAnalytics.analytics(
                 scope.collegeId(), scope.departmentId(), academicYear, status, from, to,
-                studentName, admissionNumber, mobile, page, size, sort));
+                studentName, admissionNumber, mobile, page, size, sort);
+        viewed("Admission Analytics");
+        return ApiResponse.success("Admission analytics", analytics);
     }
 
     @GetMapping("/fees")
@@ -174,8 +173,7 @@ public class ReportController {
             case "students" -> exportStudents(scope, status);
             default -> throw new BadRequestException("Unsupported report type");
         };
-        audit.log(AuditModule.REPORT, AuditAction.EXPORT, "Report", null,
-                "Generated and downloaded " + type + " report");
+        audit.logReportExport(type);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + type + "-report.csv")
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
@@ -374,8 +372,7 @@ public class ReportController {
     }
 
     private void viewed(String reportName) {
-        audit.log(AuditModule.REPORT, AuditAction.VIEW_REPORT, "Report", null,
-                "Viewed " + reportName + " report");
+        audit.logReportView(reportName);
     }
 
     private String cell(Object value) {

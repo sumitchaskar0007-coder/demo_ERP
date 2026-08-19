@@ -40,6 +40,17 @@ const uniqueAcademicClasses = (rows: AcademicClass[]) => [
   ).values(),
 ];
 
+const semesterNumbersFor = (yearName?: string) => {
+  const year = ({
+    FIRST_YEAR: 1,
+    SECOND_YEAR: 2,
+    THIRD_YEAR: 3,
+    FOURTH_YEAR: 4,
+    FIFTH_YEAR: 5,
+  } as Record<string, number>)[yearName ?? ""];
+  return year ? [year * 2 - 1, year * 2] : [];
+};
+
 function Shell({
   title,
   subtitle,
@@ -202,6 +213,11 @@ export function AcademicListPage({ kind }: { kind: Kind }) {
                         {r.subjectType}
                       </span>
                     ) : null}
+                    {"semesterNumber" in r && r.semesterNumber ? (
+                      <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                        Semester {r.semesterNumber}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
                 {kind === "subjects" && (
@@ -303,7 +319,13 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
   };
 
   const handleDepartmentChange = (departmentId: string) => {
-    setV({ ...v, departmentId, academicClassId: "", academicYear: "" });
+    setV({
+      ...v,
+      departmentId,
+      academicClassId: "",
+      academicYear: "",
+      semesterNumber: "",
+    });
     loadAcademicClasses(departmentId);
   };
 
@@ -313,6 +335,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
       ...v,
       academicClassId,
       academicYear: selectedClass?.academicYear ?? "",
+      semesterNumber: "",
     });
   };
 
@@ -338,6 +361,7 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
       else
         await api.createSubject({
           academicClassId: +v.academicClassId,
+          semesterNumber: +v.semesterNumber,
           academicYear: v.academicYear,
           name: v.name,
           code: v.code,
@@ -386,6 +410,21 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
                 })),
               ]}
             />
+            <Select
+              label="Semester"
+              value={v.semesterNumber || ""}
+              disabled={!v.academicClassId}
+              onChange={(e) => setV({ ...v, semesterNumber: e.target.value })}
+              options={[
+                {
+                  label: v.academicClassId ? "Select semester" : "Select year/class first",
+                  value: "",
+                },
+                ...semesterNumbersFor(
+                  academicClasses.find((item) => item.id === Number(v.academicClassId))?.yearName,
+                ).map((number) => ({ label: `Semester ${number}`, value: String(number) })),
+              ]}
+            />
           </>
         ) : (
           input("academicClassId", "Academic class ID")
@@ -419,7 +458,11 @@ export function AcademicCreatePage({ kind }: { kind: Kind }) {
           input("description", "Description")
         )}
       </div>
-      <Button className="mt-5" onClick={save}>
+      <Button
+        className="mt-5"
+        disabled={kind === "subjects" && (!v.academicClassId || !v.semesterNumber)}
+        onClick={save}
+      >
         Create
       </Button>
     </Shell>
@@ -637,6 +680,11 @@ function StudentWeeklyTimetable() {
                                 className={`h-full rounded-xl border p-2.5 shadow-sm ${STUDENT_TIMETABLE_COLORS[entry.subjectId % STUDENT_TIMETABLE_COLORS.length]}`}
                               >
                                 <b className="text-xs leading-5">{entry.subject}</b>
+                                {entry.substituted && (
+                                  <span className="mt-1 block text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                                    Substitute today
+                                  </span>
+                                )}
                                 <p className="mt-1 truncate text-[10px] opacity-75">
                                   {entry.teacher}
                                 </p>

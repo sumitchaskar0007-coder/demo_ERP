@@ -106,3 +106,49 @@ export interface StaffDetailResponse {
   attendanceSummary: StaffAttendanceSummary;
   recentAttendance: StaffAttendanceSession[];
 }
+
+export interface LectureSubstitutionView {
+  id: number;
+  teacherId: number;
+  teacherName: string;
+  subjectId: number;
+  subjectCode: string;
+  subject: string;
+  reason: string;
+}
+
+export interface TodayLecture {
+  timetableEntryId: number;
+  period: string;
+  startTime: string;
+  endTime: string;
+  subjectId: number;
+  subjectCode: string;
+  subject: string;
+  department: string;
+  year: string;
+  division: string;
+  room?: string | null;
+  lectureType: string;
+  substitution?: LectureSubstitutionView | null;
+}
+
+export interface DailyTeacherSchedule {
+  date: string;
+  teacherId: number;
+  teacherName: string;
+  lectures: TodayLecture[];
+}
+
+export interface SubstituteSubjectOption {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface AvailableSubstituteTeacher {
+  id: number;
+  employeeCode: string;
+  name: string;
+  subjects: SubstituteSubjectOption[];
+}

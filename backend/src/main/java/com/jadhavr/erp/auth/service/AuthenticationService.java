@@ -74,7 +74,8 @@ public class AuthenticationService {
     @Transactional
     public TokenPair rotate(String rawRefreshToken, String ip, String userAgent) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) throw unauthorized();
-        RefreshToken stored = refreshTokens.findByTokenHash(hashes.hash(rawRefreshToken)).orElseThrow(this::unauthorized);
+        String tokenHash = hashes.hash(rawRefreshToken);
+        RefreshToken stored = refreshTokens.findByTokenHash(tokenHash).orElseThrow(this::unauthorized);
         if (stored.isRevoked()) {
             securityEvents.refreshReuse(stored.getUser().getId(), ip, userAgent);
             throw unauthorized();
@@ -89,7 +90,12 @@ public class AuthenticationService {
         Long storedInstitution = stored.getInstitution() == null ? null : stored.getInstitution().getId();
         Long userInstitution = user.getCollege() == null ? null : user.getCollege().getId();
         if (!java.util.Objects.equals(storedInstitution, userInstitution)) throw unauthorized();
-        stored.setRevoked(true); refreshTokens.save(stored);
+        // This compare-and-set is the token's single-use boundary. Concurrent
+        // requests serialize in the database and exactly one can change the row.
+        if (refreshTokens.consume(tokenHash) != 1) {
+            securityEvents.refreshReuse(user.getId(), ip, userAgent);
+            throw unauthorized();
+        }
         securityEvents.audit(user.getId(), userInstitution, "TOKEN_REFRESH", true, ip, userAgent, "Refresh token rotated");
         return issue(user, new CustomUserDetails(user));
     }

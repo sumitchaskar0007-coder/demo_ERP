@@ -205,8 +205,13 @@ locals {
     "16384" = range(32768, 131072, 8192)
   }
 
-  backend_effective_min_capacity = var.desired_count == 0 ? 0 : var.backend_autoscaling_min_capacity
-  async_worker_effective_count   = local.external_production && !var.production_database_access_ready ? 0 : var.async_worker_desired_count
+  backend_effective_desired_count = var.legacy_backend_enabled ? var.desired_count : 0
+  backend_effective_min_capacity  = local.backend_effective_desired_count == 0 ? 0 : var.backend_autoscaling_min_capacity
+  async_worker_effective_count = local.external_production && !var.production_database_access_ready ? 0 : (
+    var.legacy_async_worker_enabled ? var.async_worker_desired_count : 0
+  )
+  legacy_redis_host = var.legacy_cache_enabled ? aws_elasticache_replication_group.redis[0].primary_endpoint_address : try(aws_elasticache_serverless_cache.green[0].endpoint[0].address, "")
+  legacy_redis_port = var.legacy_cache_enabled ? aws_elasticache_replication_group.redis[0].port : try(aws_elasticache_serverless_cache.green[0].endpoint[0].port, 6379)
 
   common_environment = [
     # Every deployed task activates exactly one environment profile. Preproduction
@@ -215,8 +220,8 @@ locals {
     # Keep private uploads on S3 even if profile composition changes later.
     { name = "STORAGE_PROVIDER", value = "s3" },
     { name = "DB_URL", value = "jdbc:postgresql://${local.database_endpoint}:${local.database_port}/${local.database_name}?sslmode=verify-full" },
-    { name = "REDIS_HOST", value = aws_elasticache_replication_group.redis.primary_endpoint_address },
-    { name = "REDIS_PORT", value = tostring(aws_elasticache_replication_group.redis.port) },
+    { name = "REDIS_HOST", value = local.legacy_redis_host },
+    { name = "REDIS_PORT", value = tostring(local.legacy_redis_port) },
     { name = "REDIS_SSL_ENABLED", value = "true" },
     { name = "RATE_LIMIT_REDIS_ENABLED", value = "true" },
     { name = "RATE_LIMIT_REQUIRED", value = "true" },
@@ -304,7 +309,10 @@ locals {
   base_runtime_secrets = concat(local.database_runtime_secrets, [
     { name = "JWT_SECRET", valueFrom = "${aws_secretsmanager_secret.application.arn}:JWT_SECRET::" },
     { name = "RATE_LIMIT_KEY_SECRET", valueFrom = "${aws_secretsmanager_secret.application.arn}:RATE_LIMIT_KEY_SECRET::" },
-    { name = "REDIS_PASSWORD", valueFrom = "${aws_secretsmanager_secret.redis.arn}:auth_token::" }
+    {
+      name      = "REDIS_PASSWORD"
+      valueFrom = var.legacy_cache_enabled ? "${aws_secretsmanager_secret.redis.arn}:auth_token::" : "${aws_secretsmanager_secret.green_redis[0].arn}:password::"
+    }
   ])
 
   mail_runtime_secrets = [
@@ -603,7 +611,7 @@ resource "aws_ecs_service" "backend" {
   name            = "${local.name}-backend"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.backend.arn
-  desired_count   = var.desired_count
+  desired_count   = local.backend_effective_desired_count
   launch_type     = "FARGATE"
 
   deployment_circuit_breaker {
@@ -641,9 +649,11 @@ resource "aws_ecs_service" "backend" {
 
     precondition {
       condition = !local.external_production || (
-        var.production_database_access_ready ? var.desired_count >= 2 : var.desired_count == 0
+        var.production_database_access_ready
+        ? (var.legacy_backend_enabled ? var.desired_count >= 2 : local.backend_effective_desired_count == 0)
+        : local.backend_effective_desired_count == 0
       )
-      error_message = "Production requires desired_count=0 until production_database_access_ready=true; after approval it requires at least two tasks."
+      error_message = "Production Blue requires at least two tasks while enabled and zero tasks before database approval or after the legacy service is disabled."
     }
     precondition {
       condition     = var.desired_count <= var.backend_autoscaling_max_capacity

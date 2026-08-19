@@ -6,6 +6,7 @@ import com.jadhavr.erp.department.entity.Department;
 import com.jadhavr.erp.staff.enums.StaffStatus;
 import com.jadhavr.erp.staff.enums.StaffType;
 import com.jadhavr.erp.user.entity.User;
+import com.jadhavr.erp.user.entity.RoleName;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -92,8 +93,17 @@ public class StaffProfile extends BaseAuditEntity {
         if (department != null) this.departments.add(department);
     }
     public boolean belongsToDepartment(Long departmentId) {
-        return departmentId != null && ((department != null && departmentId.equals(department.getId()))
+        boolean principal = user != null && user.getRoles().stream()
+                .anyMatch(role -> role.getName() == RoleName.PRINCIPAL);
+        return departmentId != null && (principal
+                || (department != null && departmentId.equals(department.getId()))
                 || departments.stream().anyMatch(item -> departmentId.equals(item.getId())));
+    }
+    public boolean canTeachInDepartment(Long departmentId) {
+        boolean collegeWideTeacher = user != null && user.getRoles().stream()
+                .anyMatch(role -> role.getName() == RoleName.PRINCIPAL
+                        || role.getName() == RoleName.HOD);
+        return departmentId != null && (collegeWideTeacher || belongsToDepartment(departmentId));
     }
     public String getEmployeeCode() { return employeeCode; }
     public void setEmployeeCode(String employeeCode) { this.employeeCode = employeeCode; }

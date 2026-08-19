@@ -298,6 +298,20 @@ class StaffServiceImplTest {
                 () -> service.createStaff(unified(StaffType.GENERAL_STAFF, null, "general@example.com")));
     }
 
+    @Test
+    void principalTeachingProfileCannotBeDeactivatedThroughStaffManagement() {
+        authenticate(2L, 1L, RoleName.PRINCIPAL);
+        StaffProfile profile = staffProfile();
+        profile.getUser().setRoles(Set.of(role(RoleName.PRINCIPAL)));
+        profile.setStaffType(StaffType.TEACHER);
+        when(staffProfiles.findById(20L)).thenReturn(Optional.of(profile));
+
+        assertThrows(BadRequestException.class, () -> service.deactivateStaff(20L));
+
+        verifyNoInteractions(users);
+        assertEquals(StaffStatus.ACTIVE, profile.getStatus());
+    }
+
     private void stubUnifiedCreation(RoleName roleName) {
         College college = college(1L, CollegeStatus.ACTIVE);
         when(colleges.findById(1L)).thenReturn(Optional.of(college));

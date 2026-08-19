@@ -1,6 +1,8 @@
 package com.jadhavr.erp.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,7 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 
 import java.time.Duration;
@@ -47,7 +50,7 @@ public class CacheConfig implements CachingConfigurer {
     CacheManager redisCacheManager(RedisConnectionFactory factory,
             @Value("${spring.application.name:jadhavr-erp}") String application,
             @Value("${app.cache.environment:default}") String environment) {
-        var serializer = new GenericJackson2JsonRedisSerializer();
+        RedisSerializer<Object> serializer = redisValueSerializer();
         RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
                 .computePrefixWith(name -> application + ":" + environment + ":" + name + ":")
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer))
@@ -69,6 +72,13 @@ public class CacheConfig implements CachingConfigurer {
                 .withInitialCacheConfigurations(configurations)
                 .transactionAware()
                 .build();
+    }
+
+    static RedisSerializer<Object> redisValueSerializer() {
+        return new GenericJackson2JsonRedisSerializer().configure(mapper -> {
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        });
     }
 
     @Bean

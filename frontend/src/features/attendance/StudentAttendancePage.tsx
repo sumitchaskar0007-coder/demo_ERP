@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, BookOpen, CalendarDays, CheckCircle2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/common/Card";
+import { Button } from "@/components/common/Button";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Loader } from "@/components/common/Loader";
 import { attendanceApi, type StudentAttendance } from "./api";
 import { handleApiError } from "@/lib/handleApiError";
@@ -14,13 +16,40 @@ const bar = (value: number) =>
 
 export function StudentAttendancePage() {
   const [data, setData] = useState<StudentAttendance>();
-  useEffect(() => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
+
+  const loadAttendance = useCallback(() => {
+    setLoading(true);
+    setError(undefined);
     attendanceApi
       .student()
       .then(setData)
-      .catch((e) => toast.error(handleApiError(e).message));
+      .catch((requestError) => {
+        const message = handleApiError(requestError).message;
+        setError(message);
+        toast.error(message);
+      })
+      .finally(() => setLoading(false));
   }, []);
-  if (!data) return <Loader label="Loading your attendance..." />;
+
+  useEffect(() => {
+    loadAttendance();
+  }, [loadAttendance]);
+  if (loading) return <Loader label="Loading your attendance..." />;
+  if (error || !data) {
+    return (
+      <div className="page-container">
+        <Card>
+          <EmptyState
+            title="Attendance could not be loaded"
+            description={error ?? "Attendance data is temporarily unavailable."}
+            action={<Button onClick={loadAttendance}>Try again</Button>}
+          />
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="page-container space-y-6 pb-12">
       <header>

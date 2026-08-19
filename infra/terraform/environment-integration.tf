@@ -38,6 +38,14 @@ resource "terraform_data" "deployment_environment_contract" {
       error_message = "Production Valkey must retain two nodes so a node replacement or failure does not remove the cache service."
     }
     precondition {
+      condition     = var.legacy_cache_enabled || var.green_enabled
+      error_message = "Disabling the legacy cache requires the Green serverless Valkey architecture to be enabled."
+    }
+    precondition {
+      condition     = var.container_insights_mode != "disabled" || (var.green_cutover_enabled && var.green_worker_active)
+      error_message = "Disabling Container Insights requires active Green API and worker ALB health targets so task health remains monitored."
+    }
+    precondition {
       condition     = var.environment != "production" || var.desired_count == 0 || var.desired_count >= 2
       error_message = "Production must use zero API tasks only during bootstrap, or at least two API tasks during service."
     }

@@ -34,6 +34,16 @@ public interface StudentSectionEnrollmentRepository
     List<StudentSectionEnrollment> findBySectionDepartmentIdAndStatus(
             Long departmentId, AcademicStatus status);
 
+    @EntityGraph(attributePaths = {"student", "section", "academicClass", "semesterOffering",
+            "semesterOffering.academicTerm", "semesterOffering.curriculumSemester"})
+    List<StudentSectionEnrollment> findBySemesterOfferingAcademicTermIdAndStatus(
+            Long termId, AcademicStatus status);
+
+    boolean existsBySemesterOfferingAcademicTermIdAndStatus(
+            Long termId, AcademicStatus status);
+
+    boolean existsByStudentIdAndSemesterOfferingId(Long studentId, Long offeringId);
+
     long countBySectionDepartmentIdAndStatus(
             Long departmentId, AcademicStatus status);
 

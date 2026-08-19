@@ -27,4 +27,26 @@ describe("DataTable responsive actions", () => {
       "[overflow-wrap:normal]",
     );
   });
+
+  it("allows a page to opt into a bounded fixed desktop layout", () => {
+    const columns: Column<Row>[] = [
+      { key: "name", header: "Name", render: (row) => row.name },
+    ];
+
+    const { container } = render(
+      <DataTable
+        columns={columns}
+        data={[{ id: 1, name: "Student" }]}
+        rowKey={(row) => row.id}
+        tableClassName="min-w-[1080px] table-fixed"
+      />,
+    );
+
+    expect(container.querySelector("table")).toHaveClass(
+      "w-full",
+      "min-w-[1080px]",
+      "table-fixed",
+    );
+    expect(container.querySelector("table")).not.toHaveClass("min-w-max");
+  });
 });

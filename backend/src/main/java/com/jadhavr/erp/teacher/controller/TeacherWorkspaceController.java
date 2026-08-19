@@ -8,7 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController @RequestMapping("/api/teacher/workspace")
-@PreAuthorize("hasAnyRole('SUBJECT_TEACHER','CLASS_TEACHER')")
+@PreAuthorize("hasAnyRole('PRINCIPAL','HOD','SUBJECT_TEACHER','CLASS_TEACHER')")
 public class TeacherWorkspaceController {
     private final TeacherWorkspaceService workspace;private final TeacherNotificationService notifications;
     public TeacherWorkspaceController(TeacherWorkspaceService w,TeacherNotificationService n){workspace=w;notifications=n;}

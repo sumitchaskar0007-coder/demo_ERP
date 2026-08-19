@@ -1,8 +1,17 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
+import type { LeadershipWorkspaceMode } from "./workspaceMode";
 
-export function MobileSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function MobileSidebar({
+  open,
+  onClose,
+  workspaceMode,
+}: {
+  open: boolean;
+  onClose: () => void;
+  workspaceMode?: LeadershipWorkspaceMode;
+}) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -38,7 +47,13 @@ export function MobileSidebar({ open, onClose }: { open: boolean; onClose: () =>
         >
           <X className="h-5 w-5" />
         </button>
-        <Sidebar collapsed={false} onToggle={() => undefined} mobile onNavigate={onClose} />
+        <Sidebar
+          collapsed={false}
+          onToggle={() => undefined}
+          mobile
+          onNavigate={onClose}
+          workspaceMode={workspaceMode}
+        />
       </div>
     </div>
   );

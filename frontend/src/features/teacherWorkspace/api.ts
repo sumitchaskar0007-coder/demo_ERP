@@ -59,16 +59,6 @@ export type Metrics = {
   below60: number;
 };
 export type Point = { label: string; percentage?: number; value?: number };
-export type Coverage = {
-  subjectId: number;
-  subject: string;
-  division: string;
-  plannedLectures: number;
-  completedLectures: number;
-  remainingLectures: number;
-  completionPercentage: number;
-  status: string;
-};
 export type Workload = {
   totalSubjects: number;
   totalDivisions: number;
@@ -87,6 +77,8 @@ export type Schedule = {
   state: string;
   attendanceSessionId?: number | null;
   canTakeAttendance: boolean;
+  substituted: boolean;
+  originalTeacher?: string | null;
 };
 export type Notice = {
   id: number;
@@ -126,7 +118,6 @@ export type Workspace = {
   weeklyTrend: { label: string; percentage: number }[];
   monthlyTrend: { label: string; percentage: number }[];
   attention: Student[];
-  coverage: Coverage[];
   workload: Workload;
   todaySchedule: Schedule[];
   notices: Notice[];

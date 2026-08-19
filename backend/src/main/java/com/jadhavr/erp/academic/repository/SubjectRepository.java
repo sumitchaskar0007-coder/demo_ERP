@@ -19,6 +19,10 @@ public interface SubjectRepository extends JpaRepository<Subject, Long>,
 
     Optional<Subject> findByAcademicClassIdAndAcademicYearAndCodeIgnoreCase(
             Long academicClassId, String academicYear, String code);
+    boolean existsByAcademicClassIdAndCurriculumSemesterIdAndCodeIgnoreCase(
+            Long academicClassId, Long curriculumSemesterId, String code);
+    Optional<Subject> findByAcademicClassIdAndCurriculumSemesterIdAndCodeIgnoreCase(
+            Long academicClassId, Long curriculumSemesterId, String code);
 
     long countByCollegeId(Long collegeId);
 
@@ -28,6 +32,10 @@ public interface SubjectRepository extends JpaRepository<Subject, Long>,
 
     @EntityGraph(attributePaths = {"college", "department", "academicClass"})
     List<Subject> findByAcademicClassIdAndStatus(Long academicClassId, SubjectStatus status);
+
+    @EntityGraph(attributePaths = {"college", "department", "academicClass", "curriculumSemester"})
+    List<Subject> findByAcademicClassIdAndCurriculumSemesterIdAndStatusOrderByCodeAsc(
+            Long academicClassId, Long curriculumSemesterId, SubjectStatus status);
 
     @EntityGraph(attributePaths = {"college", "department", "academicClass"})
     List<Subject> findByDepartmentIdAndStatus(Long departmentId, SubjectStatus status);

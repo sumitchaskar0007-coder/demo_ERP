@@ -89,6 +89,20 @@
   }
 }
 
+/*
+ * Desktop density
+ *
+ * Tailwind's spacing, typography, controls, navigation, and cards are rem-based.
+ * Scaling the root unit gives large desktop screens the same useful density as
+ * the former 75% browser-zoom view without using non-standard CSS zoom. Mobile
+ * and tablet layouts keep the normal accessible scale, and print is unaffected.
+ */
+@media screen and (min-width: 1024px) {
+  html {
+    font-size: 75%;
+  }
+}
+
 @media print {
   @page {
     size: A4;

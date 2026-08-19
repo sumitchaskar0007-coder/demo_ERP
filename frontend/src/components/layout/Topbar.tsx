@@ -1,5 +1,7 @@
 import {
   Bell,
+  BookOpen,
+  Building2,
   CalendarDays,
   ChevronDown,
   LockKeyhole,
@@ -11,16 +13,23 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/authStore";
+import { academicSessionApi, type AcademicContext } from "@/features/academicSessions/api";
+import { globalAcademicYearApi, type GlobalAcademicYear } from "@/features/globalAcademicYears/api";
 import { API_BASE_URL } from "@/lib/apiClient";
 import { ROUTES } from "@/lib/constants";
 import { initials } from "@/lib/utils";
+import type { LeadershipWorkspaceMode } from "./workspaceMode";
 
 export function Topbar({
   onMenu,
   unreadNotices = 0,
+  workspaceMode,
+  onWorkspaceModeChange,
 }: {
   onMenu: () => void;
   unreadNotices?: number;
+  workspaceMode?: LeadershipWorkspaceMode;
+  onWorkspaceModeChange?: (mode: LeadershipWorkspaceMode) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
@@ -28,8 +37,11 @@ export function Topbar({
   const location = useLocation();
   const menuRef = useRef<HTMLDivElement>(null);
   const primaryRole = user?.roles[0]?.replaceAll("_", " ") || "User";
+  const isSuperAdmin = user?.roles.includes("SUPER_ADMIN") ?? false;
+  const hasWorkspaceSwitcher = workspaceMode !== undefined && onWorkspaceModeChange !== undefined;
   const mobileTitle = getMobilePageTitle(location.pathname);
-  const year = new Date().getFullYear();
+  const [academicContext, setAcademicContext] = useState<AcademicContext | null>(null);
+  const [globalAcademicYear, setGlobalAcademicYear] = useState<GlobalAcademicYear | null>(null);
   const profileImage = user?.profileImageUrl?.startsWith("/")
     ? `${API_BASE_URL}${user.profileImageUrl}`
     : user?.profileImageUrl;
@@ -44,6 +56,19 @@ export function Topbar({
       navigate(ROUTES.login, { replace: true });
     }
   };
+
+  useEffect(() => {
+    const loadYear = () => {
+      if (isSuperAdmin) {
+        globalAcademicYearApi.active().then(setGlobalAcademicYear).catch(() => setGlobalAcademicYear(null));
+      } else {
+        academicSessionApi.context().then(setAcademicContext).catch(() => setAcademicContext(null));
+      }
+    };
+    loadYear();
+    window.addEventListener("academic-year:changed", loadYear);
+    return () => window.removeEventListener("academic-year:changed", loadYear);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!open) return;
@@ -77,9 +102,44 @@ export function Topbar({
         </p>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
+        {hasWorkspaceSwitcher && (
+          <div
+            className="hidden items-center rounded-xl border border-slate-200 bg-slate-100 p-1 md:flex"
+            aria-label="Select workspace"
+          >
+            <button
+              type="button"
+              onClick={() => onWorkspaceModeChange?.("leadership")}
+              aria-pressed={workspaceMode === "leadership"}
+              className={`flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition ${
+                workspaceMode === "leadership"
+                  ? "bg-white text-brand-700 shadow-sm ring-1 ring-slate-200"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Building2 className="h-4 w-4" />
+              Leadership
+            </button>
+            <button
+              type="button"
+              onClick={() => onWorkspaceModeChange?.("teaching")}
+              aria-pressed={workspaceMode === "teaching"}
+              className={`flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition ${
+                workspaceMode === "teaching"
+                  ? "bg-white text-brand-700 shadow-sm ring-1 ring-slate-200"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <BookOpen className="h-4 w-4" />
+              Teaching
+            </button>
+          </div>
+        )}
         <div className="hidden h-11 items-center gap-2 rounded-xl border bg-white px-3 text-xs font-semibold text-slate-600 xl:flex">
           <CalendarDays className="h-4 w-4 text-brand-600" />
-          Academic Year: {year} / {year + 1}
+          {(isSuperAdmin ? globalAcademicYear?.name : academicContext?.academicYear)
+            ? `Academic Year: ${isSuperAdmin ? globalAcademicYear?.name : academicContext?.academicYear}${!isSuperAdmin && academicContext?.termName ? ` · ${academicContext.termName}` : ""}`
+            : "Academic year not activated"}
         </div>
         <Link
           to={ROUTES.notices}
@@ -114,7 +174,11 @@ export function Topbar({
             )}
             <div className="hidden text-left sm:block">
               <p className="max-w-36 truncate text-sm font-semibold">{user?.fullName}</p>
-              <p className="text-xs capitalize text-slate-400">{primaryRole.toLowerCase()}</p>
+              <p className="text-xs capitalize text-slate-400">
+                {hasWorkspaceSwitcher
+                  ? `${primaryRole.toLowerCase()} · ${workspaceMode} workspace`
+                  : primaryRole.toLowerCase()}
+              </p>
             </div>
             <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
           </button>
@@ -123,6 +187,38 @@ export function Topbar({
               className="absolute right-0 mt-2 w-[min(13rem,calc(100vw-1.5rem))] rounded-xl border bg-white p-1.5 shadow-xl"
               role="menu"
             >
+              {hasWorkspaceSwitcher && (
+                <div className="mb-1 grid grid-cols-2 gap-1 border-b border-slate-100 p-1 pb-2 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      onWorkspaceModeChange?.("leadership");
+                    }}
+                    className={`rounded-lg px-2 py-2 text-xs font-bold ${
+                      workspaceMode === "leadership"
+                        ? "bg-brand-50 text-brand-700"
+                        : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    Leadership
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      onWorkspaceModeChange?.("teaching");
+                    }}
+                    className={`rounded-lg px-2 py-2 text-xs font-bold ${
+                      workspaceMode === "teaching"
+                        ? "bg-brand-50 text-brand-700"
+                        : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    Teaching
+                  </button>
+                </div>
+              )}
               <Link
                 to={ROUTES.profile}
                 onClick={() => setOpen(false)}

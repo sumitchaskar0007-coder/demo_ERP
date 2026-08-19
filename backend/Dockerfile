@@ -1,8 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG JAVA_VERSION=17
-
-FROM maven:3.9.11-eclipse-temurin-${JAVA_VERSION} AS build
+FROM maven:3.9.11-eclipse-temurin-17@sha256:e4a7ace3dc0d645ed97f8d9ad0b0d3f0b14fa8d150138f27f116d7105a639b82 AS build
 WORKDIR /workspace
 COPY pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 \
@@ -11,7 +9,9 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -ntp -Dmaven.test.skip=true clean package
 
-FROM eclipse-temurin:${JAVA_VERSION}-jre-jammy AS runtime
+FROM eclipse-temurin:17-jre-jammy@sha256:89e68b9bb83713510b63e2059a415792a7fc77e14b739a7d7ede97f6d9ca2c38 AS runtime
+
+ARG RDS_CA_SHA256=e5bb2084ccf45087bda1c9bffdea0eb15ee67f0b91646106e466714f9de3c7e3
 
 LABEL org.opencontainers.image.title="Jadhavar ERP Backend" \
       org.opencontainers.image.description="Spring Boot backend for Jadhavar ERP"
@@ -24,6 +24,7 @@ RUN apt-get update \
     && chown -R erp:erp /app \
     && wget -q https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
         -O /etc/ssl/certs/rds-ca-bundle.pem \
+    && echo "${RDS_CA_SHA256}  /etc/ssl/certs/rds-ca-bundle.pem" | sha256sum -c - \
     && chmod 0444 /etc/ssl/certs/rds-ca-bundle.pem \
     && rm -rf /var/lib/apt/lists/*
 

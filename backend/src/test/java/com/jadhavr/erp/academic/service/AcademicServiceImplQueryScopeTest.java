@@ -3,6 +3,11 @@ package com.jadhavr.erp.academic.service;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.enums.SubjectStatus;
 import com.jadhavr.erp.academic.entity.AcademicClass;
+import com.jadhavr.erp.academic.entity.CurriculumSemester;
+import com.jadhavr.erp.academic.entity.Subject;
+import com.jadhavr.erp.academic.dto.AcademicDtos.CreateSubject;
+import com.jadhavr.erp.academic.enums.CourseYearName;
+import com.jadhavr.erp.academic.enums.SubjectType;
 import com.jadhavr.erp.academic.repository.AcademicClassRepository;
 import com.jadhavr.erp.academic.repository.AttendanceRecordRepository;
 import com.jadhavr.erp.academic.repository.AttendanceSessionRepository;
@@ -52,6 +57,7 @@ class AcademicServiceImplQueryScopeTest {
     @Mock private DepartmentRepository departments;
     @Mock private StaffProfileRepository staff;
     @Mock private StudentProfileRepository students;
+    @Mock private AcademicSessionResolver sessionResolver;
     @InjectMocks private AcademicServiceImpl service;
 
     @AfterEach
@@ -129,6 +135,46 @@ class AcademicServiceImplQueryScopeTest {
 
         verify(students).findEligibleForAcademicYear(
                 20L, StudentStatus.ACTIVE, "2026-27", AcademicStatus.ACTIVE);
+    }
+
+    @Test
+    void createsSubjectInTheSemesterSelectedForItsCourseYear() {
+        authenticate(RoleName.PRINCIPAL);
+        College college = new College();
+        college.setId(10L);
+        college.setName("Jadhavar College");
+        Department department = new Department();
+        department.setId(20L);
+        department.setName("MCA");
+        AcademicClass courseYear = new AcademicClass();
+        courseYear.setId(30L);
+        courseYear.setCollege(college);
+        courseYear.setDepartment(department);
+        courseYear.setAcademicYear("2026-27");
+        courseYear.setYearName(CourseYearName.FIRST_YEAR);
+        courseYear.setName("MCA First Year");
+        courseYear.setCode("MCA-FY");
+        courseYear.setStatus(AcademicStatus.ACTIVE);
+        CurriculumSemester semester = org.mockito.Mockito.mock(CurriculumSemester.class);
+        when(semester.getId()).thenReturn(81L);
+        when(semester.getName()).thenReturn("Semester 2");
+        when(semester.getSemesterNumber()).thenReturn(2);
+        when(semester.getYearName()).thenReturn(CourseYearName.FIRST_YEAR);
+        when(classes.findById(30L)).thenReturn(Optional.of(courseYear));
+        when(sessionResolver.requireSemester(courseYear, 2)).thenReturn(semester);
+        when(subjects.findByAcademicClassIdAndCurriculumSemesterIdAndCodeIgnoreCase(
+                30L, 81L, "JAVA")).thenReturn(Optional.empty());
+        when(subjects.save(org.mockito.ArgumentMatchers.any(Subject.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.createSubject(new CreateSubject(
+                30L, 2, "2026/27", "Java", "java", null, 4, SubjectType.THEORY));
+
+        assertEquals(2, response.get("semesterNumber"));
+        verify(sessionResolver).requireSemester(courseYear, 2);
+        verify(subjects).save(org.mockito.ArgumentMatchers.argThat(subject ->
+                subject.getCurriculumSemester() == semester
+                        && "2026-27".equals(subject.getAcademicYear())));
     }
 
     private void authenticate(RoleName role) {

@@ -23,6 +23,8 @@ export interface TeacherLecture {
   division: string;
   lectureType: string;
   remarks?: string;
+  substituted: boolean;
+  originalTeacher?: string | null;
 }
 
 export interface TeacherTimetable {

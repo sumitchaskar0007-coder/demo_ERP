@@ -46,7 +46,7 @@ public class CustomUserDetails implements UserDetails {
         status = snapshot.status();
         lockedUntil = snapshot.lockedUntil();
         sessionVersion = snapshot.sessionVersion();
-        mustChangePassword = false;
+        mustChangePassword = Boolean.TRUE.equals(snapshot.mustChangePassword());
         authorities = snapshot.authorities().stream()
                 .map(SimpleGrantedAuthority::new)
                 .map(GrantedAuthority.class::cast)

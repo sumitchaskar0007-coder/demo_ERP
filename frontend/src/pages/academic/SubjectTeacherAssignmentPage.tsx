@@ -62,7 +62,6 @@ export function SubjectTeacherAssignmentPage() {
       setDepartmentId(scope.departmentId);
       setTeachers(
         scope.teachers
-          .filter((teacher) => teacher.staffType !== "HOD")
           .map((teacher) => ({
             id: teacher.id,
             fullName: teacher.name,

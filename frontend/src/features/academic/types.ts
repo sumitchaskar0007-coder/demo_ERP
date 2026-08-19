@@ -85,6 +85,9 @@ export interface Subject {
   credits?: number;
   subjectType?: SubjectType;
   status: AcademicStatus;
+  semesterId?: number;
+  semesterNumber?: number;
+  semesterName?: string;
 }
 export interface TimetableEntry {
   id: number;

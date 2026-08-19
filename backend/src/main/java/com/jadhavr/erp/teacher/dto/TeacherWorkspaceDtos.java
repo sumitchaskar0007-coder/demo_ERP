@@ -14,13 +14,12 @@ public final class TeacherWorkspaceDtos {
     public record AttendanceHistoryRow(LocalDate date,String time,String subject,String division,String status,String remarks){}
     public record AttendanceMetrics(double today,double weekly,double monthly,double overall,long above90,long between75And90,long below75,long below60){}
     public record TrendPoint(String label,double percentage){}
-    public record CoverageRow(Long subjectId,String subject,String division,long plannedLectures,long completedLectures,long remainingLectures,double completionPercentage,String status){}
     public record Workload(long totalSubjects,long totalDivisions,long weeklyLectures,long todayLectures,long pendingAttendanceSessions,List<WorkloadPoint> weekly,List<WorkloadPoint> bySubject){}
     public record WorkloadPoint(String label,long value){}
-    public record ScheduleRow(Long timetableEntryId,String time,String subject,String division,String lectureType,String state,Long attendanceSessionId,boolean canTakeAttendance){}
+    public record ScheduleRow(Long timetableEntryId,String time,String subject,String division,String lectureType,String state,Long attendanceSessionId,boolean canTakeAttendance,boolean substituted,String originalTeacher){}
     public record NoticeRow(Long id,String title,String createdBy,LocalDateTime date,String priority,boolean unread,String message){}
     public record NotificationRow(Long id,String type,String message,LocalDateTime createdAt,boolean unread){}
     public record ActivityRow(String type,String message,LocalDateTime occurredAt){}
     public record DivisionInsight(Long divisionId,String division,long totalStudents,double averageAttendance,long lowAttendanceStudents,List<TrendPoint> trend){}
-    public record Workspace(String teacherName,String employeeCode,boolean classTeacher,boolean subjectTeacher,Kpis kpis,List<ClassSummary> classes,StudentPage students,AttendanceMetrics attendance,List<TrendPoint> dailyTrend,List<TrendPoint> weeklyTrend,List<TrendPoint> monthlyTrend,List<StudentRow> attention,List<CoverageRow> coverage,Workload workload,List<ScheduleRow> todaySchedule,List<NoticeRow> notices,List<NotificationRow> notifications,List<ActivityRow> recentActivities,List<DivisionInsight> divisionInsights){}
+    public record Workspace(String teacherName,String employeeCode,boolean classTeacher,boolean subjectTeacher,Kpis kpis,List<ClassSummary> classes,StudentPage students,AttendanceMetrics attendance,List<TrendPoint> dailyTrend,List<TrendPoint> weeklyTrend,List<TrendPoint> monthlyTrend,List<StudentRow> attention,Workload workload,List<ScheduleRow> todaySchedule,List<NoticeRow> notices,List<NotificationRow> notifications,List<ActivityRow> recentActivities,List<DivisionInsight> divisionInsights){}
 }

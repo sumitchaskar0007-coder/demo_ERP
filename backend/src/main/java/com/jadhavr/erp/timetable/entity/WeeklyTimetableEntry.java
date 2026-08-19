@@ -9,7 +9,7 @@ import java.time.DayOfWeek;
 @Entity
 @Table(name="weekly_timetable_entries",uniqueConstraints=@UniqueConstraint(name="uk_weekly_entry_cell",columnNames={"timetable_id","day_of_week","period_id"}))
 public class WeeklyTimetableEntry extends BaseAuditEntity {
-    public enum LectureType { THEORY, PRACTICAL, LAB, TUTORIAL }
+    public enum LectureType { THEORY, LAB, OTHER }
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="timetable_id",nullable=false) private WeeklyTimetable timetable;
     @Enumerated(EnumType.STRING) @Column(name="day_of_week",nullable=false,length=12) private DayOfWeek dayOfWeek;

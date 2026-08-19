@@ -23,15 +23,23 @@ import { useAuth } from "@/features/auth/authStore";
 import { useStudentAcademicAccess } from "@/features/academics/StudentAcademicAccessContext";
 import { ROLES, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import type { LeadershipWorkspaceMode } from "./workspaceMode";
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   mobile?: boolean;
   onNavigate?: () => void;
+  workspaceMode?: LeadershipWorkspaceMode;
 }
 
-export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProps) {
+export function Sidebar({
+  collapsed,
+  onToggle,
+  mobile,
+  onNavigate,
+  workspaceMode = "leadership",
+}: SidebarProps) {
   const location = useLocation();
   const { isRole } = useAuth();
   const { divisionAllocated } = useStudentAcademicAccess();
@@ -42,19 +50,49 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
   const isStudent = isRole([ROLES.STUDENT]);
   const isOtherStaff = isRole([ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
   const isHod = isRole([ROLES.HOD]);
-  const isTeacher = isRole([ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
   const isClassTeacher = isRole([ROLES.CLASS_TEACHER]);
+  const isTeacher = isRole([ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]);
+  const isLeadershipTeaching = (isPrincipal || isHod) && workspaceMode === "teaching";
   const nav = isAdmin
     ? [
         { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
         { label: "Colleges", to: ROUTES.colleges, icon: Building2 },
         { label: "User Management", to: ROUTES.adminPeople, icon: Users },
+        { label: "Academic Years", to: ROUTES.adminAcademicYears, icon: CalendarDays },
         { label: "Fees", to: ROUTES.adminFees, icon: WalletCards },
         { label: "Analytics", to: ROUTES.adminInsights, icon: BarChart3 },
         { label: "Notices", to: ROUTES.notices, icon: Bell },
         { label: "Administration", to: ROUTES.adminAdministration, icon: FileText },
       ]
-    : isPrincipal
+    : isLeadershipTeaching
+      ? [
+          { label: "Teaching Home", to: ROUTES.teacherWorkspace, icon: LayoutDashboard },
+          ...(isClassTeacher
+            ? [{ label: "My Class", to: ROUTES.classTeacherClass, icon: GraduationCap }]
+            : []),
+          {
+            label: "Students",
+            to: `${ROUTES.teacherWorkspace}?tab=students-hub`,
+            icon: Users,
+          },
+          {
+            label: "Teaching",
+            to: `${ROUTES.teacherWorkspace}?tab=teaching-hub`,
+            icon: BookOpen,
+          },
+          {
+            label: "Attendance",
+            to: `${ROUTES.teacherWorkspace}?tab=attendance-hub`,
+            icon: CheckCircle2,
+          },
+          {
+            label: "Updates",
+            to: `${ROUTES.teacherWorkspace}?tab=updates-hub`,
+            icon: Bell,
+          },
+          { label: "Profile", to: ROUTES.profile, icon: UserRound },
+        ]
+      : isPrincipal
       ? [
           { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
           { label: "Students", to: ROUTES.students, icon: GraduationCap },
@@ -182,74 +220,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                           to: ROUTES.timetable,
                           icon: CalendarDays,
                         },
-                      ]
-                    : []),
-                  ...(isClassTeacher
-                    ? [
-                        {
-                          label: "My Class",
-                          to: `${ROUTES.teacherWorkspace}?tab=class`,
-                          icon: GraduationCap,
-                        },
-                        {
-                          label: "PRN & Roll Numbers",
-                          to: `${ROUTES.teacherWorkspace}?tab=identifiers`,
-                          icon: FileText,
-                        },
-                      ]
-                    : []),
-                  ...(isTeacher
-                    ? [
-                        {
-                          label: "Student Directory",
-                          to: `${ROUTES.teacherWorkspace}?tab=students`,
-                          icon: Users,
-                        },
-                        {
-                          label: "Attendance Analytics",
-                          to: `${ROUTES.teacherWorkspace}?tab=attendance`,
-                          icon: BarChart3,
-                        },
-                        {
-                          label: "Needs Attention",
-                          to: `${ROUTES.teacherWorkspace}?tab=attention`,
-                          icon: Bell,
-                        },
-                        {
-                          label: "Subject Coverage",
-                          to: `${ROUTES.teacherWorkspace}?tab=coverage`,
-                          icon: BookOpen,
-                        },
-                        {
-                          label: "Workload",
-                          to: `${ROUTES.teacherWorkspace}?tab=workload`,
-                          icon: BarChart3,
-                        },
-                        {
-                          label: "Today's Schedule",
-                          to: `${ROUTES.teacherWorkspace}?tab=schedule`,
-                          icon: CalendarDays,
-                        },
-                        {
-                          label: "Notices",
-                          to: `${ROUTES.teacherWorkspace}?tab=notices`,
-                          icon: Bell,
-                        },
-                        {
-                          label: "Notifications",
-                          to: `${ROUTES.teacherWorkspace}?tab=notifications`,
-                          icon: Bell,
-                        },
-                        { label: "My Timetable", to: ROUTES.teacherTimetable, icon: CalendarDays },
-                        {
-                          label: "Take Attendance",
-                          to: ROUTES.teacherAttendance,
-                          icon: CheckCircle2,
-                        },
-                      ]
-                    : []),
-                  ...(isClassTeacher || isRole([ROLES.HOD])
-                    ? [
                         {
                           label: "Attendance Reports",
                           to: ROUTES.attendanceReport,
@@ -257,13 +227,41 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
                         },
                       ]
                     : []),
-                  ...(!isTeacher ? [{ label: "Notices", to: ROUTES.notices, icon: Bell }] : []),
+                  ...(!isHod && isTeacher
+                    ? [
+                        {
+                          label: "Students",
+                          to: `${ROUTES.teacherWorkspace}?tab=students-hub`,
+                          icon: Users,
+                        },
+                        {
+                          label: "Teaching",
+                          to: `${ROUTES.teacherWorkspace}?tab=teaching-hub`,
+                          icon: BookOpen,
+                        },
+                        {
+                          label: "Attendance",
+                          to: `${ROUTES.teacherWorkspace}?tab=attendance-hub`,
+                          icon: CheckCircle2,
+                        },
+                        {
+                          label: "Updates",
+                          to: `${ROUTES.teacherWorkspace}?tab=updates-hub`,
+                          icon: Bell,
+                        },
+                      ]
+                    : []),
+                  ...(!isTeacher || isHod
+                    ? [{ label: "Notices", to: ROUTES.notices, icon: Bell }]
+                    : []),
                   { label: "Profile", to: ROUTES.profile, icon: UserRound },
                 ]
               : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
   const visibleNav = nav;
   const roleFuture: Array<{ label: string; icon: typeof FileText }> = [];
-  const sectionLabel = isAdmin
+  const sectionLabel = isLeadershipTeaching
+    ? "Teaching Workspace"
+    : isAdmin
     ? "Admin"
     : isPrincipal
       ? "Principal"
@@ -282,6 +280,22 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }: SidebarProp
     if (targetQuery) {
       if (location.pathname !== targetPath) return false;
       const targetParams = new URLSearchParams(targetQuery);
+      const targetTab = targetParams.get("tab");
+      const currentTab = currentParams.get("tab");
+      const teacherTabGroups: Record<string, string[]> = {
+        "students-hub": ["students-hub", "class", "identifiers", "students", "attention"],
+        "teaching-hub": ["teaching-hub", "workload", "schedule"],
+        "attendance-hub": ["attendance-hub", "attendance"],
+        "updates-hub": ["updates-hub", "notices", "notifications"],
+      };
+      if (
+        isTeacher &&
+        targetTab &&
+        currentTab &&
+        teacherTabGroups[targetTab]?.includes(currentTab)
+      ) {
+        return true;
+      }
       return [...targetParams.entries()].every(([key, value]) => currentParams.get(key) === value);
     }
     if (location.pathname === targetPath && currentParams.has("tab")) {

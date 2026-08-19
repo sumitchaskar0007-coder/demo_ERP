@@ -47,7 +47,8 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class DivisionServiceImpl implements DivisionService {
     private static final Set<StaffType> CLASS_TEACHER_TYPES = Set.of(
-            StaffType.TEACHER, StaffType.SUBJECT_TEACHER, StaffType.CLASS_TEACHER);
+            StaffType.HOD, StaffType.TEACHER,
+            StaffType.SUBJECT_TEACHER, StaffType.CLASS_TEACHER);
     private final SectionRepository divisions;
     private final AcademicClassRepository courseYears;
     private final StaffProfileRepository staffProfiles;
@@ -157,11 +158,14 @@ public class DivisionServiceImpl implements DivisionService {
         division.setDepartment(courseYear.getDepartment());
         division.setAcademicClass(courseYear);
         division.setAcademicYear(courseYear.getAcademicYear());
+        StaffProfile previousTeacher = departmentChanged ? division.getClassTeacher() : null;
         if (departmentChanged) division.setClassTeacher(null);
         division.setName(request.name().trim());
         division.setCode(code);
         division.setCapacity(request.capacity());
-        return mapper.toResponse(divisions.save(division));
+        DivisionResponse response = mapper.toResponse(divisions.save(division));
+        if (previousTeacher != null) removeClassTeacherRoleIfUnassigned(previousTeacher);
+        return response;
     }
 
     @Override
@@ -172,8 +176,11 @@ public class DivisionServiceImpl implements DivisionService {
         if (status == SectionStatus.ACTIVE && division.getAcademicClass().getStatus() != AcademicStatus.ACTIVE) {
             throw new BadRequestException("Cannot activate Division in an inactive Course Year");
         }
+        StaffProfile previousTeacher = status == SectionStatus.INACTIVE ? division.getClassTeacher() : null;
         division.setStatus(status);
-        return mapper.toResponse(divisions.save(division));
+        DivisionResponse response = mapper.toResponse(divisions.save(division));
+        if (previousTeacher != null) removeClassTeacherRoleIfUnassigned(previousTeacher);
+        return response;
     }
 
     @Override
@@ -191,9 +198,13 @@ public class DivisionServiceImpl implements DivisionService {
                 teacher.getId(), division.getAcademicYear(), SectionStatus.ACTIVE)) {
             throw new DuplicateResourceException("Teacher already has an active Division in this academic year");
         }
+        StaffProfile previousTeacher = division.getClassTeacher();
         addClassTeacherRole(teacher);
         division.setClassTeacher(teacher);
         DivisionResponse response = mapper.toResponse(divisions.save(division));
+        if (previousTeacher != null && !previousTeacher.getId().equals(teacher.getId())) {
+            removeClassTeacherRoleIfUnassigned(previousTeacher);
+        }
         if (auditLogs != null) auditLogs.log(AuditModule.ACADEMIC, AuditAction.ASSIGN,
                 "Division", division.getId(), "Assigned " + teacher.getFullName()
                         + " as Class Teacher for " + division.getName());
@@ -205,10 +216,12 @@ public class DivisionServiceImpl implements DivisionService {
     public DivisionResponse removeClassTeacher(Long id) {
         requirePrincipal();
         Section division = findScoped(id);
+        StaffProfile previousTeacher = division.getClassTeacher();
         String teacherName = division.getClassTeacher() == null ? "Class Teacher"
                 : division.getClassTeacher().getFullName();
         division.setClassTeacher(null);
         DivisionResponse response = mapper.toResponse(divisions.save(division));
+        if (previousTeacher != null) removeClassTeacherRoleIfUnassigned(previousTeacher);
         if (auditLogs != null) auditLogs.log(AuditModule.ACADEMIC, AuditAction.UPDATE,
                 "Division", division.getId(), "Removed " + teacherName + " from " + division.getName());
         return response;
@@ -218,7 +231,7 @@ public class DivisionServiceImpl implements DivisionService {
     public List<StaffResponse> eligibleClassTeachers(Long id) {
         Section division = findScoped(id);
         return staffProfiles.findByCollegeId(division.getCollege().getId()).stream()
-                .filter(staff -> staff.belongsToDepartment(division.getDepartment().getId()))
+                .filter(staff -> staff.canTeachInDepartment(division.getDepartment().getId()))
                 .filter(staff -> staff.getStatus() == StaffStatus.ACTIVE)
                 .filter(staff -> CLASS_TEACHER_TYPES.contains(staff.getStaffType()))
                 .filter(staff -> divisions.findByClassTeacherIdAndStatus(
@@ -231,7 +244,7 @@ public class DivisionServiceImpl implements DivisionService {
         if (teacher.getStatus() != StaffStatus.ACTIVE
                 || !CLASS_TEACHER_TYPES.contains(teacher.getStaffType())
                 || !teacher.getCollege().getId().equals(division.getCollege().getId())
-                || !teacher.belongsToDepartment(division.getDepartment().getId())) {
+                || !teacher.canTeachInDepartment(division.getDepartment().getId())) {
             throw new BadRequestException("Class Teacher must be active and belong to the Division department");
         }
     }
@@ -247,6 +260,21 @@ public class DivisionServiceImpl implements DivisionService {
         teacher.getUser().setRoles(updated);
         teacher.getUser().setSessionVersion(
                 teacher.getUser().getSessionVersion() + 1);
+        users.save(teacher.getUser());
+        authorizationSnapshots.invalidateOrThrow(teacher.getUser().getId());
+    }
+
+    private void removeClassTeacherRoleIfUnassigned(StaffProfile teacher) {
+        if (!divisions.findByClassTeacherIdAndStatus(
+                teacher.getId(), SectionStatus.ACTIVE).isEmpty()) return;
+        boolean hadRole = teacher.getUser().getRoles().stream()
+                .anyMatch(role -> role.getName() == RoleName.CLASS_TEACHER);
+        if (!hadRole) return;
+        Set<Role> updated = teacher.getUser().getRoles().stream()
+                .filter(role -> role.getName() != RoleName.CLASS_TEACHER)
+                .collect(java.util.stream.Collectors.toCollection(HashSet::new));
+        teacher.getUser().setRoles(updated);
+        teacher.getUser().setSessionVersion(teacher.getUser().getSessionVersion() + 1);
         users.save(teacher.getUser());
         authorizationSnapshots.invalidateOrThrow(teacher.getUser().getId());
     }

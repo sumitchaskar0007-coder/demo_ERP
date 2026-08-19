@@ -21,6 +21,10 @@ import com.jadhavr.erp.auth.repository.RefreshTokenRepository;
 import com.jadhavr.erp.auth.security.AuthorizationSnapshotService;
 import com.jadhavr.erp.auth.password.InitialPasswordPolicy;
 import com.jadhavr.erp.auth.util.TemporaryPasswordGenerator;
+import com.jadhavr.erp.staff.entity.StaffProfile;
+import com.jadhavr.erp.staff.enums.StaffStatus;
+import com.jadhavr.erp.staff.enums.StaffType;
+import com.jadhavr.erp.staff.repository.StaffProfileRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -32,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 import java.util.Set;
+import java.time.LocalDate;
 
 @Service
 @Transactional(readOnly = true)
@@ -47,10 +52,14 @@ public class UserServiceImpl implements UserService {
     private final RefreshTokenRepository refreshTokens;
     private final AuthorizationSnapshotService authorizationSnapshots;
     private final InitialPasswordPolicy initialPasswordPolicy;
+    private StaffProfileRepository staffProfiles;
     private EmailNotificationService emailNotifications;
 
     @Autowired(required = false)
     public void setEmailNotifications(EmailNotificationService service) { this.emailNotifications = service; }
+
+    @Autowired
+    public void setStaffProfiles(StaffProfileRepository repository) { this.staffProfiles = repository; }
 
     public UserServiceImpl(UserRepository users, RoleRepository roles,
                            CollegeRepository colleges, PasswordEncoder passwordEncoder,
@@ -105,10 +114,26 @@ public class UserServiceImpl implements UserService {
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(principalRole));
         User saved = users.save(user);
+        createPrincipalTeachingProfile(saved, college);
         if (emailNotifications != null) {
             emailNotifications.queuePrincipalCreatedEmail(saved, temporaryPassword);
         }
         return mapper.toResponse(saved);
+    }
+
+    private void createPrincipalTeachingProfile(User user, College college) {
+        if (staffProfiles.findByUserId(user.getId()).isPresent()) return;
+        StaffProfile profile = new StaffProfile();
+        profile.setUser(user);
+        profile.setCollege(college);
+        profile.setEmployeeCode("PRINCIPAL-" + user.getId());
+        profile.setFullName(user.getFullName());
+        profile.setEmail(user.getEmail());
+        profile.setPhone(user.getPhone());
+        profile.setStaffType(StaffType.TEACHER);
+        profile.setStatus(StaffStatus.ACTIVE);
+        profile.setJoiningDate(LocalDate.now());
+        staffProfiles.save(profile);
     }
 
     @Override
@@ -119,6 +144,12 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Only Principal accounts can be updated through this endpoint");
         }
         user.setPhone(trimToNull(request.phone()));
+        staffProfiles.findByUserId(user.getId()).ifPresent(profile -> {
+            profile.setFullName(user.getFullName());
+            profile.setEmail(user.getEmail());
+            profile.setPhone(user.getPhone());
+            staffProfiles.save(profile);
+        });
         boolean passwordChanged = false;
         if (request.password() != null && !request.password().isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(request.password()));
@@ -160,6 +191,7 @@ public class UserServiceImpl implements UserService {
         }
         user.setStatus(UserStatus.ACTIVE);
         User saved = users.save(user);
+        syncPrincipalTeachingStatus(saved, StaffStatus.ACTIVE);
         authorizationSnapshots.invalidateOrThrow(saved.getId());
         if (emailNotifications != null) emailNotifications.queueAccountActivatedEmail(saved);
         return mapper.toResponse(saved);
@@ -172,6 +204,7 @@ public class UserServiceImpl implements UserService {
         user.setStatus(UserStatus.INACTIVE);
         user.setSessionVersion(user.getSessionVersion() + 1);
         User saved = users.save(user);
+        syncPrincipalTeachingStatus(saved, StaffStatus.INACTIVE);
         refreshTokens.revokeAllForUser(saved.getId());
         authorizationSnapshots.invalidateOrThrow(saved.getId());
         if (emailNotifications != null) emailNotifications.queueAccountDeactivatedEmail(saved);
@@ -216,6 +249,13 @@ public class UserServiceImpl implements UserService {
     }
     private boolean hasRole(User user, RoleName role) {
         return user.getRoles().stream().anyMatch(item -> item.getName() == role);
+    }
+    private void syncPrincipalTeachingStatus(User user, StaffStatus status) {
+        if (!hasRole(user, RoleName.PRINCIPAL)) return;
+        staffProfiles.findByUserId(user.getId()).ifPresent(profile -> {
+            profile.setStatus(status);
+            staffProfiles.save(profile);
+        });
     }
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);

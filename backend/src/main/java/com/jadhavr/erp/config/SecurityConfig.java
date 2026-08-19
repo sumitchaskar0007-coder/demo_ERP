@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import com.jadhavr.erp.auth.filter.LoginRateLimitFilter;
+import com.jadhavr.erp.auth.filter.TemporaryPasswordAccessFilter;
 import com.jadhavr.erp.admission.filter.StudentAdmissionAccessFilter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -42,6 +43,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService userDetailsService;
     private final LoginRateLimitFilter loginRateLimitFilter;
+    private final TemporaryPasswordAccessFilter temporaryPasswordAccessFilter;
     private final StudentAdmissionAccessFilter studentAdmissionAccessFilter;
     private final List<String> allowedOrigins;
     private final boolean cookieSecure;
@@ -50,6 +52,7 @@ public class SecurityConfig {
     public SecurityConfig(ObjectMapper objectMapper,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           CustomUserDetailsService userDetailsService, LoginRateLimitFilter loginRateLimitFilter,
+                          TemporaryPasswordAccessFilter temporaryPasswordAccessFilter,
                           StudentAdmissionAccessFilter studentAdmissionAccessFilter,
                           @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins,
                           @Value("${app.auth.cookie-secure:false}") boolean cookieSecure,
@@ -58,6 +61,7 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userDetailsService = userDetailsService;
         this.loginRateLimitFilter = loginRateLimitFilter;
+        this.temporaryPasswordAccessFilter = temporaryPasswordAccessFilter;
         this.studentAdmissionAccessFilter = studentAdmissionAccessFilter;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
         this.cookieSecure = cookieSecure;
@@ -113,7 +117,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/weekly-timetables/**")
                                 .hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER")
                         .requestMatchers("/api/attendance/**")
-                                .hasAnyRole("PRINCIPAL", "CLASS_TEACHER", "SUBJECT_TEACHER", "STUDENT")
+                                .hasAnyRole("PRINCIPAL", "HOD", "CLASS_TEACHER", "SUBJECT_TEACHER", "STUDENT")
                         .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/college-settings/**").hasAnyRole("SUPER_ADMIN", "PRINCIPAL")
                         .requestMatchers(HttpMethod.GET, "/api/admission-document-requirements/**")
@@ -132,7 +136,8 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(loginRateLimitFilter, JwtAuthenticationFilter.class)
-                .addFilterAfter(studentAdmissionAccessFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(temporaryPasswordAccessFilter, LoginRateLimitFilter.class)
+                .addFilterAfter(studentAdmissionAccessFilter, TemporaryPasswordAccessFilter.class)
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) ->
                                 writeSecurityError(response, HttpServletResponse.SC_UNAUTHORIZED,
@@ -169,6 +174,14 @@ public class SecurityConfig {
     FilterRegistrationBean<LoginRateLimitFilter> loginRateLimitFilterRegistration() {
         FilterRegistrationBean<LoginRateLimitFilter> registration =
                 new FilterRegistrationBean<>(loginRateLimitFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    FilterRegistrationBean<TemporaryPasswordAccessFilter> temporaryPasswordAccessFilterRegistration() {
+        FilterRegistrationBean<TemporaryPasswordAccessFilter> registration =
+                new FilterRegistrationBean<>(temporaryPasswordAccessFilter);
         registration.setEnabled(false);
         return registration;
     }

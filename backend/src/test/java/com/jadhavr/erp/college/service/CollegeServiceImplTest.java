@@ -1,5 +1,6 @@
 package com.jadhavr.erp.college.service;
 
+import com.jadhavr.erp.academic.service.GlobalAcademicYearService;
 import com.jadhavr.erp.college.dto.CollegeResponse;
 import com.jadhavr.erp.college.dto.CreateCollegeRequest;
 import com.jadhavr.erp.college.entity.College;
@@ -33,12 +34,14 @@ class CollegeServiceImplTest {
     private CollegeRepository repository;
     @Mock
     private CollegeImageStorageService imageStorage;
+    @Mock
+    private GlobalAcademicYearService globalAcademicYears;
 
     private CollegeServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new CollegeServiceImpl(repository, imageStorage);
+        service = new CollegeServiceImpl(repository, imageStorage, globalAcademicYears);
     }
 
     @Test
@@ -58,6 +61,7 @@ class CollegeServiceImplTest {
 
         assertEquals("ABC001", response.code());
         assertEquals(CollegeStatus.ACTIVE, response.status());
+        verify(globalAcademicYears).provisionActiveYearForCollege(any(College.class));
     }
 
     @Test

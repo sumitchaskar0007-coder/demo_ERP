@@ -1,13 +1,17 @@
 package com.jadhavr.erp.timetable.service;
 
 import com.jadhavr.erp.academic.entity.Section;
+import com.jadhavr.erp.academic.entity.CurriculumSemester;
+import com.jadhavr.erp.academic.entity.SemesterOffering;
 import com.jadhavr.erp.academic.entity.StudentSectionEnrollment;
 import com.jadhavr.erp.academic.entity.Subject;
 import com.jadhavr.erp.academic.enums.AcademicStatus;
 import com.jadhavr.erp.academic.enums.SubjectStatus;
+import com.jadhavr.erp.academic.enums.SemesterOfferingStatus;
 import com.jadhavr.erp.academic.repository.SectionRepository;
 import com.jadhavr.erp.academic.repository.SubjectRepository;
 import com.jadhavr.erp.academic.repository.SubjectTeacherAssignmentRepository;
+import com.jadhavr.erp.academic.service.AcademicSessionResolver;
 import com.jadhavr.erp.auth.security.CustomUserDetails;
 import com.jadhavr.erp.audit.service.AuditLogService;
 import com.jadhavr.erp.college.entity.College;
@@ -81,6 +85,8 @@ class WeeklyTimetableServiceTest {
     private AuditLogService audit;
     @Mock
     private NoticeService notices;
+    @Mock
+    private AcademicSessionResolver sessionResolver;
 
     @InjectMocks
     private WeeklyTimetableService service;
@@ -98,7 +104,7 @@ class WeeklyTimetableServiceTest {
     }
 
     @Test
-    void saveRejectsHodEvenWhenAssignedToSubject() {
+    void saveAllowsActiveHodWhenAssignedToSubject() {
         College college = new College();
         college.setId(10L);
         Department department = new Department();
@@ -123,6 +129,8 @@ class WeeklyTimetableServiceTest {
         WeeklyTimetable timetable = new WeeklyTimetable();
         timetable.setCollege(college);
         timetable.setSection(section);
+        SemesterOffering currentOffering = activeOffering();
+        timetable.setSemesterOffering(currentOffering);
         timetable.setStatus(WeeklyTimetable.Status.DRAFT);
         setId(timetable, 1L);
 
@@ -135,6 +143,7 @@ class WeeklyTimetableServiceTest {
 
         Subject subject = new Subject();
         subject.setAcademicClass(academicClass);
+        subject.setCurriculumSemester(currentOffering.getCurriculumSemester());
         subject.setStatus(SubjectStatus.ACTIVE);
         setId(subject, 50L);
 
@@ -149,9 +158,16 @@ class WeeklyTimetableServiceTest {
         when(subjects.findById(50L)).thenReturn(Optional.of(subject));
         when(staff.findById(60L)).thenReturn(Optional.of(teacher));
         when(staff.findByUserId(99L)).thenReturn(Optional.of(editor));
+        when(subjectTeacherAssignments.existsBySubjectIdAndTeacherIdAndStatus(
+                50L, 60L, AcademicStatus.ACTIVE)).thenReturn(true);
+        when(entries.save(org.mockito.ArgumentMatchers.any(WeeklyTimetableEntry.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         SaveEntryRequest request = new SaveEntryRequest(50L, 60L, "A101", "THEORY", "");
 
-        assertThrows(BadRequestException.class, () -> service.save(1L, "MONDAY", 2L, request));
+        var result = service.save(1L, "MONDAY", 2L, request);
+
+        assertEquals(60L, result.teacherId());
+        assertEquals("THEORY", result.lectureType());
     }
 
     @Test
@@ -184,6 +200,7 @@ class WeeklyTimetableServiceTest {
         WeeklyTimetable timetable = new WeeklyTimetable();
         timetable.setCollege(college);
         timetable.setSection(section);
+        timetable.setSemesterOffering(activeOffering());
         timetable.setStatus(WeeklyTimetable.Status.DRAFT);
         setId(timetable, 1L);
 
@@ -230,6 +247,8 @@ class WeeklyTimetableServiceTest {
         WeeklyTimetable live = new WeeklyTimetable();
         live.setCollege(college);
         live.setSection(section);
+        SemesterOffering offering = activeOffering();
+        live.setSemesterOffering(offering);
         live.setStatus(WeeklyTimetable.Status.ACTIVE);
         live.setReviewStatus(WeeklyTimetable.ReviewStatus.APPROVED);
         setId(live, 1L);
@@ -237,13 +256,14 @@ class WeeklyTimetableServiceTest {
         WeeklyTimetable revision = new WeeklyTimetable();
         revision.setCollege(college);
         revision.setSection(section);
+        revision.setSemesterOffering(offering);
         revision.setStatus(WeeklyTimetable.Status.DRAFT);
         revision.setReviewStatus(WeeklyTimetable.ReviewStatus.SUBMITTED);
         setId(revision, 2L);
 
         when(tables.findById(2L)).thenReturn(Optional.of(revision));
-        when(tables.findFirstBySectionIdAndStatusOrderByIdDesc(
-                40L, WeeklyTimetable.Status.ACTIVE)).thenReturn(Optional.of(live));
+        when(tables.findFirstBySectionIdAndStatusAndSemesterOfferingStatusOrderByIdDesc(
+                40L, WeeklyTimetable.Status.ACTIVE, SemesterOfferingStatus.ACTIVE)).thenReturn(Optional.of(live));
         when(entries.findByTimetableId(2L)).thenReturn(Collections.emptyList());
         when(periods.findByTimetableIdOrderByPosition(2L)).thenReturn(Collections.emptyList());
 
@@ -268,8 +288,8 @@ class WeeklyTimetableServiceTest {
         WeeklyTimetable timetable = new WeeklyTimetable();
         timetable.setSection(section);
         timetable.setReviewStatus(WeeklyTimetable.ReviewStatus.SUBMITTED);
-        when(tables.findFirstBySectionIdAndStatusOrderByIdDesc(
-                40L, WeeklyTimetable.Status.ACTIVE)).thenReturn(Optional.of(timetable));
+        when(tables.findFirstBySectionIdAndStatusAndSemesterOfferingStatusOrderByIdDesc(
+                40L, WeeklyTimetable.Status.ACTIVE, SemesterOfferingStatus.ACTIVE)).thenReturn(Optional.of(timetable));
 
         assertThrows(ResourceNotFoundException.class, () -> service.studentTimetable(enrollment));
     }
@@ -300,6 +320,7 @@ class WeeklyTimetableServiceTest {
         WeeklyTimetable timetable = new WeeklyTimetable();
         timetable.setCollege(college);
         timetable.setSection(section);
+        timetable.setSemesterOffering(activeOffering());
         timetable.setStatus(WeeklyTimetable.Status.DRAFT);
         setId(timetable, 1L);
 
@@ -344,6 +365,70 @@ class WeeklyTimetableServiceTest {
                 com.jadhavr.erp.academic.enums.SectionStatus.ACTIVE);
     }
 
+    @Test
+    void timetableOffersOnlySubjectsFromItsActiveSemester() {
+        College college = new College();
+        college.setId(10L);
+        college.setName("Jadhavar College");
+        Department department = new Department();
+        department.setId(20L);
+        department.setName("MCA");
+        com.jadhavr.erp.academic.entity.AcademicClass academicClass =
+                new com.jadhavr.erp.academic.entity.AcademicClass();
+        academicClass.setId(30L);
+        academicClass.setName("MCA First Year");
+        Section section = new Section();
+        section.setId(40L);
+        section.setCollege(college);
+        section.setDepartment(department);
+        section.setAcademicClass(academicClass);
+        section.setName("Division A");
+        section.setAcademicYear("2026-2027");
+        StaffProfile editor = new StaffProfile();
+        editor.setId(70L);
+        editor.setCollege(college);
+        editor.setDepartment(department);
+        editor.setStaffType(StaffType.HOD);
+        editor.setStatus(StaffStatus.ACTIVE);
+        CurriculumSemester semester = new CurriculumSemester();
+        setId(semester, 81L);
+        semester.setSemesterNumber(1);
+        semester.setName("Semester 1");
+        SemesterOffering offering = new SemesterOffering();
+        setId(offering, 82L);
+        offering.setCurriculumSemester(semester);
+        offering.setStatus(SemesterOfferingStatus.ACTIVE);
+        WeeklyTimetable timetable = new WeeklyTimetable();
+        setId(timetable, 1L);
+        timetable.setCollege(college);
+        timetable.setSection(section);
+        timetable.setSemesterOffering(offering);
+        timetable.setStatus(WeeklyTimetable.Status.DRAFT);
+        when(sections.findById(40L)).thenReturn(Optional.of(section));
+        when(staff.findByUserId(99L)).thenReturn(Optional.of(editor));
+        when(tables.findFirstBySectionIdAndStatusAndSemesterOfferingStatusOrderByIdDesc(
+                40L, WeeklyTimetable.Status.DRAFT, SemesterOfferingStatus.ACTIVE))
+                .thenReturn(Optional.of(timetable));
+        when(tables.findFirstBySectionIdAndStatusAndSemesterOfferingStatusOrderByIdDesc(
+                40L, WeeklyTimetable.Status.ACTIVE, SemesterOfferingStatus.ACTIVE))
+                .thenReturn(Optional.empty());
+        when(subjects.findByAcademicClassIdAndCurriculumSemesterIdAndStatusOrderByCodeAsc(
+                30L, 81L, SubjectStatus.ACTIVE)).thenReturn(List.of());
+        when(staff.findTeachingByCollegeAndDepartment(eq(10L), eq(20L), eq(StaffStatus.ACTIVE),
+                eq(Set.of(StaffType.HOD, StaffType.TEACHER,
+                        StaffType.CLASS_TEACHER, StaffType.SUBJECT_TEACHER))))
+                .thenReturn(List.of());
+        when(entries.findByTimetableId(1L)).thenReturn(List.of());
+        when(periods.findByTimetableIdOrderByPosition(1L)).thenReturn(List.of());
+
+        var response = service.getOrCreate(40L);
+
+        assertEquals(1, response.semesterNumber());
+        assertEquals("Semester 1", response.semesterName());
+        verify(subjects).findByAcademicClassIdAndCurriculumSemesterIdAndStatusOrderByCodeAsc(
+                30L, 81L, SubjectStatus.ACTIVE);
+    }
+
     private void setId(Object target, Long id) {
         try {
             Field field = target.getClass().getDeclaredField("id");
@@ -352,6 +437,18 @@ class WeeklyTimetableServiceTest {
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private SemesterOffering activeOffering() {
+        CurriculumSemester semester = new CurriculumSemester();
+        setId(semester, 81L);
+        semester.setSemesterNumber(1);
+        semester.setName("Semester 1");
+        SemesterOffering offering = new SemesterOffering();
+        setId(offering, 82L);
+        offering.setCurriculumSemester(semester);
+        offering.setStatus(SemesterOfferingStatus.ACTIVE);
+        return offering;
     }
 
     private CustomUserDetails userDetails() {
