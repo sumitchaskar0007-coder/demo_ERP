@@ -29,9 +29,7 @@ describe("DataTable responsive actions", () => {
   });
 
   it("allows a page to opt into a bounded fixed desktop layout", () => {
-    const columns: Column<Row>[] = [
-      { key: "name", header: "Name", render: (row) => row.name },
-    ];
+    const columns: Column<Row>[] = [{ key: "name", header: "Name", render: (row) => row.name }];
 
     const { container } = render(
       <DataTable
@@ -42,11 +40,7 @@ describe("DataTable responsive actions", () => {
       />,
     );
 
-    expect(container.querySelector("table")).toHaveClass(
-      "w-full",
-      "min-w-[1080px]",
-      "table-fixed",
-    );
+    expect(container.querySelector("table")).toHaveClass("w-full", "min-w-[1080px]", "table-fixed");
     expect(container.querySelector("table")).not.toHaveClass("min-w-max");
   });
 });

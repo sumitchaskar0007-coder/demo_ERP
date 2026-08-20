@@ -127,11 +127,7 @@ export function PrincipalAdmissionDetailPage() {
         )}
       </Card>
       <FeeInformationCard fees={fees} />
-      <DetailedAdmissionView
-        admission={admission}
-        documentRequirements={requirements}
-        principal
-      />
+      <DetailedAdmissionView admission={admission} documentRequirements={requirements} principal />
       <DetailSection
         title="Admission"
         rows={[

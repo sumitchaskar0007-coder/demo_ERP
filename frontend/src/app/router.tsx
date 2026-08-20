@@ -552,12 +552,7 @@ export function AppRouter() {
               <Route
                 element={
                   <RoleRoute
-                    roles={[
-                      ROLES.PRINCIPAL,
-                      ROLES.HOD,
-                      ROLES.CLASS_TEACHER,
-                      ROLES.SUBJECT_TEACHER,
-                    ]}
+                    roles={[ROLES.PRINCIPAL, ROLES.HOD, ROLES.CLASS_TEACHER, ROLES.SUBJECT_TEACHER]}
                   />
                 }
               >

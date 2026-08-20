@@ -45,13 +45,15 @@ export function StudentDashboardPage() {
           Your personal admission and profile workspace.
         </p>
       </div>
-      <section className="erp-welcome-banner p-7 sm:p-9">
-        <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full border-[32px] border-blue-500/30" />
-        <div className="relative">
-          <p className="text-sm text-blue-100">Student workspace</p>
-          <h2 className="mt-2 text-3xl font-bold">Welcome back, {user?.fullName?.split(" ")[0]}</h2>
+      <section className="erp-welcome-banner px-5 py-6 sm:p-9">
+        <div className="absolute -right-12 -top-20 hidden h-64 w-64 rounded-full border-[32px] border-blue-500/30 sm:block" />
+        <div className="relative min-w-0">
+          <p className="text-xs leading-5 text-blue-100 sm:text-sm">Student workspace</p>
+          <h2 className="mt-2 text-2xl font-bold leading-tight sm:text-3xl">
+            Welcome back, {user?.fullName?.split(" ")[0]}
+          </h2>
           {admission && (
-            <p className="mt-3 text-sm text-blue-100">
+            <p className="mt-3 max-w-md text-sm leading-6 text-blue-100">
               {admission.collegeName} · {admission.departmentName}
             </p>
           )}

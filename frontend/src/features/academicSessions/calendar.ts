@@ -15,5 +15,10 @@ export function calendarState(years: AcademicYear[], today: string) {
   const activeYear = years.find((year) => year.status === "ACTIVE") ?? null;
   const activeTerm = activeYear?.terms.find((term) => term.status === "ACTIVE") ?? null;
   const expectedTerm = activeYear?.terms.find((term) => dateFallsInTerm(today, term)) ?? null;
-  return { activeYear, activeTerm, expectedTerm, mismatch: Boolean(expectedTerm && activeTerm?.id !== expectedTerm.id) };
+  return {
+    activeYear,
+    activeTerm,
+    expectedTerm,
+    mismatch: Boolean(expectedTerm && activeTerm?.id !== expectedTerm.id),
+  };
 }

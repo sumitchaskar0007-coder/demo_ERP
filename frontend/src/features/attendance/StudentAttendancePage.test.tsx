@@ -20,18 +20,16 @@ describe("StudentAttendancePage", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("stops loading after a failed request and allows a retry", async () => {
-    studentAttendance
-      .mockRejectedValueOnce({ response: { status: 500 } })
-      .mockResolvedValueOnce({
-        studentId: 7,
-        studentName: "Student",
-        rollNumber: "12",
-        overallPercentage: 0,
-        indicator: "CRITICAL",
-        subjects: [],
-        monthly: [],
-        history: [],
-      });
+    studentAttendance.mockRejectedValueOnce({ response: { status: 500 } }).mockResolvedValueOnce({
+      studentId: 7,
+      studentName: "Student",
+      rollNumber: "12",
+      overallPercentage: 0,
+      indicator: "CRITICAL",
+      subjects: [],
+      monthly: [],
+      history: [],
+    });
 
     render(<StudentAttendancePage />);
 

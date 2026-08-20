@@ -9,8 +9,24 @@ const year: AcademicYear = {
   endDate: "2027-06-30",
   status: "ACTIVE",
   terms: [
-    { id: 11, academicYearId: 1, name: "Odd Semester", termType: "ODD", startDate: "2026-07-01", endDate: "2026-12-31", status: "CLOSED" },
-    { id: 12, academicYearId: 1, name: "Even Semester", termType: "EVEN", startDate: "2027-01-01", endDate: "2027-06-30", status: "ACTIVE" },
+    {
+      id: 11,
+      academicYearId: 1,
+      name: "Odd Semester",
+      termType: "ODD",
+      startDate: "2026-07-01",
+      endDate: "2026-12-31",
+      status: "CLOSED",
+    },
+    {
+      id: 12,
+      academicYearId: 1,
+      name: "Even Semester",
+      termType: "EVEN",
+      startDate: "2027-01-01",
+      endDate: "2027-06-30",
+      status: "ACTIVE",
+    },
   ],
 };
 

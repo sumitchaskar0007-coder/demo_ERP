@@ -101,25 +101,24 @@ export function EditPrincipalPage() {
           </div>
           <form onSubmit={handleSubmit(submit)} className="space-y-5 p-6 sm:p-8">
             <Input label="Phone number" error={errors.phone?.message} {...register("phone")} />
-            <div className="relative">
-              <Input
-                label="New password (optional)"
-                type={showPassword ? "text" : "password"}
-                placeholder="Leave blank to keep current password"
-                icon={<LockKeyhole className="h-4 w-4" />}
-                error={errors.password?.message}
-                className="pr-12"
-                {...register("password")}
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-[38px] text-slate-400"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label="Toggle password"
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
+            <Input
+              label="New password (optional)"
+              type={showPassword ? "text" : "password"}
+              placeholder="Leave blank to keep current password"
+              icon={<LockKeyhole className="h-4 w-4" />}
+              trailing={
+                <button
+                  type="button"
+                  className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              }
+              error={errors.password?.message}
+              {...register("password")}
+            />
             <div className="flex justify-end gap-3 border-t pt-5">
               <Link to={`/users/${principalId}`}>
                 <Button type="button" variant="secondary">

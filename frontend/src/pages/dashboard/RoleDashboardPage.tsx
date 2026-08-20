@@ -249,14 +249,18 @@ export function RoleDashboardPage() {
         </p>
       </div>
 
-      <section className="erp-welcome-banner px-7 py-7 sm:px-9">
-        <div className="absolute -right-10 -top-20 h-64 w-64 rounded-full border-[30px] border-blue-500/30" />
-        <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
+      <section className="erp-welcome-banner px-5 py-6 sm:px-9 sm:py-7">
+        <div className="absolute -right-10 -top-20 hidden h-64 w-64 rounded-full border-[30px] border-blue-500/30 sm:block" />
+        <div className="absolute right-52 top-5 hidden h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80 sm:block" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm text-blue-100">{user.collegeName || "Jadhavar ERP Workspace"}</p>
-            <h2 className="mt-2 text-3xl font-bold">Welcome back, {user.fullName.split(" ")[0]}</h2>
-            <p className="mt-2 text-sm text-blue-100">
+          <div className="min-w-0">
+            <p className="text-xs leading-5 text-blue-100 sm:text-sm">
+              {user.collegeName || "Jadhavar ERP Workspace"}
+            </p>
+            <h2 className="mt-2 text-2xl font-bold leading-tight sm:text-3xl">
+              Welcome back, {user.fullName.split(" ")[0]}
+            </h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-blue-100">
               Have a productive day managing your education workspace.
             </p>
           </div>

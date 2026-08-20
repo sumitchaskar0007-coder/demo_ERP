@@ -155,9 +155,7 @@ export function NoticesPage() {
   useEffect(() => {
     if (admin)
       getActiveColleges()
-        .then((activeColleges) =>
-          setColleges(activeColleges.filter(isCollegeVisibleInNoticeScope)),
-        )
+        .then((activeColleges) => setColleges(activeColleges.filter(isCollegeVisibleInNoticeScope)))
         .catch(() => setColleges([]));
   }, [admin]);
   useEffect(() => {

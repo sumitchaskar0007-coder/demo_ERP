@@ -435,6 +435,13 @@
   }
 
   @media (max-width: 639px) {
+    .erp-welcome-banner {
+      background:
+        radial-gradient(circle at 100% 0%, rgb(255 255 255 / 0.12), transparent 42%),
+        linear-gradient(135deg, #1d4ed8 0%, #2563eb 56%, #1e40af 100%);
+      box-shadow: 0 10px 24px rgb(30 64 175 / 0.2);
+    }
+
     .page-container {
       padding: 1rem 0.75rem 2rem;
     }

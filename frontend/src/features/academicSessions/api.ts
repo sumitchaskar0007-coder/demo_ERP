@@ -57,7 +57,8 @@ export interface RolloverPreview {
 const unwrap = <T>(request: Promise<{ data: ApiResponse<T> }>) => request.then((r) => r.data.data);
 
 export const academicSessionApi = {
-  context: () => unwrap(apiClient.get<ApiResponse<AcademicContext>>("/api/academic-sessions/context")),
+  context: () =>
+    unwrap(apiClient.get<ApiResponse<AcademicContext>>("/api/academic-sessions/context")),
   years: () =>
     unwrap(apiClient.get<ApiResponse<AcademicYear[]>>("/api/principal/academic-sessions/years")),
   createYear: (body: {
@@ -66,35 +67,64 @@ export const academicSessionApi = {
     endDate: string;
     oddTerm: { startDate: string; endDate: string };
     evenTerm: { startDate: string; endDate: string };
-  }) => unwrap(apiClient.post<ApiResponse<AcademicYear>>("/api/principal/academic-sessions/years", body)),
+  }) =>
+    unwrap(
+      apiClient.post<ApiResponse<AcademicYear>>("/api/principal/academic-sessions/years", body),
+    ),
   activateYear: (id: number) =>
-    unwrap(apiClient.post<ApiResponse<AcademicYear>>(`/api/principal/academic-sessions/years/${id}/activate`)),
+    unwrap(
+      apiClient.post<ApiResponse<AcademicYear>>(
+        `/api/principal/academic-sessions/years/${id}/activate`,
+      ),
+    ),
   updateTerm: (term: AcademicTerm) =>
-    unwrap(apiClient.put<ApiResponse<AcademicTerm>>(`/api/principal/academic-sessions/terms/${term.id}`, {
-      name: term.name,
-      startDate: term.startDate,
-      endDate: term.endDate,
-    })),
+    unwrap(
+      apiClient.put<ApiResponse<AcademicTerm>>(
+        `/api/principal/academic-sessions/terms/${term.id}`,
+        {
+          name: term.name,
+          startDate: term.startDate,
+          endDate: term.endDate,
+        },
+      ),
+    ),
   activateTerm: (id: number, overrideDate = false, reason?: string) =>
-    unwrap(apiClient.post<ApiResponse<AcademicTerm>>(`/api/principal/academic-sessions/terms/${id}/activate`, {
-      overrideDate,
-      reason: reason || null,
-    })),
+    unwrap(
+      apiClient.post<ApiResponse<AcademicTerm>>(
+        `/api/principal/academic-sessions/terms/${id}/activate`,
+        {
+          overrideDate,
+          reason: reason || null,
+        },
+      ),
+    ),
   configureSemesters: (departmentId: number, durationYears: number) =>
-    unwrap(apiClient.post<ApiResponse<unknown[]>>("/api/principal/academic-sessions/semesters/configure", {
-      departmentId,
-      durationYears,
-    })),
+    unwrap(
+      apiClient.post<ApiResponse<unknown[]>>(
+        "/api/principal/academic-sessions/semesters/configure",
+        {
+          departmentId,
+          durationYears,
+        },
+      ),
+    ),
   preview: (sourceTermId: number, targetTermId: number) =>
-    unwrap(apiClient.get<ApiResponse<RolloverPreview>>("/api/principal/academic-sessions/rollover/preview", {
-      params: { sourceTermId, targetTermId },
-    })),
+    unwrap(
+      apiClient.get<ApiResponse<RolloverPreview>>(
+        "/api/principal/academic-sessions/rollover/preview",
+        {
+          params: { sourceTermId, targetTermId },
+        },
+      ),
+    ),
   rollover: (sourceTermId: number, targetTermId: number, holdStudentIds: number[] = []) =>
-    unwrap(apiClient.post<ApiResponse<unknown>>("/api/principal/academic-sessions/rollover", {
-      sourceTermId,
-      targetTermId,
-      holdStudentIds,
-      targetSectionBySourceSection: {},
-      confirmation: "PROMOTE",
-    })),
+    unwrap(
+      apiClient.post<ApiResponse<unknown>>("/api/principal/academic-sessions/rollover", {
+        sourceTermId,
+        targetTermId,
+        holdStudentIds,
+        targetSectionBySourceSection: {},
+        confirmation: "PROMOTE",
+      }),
+    ),
 };

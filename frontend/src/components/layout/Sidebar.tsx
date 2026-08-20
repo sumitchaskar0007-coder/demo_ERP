@@ -93,187 +93,187 @@ export function Sidebar({
           { label: "Profile", to: ROUTES.profile, icon: UserRound },
         ]
       : isPrincipal
-      ? [
-          { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
-          { label: "Students", to: ROUTES.students, icon: GraduationCap },
-          { label: "Staff", to: ROUTES.staff, icon: Users },
-          {
-            label: "Admissions",
-            to: ROUTES.studentSectionAdmissions,
-            icon: GraduationCap,
-          },
-          { label: "Academics", to: ROUTES.principalAcademics, icon: LibraryBig },
-          { label: "Fees", to: ROUTES.principalFees, icon: WalletCards },
-          { label: "Reports & Analytics", to: ROUTES.principalReports, icon: BarChart3 },
-          { label: "Notices", to: ROUTES.notices, icon: Bell },
-          {
-            label: "Administration",
-            to: ROUTES.principalAdministration,
-            icon: FileText,
-          },
-        ]
-      : isStudentSection
         ? [
-            { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
+            { label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard },
+            { label: "Students", to: ROUTES.students, icon: GraduationCap },
+            { label: "Staff", to: ROUTES.staff, icon: Users },
             {
-              label: "Admission Records",
+              label: "Admissions",
               to: ROUTES.studentSectionAdmissions,
               icon: GraduationCap,
             },
-            { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
-            { label: "Documents", to: ROUTES.studentSectionDocuments, icon: FileText },
+            { label: "Academics", to: ROUTES.principalAcademics, icon: LibraryBig },
+            { label: "Fees", to: ROUTES.principalFees, icon: WalletCards },
+            { label: "Reports & Analytics", to: ROUTES.principalReports, icon: BarChart3 },
             { label: "Notices", to: ROUTES.notices, icon: Bell },
-            { label: "Profile", to: ROUTES.profile, icon: UserRound },
+            {
+              label: "Administration",
+              to: ROUTES.principalAdministration,
+              icon: FileText,
+            },
           ]
-        : isFeeSection
+        : isStudentSection
           ? [
-              { label: "Dashboard", to: ROUTES.feeOfficerWorkspace, icon: LayoutDashboard },
+              { label: "Dashboard", to: ROUTES.studentSectionDashboard, icon: LayoutDashboard },
               {
-                label: "Fee Accounts",
-                to: `${ROUTES.feeOfficerWorkspace}?tab=accounts`,
-                icon: WalletCards,
+                label: "Admission Records",
+                to: ROUTES.studentSectionAdmissions,
+                icon: GraduationCap,
               },
-              {
-                label: "Pending Verifications",
-                to: `${ROUTES.feeOfficerWorkspace}?tab=pending`,
-                icon: Clock3,
-              },
-              {
-                label: "Verified Payments",
-                to: `${ROUTES.feeOfficerWorkspace}?tab=verified`,
-                icon: CheckCircle2,
-              },
-              {
-                label: "Rejected Payments",
-                to: `${ROUTES.feeOfficerWorkspace}?tab=rejected`,
-                icon: FileText,
-              },
-              {
-                label: "Payment History",
-                to: `${ROUTES.feeOfficerWorkspace}?tab=history`,
-                icon: CreditCard,
-              },
-              {
-                label: "Pending Dues",
-                to: `${ROUTES.feeOfficerWorkspace}?tab=dues`,
-                icon: WalletCards,
-              },
-              {
-                label: "Fee Reports",
-                to: `${ROUTES.feeOfficerWorkspace}?tab=reports`,
-                icon: BarChart3,
-              },
+              { label: "Admission Report", to: ROUTES.admissionReport, icon: BarChart3 },
+              { label: "Documents", to: ROUTES.studentSectionDocuments, icon: FileText },
               { label: "Notices", to: ROUTES.notices, icon: Bell },
               { label: "Profile", to: ROUTES.profile, icon: UserRound },
             ]
-          : isStudent
+          : isFeeSection
             ? [
-                { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
-                { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
-                { label: "My Fees", to: ROUTES.studentFees, icon: WalletCards },
-                ...(divisionAllocated
-                  ? [
-                      { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
-                      { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
-                      { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
-                      { label: "Notices", to: ROUTES.notices, icon: Bell },
-                    ]
-                  : []),
-                { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
+                { label: "Dashboard", to: ROUTES.feeOfficerWorkspace, icon: LayoutDashboard },
+                {
+                  label: "Fee Accounts",
+                  to: `${ROUTES.feeOfficerWorkspace}?tab=accounts`,
+                  icon: WalletCards,
+                },
+                {
+                  label: "Pending Verifications",
+                  to: `${ROUTES.feeOfficerWorkspace}?tab=pending`,
+                  icon: Clock3,
+                },
+                {
+                  label: "Verified Payments",
+                  to: `${ROUTES.feeOfficerWorkspace}?tab=verified`,
+                  icon: CheckCircle2,
+                },
+                {
+                  label: "Rejected Payments",
+                  to: `${ROUTES.feeOfficerWorkspace}?tab=rejected`,
+                  icon: FileText,
+                },
+                {
+                  label: "Payment History",
+                  to: `${ROUTES.feeOfficerWorkspace}?tab=history`,
+                  icon: CreditCard,
+                },
+                {
+                  label: "Pending Dues",
+                  to: `${ROUTES.feeOfficerWorkspace}?tab=dues`,
+                  icon: WalletCards,
+                },
+                {
+                  label: "Fee Reports",
+                  to: `${ROUTES.feeOfficerWorkspace}?tab=reports`,
+                  icon: BarChart3,
+                },
+                { label: "Notices", to: ROUTES.notices, icon: Bell },
+                { label: "Profile", to: ROUTES.profile, icon: UserRound },
               ]
-            : isOtherStaff
+            : isStudent
               ? [
-                  ...(!isHod
+                  { label: "Dashboard", to: ROUTES.studentDashboard, icon: LayoutDashboard },
+                  { label: "My Admission", to: ROUTES.studentAdmission, icon: FileText },
+                  { label: "My Fees", to: ROUTES.studentFees, icon: WalletCards },
+                  ...(divisionAllocated
                     ? [
-                        {
-                          label: "Dashboard",
-                          to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard,
-                          icon: LayoutDashboard,
-                        },
+                        { label: "My Timetable", to: ROUTES.studentTimetable, icon: CalendarDays },
+                        { label: "My Attendance", to: ROUTES.studentAttendance, icon: BarChart3 },
+                        { label: "My Class", to: ROUTES.studentClass, icon: GraduationCap },
+                        { label: "Notices", to: ROUTES.notices, icon: Bell },
                       ]
                     : []),
-                  ...(isHod
-                    ? [
-                        { label: "HOD Overview", to: ROUTES.hodWorkspace, icon: LayoutDashboard },
-                        {
-                          label: "Student Allocation",
-                          to: `${ROUTES.hodWorkspace}?tab=students`,
-                          icon: Users,
-                        },
-                        {
-                          label: "Teaching Assignments",
-                          to: ROUTES.subjectTeacherAssignments,
-                          icon: Users,
-                        },
-                        {
-                          label: "Class Teachers",
-                          to: `${ROUTES.hodWorkspace}?tab=class-teachers`,
-                          icon: UserRound,
-                        },
-                        {
-                          label: "Workload",
-                          to: `${ROUTES.hodWorkspace}?tab=workload`,
-                          icon: BarChart3,
-                        },
-                        {
-                          label: "Manage Timetable",
-                          to: ROUTES.timetable,
-                          icon: CalendarDays,
-                        },
-                        {
-                          label: "Attendance Reports",
-                          to: ROUTES.attendanceReport,
-                          icon: BarChart3,
-                        },
-                      ]
-                    : []),
-                  ...(!isHod && isTeacher
-                    ? [
-                        {
-                          label: "Students",
-                          to: `${ROUTES.teacherWorkspace}?tab=students-hub`,
-                          icon: Users,
-                        },
-                        {
-                          label: "Teaching",
-                          to: `${ROUTES.teacherWorkspace}?tab=teaching-hub`,
-                          icon: BookOpen,
-                        },
-                        {
-                          label: "Attendance",
-                          to: `${ROUTES.teacherWorkspace}?tab=attendance-hub`,
-                          icon: CheckCircle2,
-                        },
-                        {
-                          label: "Updates",
-                          to: `${ROUTES.teacherWorkspace}?tab=updates-hub`,
-                          icon: Bell,
-                        },
-                      ]
-                    : []),
-                  ...(!isTeacher || isHod
-                    ? [{ label: "Notices", to: ROUTES.notices, icon: Bell }]
-                    : []),
-                  { label: "Profile", to: ROUTES.profile, icon: UserRound },
+                  { label: "My Profile", to: ROUTES.studentProfile, icon: UserRound },
                 ]
-              : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
+              : isOtherStaff
+                ? [
+                    ...(!isHod
+                      ? [
+                          {
+                            label: "Dashboard",
+                            to: isTeacher ? ROUTES.teacherWorkspace : ROUTES.dashboard,
+                            icon: LayoutDashboard,
+                          },
+                        ]
+                      : []),
+                    ...(isHod
+                      ? [
+                          { label: "HOD Overview", to: ROUTES.hodWorkspace, icon: LayoutDashboard },
+                          {
+                            label: "Student Allocation",
+                            to: `${ROUTES.hodWorkspace}?tab=students`,
+                            icon: Users,
+                          },
+                          {
+                            label: "Teaching Assignments",
+                            to: ROUTES.subjectTeacherAssignments,
+                            icon: Users,
+                          },
+                          {
+                            label: "Class Teachers",
+                            to: `${ROUTES.hodWorkspace}?tab=class-teachers`,
+                            icon: UserRound,
+                          },
+                          {
+                            label: "Workload",
+                            to: `${ROUTES.hodWorkspace}?tab=workload`,
+                            icon: BarChart3,
+                          },
+                          {
+                            label: "Manage Timetable",
+                            to: ROUTES.timetable,
+                            icon: CalendarDays,
+                          },
+                          {
+                            label: "Attendance Reports",
+                            to: ROUTES.attendanceReport,
+                            icon: BarChart3,
+                          },
+                        ]
+                      : []),
+                    ...(!isHod && isTeacher
+                      ? [
+                          {
+                            label: "Students",
+                            to: `${ROUTES.teacherWorkspace}?tab=students-hub`,
+                            icon: Users,
+                          },
+                          {
+                            label: "Teaching",
+                            to: `${ROUTES.teacherWorkspace}?tab=teaching-hub`,
+                            icon: BookOpen,
+                          },
+                          {
+                            label: "Attendance",
+                            to: `${ROUTES.teacherWorkspace}?tab=attendance-hub`,
+                            icon: CheckCircle2,
+                          },
+                          {
+                            label: "Updates",
+                            to: `${ROUTES.teacherWorkspace}?tab=updates-hub`,
+                            icon: Bell,
+                          },
+                        ]
+                      : []),
+                    ...(!isTeacher || isHod
+                      ? [{ label: "Notices", to: ROUTES.notices, icon: Bell }]
+                      : []),
+                    { label: "Profile", to: ROUTES.profile, icon: UserRound },
+                  ]
+                : [{ label: "Dashboard", to: ROUTES.dashboard, icon: LayoutDashboard }];
   const visibleNav = nav;
   const roleFuture: Array<{ label: string; icon: typeof FileText }> = [];
   const sectionLabel = isLeadershipTeaching
     ? "Teaching Workspace"
     : isAdmin
-    ? "Admin"
-    : isPrincipal
-      ? "Principal"
-      : isStudentSection
-        ? "Student Section"
-        : isFeeSection
-          ? "Accountant"
-          : isStudent
-            ? "Student"
-            : isOtherStaff
-              ? "Staff"
-              : "Menu";
+      ? "Admin"
+      : isPrincipal
+        ? "Principal"
+        : isStudentSection
+          ? "Student Section"
+          : isFeeSection
+            ? "Accountant"
+            : isStudent
+              ? "Student"
+              : isOtherStaff
+                ? "Staff"
+                : "Menu";
   const isCurrentLink = (to: string, routerActive: boolean) => {
     const [targetPath, targetQuery = ""] = to.split("?");
     const currentParams = new URLSearchParams(location.search);

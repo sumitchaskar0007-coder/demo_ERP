@@ -6,7 +6,6 @@ import {
   EyeOff,
   KeyRound,
   LockKeyhole,
-  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -84,37 +83,9 @@ export function ChangePasswordPage() {
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full border-[42px] border-white/10" />
           <div className="absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-white/5" />
           <div className="relative flex h-full flex-col">
-            <div className="w-fit rounded-2xl bg-white px-4 py-3 shadow-lg shadow-blue-950/20">
-              <BrandLogo className="w-40" />
-            </div>
-
-            <div className="my-auto py-8 sm:py-12">
-              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20 backdrop-blur">
-                <ShieldCheck className="h-7 w-7" />
-              </span>
-              <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-blue-100">
-                Account protection
-              </p>
-              <h1 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
-                {isStudent ? "Secure your student account" : "Secure your staff account"}
-              </h1>
-              <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100">
-                {isStudent
-                  ? "Your student account is ready. Replace the emailed one-time password before continuing your admission."
-                  : "Your account is ready. Replace the emailed one-time password before entering your dashboard."}
-              </p>
-
-              <div className="mt-8 hidden space-y-4 text-sm text-blue-50 sm:block">
-                {[
-                  "Your emailed one-time password will be replaced",
-                  "Your dashboard stays locked until this step is complete",
-                  "Your new password is securely encrypted",
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
-                    <span>{item}</span>
-                  </div>
-                ))}
+            <div className="my-auto flex justify-center py-8 sm:py-14">
+              <div className="w-full max-w-sm rounded-[28px] border border-white/70 bg-white px-7 py-8 shadow-2xl shadow-blue-950/20 sm:px-10 sm:py-12">
+                <BrandLogo className="mx-auto w-full max-w-[18rem]" />
               </div>
             </div>
 

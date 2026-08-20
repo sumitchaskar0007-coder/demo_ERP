@@ -41,13 +41,15 @@ const uniqueAcademicClasses = (rows: AcademicClass[]) => [
 ];
 
 const semesterNumbersFor = (yearName?: string) => {
-  const year = ({
-    FIRST_YEAR: 1,
-    SECOND_YEAR: 2,
-    THIRD_YEAR: 3,
-    FOURTH_YEAR: 4,
-    FIFTH_YEAR: 5,
-  } as Record<string, number>)[yearName ?? ""];
+  const year = (
+    {
+      FIRST_YEAR: 1,
+      SECOND_YEAR: 2,
+      THIRD_YEAR: 3,
+      FOURTH_YEAR: 4,
+      FIFTH_YEAR: 5,
+    } as Record<string, number>
+  )[yearName ?? ""];
   return year ? [year * 2 - 1, year * 2] : [];
 };
 

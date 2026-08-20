@@ -12,6 +12,7 @@ import {
   List,
   QrCode,
   Search,
+  Sparkles,
   UserRound,
   Users,
   WalletCards,
@@ -170,6 +171,7 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
   const feeTotal = d.summary.totalFeeCollection + d.summary.pendingFee;
   const collectionRate =
     feeTotal > 0 ? Math.round((d.summary.totalFeeCollection / feeTotal) * 100) : 0;
+  const greetingName = principal ? user?.fullName?.split(" ")[0] || "Principal" : "Admin";
 
   return (
     <div className="page-container pb-10">
@@ -204,19 +206,26 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
         )}
       </div>
 
-      <section className="erp-welcome-banner px-7 py-7 sm:px-9">
-        <div className="absolute -right-10 -top-20 h-64 w-64 rounded-full border-[30px] border-blue-500/30" />
-        <div className="absolute right-52 top-5 h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80" />
+      <section className="erp-welcome-banner px-5 py-5 sm:px-9 sm:py-7">
+        <div className="absolute -right-10 -top-20 hidden h-64 w-64 rounded-full border-[30px] border-blue-500/30 sm:block" />
+        <div className="absolute right-52 top-5 hidden h-10 w-10 rotate-45 rounded-lg border-4 border-amber-400/80 sm:block" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm text-blue-100">
-              {principal ? user?.collegeName : "Jadhavar ERP Administration"}
-            </p>
-            <h2 className="mt-2 text-3xl font-bold">
-              Welcome back, {user?.fullName?.split(" ")[0] || "Admin"}
+          <div className="min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <p className="inline-flex max-w-[calc(100%-3rem)] items-center truncate rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold tracking-wide text-blue-50 sm:max-w-none sm:text-xs">
+                {principal ? user?.collegeName : "Jadhavar ERP Administration"}
+              </p>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/10 text-amber-300 sm:hidden">
+                <Sparkles className="h-4 w-4" />
+              </span>
+            </div>
+            <h2 className="mt-4 text-[clamp(1.35rem,7vw,1.75rem)] font-bold leading-tight tracking-tight sm:mt-3 sm:text-3xl">
+              Welcome back, {greetingName}
             </h2>
-            <p className="mt-2 text-sm text-blue-100">
-              Have a productive day managing your education workspace.
+            <p className="mt-2 max-w-md text-[13px] leading-5 text-blue-100 sm:text-sm sm:leading-6">
+              {principal
+                ? "Keep track of your college from one place."
+                : "Manage colleges, students, and fees from one place."}
             </p>
           </div>
         </div>

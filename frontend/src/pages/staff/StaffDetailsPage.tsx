@@ -221,7 +221,11 @@ export function StaffDetailsPage() {
                 Forward a lecture only for today when this teacher is unavailable.
               </p>
             </div>
-            <Button variant="secondary" onClick={() => void loadSchedule()} loading={scheduleLoading}>
+            <Button
+              variant="secondary"
+              onClick={() => void loadSchedule()}
+              loading={scheduleLoading}
+            >
               Refresh schedule
             </Button>
           </div>
@@ -338,7 +342,8 @@ export function StaffDetailsPage() {
                         </div>
                         {!availableTeachers.length && (
                           <p className="mt-3 text-sm font-medium text-amber-700">
-                            No eligible teacher is free for this period with a matching subject assignment.
+                            No eligible teacher is free for this period with a matching subject
+                            assignment.
                           </p>
                         )}
                         <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -347,7 +352,9 @@ export function StaffDetailsPage() {
                           </Button>
                           <Button
                             loading={savingForwarding}
-                            disabled={!substituteTeacherId || !substituteSubjectId || !reason.trim()}
+                            disabled={
+                              !substituteTeacherId || !substituteSubjectId || !reason.trim()
+                            }
                             onClick={() => void applyForwarding()}
                           >
                             Apply forwarding

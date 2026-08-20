@@ -4,8 +4,7 @@ import path from "node:path";
 
 export default defineConfig(({ mode }) => {
   const deploymentEnvironment =
-    process.env.VITE_APP_ENVIRONMENT ||
-    (mode === "development" || mode === "test" ? "local" : "");
+    process.env.VITE_APP_ENVIRONMENT || (mode === "development" || mode === "test" ? "local" : "");
   if (!new Set(["local", "preprod", "production"]).has(deploymentEnvironment)) {
     throw new Error("VITE_APP_ENVIRONMENT must be exactly one of local, preprod, or production");
   }

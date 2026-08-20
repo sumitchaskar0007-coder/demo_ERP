@@ -60,9 +60,15 @@ export function Topbar({
   useEffect(() => {
     const loadYear = () => {
       if (isSuperAdmin) {
-        globalAcademicYearApi.active().then(setGlobalAcademicYear).catch(() => setGlobalAcademicYear(null));
+        globalAcademicYearApi
+          .active()
+          .then(setGlobalAcademicYear)
+          .catch(() => setGlobalAcademicYear(null));
       } else {
-        academicSessionApi.context().then(setAcademicContext).catch(() => setAcademicContext(null));
+        academicSessionApi
+          .context()
+          .then(setAcademicContext)
+          .catch(() => setAcademicContext(null));
       }
     };
     loadYear();

@@ -61,14 +61,13 @@ export function SubjectTeacherAssignmentPage() {
       const scope = await workspace({ size: 1 });
       setDepartmentId(scope.departmentId);
       setTeachers(
-        scope.teachers
-          .map((teacher) => ({
-            id: teacher.id,
-            fullName: teacher.name,
-            email: teacher.email,
-            staffType: teacher.staffType,
-            departmentName: scope.department,
-          })),
+        scope.teachers.map((teacher) => ({
+          id: teacher.id,
+          fullName: teacher.name,
+          email: teacher.email,
+          staffType: teacher.staffType,
+          departmentName: scope.department,
+        })),
       );
       setCourseYears(
         [

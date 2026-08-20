@@ -111,10 +111,10 @@ export interface WeeklyEntry {
   teacherId: number;
   teacher: string;
   room?: string;
-    lectureType: WeeklyLectureType;
-    remarks?: string;
-    substituted?: boolean;
-    originalTeacher?: string | null;
+  lectureType: WeeklyLectureType;
+  remarks?: string;
+  substituted?: boolean;
+  originalTeacher?: string | null;
 }
 export interface WeeklyTimetable {
   id: number;

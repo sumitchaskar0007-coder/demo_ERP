@@ -8,9 +8,9 @@ describe("notice college visibility", () => {
   it.each(["01", "09", "10", "19", "20"])(
     "hides Jadhavar Review College %s from the notice picker",
     (suffix) => {
-      expect(
-        isCollegeVisibleInNoticeScope({ name: `Jadhavar Review College ${suffix}` }),
-      ).toBe(false);
+      expect(isCollegeVisibleInNoticeScope({ name: `Jadhavar Review College ${suffix}` })).toBe(
+        false,
+      );
     },
   );
 

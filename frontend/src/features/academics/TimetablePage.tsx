@@ -1020,10 +1020,7 @@ export function TimetablePage() {
                   const clearedLectures = table.entries.filter((entry) =>
                     changedPeriodIds.has(entry.periodId),
                   ).length;
-                  const next = await weeklyTimetableApi.updatePeriods(
-                    table.id,
-                    times,
-                  );
+                  const next = await weeklyTimetableApi.updatePeriods(table.id, times);
                   setTable(next);
                   setTimes(next.periods);
                   setTimeEditor(false);

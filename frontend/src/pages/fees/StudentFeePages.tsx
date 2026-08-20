@@ -445,9 +445,7 @@ function PaymentList({ data }: { data: PaymentResponse[] }) {
           <div key={x.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                {x.paymentPurpose === "ADMISSION_FORM_FEE"
-                  ? "Admission Form Fee"
-                  : "Course Fee"}
+                {x.paymentPurpose === "ADMISSION_FORM_FEE" ? "Admission Form Fee" : "Course Fee"}
               </p>
               <b>₹{x.amount.toLocaleString("en-IN")}</b>
               <p className="text-xs text-slate-500">
