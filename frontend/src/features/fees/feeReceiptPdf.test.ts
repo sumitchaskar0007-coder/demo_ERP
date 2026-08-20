@@ -49,7 +49,6 @@ describe("fee receipt PDF", () => {
 
   it("builds the complete two-logo institute header from the reference structure", () => {
     expect(feeReceiptHeader(receipt)).toEqual({
-      foundationName: "Aditya Educational Foundation's",
       motto: '"Education for Strength, Intellect & Wisdom"',
       founder: "- Prin. Dr. Sudhakarrao Jadhavar",
       institutionName: "ADITYA INSTITUTE OF MANAGEMENT - AIMS",

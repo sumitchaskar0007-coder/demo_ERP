@@ -34,6 +34,10 @@ import type {
   NoticeRecipientOption,
   NoticeRole,
 } from "./types";
+import {
+  getVisibleNoticeCollegeNames,
+  isCollegeVisibleInNoticeScope,
+} from "./noticeCollegeVisibility";
 
 const labels: Record<NoticeRole, string> = {
   SUPER_ADMIN: "Super Admins",
@@ -47,6 +51,22 @@ const labels: Record<NoticeRole, string> = {
   GENERAL_STAFF: "General Staff",
   STUDENT: "Students",
 };
+
+function NoticeCollegeScope({ notice }: { notice: Notice }) {
+  const collegeNames = getVisibleNoticeCollegeNames(notice.collegeNames);
+  const scopeParts: string[] = [];
+  if (notice.allColleges || notice.collegeNames.length === 0) scopeParts.push("All colleges");
+  else if (collegeNames.length > 0) scopeParts.push(collegeNames.join(", "));
+  if (notice.departmentName) scopeParts.push(notice.departmentName);
+  if (scopeParts.length === 0) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Building2 className="h-3.5 w-3.5" />
+      {scopeParts.join(" • ")}
+    </span>
+  );
+}
 
 export function NoticesPage() {
   const { user, isRole } = useAuth();
@@ -135,7 +155,9 @@ export function NoticesPage() {
   useEffect(() => {
     if (admin)
       getActiveColleges()
-        .then(setColleges)
+        .then((activeColleges) =>
+          setColleges(activeColleges.filter(isCollegeVisibleInNoticeScope)),
+        )
         .catch(() => setColleges([]));
   }, [admin]);
   useEffect(() => {
@@ -653,13 +675,7 @@ export function NoticesPage() {
                                 ? `To ${notice.recipientNames.join(", ")}${notice.recipientCount > notice.recipientNames.length ? ` +${notice.recipientCount - notice.recipientNames.length} more` : ""}`
                                 : `To ${notice.audienceRoles.map((r) => labels[r]).join(", ")}`}
                           </span>
-                          <span className="inline-flex items-center gap-1">
-                            <Building2 className="h-3.5 w-3.5" />
-                            {notice.allColleges || notice.collegeNames.length === 0
-                              ? "All colleges"
-                              : notice.collegeNames.join(", ")}
-                            {notice.departmentName ? ` • ${notice.departmentName}` : ""}
-                          </span>
+                          <NoticeCollegeScope notice={notice} />
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">

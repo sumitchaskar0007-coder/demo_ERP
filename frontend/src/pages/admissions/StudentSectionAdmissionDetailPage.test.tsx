@@ -282,7 +282,8 @@ describe("StudentSectionAdmissionDetailPage", () => {
       </MemoryRouter>,
     );
 
-    await user.click(await screen.findByRole("button", { name: "Approve" }));
+    expect(await screen.findByText("Verification checklist")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Approve application" }));
     const checkboxes = screen.getAllByRole("checkbox");
     for (const checkbox of checkboxes) {
       if (!checkbox.hasAttribute("disabled")) await user.click(checkbox);
@@ -323,6 +324,8 @@ describe("StudentSectionAdmissionDetailPage", () => {
         "Approval is locked until Fee Section verifies the ₹2,200 admission form fee.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    const approveButton = screen.getByRole("button", { name: "Approve application" });
+    expect(approveButton).toBeDisabled();
+    expect(screen.getByText("2 of 3 complete")).toBeInTheDocument();
   });
 });

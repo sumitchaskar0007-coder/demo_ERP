@@ -6,7 +6,6 @@ const formatDate = (value: string) => {
   return `${day}/${month}/${year}`;
 };
 
-const FOUNDATION_NAME = "Aditya Educational Foundation's";
 const MOTTO = '"Education for Strength, Intellect & Wisdom"';
 const FOUNDER = "- Prin. Dr. Sudhakarrao Jadhavar";
 const AFFILIATION =
@@ -28,7 +27,6 @@ export function feeReceiptHeader(receipt: FeeReceiptResponse) {
   const collegeName = receipt.collegeName.trim().toUpperCase();
   const collegeCode = receipt.collegeCode.trim().toUpperCase();
   return {
-    foundationName: FOUNDATION_NAME,
     motto: MOTTO,
     founder: FOUNDER,
     institutionName:
@@ -122,8 +120,6 @@ export async function createFeeReceiptPdf(
   doc.text(header.motto, pageWidth / 2, 10.5, { align: "center" });
   doc.setFont("helvetica", "bold");
   doc.text(header.founder, pageWidth / 2, 14, { align: "center" });
-  doc.setFontSize(8.5);
-  doc.text(header.foundationName, pageWidth / 2, 20, { align: "center" });
 
   let institutionFontSize = 14;
   doc.setFont("helvetica", "bold");
@@ -133,12 +129,12 @@ export async function createFeeReceiptPdf(
     institutionFontSize -= 0.5;
     doc.setFontSize(institutionFontSize);
   }
-  doc.text(header.institutionName, pageWidth / 2, 33, { align: "center" });
+  doc.text(header.institutionName, pageWidth / 2, 28, { align: "center" });
 
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
-  doc.text(header.affiliation, pageWidth / 2, 38, { align: "center", maxWidth: 150 });
+  doc.text(header.affiliation, pageWidth / 2, 34, { align: "center", maxWidth: 150 });
   const address = [
     receipt.collegeAddress,
     receipt.collegeCity,
@@ -155,7 +151,7 @@ export async function createFeeReceiptPdf(
   doc.text(
     [address || receipt.collegeCode, contacts].filter(Boolean).join("  |  "),
     pageWidth / 2,
-    42.5,
+    39.5,
     {
       align: "center",
       maxWidth: pageWidth - 30,
@@ -163,7 +159,7 @@ export async function createFeeReceiptPdf(
   );
   doc.setDrawColor(30, 64, 175);
   doc.setLineWidth(0.5);
-  doc.line(12, 46, pageWidth - 12, 46);
+  doc.line(12, 43, pageWidth - 12, 43);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);

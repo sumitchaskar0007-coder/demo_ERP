@@ -44,7 +44,7 @@ class AuthenticationServiceTest {
     @BeforeEach
     void setUp() {
         service = new AuthenticationService(authenticationManager, jwtService, refreshTokens, users, mapper,
-                hashes, securityEvents, rateLimiter, 20, 5);
+                hashes, securityEvents, rateLimiter, 20, 6);
     }
 
     @Test
@@ -75,7 +75,7 @@ class AuthenticationServiceTest {
         when(rateLimiter.check(
                 eq("auth:login-account-ip"),
                 eq("student@example.com|203.0.113.8"),
-                eq(5L),
+                eq(6L),
                 any(Duration.class)))
                 .thenReturn(new DistributedRateLimiter.Decision(true, 0));
 
@@ -91,7 +91,7 @@ class AuthenticationServiceTest {
         verify(rateLimiter).check(
                 eq("auth:login-account-ip"),
                 eq("student@example.com|203.0.113.8"),
-                eq(5L),
+                eq(6L),
                 any(Duration.class));
     }
 

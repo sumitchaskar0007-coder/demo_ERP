@@ -10,6 +10,7 @@ import com.jadhavr.erp.college.repository.CollegeRepository;
 import com.jadhavr.erp.common.exception.DuplicateResourceException;
 import com.jadhavr.erp.common.exception.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -43,6 +44,7 @@ public class CollegeServiceImpl implements CollegeService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeColleges", allEntries = true)
     public CollegeResponse createCollege(CreateCollegeRequest request) {
         String normalizedCode = normalizeCode(request.code());
         if (collegeRepository.existsByCode(normalizedCode)) {
@@ -85,6 +87,7 @@ public class CollegeServiceImpl implements CollegeService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeColleges", allEntries = true)
     public CollegeResponse updateCollege(Long id, UpdateCollegeRequest request) {
         College college = findById(id);
         college.setName(request.name().trim());
@@ -104,6 +107,7 @@ public class CollegeServiceImpl implements CollegeService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeColleges", allEntries = true)
     public CollegeResponse activateCollege(Long id) {
         College college = findById(id);
         college.setStatus(CollegeStatus.ACTIVE);
@@ -114,6 +118,7 @@ public class CollegeServiceImpl implements CollegeService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeColleges", allEntries = true)
     public CollegeResponse deactivateCollege(Long id) {
         College college = findById(id);
         college.setStatus(CollegeStatus.INACTIVE);

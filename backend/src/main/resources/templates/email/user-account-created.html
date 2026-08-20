@@ -1,17 +1,93 @@
 <!doctype html>
-<html>
-<body style="font-family:Arial;background:#eef4ff;padding:24px">
-<main style="max-width:600px;margin:auto;background:white;padding:28px;border-radius:16px">
-  <h2 style="color:#2563eb">Jadhavar Institute</h2>
-  <h3 th:text="${subject}">Account created</h3>
-  <p>Hello <span th:text="${name}">User</span>,</p>
-  <p>Your ERP account is ready. Sign in with these temporary credentials:</p>
-  <p><strong>Username:</strong> <span th:text="${username}">user@example.com</span><br>
-     <strong>Temporary password:</strong> <span th:text="${temporaryPassword}">temporary password</span></p>
-  <p>Please change the temporary password after signing in.</p>
-  <p><a th:href="${url}" style="background:#2563eb;color:white;padding:12px 20px;text-decoration:none;border-radius:8px">Sign in and change password</a></p>
-  <hr>
-  <small>If you did not expect this email, contact your administrator. © <span th:text="${year}"></span></small>
-</main>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Your ERP Account Is Ready</title>
+  <style>
+    @media only screen and (max-width: 620px) {
+      .email-shell { width: 100% !important; }
+      .content-cell { padding: 32px 22px !important; }
+      .header-cell { padding: 24px 22px !important; }
+      .details-cell { padding: 22px !important; }
+      .mobile-full { width: 100% !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;color:#0F172A;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <div th:text="${subject}" style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">
+    Your ERP account is ready.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;background-color:#F1F5F9;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="email-shell" style="width:600px;max-width:600px;border-collapse:separate;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td align="center" class="header-cell" style="padding:28px 40px;background-color:#1E3A8A;">
+              <p style="margin:0;color:#FFFFFF;font-size:20px;line-height:28px;font-weight:700;letter-spacing:1.5px;">YOUR ERP</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="content-cell" style="padding:44px 48px 40px;background-color:#FFFFFF;">
+              <p style="margin:0 0 10px;color:#16A34A;font-size:12px;line-height:18px;font-weight:700;letter-spacing:1.2px;text-align:center;text-transform:uppercase;">Account created successfully</p>
+              <h1 style="margin:0 0 32px;color:#0F172A;font-size:28px;line-height:36px;font-weight:700;text-align:center;">Your ERP Account Is Ready</h1>
+
+              <p style="margin:0 0 12px;color:#0F172A;font-size:16px;line-height:26px;">
+                Hello <strong th:text="${name}">Student/Staff Name</strong>,
+              </p>
+              <p style="margin:0 0 28px;color:#64748B;font-size:15px;line-height:25px;">Your ERP account has been successfully created.</p>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:separate;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 4px 12px rgba(15,23,42,0.06);">
+                <tr>
+                  <td class="details-cell" style="padding:26px 28px;">
+                    <p style="margin:0 0 22px;color:#1E3A8A;font-size:12px;line-height:18px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;">Account details</p>
+
+                    <p style="margin:0 0 5px;color:#64748B;font-size:12px;line-height:18px;font-weight:700;text-transform:uppercase;">Username</p>
+                    <p th:text="${username}" style="margin:0 0 22px;color:#0F172A;font-size:16px;line-height:24px;font-weight:700;word-break:break-word;">user@example.com</p>
+
+                    <p style="margin:0 0 5px;color:#64748B;font-size:12px;line-height:18px;font-weight:700;text-transform:uppercase;">Temporary password</p>
+                    <p th:text="${temporaryPassword}" style="margin:0;color:#0F172A;font-family:'Courier New',Courier,monospace;font-size:16px;line-height:24px;font-weight:700;letter-spacing:0.3px;word-break:break-all;">Generated temporary password</p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:separate;margin-top:24px;background-color:#EFF6FF;border-left:4px solid #2563EB;border-radius:8px;">
+                <tr>
+                  <td style="padding:16px 18px;color:#334155;font-size:14px;line-height:22px;">Please sign in using the credentials above and change your temporary password after your first login.</td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;margin-top:30px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="mobile-full" style="border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#2563EB" style="border-radius:9px;">
+                          <a th:href="${url}" style="display:inline-block;padding:14px 30px;color:#FFFFFF;font-size:14px;line-height:20px;font-weight:700;letter-spacing:0.5px;text-decoration:none;border-radius:9px;">LOGIN TO ERP</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:28px 0 0;color:#64748B;font-size:13px;line-height:21px;text-align:center;">If you need assistance, please contact your ERP administrator.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:24px 28px;background-color:#F8FAFC;border-top:1px solid #E2E8F0;">
+              <p style="margin:0 0 8px;color:#0F172A;font-size:14px;line-height:20px;font-weight:700;">ERP Administration</p>
+              <p style="margin:0;color:#64748B;font-size:12px;line-height:19px;">This is an automated email.<br>Please do not reply to this email.</p>
+              <p style="margin:12px 0 0;color:#94A3B8;font-size:11px;line-height:17px;">© <span th:text="${year}">2026</span> ERP Administration</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

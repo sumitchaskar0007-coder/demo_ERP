@@ -15,7 +15,19 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BadgeIndianRupee, Download, Eye, Mail, Maximize2, RefreshCw, Search } from "lucide-react";
+import {
+  BadgeIndianRupee,
+  CheckCircle2,
+  CircleAlert,
+  Download,
+  Eye,
+  Mail,
+  Maximize2,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { DocumentViewer } from "@/components/common/DocumentViewer";
 import { handleApiError } from "@/lib/handleApiError";
@@ -24,9 +36,9 @@ import { downloadFeeReceipt } from "@/features/fees/feeReceiptPdf";
 const input =
   "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
 const primary =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40";
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0";
 const secondary =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-40";
 const money = (v: number) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
 const feeStructureLabel = (value: string) => value.replace(/\s+fee$/i, "").trim();
 export function FeeOfficerWorkspacePage() {
@@ -436,9 +448,8 @@ function Payments({
             <th>Mode / Transaction</th>
             <th>Payment Date</th>
             <th>Submitted</th>
-            <th>Proof</th>
             <th>Status</th>
-            <th />
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -470,23 +481,19 @@ function Payments({
                 {new Date(p.submittedAt).toLocaleString()}
               </td>
               <td>
-                <button
-                  className="font-semibold text-blue-600 hover:text-blue-700"
-                  onClick={() => open(p)}
-                >
-                  View proof
-                </button>
-              </td>
-              <td>
                 <Badge value={p.status} />
               </td>
               <td className="text-right">
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                  className={
+                    receipt
+                      ? "inline-flex min-w-40 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100"
+                      : `${primary} min-w-40`
+                  }
                   onClick={() => (receipt ? void downloadReceipt(p) : open(p))}
                 >
-                  {receipt ? <Download className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  {receipt ? "Receipt" : "Review"}
+                  {receipt ? <Download className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                  {receipt ? "Download receipt" : "Review & verify"}
                 </button>
               </td>
             </tr>
@@ -1229,6 +1236,7 @@ function PaymentReview({
 }) {
   const [zoom, setZoom] = useState(false),
     [remarks, setRemarks] = useState(""),
+    [action, setAction] = useState<"verify" | "reject" | "resubmit" | null>(null),
     [proof, setProof] = useState<{ url: string; type: string } | null>(null),
     [proofError, setProofError] = useState(""),
     [proofLoading, setProofLoading] = useState(true),
@@ -1257,7 +1265,9 @@ function PaymentReview({
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [p.id, proofRetry]);
-  const act = async (type: string) => {
+  const act = async (type: "verify" | "reject" | "resubmit") => {
+    if (action) return;
+    setAction(type);
     try {
       if (type === "verify") await api.verify(p.id, remarks);
       else {
@@ -1277,6 +1287,8 @@ function PaymentReview({
       await reload();
     } catch (e) {
       toast.error(handleApiError(e).message);
+    } finally {
+      setAction(null);
     }
   };
   return (
@@ -1361,33 +1373,80 @@ function PaymentReview({
             <Info label="Payment Date" value={p.paymentDate} />
             <Info label="Payment Method" value={p.paymentMode} />
             <Info label="Student Remarks" value={p.remarks || "—"} />
-            <textarea
-              className="mt-4 min-h-24 w-full rounded-xl border p-3 text-sm"
-              placeholder="Officer remarks / rejection reason"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-            />
+            <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-slate-900">Verification checklist</h3>
+                <span className="text-[11px] font-semibold text-blue-700">Check before action</span>
+              </div>
+              <div className="mt-3 space-y-2.5">
+                <VerificationCheck label="Payment proof loaded" complete={Boolean(proof)} />
+                <VerificationCheck
+                  label="Amount and transaction ID provided"
+                  complete={Number(p.amount) > 0 && Boolean(p.transactionId?.trim())}
+                />
+                <VerificationCheck
+                  label="No duplicate transaction detected"
+                  complete={!p.duplicateDetected}
+                />
+                <VerificationCheck
+                  label="No amount mismatch reported"
+                  complete={!p.amountMismatch}
+                />
+              </div>
+            </div>
+            <label className="mt-4 block">
+              <span className="text-xs font-bold text-slate-700">
+                Officer remarks / rejection reason
+              </span>
+              <textarea
+                className="mt-2 min-h-24 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                placeholder="Add a note, or enter at least 5 characters when rejecting..."
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
+            </label>
             {p.status === "PENDING" && (
               <div className="mt-4 grid gap-2">
-                <button className={primary} onClick={() => void act("verify")}>
-                  Approve Payment
+                <button
+                  className={primary}
+                  disabled={Boolean(action)}
+                  onClick={() => void act("verify")}
+                >
+                  {action === "verify" ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  Verify & approve
                 </button>
                 <button
-                  className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={Boolean(action)}
                   onClick={() => void act("reject")}
                 >
-                  Reject Payment
-                </button>
-                <button className={secondary} onClick={() => void act("resubmit")}>
-                  Request New Screenshot
+                  {action === "reject" ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
+                  Reject payment
                 </button>
                 <button
-                  className="text-xs font-semibold text-amber-600"
+                  className={secondary}
+                  disabled={Boolean(action)}
+                  onClick={() => void act("resubmit")}
+                >
+                  <RefreshCw className={`h-4 w-4 ${action === "resubmit" ? "animate-spin" : ""}`} />
+                  Request new proof
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
                   onClick={() =>
                     setRemarks("Amount mismatch between submitted amount and screenshot")
                   }
                 >
-                  Mark Amount Mismatch
+                  <CircleAlert className="h-4 w-4" />
+                  Mark amount mismatch
                 </button>
               </div>
             )}
@@ -1404,6 +1463,19 @@ function PaymentReview({
           onClose={() => setZoom(false)}
         />
       )}
+    </div>
+  );
+}
+
+function VerificationCheck({ label, complete }: { label: string; complete: boolean }) {
+  return (
+    <div className="flex items-center gap-2 text-xs font-semibold">
+      {complete ? (
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+      ) : (
+        <CircleAlert className="h-4 w-4 shrink-0 text-amber-600" />
+      )}
+      <span className={complete ? "text-slate-700" : "text-amber-800"}>{label}</span>
     </div>
   );
 }

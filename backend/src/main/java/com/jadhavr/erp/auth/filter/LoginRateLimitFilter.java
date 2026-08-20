@@ -118,10 +118,12 @@ public class LoginRateLimitFilter extends OncePerRequestFilter implements Initia
                 namespace + ":ip", clientIp, rule.policy.getPerIp(), properties.getWindow());
         DistributedRateLimiter.Decision accountRate = limiter.check(
                 namespace + ":account", account, rule.policy.getPerAccount(), properties.getWindow());
-        DistributedRateLimiter.Decision ipBackoff =
-                limiter.checkBackoff(namespace + ":backoff-ip", clientIp);
-        DistributedRateLimiter.Decision accountBackoff =
-                limiter.checkBackoff(namespace + ":backoff-account", account);
+        DistributedRateLimiter.Decision ipBackoff = rule.exponentialBackoff
+                ? limiter.checkBackoff(namespace + ":backoff-ip", clientIp)
+                : new DistributedRateLimiter.Decision(true, 0);
+        DistributedRateLimiter.Decision accountBackoff = rule.exponentialBackoff
+                ? limiter.checkBackoff(namespace + ":backoff-account", account)
+                : new DistributedRateLimiter.Decision(true, 0);
         long retryAfter = maximumRetry(ipRate, accountRate, ipBackoff, accountBackoff);
         if (retryAfter > 0) {
             writeRejected(request, response, retryAfter, "Too many authentication attempts");
@@ -136,12 +138,12 @@ public class LoginRateLimitFilter extends OncePerRequestFilter implements Initia
             boolean failed = rule.backoffAfterSuccess
                     || !completed || isAuthenticationFailure(response.getStatus());
             RateLimitProperties.Backoff backoff = properties.getBackoff();
-            if (failed) {
+            if (failed && rule.exponentialBackoff) {
                 limiter.recordFailure(namespace + ":backoff-ip", clientIp,
                         backoff.getBaseDelay(), backoff.getMaxDelay(), backoff.getResetAfter());
                 limiter.recordFailure(namespace + ":backoff-account", account,
                         backoff.getBaseDelay(), backoff.getMaxDelay(), backoff.getResetAfter());
-            } else if (response.getStatus() < 400) {
+            } else if (rule.exponentialBackoff && response.getStatus() < 400) {
                 limiter.resetBackoff(namespace + ":backoff-account", account);
             }
         }
@@ -203,24 +205,29 @@ public class LoginRateLimitFilter extends OncePerRequestFilter implements Initia
         if (!"POST".equals(request.getMethod())) return null;
         String path = request.getRequestURI();
         if ("/api/v1/auth/login".equals(path)) {
-            return new AuthRule("login", properties.getLogin(), "email", false);
+            // Login uses the fixed six-attempt window so attempts 1-6 can return
+            // an accurate invalid-credentials response. Attempt 7 is throttled.
+            // Applying exponential backoff here would reject attempt 2 after a
+            // quickly repeated first failure and make the configured boundary
+            // impossible to observe.
+            return new AuthRule("login", properties.getLogin(), "email", false, false);
         }
         if ("/api/v1/auth/refresh".equals(path)) {
-            return new AuthRule("refresh", properties.getRefresh(), null, false);
+            return new AuthRule("refresh", properties.getRefresh(), null, false, true);
         }
         if ("/api/auth/password/forgot".equals(path)) {
             // The endpoint is deliberately enumeration-safe and always returns 200,
             // so every resend is an attempt for exponential backoff purposes.
-            return new AuthRule("password-forgot", properties.getPassword(), "email", true);
+            return new AuthRule("password-forgot", properties.getPassword(), "email", true, true);
         }
         if ("/api/auth/password/reset".equals(path)) {
-            return new AuthRule("password-reset", properties.getPassword(), "token", false);
+            return new AuthRule("password-reset", properties.getPassword(), "token", false, true);
         }
         if ("/api/auth/email-verification/confirm".equals(path)) {
-            return new AuthRule("email-confirm", properties.getOtherAuth(), "token", false);
+            return new AuthRule("email-confirm", properties.getOtherAuth(), "token", false, true);
         }
         if (path.matches("/api/public/admissions/college/[^/]+/submit")) {
-            return new AuthRule("signup", properties.getSignup(), "email", false);
+            return new AuthRule("signup", properties.getSignup(), "email", false, true);
         }
         return null;
     }
@@ -248,7 +255,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter implements Initia
     }
 
     private record AuthRule(String name, RateLimitProperties.Policy policy,
-            String accountField, boolean backoffAfterSuccess) {
+            String accountField, boolean backoffAfterSuccess, boolean exponentialBackoff) {
     }
 
     private static final class BufferedRequest extends HttpServletRequestWrapper {

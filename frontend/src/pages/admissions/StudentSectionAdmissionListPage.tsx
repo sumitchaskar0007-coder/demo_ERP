@@ -1,4 +1,4 @@
-import { Eye, FileText, Search } from "lucide-react";
+import { ClipboardCheck, Eye, FileText, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -93,14 +93,18 @@ export function StudentSectionAdmissionListPage() {
     { key: "print", header: "Prints", render: (row) => row.printCount || 0 },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row) => {
         const reviewable = canManage && row.status === "STUDENT_SECTION_REVIEW_PENDING";
         return (
           <div className="table-action-group">
             {reviewable ? (
-              <Button onClick={() => navigate(`/student-section/admissions/${row.id}`)}>
-                Review
+              <Button
+                className="min-w-[168px]"
+                onClick={() => navigate(`/student-section/admissions/${row.id}`)}
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                Review application
               </Button>
             ) : (
               <>
@@ -109,7 +113,7 @@ export function StudentSectionAdmissionListPage() {
                   onClick={() => navigate(`/student-section/admissions/${row.id}`)}
                 >
                   <Eye className="h-4 w-4" />
-                  View
+                  View details
                 </Button>
                 {canManage && (
                   <Button
@@ -117,7 +121,7 @@ export function StudentSectionAdmissionListPage() {
                     onClick={() => navigate(`/student-section/admissions/${row.id}/print`)}
                   >
                     <FileText className="h-4 w-4" />
-                    Print
+                    Print form
                   </Button>
                 )}
               </>
@@ -159,6 +163,19 @@ export function StudentSectionAdmissionListPage() {
             aria-label="Status"
           />
         </div>
+        {canManage && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-blue-50/60 px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 font-semibold text-blue-900">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-white">
+                <ClipboardCheck className="h-4 w-4" />
+              </span>
+              Verification queue
+            </div>
+            <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700">
+              {result.totalElements} {result.totalElements === 1 ? "application" : "applications"}
+            </span>
+          </div>
+        )}
         {loading ? (
           <Loader label="Loading admissions..." />
         ) : result.content.length ? (

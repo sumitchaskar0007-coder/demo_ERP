@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jadhavr.erp.common.api.ErrorResponse;
 import com.jadhavr.erp.auth.security.CustomUserDetailsService;
 import com.jadhavr.erp.auth.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -89,6 +90,12 @@ public class SecurityConfig {
                         .permissionsPolicyHeader(permissions -> permissions.policy("camera=(), microphone=(), geolocation=()"))
                         .contentTypeOptions(content -> {}))
                 .authorizeHttpRequests(auth -> auth
+                        // Authentication is evaluated on the original API request. If
+                        // the servlet container performs an ERROR dispatch afterward,
+                        // allow it through so the original 5xx response is not replaced
+                        // by a misleading 401 response for the internal /error path.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").denyAll()
                         .requestMatchers(
                                 "/actuator/health/**",

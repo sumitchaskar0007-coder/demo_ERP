@@ -41,7 +41,7 @@ public class AuthenticationService {
             RefreshTokenRepository refreshTokens, UserRepository users, UserMapper mapper, TokenHashUtil hashes,
             SecurityEventService securityEvents, DistributedRateLimiter rateLimiter,
             @Value("${app.rate-limit.login-account-per-minute:20}") long loginAccountLimit,
-            @Value("${app.rate-limit.login-account-ip-per-minute:5}") long loginAccountIpLimit) {
+            @Value("${app.rate-limit.login-account-ip-per-minute:6}") long loginAccountIpLimit) {
         this.authenticationManager = authenticationManager; this.jwtService = jwtService;
         this.refreshTokens = refreshTokens; this.users = users; this.mapper = mapper; this.hashes = hashes;
         this.securityEvents = securityEvents;

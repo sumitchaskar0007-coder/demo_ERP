@@ -48,31 +48,31 @@ describe("student section admission actions", () => {
   it("shows Review only after Fee Section moves the admission to the review queue", async () => {
     showAdmission("STUDENT_SECTION_REVIEW_PENDING");
 
-    expect(await screen.findByRole("button", { name: "Review" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "View" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Print" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Review application" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View details" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Print form" })).not.toBeInTheDocument();
   });
 
   it("does not offer Review while the submitted form is awaiting fee verification", async () => {
     showAdmission("SUBMITTED");
 
-    expect(await screen.findByRole("button", { name: "View" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "View details" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review application" })).not.toBeInTheDocument();
   });
 
   it("shows View and Print after student section approval", async () => {
     showAdmission("STUDENT_SECTION_APPROVED");
 
-    expect(await screen.findByRole("button", { name: "View" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Print" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "View details" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Print form" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review application" })).not.toBeInTheDocument();
   });
 
   it("shows View and Print for every later state", async () => {
     showAdmission("PRINCIPAL_APPROVED");
 
-    expect(await screen.findByRole("button", { name: "View" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Print" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "View details" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Print form" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review application" })).not.toBeInTheDocument();
   });
 });

@@ -1,11 +1,89 @@
 <!doctype html>
-<html>
-<body style="font-family:Arial,sans-serif;color:#172033">
-  <h2>Jadhavar Institute</h2>
-  <p>Hello <span th:text="${name}"></span>,</p>
-  <p>This is a reminder that fees are pending for admission number <strong th:text="${admissionNumber}"></strong>.</p>
-  <p>Remaining amount: <strong>₹<span th:text="${remainingAmount}"></span></strong></p>
-  <p><a th:href="${url}">View fee details</a></p>
-  <p>If you have already paid, please submit your payment details in the portal.</p>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Fee Payment Reminder</title>
+  <style>
+    @media only screen and (max-width: 620px) {
+      .email-shell { width: 100% !important; }
+      .content-cell { padding: 32px 22px !important; }
+      .header-cell { padding: 24px 22px !important; }
+      .details-cell { padding: 22px !important; }
+      .mobile-full { width: 100% !important; }
+      .amount-text { font-size: 28px !important; line-height: 36px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;color:#0F172A;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">
+    You have an outstanding fee balance on your ERP account.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;background-color:#F1F5F9;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="email-shell" style="width:600px;max-width:600px;border-collapse:separate;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td align="center" class="header-cell" style="padding:28px 40px;background-color:#1E3A8A;">
+              <p style="margin:0;color:#FFFFFF;font-size:20px;line-height:28px;font-weight:700;letter-spacing:1.5px;">YOUR ERP</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="content-cell" style="padding:44px 48px 40px;background-color:#FFFFFF;">
+              <p style="margin:0 0 10px;color:#D97706;font-size:12px;line-height:18px;font-weight:700;letter-spacing:1.2px;text-align:center;text-transform:uppercase;">Outstanding balance</p>
+              <h1 style="margin:0 0 32px;color:#0F172A;font-size:28px;line-height:36px;font-weight:700;text-align:center;">Fee Payment Reminder</h1>
+
+              <p style="margin:0 0 12px;color:#0F172A;font-size:16px;line-height:26px;">
+                Hello <strong th:text="${name}">Student Name</strong>,
+              </p>
+              <p style="margin:0 0 28px;color:#64748B;font-size:15px;line-height:25px;">This is a reminder that you have an outstanding fee balance on your ERP account.</p>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:separate;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 4px 12px rgba(15,23,42,0.06);">
+                <tr>
+                  <td class="details-cell" style="padding:26px 28px;">
+                    <p style="margin:0 0 22px;color:#1E3A8A;font-size:12px;line-height:18px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;">Fee details</p>
+
+                    <p style="margin:0 0 5px;color:#64748B;font-size:12px;line-height:18px;font-weight:700;text-transform:uppercase;">Admission number</p>
+                    <p th:text="${admissionNumber}" style="margin:0 0 24px;color:#0F172A;font-size:16px;line-height:24px;font-weight:700;word-break:break-word;">Admission Number</p>
+
+                    <p style="margin:0 0 5px;color:#64748B;font-size:12px;line-height:18px;font-weight:700;text-transform:uppercase;">Outstanding amount</p>
+                    <p class="amount-text" style="margin:0;color:#D97706;font-size:32px;line-height:40px;font-weight:700;word-break:break-word;">₹<span th:text="${remainingAmount}">25,000</span></p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0;color:#334155;font-size:14px;line-height:23px;text-align:center;">Please review your fee details and complete the pending payment at your earliest convenience.</p>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;margin-top:30px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="mobile-full" style="border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#2563EB" style="border-radius:9px;">
+                          <a th:href="${url}" style="display:inline-block;padding:14px 30px;color:#FFFFFF;font-size:14px;line-height:20px;font-weight:700;letter-spacing:0.5px;text-decoration:none;border-radius:9px;">VIEW FEE DETAILS</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:28px 0 0;color:#64748B;font-size:13px;line-height:21px;text-align:center;">If you have already completed the payment, please disregard this reminder.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:24px 28px;background-color:#F8FAFC;border-top:1px solid #E2E8F0;">
+              <p style="margin:0 0 8px;color:#0F172A;font-size:14px;line-height:20px;font-weight:700;">ERP Administration</p>
+              <p style="margin:0;color:#64748B;font-size:12px;line-height:19px;">This is an automated email.<br>Please do not reply to this email.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -96,8 +97,8 @@ class LoginRateLimitFilterTest {
         verify(limiter).check(eq("http:auth:login:ip"), eq("198.51.100.40"),
                 eq(20L), any(Duration.class));
         verify(limiter).check(eq("http:auth:login:account"), eq("student@example.com"),
-                eq(5L), any(Duration.class));
-        verify(limiter).checkBackoff(
+                eq(6L), any(Duration.class));
+        verify(limiter, never()).checkBackoff(
                 "http:auth:login:backoff-account", "student@example.com");
     }
 
@@ -119,7 +120,7 @@ class LoginRateLimitFilterTest {
     }
 
     @Test
-    void failedLoginRecordsBackoffAndNextAttemptReturnsRetryAfter() throws Exception {
+    void failedLoginDoesNotApplyImmediateExponentialBackoff() throws Exception {
         MockHttpServletRequest request = loginRequest("student@example.com");
         when(clientIps.resolve(request)).thenReturn("198.51.100.40");
         FilterChain failingChain = mock(FilterChain.class);
@@ -130,22 +131,48 @@ class LoginRateLimitFilterTest {
 
         filter.doFilter(request, new MockHttpServletResponse(), failingChain);
 
-        verify(limiter).recordFailure(eq("http:auth:login:backoff-ip"),
+        verify(limiter, never()).recordFailure(eq("http:auth:login:backoff-ip"),
                 eq("198.51.100.40"), any(), any(), any());
-        verify(limiter).recordFailure(eq("http:auth:login:backoff-account"),
+        verify(limiter, never()).recordFailure(eq("http:auth:login:backoff-account"),
                 eq("student@example.com"), any(), any(), any());
+    }
 
-        MockHttpServletRequest retry = loginRequest("student@example.com");
-        when(clientIps.resolve(retry)).thenReturn("198.51.100.40");
-        when(limiter.checkBackoff(
-                "http:auth:login:backoff-account", "student@example.com"))
-                .thenReturn(new DistributedRateLimiter.Decision(false, 8));
+    @Test
+    void seventhLoginAttemptReturnsTooManyAuthenticationAttempts() throws Exception {
+        when(limiter.check(eq("http:auth:login:account"), eq("student@example.com"),
+                eq(6L), any(Duration.class)))
+                .thenReturn(
+                        new DistributedRateLimiter.Decision(true, 0),
+                        new DistributedRateLimiter.Decision(true, 0),
+                        new DistributedRateLimiter.Decision(true, 0),
+                        new DistributedRateLimiter.Decision(true, 0),
+                        new DistributedRateLimiter.Decision(true, 0),
+                        new DistributedRateLimiter.Decision(true, 0),
+                        new DistributedRateLimiter.Decision(false, 30));
+        FilterChain failingChain = mock(FilterChain.class);
+        doAnswer(invocation -> {
+            ((MockHttpServletResponse) invocation.getArgument(1)).setStatus(401);
+            return null;
+        }).when(failingChain).doFilter(any(), any());
+
+        for (int attempt = 1; attempt <= 6; attempt++) {
+            MockHttpServletRequest request = loginRequest("student@example.com");
+            when(clientIps.resolve(request)).thenReturn("198.51.100.40");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            filter.doFilter(request, response, failingChain);
+
+            assertThat(response.getStatus()).isEqualTo(401);
+        }
+
+        MockHttpServletRequest seventh = loginRequest("student@example.com");
+        when(clientIps.resolve(seventh)).thenReturn("198.51.100.40");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        filter.doFilter(retry, response, mock(FilterChain.class));
+        filter.doFilter(seventh, response, failingChain);
 
         assertThat(response.getStatus()).isEqualTo(429);
-        assertThat(response.getHeader("Retry-After")).isEqualTo("8");
+        assertThat(response.getHeader("Retry-After")).isEqualTo("30");
         assertThat(response.getContentAsString()).contains("Too many authentication attempts");
     }
 

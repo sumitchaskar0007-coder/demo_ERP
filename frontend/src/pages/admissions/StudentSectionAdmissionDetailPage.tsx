@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, X } from "lucide-react";
+import { CheckCircle2, CircleAlert, Pencil, ShieldCheck, X, XCircle } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useParams } from "react-router-dom";
@@ -119,10 +119,24 @@ export function StudentSectionAdmissionDetailPage() {
               Cancel Changes
             </Button>
           )}
-          {canApprove && <Button onClick={() => setModal("approve")}>Approve</Button>}
+          {canVerify && (
+            <Button
+              disabled={!canApprove}
+              title={
+                canApprove
+                  ? "Approve this application"
+                  : "Complete the verification checklist first"
+              }
+              onClick={() => setModal("approve")}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Approve application
+            </Button>
+          )}
           {canVerify && (
             <Button variant="danger" onClick={() => setModal("reject")}>
-              Reject
+              <XCircle className="h-4 w-4" />
+              Reject application
             </Button>
           )}
         </div>
@@ -132,6 +146,27 @@ export function StudentSectionAdmissionDetailPage() {
           </p>
         )}
       </Card>
+      {canVerify && (
+        <VerificationChecklist
+          items={[
+            {
+              label: "Admission fee verified",
+              detail: "Fee Section has confirmed the required admission payment.",
+              complete: admissionFormFeeVerified,
+            },
+            {
+              label: "Application details completed",
+              detail: "The student has submitted the complete admission form.",
+              complete: Boolean(admission.detailsCompletedAt),
+            },
+            {
+              label: "Student photo available",
+              detail: "A student photograph is attached to the application.",
+              complete: admission.photoAvailable,
+            },
+          ]}
+        />
+      )}
       {canChangeInformation && editing ? (
         <DetailedAdmissionForm admission={admission} onSaved={finishEditing} />
       ) : (
@@ -274,6 +309,53 @@ export function StudentSectionAdmissionDetailPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function VerificationChecklist({
+  items,
+}: {
+  items: { label: string; detail: string; complete: boolean }[];
+}) {
+  const completed = items.filter((item) => item.complete).length;
+  return (
+    <Card className="overflow-hidden border-blue-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 bg-blue-50/70 px-5 py-4">
+        <div>
+          <h2 className="font-bold text-slate-900">Verification checklist</h2>
+          <p className="mt-1 text-xs text-slate-600">
+            Complete every check before approving this application.
+          </p>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-blue-700 shadow-sm">
+          {completed} of {items.length} complete
+        </span>
+      </div>
+      <div className="grid gap-3 p-5 md:grid-cols-3">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className={`rounded-2xl border p-4 ${
+              item.complete
+                ? "border-emerald-200 bg-emerald-50/70"
+                : "border-amber-200 bg-amber-50/70"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              {item.complete ? (
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              ) : (
+                <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              )}
+              <div>
+                <p className="text-sm font-bold text-slate-900">{item.label}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{item.detail}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
