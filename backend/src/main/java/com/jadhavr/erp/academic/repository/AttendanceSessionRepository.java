@@ -1,1 +1,0 @@
-package com.jadhavr.erp.academic.repository; import com.jadhavr.erp.academic.entity.AttendanceSession; import org.springframework.data.jpa.repository.*; @org.springframework.stereotype.Repository("academicAttendanceSessionRepository") public interface AttendanceSessionRepository extends JpaRepository<AttendanceSession,Long>,JpaSpecificationExecutor<AttendanceSession>{}

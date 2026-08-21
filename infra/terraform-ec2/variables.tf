@@ -1,6 +1,6 @@
 variable "project_name" {
   type    = string
-  default = "jadhavr-erp"
+  default = "college-erp"
 }
 
 variable "environment" {
@@ -101,7 +101,7 @@ variable "frontend_origins" {
 
 variable "api_certificate_arn" {
   type        = string
-  description = "Existing issued ACM certificate ARN for api.jadhavaredu.com in aws_region."
+  description = "Existing issued ACM certificate ARN for api.collegeerp.example in aws_region."
 
   validation {
     condition     = can(regex("^arn:aws[a-z-]*:acm:[a-z0-9-]+:[0-9]{12}:certificate/", var.api_certificate_arn))

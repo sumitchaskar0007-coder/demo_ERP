@@ -129,7 +129,7 @@ Use a two-phase network handoff:
 4. Set `production_database_access_ready=true` and `desired_count=2` or higher,
    then apply again.
 
-The live staging state currently owns the `jadhavaredu.com` DNS records. Keep
+The live staging state currently owns the `collegeerp.example` DNS records. Keep
 phase one on the AWS temporary domain. A later custom-domain cutover requires
 an explicit DNS/state handoff; do not let the new production state overwrite
 records still owned by staging.

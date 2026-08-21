@@ -74,7 +74,7 @@ College ERP is a secure, modular college management platform.
 ## Repository structure
 
 ```text
-Jadhavr-ERP/
+College-ERP/
 |-- backend/          Spring Boot REST API, tests, and Postman collections
 |-- frontend/         React, TypeScript, Vite, and Tailwind admin portal
 |-- CONTRIBUTING.md   Contribution guidelines

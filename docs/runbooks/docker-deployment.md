@@ -55,12 +55,12 @@ For an Apple Silicon development machine and x86_64 EC2 deployment, push a
 multi-platform manifest to a registry:
 
 ```bash
-docker buildx create --name jadhavr-builder --use --bootstrap
+docker buildx create --name college-erp-builder --use --bootstrap
 docker buildx build --platform linux/amd64,linux/arm64 \
   --build-arg JAVA_VERSION=17 \
-  -t REGISTRY/jadhavr-erp-backend:VERSION --push ./backend
+  -t REGISTRY/college-erp-backend:VERSION --push ./backend
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -t REGISTRY/jadhavr-erp-frontend:VERSION --push ./frontend
+  -t REGISTRY/college-erp-frontend:VERSION --push ./frontend
 ```
 
 To test the EC2 architecture locally without pushing:
@@ -68,9 +68,9 @@ To test the EC2 architecture locally without pushing:
 ```bash
 docker buildx build --platform linux/amd64 --load \
   --build-arg JAVA_VERSION=17 \
-  -t jadhavr-erp-backend:amd64 ./backend
+  -t college-erp-backend:amd64 ./backend
 docker buildx build --platform linux/amd64 --load \
-  -t jadhavr-erp-frontend:amd64 ./frontend
+  -t college-erp-frontend:amd64 ./frontend
 ```
 
 ## Amazon Linux 2023

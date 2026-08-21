@@ -28,7 +28,7 @@ The latest detailed read-only inventory is the 2026-07-28 snapshot. It found:
 - no live email/report SQS queues or async worker;
 - SES still in the sandbox;
 - an SNS alert topic with zero subscriptions;
-- `jadhavaredu.com` currently served by staging-labelled CloudFront/ALB
+- `collegeerp.example` currently served by staging-labelled CloudFront/ALB
   resources; and
 - GitHub authentication/protected-environment configuration not ready for a
   production run.
@@ -97,7 +97,7 @@ Before planning, also obtain:
 - the exact GitHub repository and protected-environment owners;
 - the Terraform backend configuration and state-move/import plan; and
 - the approved ACM/Route 53/CloudFront/WAF/SES ownership plan for
-  `jadhavaredu.com` and hosted zone `Z06012413HNDFGVBFSYW7`.
+  `collegeerp.example` and hosted zone `Z06012413HNDFGVBFSYW7`.
 
 ## Terraform
 
@@ -354,8 +354,8 @@ on the GitHub `production` environment because YAML cannot enforce them.
 
 ## Domain cutover
 
-The target domain is `jadhavaredu.com`, with `www` and
-`api.jadhavaredu.com`, in hosted zone `Z06012413HNDFGVBFSYW7`. It currently
+The target domain is `collegeerp.example`, with `www` and
+`api.collegeerp.example`, in hosted zone `Z06012413HNDFGVBFSYW7`. It currently
 routes to staging-labelled resources. Before a production state/apply:
 
 1. inventory the current Route 53 records, ACM certificates, CloudFront
@@ -377,9 +377,9 @@ After the approved cutover, verify:
 
 ```sh
 curl --fail --silent --show-error \
-  https://api.jadhavaredu.com/actuator/health/readiness
+  https://api.collegeerp.example/actuator/health/readiness
 curl --fail --silent --show-error \
-  https://jadhavaredu.com/api/health
+  https://collegeerp.example/api/health
 ```
 
 Also test login/refresh/logout, tenant isolation, SSE reconnect, private

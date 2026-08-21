@@ -1,6 +1,6 @@
 variable "project_name" {
   type    = string
-  default = "jadhavr-erp"
+  default = "college-erp"
 }
 
 variable "environment" {
@@ -382,7 +382,7 @@ variable "mail_reply_to" {
 
 variable "github_repository" {
   type        = string
-  default     = "trijja/Jadhavr-ERP"
+  default     = "trijja/College-ERP"
   description = "GitHub owner/repository allowed to assume the deployment role through the production environment."
 }
 

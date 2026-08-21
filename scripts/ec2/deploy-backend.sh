@@ -78,7 +78,7 @@ if [[ ! "${REDIS_IMAGE}" =~ ^(redis|docker\.io/library/redis)@sha256:[a-f0-9]{64
   exit 1
 fi
 
-PROJECT_NAME="jadhavr-erp"
+PROJECT_NAME="college-erp"
 LOG_GROUP="/ec2/${PROJECT_NAME}-production-ec2"
 RUN_DIR="/run/${PROJECT_NAME}"
 BACKEND_ENV="${RUN_DIR}/backend.env"
@@ -88,18 +88,18 @@ BACKEND_SECRETS_BACKUP_DIR="${RUN_DIR}/backend-secrets-previous"
 REDIS_SECRETS_DIR="${RUN_DIR}/redis-secrets"
 REDIS_CONFIG="${REDIS_SECRETS_DIR}/redis.conf"
 REDIS_CONFIG_BACKUP="${RUN_DIR}/redis.previous.conf"
-NETWORK_NAME="jadhavr-runtime"
-REDIS_CONTAINER="jadhavr-redis"
-PREVIOUS_REDIS_CONTAINER="jadhavr-redis-previous"
-BACKEND_CONTAINER="jadhavr-backend"
-PREVIOUS_CONTAINER="jadhavr-backend-previous"
-REDIS_VOLUME="jadhavr-redis-data"
+NETWORK_NAME="college-erp-runtime"
+REDIS_CONTAINER="college-erp-redis"
+PREVIOUS_REDIS_CONTAINER="college-erp-redis-previous"
+BACKEND_CONTAINER="college-erp-backend"
+PREVIOUS_CONTAINER="college-erp-backend-previous"
+REDIS_VOLUME="college-erp-redis-data"
 
 umask 077
 install -d -m 0700 "${RUN_DIR}"
 exec 9>"${RUN_DIR}/deploy.lock"
 if ! flock -n 9; then
-  echo "Another Jadhavr ERP deployment is already running" >&2
+  echo "Another College ERP deployment is already running" >&2
   exit 1
 fi
 
@@ -119,7 +119,7 @@ if [[ "${IMAGE_URI}" != "${ECR_REGISTRY}/"* ]]; then
   exit 1
 fi
 backend_image_reference="${IMAGE_URI#"${ECR_REGISTRY}/"}"
-if [[ ! "${backend_image_reference}" =~ ^jadhavr-erp-production-backend@sha256:[a-f0-9]{64}$ ]]; then
+if [[ ! "${backend_image_reference}" =~ ^college-erp-production-backend@sha256:[a-f0-9]{64}$ ]]; then
   echo "image_uri must use the production backend ECR repository and an immutable sha256 digest" >&2
   exit 1
 fi
@@ -607,23 +607,23 @@ deployment_committed=true
 docker rm -f "${PREVIOUS_CONTAINER}" >/dev/null 2>&1 || true
 docker rm -f "${PREVIOUS_REDIS_CONTAINER}" >/dev/null 2>&1 || true
 
-install -d -m 0750 /opt/jadhavr-erp/bin /etc/jadhavr-erp
-if [ "$(readlink -f "$0")" != "/opt/jadhavr-erp/bin/deploy-backend.sh" ]; then
-  install -m 0700 "$0" /opt/jadhavr-erp/bin/deploy-backend.sh
+install -d -m 0750 /opt/college-erp/bin /etc/college-erp
+if [ "$(readlink -f "$0")" != "/opt/college-erp/bin/deploy-backend.sh" ]; then
+  install -m 0700 "$0" /opt/college-erp/bin/deploy-backend.sh
 fi
-if [ "$(readlink -f "${CONFIG_FILE}")" != "/etc/jadhavr-erp/deployment.json" ]; then
-  install -m 0600 "${CONFIG_FILE}" /etc/jadhavr-erp/deployment.json
+if [ "$(readlink -f "${CONFIG_FILE}")" != "/etc/college-erp/deployment.json" ]; then
+  install -m 0600 "${CONFIG_FILE}" /etc/college-erp/deployment.json
 fi
-unit_tmp="$(mktemp /etc/systemd/system/jadhavr-erp.service.XXXXXX)"
+unit_tmp="$(mktemp /etc/systemd/system/college-erp.service.XXXXXX)"
 {
   printf '[Unit]\n'
-  printf 'Description=Jadhavr ERP backend containers\n'
+  printf 'Description=College ERP backend containers\n'
   printf 'Wants=network-online.target\n'
   printf 'After=network-online.target docker.service\n'
   printf 'Requires=docker.service\n\n'
   printf '[Service]\n'
   printf 'Type=oneshot\n'
-  printf 'ExecStart=/opt/jadhavr-erp/bin/deploy-backend.sh /etc/jadhavr-erp/deployment.json\n'
+  printf 'ExecStart=/opt/college-erp/bin/deploy-backend.sh /etc/college-erp/deployment.json\n'
   printf 'RemainAfterExit=yes\n'
   printf 'Restart=on-failure\n'
   printf 'RestartSec=30s\n'
@@ -632,8 +632,8 @@ unit_tmp="$(mktemp /etc/systemd/system/jadhavr-erp.service.XXXXXX)"
   printf 'WantedBy=multi-user.target\n'
 } >"${unit_tmp}"
 chmod 0644 "${unit_tmp}"
-mv -f "${unit_tmp}" /etc/systemd/system/jadhavr-erp.service
+mv -f "${unit_tmp}" /etc/systemd/system/college-erp.service
 systemctl daemon-reload
-systemctl enable jadhavr-erp.service >/dev/null
+systemctl enable college-erp.service >/dev/null
 
 echo "Deployed ${IMAGE_URI}; readiness is healthy"

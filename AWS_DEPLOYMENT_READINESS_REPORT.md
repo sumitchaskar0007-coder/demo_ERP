@@ -7,15 +7,15 @@ Fargate backend, RDS PostgreSQL, ElastiCache Valkey, Secrets Manager, Route 53, 
 
 ## Decision
 
-The audited application is deployed and healthy at **https://jadhavaredu.com** in AWS account
+The audited application is deployed and healthy at **https://collegeerp.example** in AWS account
 `814645955631`, region `ap-south-1`. The Terraform environment remains named `staging` because the
 deployment began with a temporary CloudFront domain before the supplied Route 53 domain was
 attached.
 
 Deployment verification completed:
 
-- Route 53 and ACM serve `jadhavaredu.com` and `www.jadhavaredu.com`;
-  `api.jadhavaredu.com` is the CloudFront ALB origin.
+- Route 53 and ACM serve `collegeerp.example` and `www.collegeerp.example`;
+  `api.collegeerp.example` is the CloudFront ALB origin.
 - Both ECS Fargate tasks and both ALB targets are healthy.
 - Public readiness returns `{"status":"UP"}`.
 - A live Secrets Manager-backed administrator login succeeds with the `SUPER_ADMIN` role.
@@ -60,7 +60,7 @@ Production has a separate ownership model and has not been applied from the curr
 - Upgraded Netty to `4.1.136.Final` and PostgreSQL JDBC to `42.7.12` to remove five fixable
   high-severity container findings.
 - Created and initialized the encrypted, versioned, publicly blocked Terraform state bucket
-  `jadhavr-erp-terraform-state-814645955631-ap-south-1`.
+  `college-erp-terraform-state-814645955631-ap-south-1`.
 - Added temporary/default CloudFront domain support, then attached the supplied Route 53 domain and
   ACM certificates without replacing data resources.
 - Restricted ALB origin access to CloudFront addresses plus a generated secret origin header.
@@ -96,7 +96,7 @@ Production has a separate ownership model and has not been applied from the curr
 | Live AWS identity | Pass — account `814645955631`, region `ap-south-1` |
 | Terraform plan/apply | Pass — deployed; final plan reports no changes |
 | Live ECS/ALB health | Pass — 2/2 tasks running and 2/2 targets healthy |
-| Public readiness | Pass — `https://jadhavaredu.com/actuator/health/readiness` is UP |
+| Public readiness | Pass — `https://collegeerp.example/actuator/health/readiness` is UP |
 | Authenticated smoke | Pass — Secrets Manager-backed Super Admin login succeeded |
 | SES domain authentication | Pass — identity, DKIM, and custom MAIL FROM report SUCCESS |
 | SES SMTP smoke | Pass — authenticated delivery to the AWS mailbox simulator |

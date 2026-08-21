@@ -1,0 +1,3 @@
+package com.collegeerp.erp.fee.dto;
+import com.collegeerp.erp.fee.enums.*; import java.math.BigDecimal; import java.time.LocalDateTime;
+public record FeeStructureResponse(Long id,Long collegeId,String collegeName,String collegeCode,Long departmentId,String departmentName,String departmentCode,String academicYear,String courseYear,String title,String description,BigDecimal totalFee,BigDecimal scholarshipAmount,BigDecimal payableFee,BigDecimal minimumAmountForAdmission,BigDecimal admissionFee,BigDecimal tuitionFee,BigDecimal examFee,BigDecimal libraryFee,BigDecimal otherFee,StudentCategory studentCategory,String customCategoryName,String categoryLabel,String gender,FeeStructureStatus status,LocalDateTime createdAt,LocalDateTime updatedAt){}

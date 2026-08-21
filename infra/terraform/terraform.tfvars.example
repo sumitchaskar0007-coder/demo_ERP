@@ -1,11 +1,11 @@
-project_name    = "jadhavr-erp"
+project_name    = "college-erp"
 environment     = "preprod"
 aws_region      = "ap-south-1"
 temporary_domain = false
 domain_name     = "erp.example.com"
 api_domain_name = "api.erp.example.com"
 route53_zone_id = "Z0000000000000000000"
-backend_image   = "000000000000.dkr.ecr.ap-south-1.amazonaws.com/jadhavr-erp-preprod-backend:v1.0.0"
+backend_image   = "000000000000.dkr.ecr.ap-south-1.amazonaws.com/college-erp-preprod-backend:v1.0.0"
 desired_count   = 2
 backend_task_cpu                 = 1024
 backend_task_memory              = 2048
@@ -29,6 +29,6 @@ async_worker_db_pool_min_idle     = 1
 malware_protection_enabled        = true
 alert_email     = "operations@example.com"
 mail_enabled    = true
-github_repository = "your-github-owner/Jadhavr-ERP"
+github_repository = "your-github-owner/College-ERP"
 # Keep true only for the one state that owns the account-global provider.
 manage_github_oidc_provider = true

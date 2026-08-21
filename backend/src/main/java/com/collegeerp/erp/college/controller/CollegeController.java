@@ -1,0 +1,155 @@
+package com.collegeerp.erp.college.controller;
+
+import com.collegeerp.erp.college.dto.CollegeResponse;
+import com.collegeerp.erp.college.dto.CreateCollegeRequest;
+import com.collegeerp.erp.college.dto.UpdateCollegeRequest;
+import com.collegeerp.erp.college.service.CollegeService;
+import com.collegeerp.erp.college.service.CollegeImageStorageService;
+import com.collegeerp.erp.college.repository.CollegeRepository;
+import com.collegeerp.erp.common.api.ApiResponse;
+import com.collegeerp.erp.college.entity.CollegeStatus;
+import com.collegeerp.erp.common.dto.PageResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.List;
+import java.util.Map;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/super-admin/colleges")
+public class CollegeController {
+
+    private final CollegeService collegeService;
+    private final CollegeImageStorageService imageStorage;
+    private final CollegeRepository colleges;
+
+    public CollegeController(CollegeService collegeService, CollegeImageStorageService imageStorage,
+            CollegeRepository colleges) {
+        this.collegeService = collegeService;
+        this.imageStorage = imageStorage;
+        this.colleges = colleges;
+    }
+
+    @PostMapping("/images/{kind}")
+    public ApiResponse<Map<String, String>> uploadImage(@PathVariable String kind,
+            @RequestParam("file") MultipartFile file) {
+        return ApiResponse.success("College image uploaded successfully",
+                Map.of("url", imageStorage.storePending(file, kind)));
+    }
+
+    @GetMapping("/images/pending/{kind}/{filename:.+}")
+    public ResponseEntity<org.springframework.core.io.Resource> pendingImage(
+            @PathVariable String kind, @PathVariable String filename) {
+        int separator = filename.lastIndexOf('.');
+        if (separator < 1) return ResponseEntity.badRequest().build();
+        var image = imageStorage.loadPending(kind, filename.substring(0, separator),
+                filename.substring(separator + 1));
+        return imageResponse(image);
+    }
+
+    @GetMapping("/{id}/images/{kind}")
+    public ResponseEntity<org.springframework.core.io.Resource> image(
+            @PathVariable Long id, @PathVariable String kind) {
+        var college = colleges.findById(id).orElseThrow(() ->
+                new com.collegeerp.erp.common.exception.ResourceNotFoundException("College not found"));
+        String key = "logo".equals(kind) ? college.getLogoUrl()
+                : "qr-code".equals(kind) ? college.getQrCodeUrl() : null;
+        if (key == null) return ResponseEntity.notFound().build();
+        return imageResponse(imageStorage.load(key));
+    }
+
+    private ResponseEntity<org.springframework.core.io.Resource> imageResponse(
+            CollegeImageStorageService.ImageResource image) {
+        return ResponseEntity.ok()
+                .contentType(image.mediaType())
+                .header("Content-Disposition", "inline; filename=\"college-image\"")
+                .body(image.resource());
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<CollegeResponse>> createCollege(
+            @Valid @RequestBody CreateCollegeRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(
+                        "College created successfully",
+                        collegeService.createCollege(request)
+                ));
+    }
+
+    @GetMapping
+    public ApiResponse<List<CollegeResponse>> getAllColleges() {
+        return ApiResponse.success("Colleges retrieved successfully", collegeService.getAllColleges());
+    }
+
+    @GetMapping("/active")
+    public ApiResponse<List<CollegeResponse>> getActiveColleges() {
+        return ApiResponse.success(
+                "Active colleges retrieved successfully",
+                collegeService.getActiveColleges()
+        );
+    }
+
+    @GetMapping("/search")
+    public ApiResponse<PageResponse<CollegeResponse>> searchColleges(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) CollegeStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return ApiResponse.success(
+                "Colleges searched successfully",
+                collegeService.searchColleges(keyword, status, page, size, sortBy, sortDir)
+        );
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<CollegeResponse> getCollegeById(@PathVariable Long id) {
+        return ApiResponse.success("College retrieved successfully", collegeService.getCollegeById(id));
+    }
+
+    @GetMapping("/code/{code}")
+    public ApiResponse<CollegeResponse> getCollegeByCode(@PathVariable String code) {
+        return ApiResponse.success(
+                "College retrieved successfully",
+                collegeService.getCollegeByCode(code)
+        );
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<CollegeResponse> updateCollege(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateCollegeRequest request) {
+        return ApiResponse.success(
+                "College updated successfully",
+                collegeService.updateCollege(id, request)
+        );
+    }
+
+    @PatchMapping("/{id}/activate")
+    public ApiResponse<CollegeResponse> activateCollege(@PathVariable Long id) {
+        return ApiResponse.success(
+                "College activated successfully",
+                collegeService.activateCollege(id)
+        );
+    }
+
+    @PatchMapping("/{id}/deactivate")
+    public ApiResponse<CollegeResponse> deactivateCollege(@PathVariable Long id) {
+        return ApiResponse.success(
+                "College deactivated successfully",
+                collegeService.deactivateCollege(id)
+        );
+    }
+}

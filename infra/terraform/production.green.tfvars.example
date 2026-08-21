@@ -9,7 +9,7 @@ green_desired_count   = 2
 
 # Must be an ARM64 image built from the reviewed release commit and pinned by
 # digest. Never reuse the currently deployed AMD64-only digest here.
-green_backend_image = "814645955631.dkr.ecr.ap-south-1.amazonaws.com/jadhavr-erp-production-ecs-backend@sha256:replace-with-arm64-digest"
+green_backend_image = "814645955631.dkr.ecr.ap-south-1.amazonaws.com/college-erp-production-ecs-backend@sha256:replace-with-arm64-digest"
 
 # Production metrics support half the current CPU while memory remains at 2 GiB.
 green_backend_task_cpu    = 256

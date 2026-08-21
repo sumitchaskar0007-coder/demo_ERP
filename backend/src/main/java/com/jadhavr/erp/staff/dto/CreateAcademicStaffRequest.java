@@ -1,1 +1,0 @@
-package com.jadhavr.erp.staff.dto; import jakarta.validation.constraints.*; import java.time.LocalDate; public record CreateAcademicStaffRequest(@NotNull Long collegeId,@NotNull Long departmentId,@NotBlank @Size(min=2,max=150) String fullName,@NotBlank @Email @Size(max=150) String email,@NotBlank @Pattern(regexp="^[0-9]{10,15}$") String phone,LocalDate joiningDate){}

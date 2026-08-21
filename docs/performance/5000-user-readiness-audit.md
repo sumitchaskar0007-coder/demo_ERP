@@ -1,4 +1,4 @@
-# Jadhavr ERP 5,000-user readiness audit
+# College ERP 5,000-user readiness audit
 
 AWS inventory date: 2026-07-28
 
@@ -23,7 +23,7 @@ This document records a point-in-time repository review and read-only AWS inspec
 - Existing staging resources were not changed.
 - The public domain currently routes to the staging-labelled stack. That stack must not be treated as an isolated load-test target until its data, users, integrations and ownership are explicitly verified.
 - Production RDS and production network resources are externally owned. Application Terraform must consume their identifiers and must not create a second production VPC, RDS instance, DB subnet group, RDS KMS key or RDS security group.
-- The intended production domain is `jadhavaredu.com` in hosted zone
+- The intended production domain is `collegeerp.example` in hosted zone
   `Z06012413HNDFGVBFSYW7`. The current staging Terraform state owns related
   Route 53/ACM/CloudFront/WAF/SES resources, so a controlled move/import plan is
   required before a separate production state can manage them.
@@ -35,26 +35,26 @@ This document records a point-in-time repository review and read-only AWS inspec
 | Component       | Verified state                                                                                                                                                                 | Readiness observation                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
 | Identity        | Account `814645955631`; region `ap-south-1`; root CLI session                                                                                                                  | P0 governance blocker                                                          |
-| ECS             | Only `jadhavr-erp-staging`; service `jadhavr-erp-staging-backend`; two healthy Fargate tasks                                                                                   | No production ECS service exists                                               |
+| ECS             | Only `college-erp-staging`; service `college-erp-staging-backend`; two healthy Fargate tasks                                                                                   | No production ECS service exists                                               |
 | Task size       | 1 vCPU and 2 GiB per task; task definition revision 8                                                                                                                          | Candidate baseline only; capacity unproven                                     |
 | Autoscaling     | Minimum 2, maximum 6; CPU target 60%, memory target 70%                                                                                                                        | No scheduled scaling, requests-per-target policy or maximum 12                 |
 | ALB             | Only staging ALB/TG; both targets healthy; deletion protection enabled                                                                                                         | Production ALB/TG absent; ALB access logs disabled                             |
-| RDS             | Only `jadhavr-erp-staging-postgres`; PostgreSQL 17.5, `db.t4g.medium`, Multi-AZ, private, encrypted gp3, Performance Insights and enhanced monitoring, 14-day backup retention | No production RDS endpoint; no RDS Proxy; default parameter group              |
-| Valkey          | Only `jadhavr-erp-staging-redis`; two `cache.t4g.small` nodes, TLS required, encrypted at rest, Multi-AZ and seven-day snapshots                                               | No production cache                                                            |
-| CloudFront      | Distribution `E2PWJKUNOR00J0`; apex and `www` aliases; API origin is `api.jadhavaredu.com`                                                                                     | Access logging and behavior compression are disabled                           |
+| RDS             | Only `college-erp-staging-postgres`; PostgreSQL 17.5, `db.t4g.medium`, Multi-AZ, private, encrypted gp3, Performance Insights and enhanced monitoring, 14-day backup retention | No production RDS endpoint; no RDS Proxy; default parameter group              |
+| Valkey          | Only `college-erp-staging-redis`; two `cache.t4g.small` nodes, TLS required, encrypted at rest, Multi-AZ and seven-day snapshots                                               | No production cache                                                            |
+| CloudFront      | Distribution `E2PWJKUNOR00J0`; apex and `www` aliases; API origin is `api.collegeerp.example`                                                                                     | Access logging and behavior compression are disabled                           |
 | Route 53        | Zone `Z06012413HNDFGVBFSYW7`; apex/`www` point to CloudFront; API points to the staging ALB                                                                                    | Public traffic is using staging-labelled resources                             |
-| WAF             | CloudFront Web ACL `jadhavr-erp-staging`; auth rate rule is 300 requests per five minutes per source IP                                                                        | Shared-campus NAT can receive incorrect 429 responses                          |
+| WAF             | CloudFront Web ACL `college-erp-staging`; auth rate rule is 300 requests per five minutes per source IP                                                                        | Shared-campus NAT can receive incorrect 429 responses                          |
 | S3              | Staging frontend/upload buckets, Terraform-state bucket and production artifact bucket remain private                                                                          | Production document bucket is absent                                           |
 | SES             | Domain, DKIM and custom Mail-From verified                                                                                                                                     | Sandbox: 200/day and 1/second; production-access request is denied             |
 | SQS             | No queues in `ap-south-1` or `us-east-1`                                                                                                                                       | Email/report queues and DLQs do not exist                                      |
-| SNS             | Topic `jadhavr-erp-staging-alerts` exists                                                                                                                                      | It has zero subscriptions, so alarms notify nobody                             |
+| SNS             | Topic `college-erp-staging-alerts` exists                                                                                                                                      | It has zero subscriptions, so alarms notify nobody                             |
 | CloudWatch      | Fourteen metric alarms, no dashboard                                                                                                                                           | Coverage is incomplete and one production alarm targets a deleted EC2 instance |
 | Secrets Manager | Staging application, Redis, RDS and mail secrets; production EC2 application-secret metadata                                                                                   | Production runtime DB, migration DB and mail secrets are absent                |
 
 Read-only public checks returned HTTP 200 for
-`https://jadhavaredu.com/` and an `UP` response from its same-origin
+`https://collegeerp.example/` and an `UP` response from its same-origin
 `/api/health` route. A direct
-`https://api.jadhavaredu.com/actuator/health/readiness` check timed out. The
+`https://api.collegeerp.example/actuator/health/readiness` check timed out. The
 successful same-origin check reaches the staging-labelled public stack; it is
 not evidence of a production deployment or 5,000-user capacity.
 
@@ -170,7 +170,7 @@ Container Insights retains only one day of performance logs. The appropriate ret
 
 ## Readiness decision
 
-Jadhavr ERP must not be described as supporting 5,000 concurrently active users. That decision remains blocked until:
+College ERP must not be described as supporting 5,000 concurrently active users. That decision remains blocked until:
 
 1. an isolated staging/load-test environment exists;
 2. synthetic data and at least one unique synthetic account per peak virtual user are available;

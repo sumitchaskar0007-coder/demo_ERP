@@ -15,7 +15,7 @@ RDS-owner-reviewed migration and exact release configuration.
 ## Absolute safety rules
 
 - Never target production.
-- Do not target `jadhavaredu.com`, `www.jadhavaredu.com`, `api.jadhavaredu.com`, the current public CloudFront distribution, the current staging ALB or either standalone public EC2 address.
+- Do not target `collegeerp.example`, `www.collegeerp.example`, `api.collegeerp.example`, the current public CloudFront distribution, the current staging ALB or either standalone public EC2 address.
 - Use an isolated staging/load-test environment with synthetic data only.
 - Use one unique synthetic account per peak virtual user.
 - Disable external email, real payments, real notifications and third-party side effects.

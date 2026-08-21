@@ -18,7 +18,7 @@ This plan separates safe local work from staging and production changes. It does
    - migration database secret ARN.
 5. Apply the zero-task ECS infrastructure phase only after approval, then provide Terraform output `backend_security_group_id` to the RDS owner so PostgreSQL 5432 can be allowed only from that group. This phase still creates cost-bearing application resources.
 6. Keep production Terraform from creating a VPC, RDS instance, RDS subnet group, RDS KMS key or RDS security group. Keep the existing staging-managed behavior unchanged.
-7. Resolve Terraform state ownership for `jadhavaredu.com` / hosted zone `Z06012413HNDFGVBFSYW7`: move or import the staging-owned Route 53, ACM, CloudFront, WAF and SES resources before a separate production state can own them.
+7. Resolve Terraform state ownership for `collegeerp.example` / hosted zone `Z06012413HNDFGVBFSYW7`: move or import the staging-owned Route 53, ACM, CloudFront, WAF and SES resources before a separate production state can own them.
 8. Obtain a current AWS quote and explicit approval before any billable capacity change.
 9. Create or approve an isolated staging/load-test environment. The public staging-labelled stack is not automatically safe for load testing.
 

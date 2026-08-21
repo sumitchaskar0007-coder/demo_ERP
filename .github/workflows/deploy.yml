@@ -241,12 +241,12 @@ jobs:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
-          remote_script="/opt/jadhavr-erp/releases/${RELEASE_TAG}/deploy-backend.sh"
-          remote_config="/opt/jadhavr-erp/releases/${RELEASE_TAG}/deployment.json"
+          remote_script="/opt/college-erp/releases/${RELEASE_TAG}/deploy-backend.sh"
+          remote_config="/opt/college-erp/releases/${RELEASE_TAG}/deployment.json"
           remote_command="$(
             printf '%s\n' \
               'set -euo pipefail' \
-              "install -d -m 0750 /opt/jadhavr-erp/releases/${RELEASE_TAG}" \
+              "install -d -m 0750 /opt/college-erp/releases/${RELEASE_TAG}" \
               "aws s3 cp s3://${ARTIFACT_BUCKET}/${SCRIPT_KEY} ${remote_script} --region ${AWS_REGION} --only-show-errors" \
               "echo '${SCRIPT_CHECKSUM}  ${remote_script}' | sha256sum -c -" \
               "chmod 0700 ${remote_script}" \
@@ -264,7 +264,7 @@ jobs:
               --instance-ids "$EC2_INSTANCE_ID" \
               --document-name AWS-RunShellScript \
               --timeout-seconds 1800 \
-              --comment "Deploy Jadhavr ERP ${RELEASE_TAG}" \
+              --comment "Deploy College ERP ${RELEASE_TAG}" \
               --parameters "$ssm_parameters" \
               --query Command.CommandId \
               --output text

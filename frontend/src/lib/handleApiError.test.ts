@@ -27,8 +27,8 @@ describe("handleApiError", () => {
   it.each([
     "java.sql.SQLException: relation users does not exist",
     "C:\\app\\secrets\\application.properties:42",
-    "/opt/jadhavr/app/config.yml",
-    "IllegalStateException\n\tat com.jadhavr.Service.run(Service.java:17)",
+    "/opt/college-erp/app/config.yml",
+    "IllegalStateException\n\tat com.collegeerp.Service.run(Service.java:17)",
   ])("replaces sensitive server details: %s", (message) => {
     const result = handleApiError(axiosFailure(500, { message }));
     expect(result.message).toBe("The request could not be completed. Please try again.");

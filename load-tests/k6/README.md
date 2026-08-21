@@ -1,4 +1,4 @@
-# Jadhavr ERP controlled k6 suite
+# College ERP controlled k6 suite
 
 This suite models realistic authenticated activity while refusing known production/public endpoints. It has no default target. All data-changing journeys are disabled by default.
 
@@ -44,7 +44,7 @@ The test fails before load begins when:
 An optional environment marker can strengthen the probe:
 
 ```bash
--e SAFETY_ENV_HEADER_NAME=X-Jadhavr-Environment \
+-e SAFETY_ENV_HEADER_NAME=X-College-Environment \
 -e SAFETY_ENV_HEADER_VALUE=isolated-load-test
 ```
 

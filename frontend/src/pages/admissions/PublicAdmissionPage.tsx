@@ -591,7 +591,7 @@ export function PublicAdmissionPage() {
 
             <div className="flex items-center justify-center gap-2 px-3 text-center text-xs text-slate-400">
               <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              Secure admission portal powered by Jadhavr ERP
+              Secure admission portal powered by College ERP
             </div>
           </aside>
         </div>

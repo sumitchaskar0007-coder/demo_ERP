@@ -86,7 +86,7 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # The ALB is the intentionally public TLS edge for api.jadhavaredu.com.
+  # The ALB is the intentionally public TLS edge for api.collegeerp.example.
   #tfsec:ignore:aws-ec2-no-public-ingress-sgr
   ingress {
     description = "HTTPS origin traffic"
@@ -142,7 +142,7 @@ resource "aws_security_group" "backend" {
   }
 }
 
-# The API must be internet-facing; Route 53 points api.jadhavaredu.com here.
+# The API must be internet-facing; Route 53 points api.collegeerp.example here.
 #tfsec:ignore:aws-elb-alb-not-public
 resource "aws_lb" "backend" {
   name                       = substr(local.name, 0, 32)

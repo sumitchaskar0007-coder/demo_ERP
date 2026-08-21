@@ -108,14 +108,14 @@ resource "aws_cloudwatch_log_metric_filter" "application_429" {
 
   metric_transformation {
     name      = "Http429Count"
-    namespace = "JadhavrERP/${var.environment}"
+    namespace = "CollegeERP/${var.environment}"
     value     = "1"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "application_429" {
   alarm_name          = "${local.name}-application-429"
-  namespace           = "JadhavrERP/${var.environment}"
+  namespace           = "CollegeERP/${var.environment}"
   metric_name         = "Http429Count"
   statistic           = "Sum"
   period              = 300
@@ -135,14 +135,14 @@ resource "aws_cloudwatch_log_metric_filter" "hikari_timeouts" {
 
   metric_transformation {
     name      = "HikariTimeoutCount"
-    namespace = "JadhavrERP/${var.environment}"
+    namespace = "CollegeERP/${var.environment}"
     value     = "1"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "hikari_timeouts" {
   alarm_name          = "${local.name}-hikari-timeouts"
-  namespace           = "JadhavrERP/${var.environment}"
+  namespace           = "CollegeERP/${var.environment}"
   metric_name         = "HikariTimeoutCount"
   statistic           = "Sum"
   period              = 60
@@ -408,7 +408,7 @@ resource "aws_cloudwatch_dashboard" "capacity" {
           region = var.aws_region
           period = 60
           metrics = [
-            ["JadhavrERP/${var.environment}", "Http429Count", { stat = "Sum" }],
+            ["CollegeERP/${var.environment}", "Http429Count", { stat = "Sum" }],
             [".", "HikariTimeoutCount", { stat = "Sum" }]
           ]
         }

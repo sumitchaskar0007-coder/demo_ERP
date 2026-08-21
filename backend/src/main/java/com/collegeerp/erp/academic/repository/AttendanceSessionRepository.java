@@ -1,0 +1,1 @@
+package com.collegeerp.erp.academic.repository; import com.collegeerp.erp.academic.entity.AttendanceSession; import org.springframework.data.jpa.repository.*; @org.springframework.stereotype.Repository("academicAttendanceSessionRepository") public interface AttendanceSessionRepository extends JpaRepository<AttendanceSession,Long>,JpaSpecificationExecutor<AttendanceSession>{}

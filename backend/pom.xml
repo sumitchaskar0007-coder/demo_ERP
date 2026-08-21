@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.jadhavr</groupId>
+    <groupId>com.collegeerp</groupId>
     <artifactId>college-erp</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>College ERP</name>

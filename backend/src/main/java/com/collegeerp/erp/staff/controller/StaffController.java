@@ -1,0 +1,112 @@
+package com.collegeerp.erp.staff.controller;
+
+import com.collegeerp.erp.common.api.ApiResponse;
+import com.collegeerp.erp.common.dto.PageResponse;
+import com.collegeerp.erp.staff.dto.CreateStudentSectionStaffRequest;
+import com.collegeerp.erp.staff.dto.CreateFeeSectionStaffRequest;
+import com.collegeerp.erp.staff.dto.StaffResponse;
+import com.collegeerp.erp.staff.dto.StaffDetailResponse;
+import com.collegeerp.erp.staff.dto.CreateAcademicStaffRequest;
+import com.collegeerp.erp.staff.dto.CreateStaffRequest;
+import com.collegeerp.erp.staff.dto.UpdateStaffAssignmentRequest;
+import com.collegeerp.erp.staff.enums.StaffStatus;
+import com.collegeerp.erp.staff.enums.StaffType;
+import com.collegeerp.erp.staff.service.StaffService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/principal/staff")
+public class StaffController {
+    private final StaffService staffService;
+
+    public StaffController(StaffService staffService) {
+        this.staffService = staffService;
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<StaffResponse>> createStaff(
+            @Valid @RequestBody CreateStaffRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Staff created successfully", staffService.createStaff(request)));
+    }
+
+    @PostMapping("/fee-section")
+    public ResponseEntity<ApiResponse<StaffResponse>> createFeeSectionStaff(@Valid @RequestBody CreateFeeSectionStaffRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Fee Section staff created successfully", staffService.createFeeSectionStaff(request)));
+    }
+
+    @PostMapping("/student-section")
+    public ResponseEntity<ApiResponse<StaffResponse>> createStudentSectionStaff(
+            @Valid @RequestBody CreateStudentSectionStaffRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(
+                        "Student Section staff created successfully",
+                        staffService.createStudentSectionStaff(request)
+                ));
+    }
+
+    @PostMapping("/{type:hod|subject-teacher}")
+    public ResponseEntity<ApiResponse<StaffResponse>> createAcademicStaff(@PathVariable String type,@Valid @RequestBody CreateAcademicStaffRequest request) {
+        StaffType staffType = type.equals("hod") ? StaffType.HOD : StaffType.SUBJECT_TEACHER;
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Academic staff created successfully", staffService.createAcademicStaff(request, staffType)));
+    }
+
+    @GetMapping("/search")
+    public ApiResponse<PageResponse<StaffResponse>> searchStaff(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long collegeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) StaffType staffType,
+            @RequestParam(required = false) StaffStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return ApiResponse.success(
+                "Staff searched successfully",
+                staffService.searchStaff(keyword, collegeId, departmentId, staffType, status,
+                        page, size, sortBy, sortDir)
+        );
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<StaffResponse> getStaffById(@PathVariable Long id) {
+        return ApiResponse.success("Staff retrieved successfully", staffService.getStaffById(id));
+    }
+
+    @GetMapping("/{id}/details")
+    public ApiResponse<StaffDetailResponse> getStaffDetails(@PathVariable Long id) {
+        return ApiResponse.success(
+                "Staff details retrieved successfully", staffService.getStaffDetails(id));
+    }
+
+    @PutMapping("/{id}/assignment")
+    public ApiResponse<StaffResponse> updateStaffAssignment(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateStaffAssignmentRequest request) {
+        return ApiResponse.success(
+                "Staff roles and departments updated successfully",
+                staffService.updateStaffAssignment(id, request));
+    }
+
+    @PatchMapping("/{id}/activate")
+    public ApiResponse<StaffResponse> activateStaff(@PathVariable Long id) {
+        return ApiResponse.success("Staff activated successfully", staffService.activateStaff(id));
+    }
+
+    @PatchMapping("/{id}/deactivate")
+    public ApiResponse<StaffResponse> deactivateStaff(@PathVariable Long id) {
+        return ApiResponse.success("Staff deactivated successfully", staffService.deactivateStaff(id));
+    }
+}

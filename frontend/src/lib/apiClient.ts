@@ -90,7 +90,7 @@ async function refreshSession() {
         .then(() => authClient.post("/api/v1/auth/refresh"))
         .then(() => undefined);
     refreshPromise = (
-      navigator.locks ? navigator.locks.request("jadhavr-auth-refresh", rotate) : rotate()
+      navigator.locks ? navigator.locks.request("college-erp-auth-refresh", rotate) : rotate()
     ).finally(() => {
       refreshPromise = null;
     });

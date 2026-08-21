@@ -1,0 +1,468 @@
+package com.collegeerp.erp.fee.service;
+
+import com.collegeerp.erp.admission.entity.AdmissionForm;
+import com.collegeerp.erp.admission.enums.AdmissionStatus;
+import com.collegeerp.erp.admission.enums.AdmissionAction;
+import com.collegeerp.erp.admission.entity.AdmissionStatusHistory;
+import com.collegeerp.erp.admission.repository.AdmissionFormRepository;
+import com.collegeerp.erp.admission.repository.AdmissionStatusHistoryRepository;
+import com.collegeerp.erp.academic.entity.AcademicClass;
+import com.collegeerp.erp.auth.security.CustomUserDetails;
+import com.collegeerp.erp.college.entity.College;
+import com.collegeerp.erp.college.repository.CollegeRepository;
+import com.collegeerp.erp.common.exception.BadRequestException;
+import com.collegeerp.erp.department.entity.Department;
+import com.collegeerp.erp.department.repository.DepartmentRepository;
+import com.collegeerp.erp.email.service.EmailNotificationService;
+import com.collegeerp.erp.fee.dto.VerifyPaymentRequest;
+import com.collegeerp.erp.fee.dto.UpdateFeeStructureRequest;
+import com.collegeerp.erp.fee.dto.PaymentResponse;
+import com.collegeerp.erp.fee.entity.FeePayment;
+import com.collegeerp.erp.fee.entity.FeeStructure;
+import com.collegeerp.erp.fee.entity.StudentFeeAccount;
+import com.collegeerp.erp.fee.enums.FeeStructureStatus;
+import com.collegeerp.erp.fee.enums.FeeAccountStatus;
+import com.collegeerp.erp.fee.enums.FeePaymentPurpose;
+import com.collegeerp.erp.fee.enums.PaymentStatus;
+import com.collegeerp.erp.fee.enums.StudentCategory;
+import com.collegeerp.erp.fee.repository.FeePaymentRepository;
+import com.collegeerp.erp.fee.repository.FeeStructureRepository;
+import com.collegeerp.erp.fee.repository.FeeTransactionRepository;
+import com.collegeerp.erp.fee.repository.StudentFeeAccountRepository;
+import com.collegeerp.erp.student.entity.StudentProfile;
+import com.collegeerp.erp.user.entity.Role;
+import com.collegeerp.erp.user.entity.RoleName;
+import com.collegeerp.erp.user.entity.User;
+import com.collegeerp.erp.user.entity.UserStatus;
+import com.collegeerp.erp.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import java.util.List;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.Set;
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class FeeServiceImplTest {
+    @Mock private FeeStructureRepository structures;
+    @Mock private StudentFeeAccountRepository accounts;
+    @Mock private FeePaymentRepository payments;
+    @Mock private FeeTransactionRepository transactions;
+    @Mock private CollegeRepository colleges;
+    @Mock private DepartmentRepository departments;
+    @Mock private UserRepository users;
+    @Mock private AdmissionFormRepository admissions;
+    @Mock private AdmissionStatusHistoryRepository histories;
+    @Mock private EmailNotificationService emailNotifications;
+
+    private FeeServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        service = new FeeServiceImpl(structures, accounts, payments, transactions,
+                colleges, departments, users, admissions, histories, emailNotifications);
+        authenticateSuperAdmin();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void feeAccountUsesVerifiedStudentCategoryAndPreservesSnapshot() {
+        AdmissionForm admission = admission(StudentCategory.SC);
+        FeeStructure structure = new FeeStructure();
+        structure.setStudentCategory(StudentCategory.SC);
+        structure.setTotalFee(new BigDecimal("12000.00"));
+        structure.setMinimumAmountForAdmission(new BigDecimal("2000.00"));
+        when(accounts.existsByAdmissionFormIdAndFeeStructureIsNotNull(40L)).thenReturn(false);
+        when(structures.findConfiguredAssessments(
+                1L, 10L, List.of("2026-2027", "2026-27"), StudentCategory.SC,
+                null, "FEMALE", "First Year", FeeStructureStatus.ACTIVE))
+                .thenReturn(List.of(structure));
+
+        service.createRegularFeeAccount(admission);
+
+        ArgumentCaptor<StudentFeeAccount> captor = ArgumentCaptor.forClass(StudentFeeAccount.class);
+        verify(accounts).save(captor.capture());
+        assertEquals(StudentCategory.SC, captor.getValue().getStudentCategory());
+        assertSame(structure, captor.getValue().getFeeStructure());
+        assertEquals(new BigDecimal("12000.00"), captor.getValue().getRemainingAmount());
+    }
+
+    @Test
+    void admissionFeeChangeUpdatesOnlyAccountsWithoutPaymentActivity() {
+        StudentFeeAccount untouched = new StudentFeeAccount();
+        untouched.setId(20L);
+        untouched.setTotalFee(new BigDecimal("2200.00"));
+        untouched.setPaidAmount(BigDecimal.ZERO);
+        untouched.setRemainingAmount(new BigDecimal("2200.00"));
+        untouched.setMinimumAmountForAdmission(new BigDecimal("2200.00"));
+        untouched.setStatus(FeeAccountStatus.PENDING);
+        StudentFeeAccount paymentSubmitted = new StudentFeeAccount();
+        paymentSubmitted.setId(21L);
+        paymentSubmitted.setTotalFee(new BigDecimal("2200.00"));
+        paymentSubmitted.setPaidAmount(BigDecimal.ZERO);
+        paymentSubmitted.setRemainingAmount(new BigDecimal("2200.00"));
+        paymentSubmitted.setMinimumAmountForAdmission(new BigDecimal("2200.00"));
+        paymentSubmitted.setStatus(FeeAccountStatus.PENDING);
+        when(accounts.findUntouchedAdmissionFeeAccountsForUpdate(10L))
+                .thenReturn(List.of(untouched, paymentSubmitted));
+        when(payments.existsByStudentFeeAccountId(20L)).thenReturn(false);
+        when(payments.existsByStudentFeeAccountId(21L)).thenReturn(true);
+
+        int updated = service.synchronizeUntouchedAdmissionFeeAccounts(
+                10L, new BigDecimal("3000.00"));
+
+        assertEquals(1, updated);
+        assertEquals(new BigDecimal("3000.00"), untouched.getTotalFee());
+        assertEquals(new BigDecimal("3000.00"), untouched.getRemainingAmount());
+        assertEquals(new BigDecimal("3000.00"), untouched.getMinimumAmountForAdmission());
+        assertEquals(new BigDecimal("2200.00"), paymentSubmitted.getTotalFee());
+        verify(accounts).saveAll(List.of(untouched));
+    }
+
+    @Test
+    void myPaymentsReturnsEveryAuthenticatedStudentAccountWithPurpose() {
+        User studentUser = new User();
+        studentUser.setId(99L);
+        StudentProfile student = new StudentProfile();
+        student.setId(12L);
+        student.setUser(studentUser);
+        student.setFullName("Test Student");
+        student.setAdmissionNumber("ADM-12");
+        College college = college();
+        college.setName("College");
+        Department department = new Department();
+        department.setId(10L);
+        department.setName("MBA");
+        department.setCollege(college);
+
+        StudentFeeAccount courseAccount = new StudentFeeAccount();
+        courseAccount.setId(21L);
+        courseAccount.setFeeStructure(new FeeStructure());
+        StudentFeeAccount admissionAccount = new StudentFeeAccount();
+        admissionAccount.setId(20L);
+
+        FeePayment coursePayment = payment(courseAccount, new BigDecimal("80000.00"), PaymentStatus.VERIFIED);
+        coursePayment.setStudent(student);
+        coursePayment.setStudentUser(studentUser);
+        coursePayment.setDepartment(department);
+        FeePayment admissionPayment = payment(admissionAccount, new BigDecimal("3000.00"), PaymentStatus.VERIFIED);
+        admissionPayment.setId(31L);
+        admissionPayment.setStudent(student);
+        admissionPayment.setStudentUser(studentUser);
+        admissionPayment.setDepartment(department);
+        when(payments.findByStudentUserIdOrderByCreatedAtDesc(99L))
+                .thenReturn(List.of(coursePayment, admissionPayment));
+
+        List<PaymentResponse> result = service.myPayments();
+
+        assertEquals(2, result.size());
+        assertEquals(FeePaymentPurpose.COURSE_FEE, result.get(0).paymentPurpose());
+        assertEquals(FeePaymentPurpose.ADMISSION_FORM_FEE, result.get(1).paymentPurpose());
+        verify(payments).findByStudentUserIdOrderByCreatedAtDesc(99L);
+        verify(accounts, never()).findTopByStudentUserIdOrderByCreatedAtDesc(99L);
+    }
+
+    @Test
+    void existingFeeStructureGenderCannotBeChanged() {
+        FeeStructure structure = feeStructure("MALE");
+        when(structures.findById(50L)).thenReturn(Optional.of(structure));
+
+        BadRequestException error = assertThrows(BadRequestException.class,
+                () -> service.updateStructure(50L, updateRequest("FEMALE", "30000.00")));
+
+        assertEquals(
+                "Gender is part of the fee structure identity and cannot be changed. "
+                        + "Create a separate gender-specific structure instead.",
+                error.getMessage());
+        verify(structures, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void feeStructureRecalculationLocksLinkedAccountsBeforeUpdatingBalances() {
+        FeeStructure structure = feeStructure("FEMALE");
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setTotalFee(new BigDecimal("80000.00"));
+        account.setPaidAmount(new BigDecimal("30000.00"));
+        account.setDiscountAmount(new BigDecimal("50000.00"));
+        account.setRemainingAmount(BigDecimal.ZERO.setScale(2));
+        account.setCreditAmount(BigDecimal.ZERO.setScale(2));
+        account.setMinimumAmountForAdmission(new BigDecimal("10000.00"));
+        when(structures.findById(50L)).thenReturn(Optional.of(structure));
+        when(structures.saveAndFlush(structure)).thenReturn(structure);
+        when(accounts.findByFeeStructureIdForUpdate(50L)).thenReturn(List.of(account));
+        User actor = new User();
+        actor.setId(99L);
+        actor.setFullName("Super Admin");
+        when(users.findById(99L)).thenReturn(Optional.of(actor));
+
+        service.updateStructure(50L, updateRequest("FEMALE", "30000.00"));
+
+        verify(accounts).findByFeeStructureIdForUpdate(50L);
+        ArgumentCaptor<com.collegeerp.erp.fee.entity.FeeTransaction> audit =
+                ArgumentCaptor.forClass(com.collegeerp.erp.fee.entity.FeeTransaction.class);
+        verify(transactions).save(audit.capture());
+        assertEquals(com.collegeerp.erp.fee.enums.FeeTransactionType.FEE_ADJUSTMENT,
+                audit.getValue().getTransactionType());
+        assertEquals(new BigDecimal("20000.00"), audit.getValue().getNewRemainingAmount());
+        assertEquals(new BigDecimal("30000.00"), account.getDiscountAmount());
+        assertEquals(new BigDecimal("20000.00"), account.getRemainingAmount());
+        assertEquals(BigDecimal.ZERO, account.getCreditAmount());
+    }
+
+    @Test
+    void verificationLocksPaymentAndAccountAndRejectsOverpayment() {
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        account.setTotalFee(new BigDecimal("1000.00"));
+        account.setPaidAmount(new BigDecimal("600.00"));
+        account.setRemainingAmount(new BigDecimal("400.00"));
+        FeePayment payment = payment(account, new BigDecimal("500.00"), PaymentStatus.PENDING);
+        when(payments.findByIdForUpdate(30L)).thenReturn(Optional.of(payment));
+        when(accounts.findByIdForUpdate(20L)).thenReturn(Optional.of(account));
+        when(transactions.existsByFeePaymentId(30L)).thenReturn(false);
+
+        assertThrows(BadRequestException.class,
+                () -> service.verify(30L, new VerifyPaymentRequest("checked")));
+
+        verify(payments).findByIdForUpdate(30L);
+        verify(accounts).findByIdForUpdate(20L);
+        verify(payments, never()).save(any());
+        verify(accounts, never()).save(any());
+        verify(transactions, never()).save(any());
+    }
+
+    @Test
+    void alreadyVerifiedPaymentIsIdempotentlyRejectedAfterLock() {
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        FeePayment payment = payment(account, new BigDecimal("100.00"), PaymentStatus.VERIFIED);
+        when(payments.findByIdForUpdate(30L)).thenReturn(Optional.of(payment));
+
+        assertThrows(BadRequestException.class,
+                () -> service.verify(30L, new VerifyPaymentRequest(null)));
+
+        verify(payments).findByIdForUpdate(30L);
+        verify(accounts, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void verifiedAdmissionFormFeeMovesCompletedFormToStudentSectionReview() {
+        AdmissionForm admission = admission(StudentCategory.OPEN);
+        admission.setStatus(AdmissionStatus.SUBMITTED);
+        admission.setDetailsCompletedAt(LocalDateTime.now());
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        account.setAdmissionForm(admission);
+        account.setStudent(admission.getStudent());
+        account.setStudentUser(admission.getStudentUser());
+        account.setCollege(admission.getCollege());
+        account.setDepartment(admission.getDepartment());
+        account.setTotalFee(new BigDecimal("1000.00"));
+        account.setPaidAmount(BigDecimal.ZERO);
+        account.setRemainingAmount(new BigDecimal("1000.00"));
+        account.setMinimumAmountForAdmission(new BigDecimal("1000.00"));
+        FeePayment payment = payment(account, new BigDecimal("1000.00"), PaymentStatus.PENDING);
+        payment.setStudent(admission.getStudent());
+        payment.setStudentUser(admission.getStudentUser());
+        payment.setDepartment(admission.getDepartment());
+        User officer = new User();
+        officer.setId(99L);
+        officer.setFullName("Fee Officer");
+        when(payments.findByIdForUpdate(30L)).thenReturn(Optional.of(payment));
+        when(accounts.findByIdForUpdate(20L)).thenReturn(Optional.of(account));
+        when(transactions.existsByFeePaymentId(30L)).thenReturn(false);
+        when(users.findById(99L)).thenReturn(Optional.of(officer));
+        when(payments.save(payment)).thenReturn(payment);
+
+        service.verify(30L, new VerifyPaymentRequest("admission form fee checked"));
+
+        assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING, admission.getStatus());
+        verify(admissions).save(admission);
+        ArgumentCaptor<AdmissionStatusHistory> history =
+                ArgumentCaptor.forClass(AdmissionStatusHistory.class);
+        verify(histories).save(history.capture());
+        assertEquals(AdmissionStatus.SUBMITTED, history.getValue().getOldStatus());
+        assertEquals(AdmissionStatus.STUDENT_SECTION_REVIEW_PENDING,
+                history.getValue().getNewStatus());
+        assertEquals(AdmissionAction.PAYMENT_VERIFIED, history.getValue().getAction());
+    }
+
+    @Test
+    void laterPaymentDoesNotReopenPrincipalApprovedAdmission() {
+        AdmissionForm admission = admission(StudentCategory.OPEN);
+        admission.setStatus(AdmissionStatus.PRINCIPAL_APPROVED);
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        account.setAdmissionForm(admission);
+        account.setTotalFee(new BigDecimal("1000.00"));
+        account.setPaidAmount(new BigDecimal("600.00"));
+        account.setRemainingAmount(new BigDecimal("400.00"));
+        account.setMinimumAmountForAdmission(new BigDecimal("200.00"));
+
+        FeePayment payment = payment(account, new BigDecimal("100.00"), PaymentStatus.PENDING);
+        payment.setStudent(admission.getStudent());
+        payment.setStudentUser(admission.getStudentUser());
+        payment.setDepartment(admission.getDepartment());
+        User officer = new User();
+        officer.setId(99L);
+        officer.setFullName("Fee Officer");
+
+        when(payments.findByIdForUpdate(30L)).thenReturn(Optional.of(payment));
+        when(accounts.findByIdForUpdate(20L)).thenReturn(Optional.of(account));
+        when(transactions.existsByFeePaymentId(30L)).thenReturn(false);
+        when(users.findById(99L)).thenReturn(Optional.of(officer));
+        when(payments.save(payment)).thenReturn(payment);
+
+        service.verify(30L, new VerifyPaymentRequest("later installment"));
+
+        assertEquals(AdmissionStatus.PRINCIPAL_APPROVED, admission.getStatus());
+        verify(admissions, never()).save(any());
+    }
+
+    @Test
+    void bulkReminderTargetsEveryPendingAccountInOfficerCollege() {
+        authenticateFeeOfficer();
+        User studentUser = new User();
+        studentUser.setId(3L);
+        studentUser.setFullName("Pending Student");
+        studentUser.setEmail("student@example.com");
+        StudentProfile student = new StudentProfile();
+        student.setAdmissionNumber("STU-001");
+        StudentFeeAccount account = new StudentFeeAccount();
+        account.setId(20L);
+        account.setStudentUser(studentUser);
+        account.setStudent(student);
+        account.setRemainingAmount(new BigDecimal("400.00"));
+        when(accounts.findByCollegeIdAndRemainingAmountGreaterThan(1L, BigDecimal.ZERO))
+                .thenReturn(List.of(account));
+
+        assertEquals(1, service.sendPendingFeeReminders());
+
+        verify(emailNotifications).queueFeePaymentReminder(
+                studentUser, 20L, "STU-001", new BigDecimal("400.00"));
+    }
+
+    private AdmissionForm admission(StudentCategory category) {
+        College college = college();
+        Department department = new Department();
+        department.setId(10L);
+        department.setCollege(college);
+        StudentProfile student = new StudentProfile();
+        student.setId(2L);
+        User studentUser = new User();
+        studentUser.setId(3L);
+        AdmissionForm admission = new AdmissionForm();
+        admission.setId(40L);
+        admission.setCollege(college);
+        admission.setDepartment(department);
+        admission.setStudent(student);
+        admission.setStudentUser(studentUser);
+        admission.setAcademicYear("2026-2027");
+        admission.setStudentCategory(category);
+        admission.setGender("Female");
+        AcademicClass courseYear = new AcademicClass();
+        courseYear.setName("First Year");
+        admission.setCourseYear(courseYear);
+        return admission;
+    }
+
+    private FeePayment payment(StudentFeeAccount account, BigDecimal amount, PaymentStatus status) {
+        FeePayment payment = new FeePayment();
+        payment.setId(30L);
+        payment.setStudentFeeAccount(account);
+        payment.setCollege(college());
+        payment.setAmount(amount);
+        payment.setStatus(status);
+        return payment;
+    }
+
+    private FeeStructure feeStructure(String gender) {
+        College college = college();
+        college.setName("College");
+        college.setCode("COL");
+        Department department = new Department();
+        department.setId(10L);
+        department.setName("Science");
+        department.setCode("SCI");
+        department.setCollege(college);
+        FeeStructure structure = new FeeStructure();
+        structure.setId(50L);
+        structure.setCollege(college);
+        structure.setDepartment(department);
+        structure.setAcademicYear("2026-2027");
+        structure.setCourseYear("First Year");
+        structure.setStudentCategory(StudentCategory.OBC);
+        structure.setGender(gender);
+        structure.setTitle("OBC fee");
+        structure.setTotalFee(new BigDecimal("80000.00"));
+        structure.setScholarshipAmount(new BigDecimal("50000.00"));
+        structure.setMinimumAmountForAdmission(new BigDecimal("10000.00"));
+        return structure;
+    }
+
+    private UpdateFeeStructureRequest updateRequest(String gender, String scholarship) {
+        return new UpdateFeeStructureRequest(
+                "OBC fee", null, new BigDecimal("80000.00"),
+                new BigDecimal("10000.00"), BigDecimal.ZERO, new BigDecimal("80000.00"),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                new BigDecimal(scholarship), gender, null);
+    }
+
+    private College college() {
+        College college = new College();
+        college.setId(1L);
+        return college;
+    }
+
+    private void authenticateSuperAdmin() {
+        Role role = new Role();
+        role.setName(RoleName.SUPER_ADMIN);
+        User user = new User();
+        user.setId(99L);
+        user.setFullName("Super Admin");
+        user.setEmail("admin@example.com");
+        user.setPasswordHash("hash");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setRoles(Set.of(role));
+        CustomUserDetails details = new CustomUserDetails(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities()));
+    }
+
+    private void authenticateFeeOfficer() {
+        Role role = new Role();
+        role.setName(RoleName.FEE_SECTION);
+        User user = new User();
+        user.setId(98L);
+        user.setFullName("Fee Officer");
+        user.setEmail("fees@example.com");
+        user.setPasswordHash("hash");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setCollege(college());
+        user.setRoles(Set.of(role));
+        CustomUserDetails details = new CustomUserDetails(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities()));
+    }
+}

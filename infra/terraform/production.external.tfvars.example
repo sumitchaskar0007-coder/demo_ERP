@@ -1,4 +1,4 @@
-project_name = "jadhavr-erp"
+project_name = "college-erp"
 environment  = "production"
 aws_region   = "ap-south-1"
 
@@ -69,12 +69,12 @@ malware_protection_enabled        = true
 # move/import the existing staging-owned Route 53, ACM, CloudFront, WAF, and SES
 # domain resources; two Terraform states must never own the same records.
 temporary_domain = false
-domain_name      = "jadhavaredu.com"
-api_domain_name  = "api.jadhavaredu.com"
+domain_name      = "collegeerp.example"
+api_domain_name  = "api.collegeerp.example"
 route53_zone_id  = "Z06012413HNDFGVBFSYW7"
-backend_image    = "814645955631.dkr.ecr.ap-south-1.amazonaws.com/jadhavr-erp-production-backend:v1.0.0"
+backend_image    = "814645955631.dkr.ecr.ap-south-1.amazonaws.com/college-erp-production-backend:v1.0.0"
 alert_email      = ""
 mail_enabled     = false
-github_repository = "your-github-owner/Jadhavr-ERP"
+github_repository = "your-github-owner/College-ERP"
 # The existing staging Terraform state owns the account-global provider.
 manage_github_oidc_provider = false

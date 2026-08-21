@@ -1,4 +1,4 @@
-# Jadhavr ERP Backend
+# College ERP Backend
 
 A secure, multi-college ERP REST API built with Spring Boot and PostgreSQL.
 
@@ -33,7 +33,7 @@ account management.
 ## Architecture
 
 ```text
-backend/src/main/java/com/jadhavr/erp
+backend/src/main/java/com/college-erp/erp
 |-- auth/          JWT login, profile, filter, and user details
 |-- bootstrap/     Idempotent role and Super Admin seeding
 |-- college/       College management

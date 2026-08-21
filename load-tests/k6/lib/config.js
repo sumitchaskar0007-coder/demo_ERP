@@ -38,11 +38,11 @@ const PROFILE_STAGES = Object.freeze({
 });
 
 const KNOWN_BLOCKED_HOSTS = Object.freeze([
-  "jadhavaredu.com",
-  "www.jadhavaredu.com",
-  "api.jadhavaredu.com",
+  "collegeerp.example",
+  "www.collegeerp.example",
+  "api.collegeerp.example",
   "ddsxcqz27a5q8.cloudfront.net",
-  "jadhavr-erp-staging-414296957.ap-south-1.elb.amazonaws.com",
+  "college-erp-staging-414296957.ap-south-1.elb.amazonaws.com",
   "3.82.155.92",
   "3.108.219.13",
 ]);
@@ -132,7 +132,7 @@ export const K6_OPTIONS = Object.freeze({
   noConnectionReuse: false,
   batch: 10,
   batchPerHost: 6,
-  userAgent: `jadhavr-erp-k6/${profile}`,
+  userAgent: `college-erp-k6/${profile}`,
   setupTimeout: "2m",
   teardownTimeout: "1m",
   summaryTrendStats: ["avg", "min", "med", "p(90)", "p(95)", "p(99)", "max"],
