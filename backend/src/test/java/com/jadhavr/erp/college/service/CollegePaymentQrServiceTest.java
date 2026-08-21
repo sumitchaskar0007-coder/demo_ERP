@@ -66,17 +66,17 @@ class CollegePaymentQrServiceTest {
         when(images.claim("pending/qr.png", 1L, "qr-code", null)).thenReturn("colleges/1/qr.png");
         when(colleges.saveAndFlush(college)).thenReturn(college);
 
-        var result = service.update(1L, "  Jadhavar   Fee Account  ", file);
+        var result = service.update(1L, "  College ERP   Fee Account  ", file);
 
-        assertEquals("Jadhavar Fee Account", college.getPaymentQrAccountName());
-        assertEquals("Jadhavar Fee Account", result.accountName());
+        assertEquals("College ERP Fee Account", college.getPaymentQrAccountName());
+        assertEquals("College ERP Fee Account", result.accountName());
         assertEquals("/api/college-settings/payment-qr/image?collegeId=1", result.qrCodeUrl());
     }
 
     private College college() {
         College college = new College();
         college.setId(1L);
-        college.setName("Jadhavar Senior College");
+        college.setName("College ERP Senior College");
         return college;
     }
 

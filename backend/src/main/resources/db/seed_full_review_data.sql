@@ -52,7 +52,7 @@ INSERT INTO colleges (
     created_at, updated_at, code, name, address, city, state, pincode,
     contact_email, contact_phone, status
 ) VALUES (
-    now(), now(), 'DEMO', 'Jadhavar Institute of Management and Technology',
+    now(), now(), 'DEMO', 'College ERP Institute of Management and Technology',
     'Narhe-Dhayari Road, Narhe', 'Pune', 'Maharashtra', '411041',
     'office@demo.erp', '9999989999', 'ACTIVE'
 );
@@ -77,7 +77,7 @@ SELECT
 FROM colleges c
 JOIN users admin ON admin.email = 'admin@erp.com'
 CROSS JOIN (VALUES
-    ('principal@demo.erp', 'Dr. Anjali Jadhavar', '9000000001'),
+    ('principal@demo.erp', 'Dr. Anjali College ERP', '9000000001'),
     ('hod.cse@demo.erp', 'Prof. Rahul Kulkarni', '9000000002'),
     ('hod.bba@demo.erp', 'Prof. Meera Deshmukh', '9000000003'),
     ('studentsection@demo.erp', 'Sneha Student Section', '9000000004'),

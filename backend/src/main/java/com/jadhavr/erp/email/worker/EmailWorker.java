@@ -81,7 +81,7 @@ public class EmailWorker {
                     + credentialText(data)
                     + admissionText(data)
                     + (url == null ? "" : "\n\n" + url)
-                    + "\n\nJadhavar Institute";
+                    + "\n\nCollege ERP Institute";
             String html = renderer.render(
                     notification.getTemplateName(), data, notification.getSubject());
             result = provider.send(new EmailMessage(

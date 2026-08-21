@@ -222,7 +222,7 @@ if [ -n "${mail_secret_json}" ]; then
   MAIL_REPLY_TO="$(secret_value "${mail_secret_json}" reply_to)"
   MAIL_FROM_NAME="$(secret_optional_value "${mail_secret_json}" from_name)"
   MAIL_CONFIGURATION_SET="$(secret_optional_value "${mail_secret_json}" configuration_set)"
-  if [ -z "${MAIL_FROM_NAME}" ]; then MAIL_FROM_NAME="Jadhavar Institute"; fi
+  if [ -z "${MAIL_FROM_NAME}" ]; then MAIL_FROM_NAME="College ERP Institute"; fi
   if [ "${MAIL_PORT}" != "587" ]; then
     echo "Production SMTP port must be 587 with STARTTLS" >&2
     exit 1

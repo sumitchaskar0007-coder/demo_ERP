@@ -3,7 +3,7 @@ import type { College } from "@/features/colleges/types";
 const HIDDEN_NOTICE_COLLEGE_NAMES = new Set(
   Array.from(
     { length: 20 },
-    (_, index) => `Jadhavar Review College ${String(index + 1).padStart(2, "0")}`,
+    (_, index) => `College ERP Review College ${String(index + 1).padStart(2, "0")}`,
   ),
 );
 

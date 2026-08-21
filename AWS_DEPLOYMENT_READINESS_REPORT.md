@@ -1,4 +1,4 @@
-# Jadhavar ERP — AWS Deployment and Readiness Report
+# College ERP — AWS Deployment and Readiness Report
 
 **Audit date:** 27 July 2026
 **Commit reviewed:** `cf694ec` (`main`) plus the corrections listed below

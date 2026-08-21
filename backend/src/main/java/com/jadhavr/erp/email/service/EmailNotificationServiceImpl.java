@@ -56,7 +56,7 @@ public class EmailNotificationServiceImpl implements EmailNotificationService {
         queue(
                 user,
                 EmailType.USER_ACCOUNT_CREATED,
-                "Your Jadhavar Institute account",
+                "Your College ERP Institute account",
                 "user-account-created",
                 Map.of(
                         "name", user.getFullName(),

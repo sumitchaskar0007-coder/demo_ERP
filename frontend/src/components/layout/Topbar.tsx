@@ -104,7 +104,7 @@ export function Topbar({
       <div className="min-w-0 flex-1 lg:hidden">
         <p className="truncate text-sm font-bold leading-5 text-slate-900">{mobileTitle}</p>
         <p className="hidden truncate text-[11px] leading-4 text-slate-500 min-[390px]:block">
-          Jadhavar ERP
+          College ERP
         </p>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">

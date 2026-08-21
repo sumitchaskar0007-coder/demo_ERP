@@ -39,7 +39,7 @@ export async function exportAttendancePdf(report: AttendanceReport, collegeName?
   const document = new JsPdf({ orientation: "landscape", unit: "mm", format: "a4" });
   document.setFontSize(16);
   document.setFont("helvetica", "bold");
-  document.text(collegeName || "Jadhavar Group of Institutes", 14, 14);
+  document.text(collegeName || "College ERP Group of Institutes", 14, 14);
   document.setFontSize(13);
   document.text("Attendance Report", 14, 21);
   document.setFont("helvetica", "normal");
@@ -58,7 +58,7 @@ export async function exportAttendancePdf(report: AttendanceReport, collegeName?
     didDrawPage: (data) => {
       document.setFontSize(8);
       document.text(
-        `${collegeName || "Jadhavar Group of Institutes"} · Attendance Report`,
+        `${collegeName || "College ERP Group of Institutes"} · Attendance Report`,
         14,
         document.internal.pageSize.height - 7,
       );

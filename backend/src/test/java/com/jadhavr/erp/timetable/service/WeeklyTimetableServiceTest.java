@@ -228,7 +228,7 @@ class WeeklyTimetableServiceTest {
         setSecurityRole(RoleName.PRINCIPAL);
         College college = new College();
         college.setId(10L);
-        college.setName("Jadhavar College");
+        college.setName("College ERP College");
         Department department = new Department();
         department.setId(20L);
         department.setName("BCA");
@@ -369,7 +369,7 @@ class WeeklyTimetableServiceTest {
     void timetableOffersOnlySubjectsFromItsActiveSemester() {
         College college = new College();
         college.setId(10L);
-        college.setName("Jadhavar College");
+        college.setName("College ERP College");
         Department department = new Department();
         department.setId(20L);
         department.setName("MCA");

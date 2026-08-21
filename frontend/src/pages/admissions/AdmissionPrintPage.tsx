@@ -318,7 +318,7 @@ function InstituteHeader({ data }: { data: AdmissionPrintResponse }) {
         </div>
       </div>
       <div>
-        <p className="text-[15px] leading-5 font-bold uppercase">Jadhavar Group of Institutes</p>
+        <p className="text-[15px] leading-5 font-bold uppercase">College ERP Group of Institutes</p>
         <p className="text-xs leading-5">Aditya Educational Foundation's</p>
         <h1 className="text-[22px] leading-7 font-extrabold">{data.college.collegeName}</h1>
         <p className="text-[13px] leading-5">

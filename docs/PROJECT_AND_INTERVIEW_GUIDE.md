@@ -1,6 +1,6 @@
-# Jadhavar ERP: Complete Project and Interview Guide
+# College ERP: Complete Project and Interview Guide
 
-This document is the central technical guide for understanding, presenting, maintaining, and interviewing about the Jadhavar ERP project. It describes the implemented system as it exists in this repository. Detailed operational procedures remain in the linked runbooks.
+This document is the central technical guide for understanding, presenting, maintaining, and interviewing about the College ERP project. It describes the implemented system as it exists in this repository. Detailed operational procedures remain in the linked runbooks.
 
 ## Contents
 
@@ -25,7 +25,7 @@ This document is the central technical guide for understanding, presenting, main
 
 ## 1. Project summary
 
-Jadhavar ERP is a multi-college education management platform. It manages the lifecycle from public admission through fee verification, principal approval, academic allocation, timetable, attendance, notices, reporting, and audit.
+College ERP is a multi-college education management platform. It manages the lifecycle from public admission through fee verification, principal approval, academic allocation, timetable, attendance, notices, reporting, and audit.
 
 The application is designed around these principles:
 
@@ -426,7 +426,7 @@ npm run audit:production
 
 ### 30-second answer
 
-“Jadhavar ERP is a multi-tenant college management platform built with Spring Boot, PostgreSQL, Redis, React, and TypeScript. It covers admission, fees, academic allocation, timetable, attendance, communication, reporting, and audit. I designed the backend around transactional services and tenant-scoped authorization, used secure rotating cookie sessions with CSRF protection, and prepared it for AWS ECS using Docker, Terraform, Flyway, health checks, and automated security/testing gates.”
+“College ERP is a multi-tenant college management platform built with Spring Boot, PostgreSQL, Redis, React, and TypeScript. It covers admission, fees, academic allocation, timetable, attendance, communication, reporting, and audit. I designed the backend around transactional services and tenant-scoped authorization, used secure rotating cookie sessions with CSRF protection, and prepared it for AWS ECS using Docker, Terraform, Flyway, health checks, and automated security/testing gates.”
 
 ### Two-minute answer
 

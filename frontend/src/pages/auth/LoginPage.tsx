@@ -118,7 +118,7 @@ export function LoginPage() {
 
             <div className="flex items-center gap-3 border-t border-white/15 pt-6 text-sm text-violet-100">
               <ShieldCheck className="h-5 w-5 text-white" />
-              <span>Secure workspace for Jadhavar Group of Institutes</span>
+              <span>Secure workspace for College ERP Group of Institutes</span>
             </div>
           </div>
         </aside>
@@ -234,7 +234,7 @@ export function LoginPage() {
               </form>
 
               <p className="mt-6 hidden items-center justify-center gap-2 text-center text-xs text-slate-400 sm:flex">
-                <ShieldCheck className="h-4 w-4" /> © 2026 Jadhavar ERP. All rights reserved.
+                <ShieldCheck className="h-4 w-4" /> © 2026 College ERP. All rights reserved.
               </p>
             </div>
           </div>

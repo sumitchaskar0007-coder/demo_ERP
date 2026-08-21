@@ -213,7 +213,7 @@ export function AdminDashboardPage({ principal = false }: { principal?: boolean 
           <div className="min-w-0">
             <div className="flex items-center justify-between gap-3">
               <p className="inline-flex max-w-[calc(100%-3rem)] items-center truncate rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold tracking-wide text-blue-50 sm:max-w-none sm:text-xs">
-                {principal ? user?.collegeName : "Jadhavar ERP Administration"}
+                {principal ? user?.collegeName : "College ERP Administration"}
               </p>
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/10 text-amber-300 sm:hidden">
                 <Sparkles className="h-4 w-4" />

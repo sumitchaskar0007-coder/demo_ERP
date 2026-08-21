@@ -7,7 +7,7 @@ const formatDate = (value: string) => {
 };
 
 const MOTTO = '"Education for Strength, Intellect & Wisdom"';
-const FOUNDER = "- Prin. Dr. Sudhakarrao Jadhavar";
+const FOUNDER = "- Prin. Dr. Sudhakarrao College ERP";
 const AFFILIATION =
   "Affiliated to Savitribai Phule Pune University, Approved by AICTE, NAAC Accredited";
 
@@ -18,7 +18,7 @@ interface FeeReceiptBranding {
 
 export function feeReceiptLogoUrls(receipt: FeeReceiptResponse) {
   return {
-    leftLogoUrl: "/assets/jadhavar-logo.png",
+    leftLogoUrl: "/assets/college-erp-logo.png",
     rightLogoUrl: receipt.collegeLogoUrl?.trim() || null,
   };
 }
@@ -209,7 +209,7 @@ export async function createFeeReceiptPdf(
     title: `${receipt.receiptTitle} - ${receipt.receiptNumber}`,
     subject: `Verified payment receipt for ${receipt.studentName}`,
     author: receipt.collegeName,
-    creator: "Jadhavar ERP",
+    creator: "College ERP",
   });
   return doc;
 }

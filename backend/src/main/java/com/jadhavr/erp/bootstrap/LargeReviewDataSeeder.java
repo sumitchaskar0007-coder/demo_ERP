@@ -123,7 +123,7 @@ public class LargeReviewDataSeeder implements CommandLineRunner {
     private void seedInstitutions() {
         jdbc.update("""
                 insert into colleges(name,code,address,city,state,pincode,contact_email,contact_phone,status,created_at,updated_at)
-                select 'Jadhavar College '||lpad(n::text,2,'0'),
+                select 'College ERP College '||lpad(n::text,2,'0'),
                        'COL'||lpad(n::text,2,'0'),
                        'Knowledge Campus '||n,
                        case n%4 when 0 then 'Pune' when 1 then 'Mumbai' when 2 then 'Nashik' else 'Nagpur' end,

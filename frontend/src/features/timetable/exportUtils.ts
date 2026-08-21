@@ -16,7 +16,7 @@ export async function exportToPDF(
   const doc = new jsPDFClass({ orientation: "landscape", unit: "mm", format: "a4" });
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text(collegeName || "Jadhavar Group of Institutes", 14, 14);
+  doc.text(collegeName || "College ERP Group of Institutes", 14, 14);
   doc.setFontSize(12);
   doc.text(title, 14, 22);
 
@@ -41,7 +41,7 @@ export async function exportToPDF(
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       doc.text(
-        `${collegeName || "Jadhavar Group of Institutes"} · ${title}`,
+        `${collegeName || "College ERP Group of Institutes"} · ${title}`,
         14,
         doc.internal.pageSize.height - 7,
       );

@@ -1,4 +1,4 @@
-# Jadhavar ERP — Backend and Frontend Audit Report
+# College ERP — Backend and Frontend Audit Report
 
 **Audit date:** 21 July 2026  
 **Scope:** Static code review, configuration review, automated checks, local runtime health, and PostgreSQL connectivity.  

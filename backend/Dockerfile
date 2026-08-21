@@ -13,8 +13,8 @@ FROM eclipse-temurin:17-jre-jammy@sha256:89e68b9bb83713510b63e2059a415792a7fc77e
 
 ARG RDS_CA_SHA256=e5bb2084ccf45087bda1c9bffdea0eb15ee67f0b91646106e466714f9de3c7e3
 
-LABEL org.opencontainers.image.title="Jadhavar ERP Backend" \
-      org.opencontainers.image.description="Spring Boot backend for Jadhavar ERP"
+LABEL org.opencontainers.image.title="College ERP Backend" \
+      org.opencontainers.image.description="Spring Boot backend for College ERP"
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y ca-certificates tzdata wget \

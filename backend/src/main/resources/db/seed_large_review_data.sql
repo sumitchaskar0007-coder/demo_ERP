@@ -54,7 +54,7 @@ INSERT INTO colleges (
 )
 SELECT
     now(), now(), 'CLG' || lpad(n::text, 2, '0'),
-    'Jadhavar Review College ' || lpad(n::text, 2, '0'),
+    'College ERP Review College ' || lpad(n::text, 2, '0'),
     n || ', Education Campus Road',
     (ARRAY['Pune','Mumbai','Nashik','Nagpur','Kolhapur'])[((n - 1) % 5) + 1],
     'Maharashtra', '41' || lpad(n::text, 4, '0'),

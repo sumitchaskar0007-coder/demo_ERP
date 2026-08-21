@@ -27,7 +27,7 @@ export async function exportCollegeExcel(options: CollegeExcelOptions) {
   const subtitleRow = options.subtitle ? reportTitleRow + 1 : null;
   const generatedRow = (subtitleRow ?? reportTitleRow) + 1;
   const data: ExcelCell[][] = [
-    [options.institution ?? "JADHAVAR GROUP OF INSTITUTES"],
+    [options.institution ?? "COLLEGE ERP GROUP OF INSTITUTES"],
     ...(options.collegeName ? [[options.collegeName.toUpperCase()]] : []),
     [options.title.toUpperCase()],
     ...(options.subtitle ? [[options.subtitle]] : []),
@@ -189,8 +189,8 @@ export async function exportCollegeExcel(options: CollegeExcelOptions) {
   workbook.Props = {
     Title: options.title,
     Subject: options.subtitle ?? options.title,
-    Author: "Jadhavar ERP",
-    Company: options.institution ?? "Jadhavar Group of Institutes",
+    Author: "College ERP",
+    Company: options.institution ?? "College ERP Group of Institutes",
     CreatedDate: new Date(),
   };
   XLSX.utils.book_append_sheet(workbook, sheet, options.sheetName.slice(0, 31));

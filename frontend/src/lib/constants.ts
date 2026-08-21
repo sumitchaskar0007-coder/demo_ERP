@@ -1,4 +1,4 @@
-export const APP_NAME = "Jadhavar ERP";
+export const APP_NAME = "College ERP";
 export const DASHBOARD_NAVIGATION_VISIBILITY_EVENT = "dashboard-navigation:visibility";
 
 export const ROUTES = {

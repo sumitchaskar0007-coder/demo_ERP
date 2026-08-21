@@ -17,7 +17,7 @@ describe("PublicAdmissionPage", () => {
     vi.clearAllMocks();
     vi.mocked(admissionApi.getPublicAdmissionInfo).mockResolvedValue({
       collegeId: 1,
-      collegeName: "Jadhavar College",
+      collegeName: "College ERP College",
       collegeCode: "101",
       academicYear: "2026-27",
       departments: [{ id: 30, name: "Computer Science", code: "CS" }],
@@ -39,7 +39,7 @@ describe("PublicAdmissionPage", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("Jadhavar College");
+    await screen.findByText("College ERP College");
     await user.selectOptions(screen.getByLabelText("Department"), "30");
     await waitFor(() =>
       expect(admissionApi.getPublicAdmissionCategories).toHaveBeenCalledWith(
@@ -68,7 +68,7 @@ describe("PublicAdmissionPage", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("Jadhavar College");
+    await screen.findByText("College ERP College");
     await user.selectOptions(screen.getByLabelText("Department"), "30");
     await waitFor(() => expect(admissionApi.getPublicAdmissionCategories).toHaveBeenCalled());
 
@@ -107,7 +107,7 @@ describe("PublicAdmissionPage", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("Jadhavar College");
+    await screen.findByText("College ERP College");
     await user.selectOptions(screen.getByLabelText("Department"), "30");
     await waitFor(() => expect(admissionApi.getPublicAdmissionCategories).toHaveBeenCalled());
     await user.selectOptions(screen.getByLabelText("Student category"), "OTHER");
@@ -133,7 +133,7 @@ describe("PublicAdmissionPage", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("Jadhavar College");
+    await screen.findByText("College ERP College");
     await user.click(screen.getByRole("button", { name: /create student login/i }));
 
     expect(await screen.findByText("Department is required")).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe("PublicAdmissionPage", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("Jadhavar College");
+    await screen.findByText("College ERP College");
     await user.selectOptions(screen.getByLabelText("Department"), "30");
     await waitFor(() => expect(admissionApi.getPublicAdmissionCategories).toHaveBeenCalled());
     await user.type(screen.getByLabelText("First name"), "Aarav");

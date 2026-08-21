@@ -255,7 +255,7 @@ export function RoleDashboardPage() {
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div className="min-w-0">
             <p className="text-xs leading-5 text-blue-100 sm:text-sm">
-              {user.collegeName || "Jadhavar ERP Workspace"}
+              {user.collegeName || "College ERP Workspace"}
             </p>
             <h2 className="mt-2 text-2xl font-bold leading-tight sm:text-3xl">
               Welcome back, {user.fullName.split(" ")[0]}

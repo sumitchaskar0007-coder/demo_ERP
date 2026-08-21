@@ -1,6 +1,6 @@
 # Environment architecture
 
-Jadhavar ERP supports exactly three runtime environments. A process must activate
+College ERP supports exactly three runtime environments. A process must activate
 one, and only one, of `local`, `preprod`, or `production` through
 `SPRING_PROFILES_ACTIVE`. The application fails during startup for mixed, missing,
 or retired `docker`/`staging` environment profiles.

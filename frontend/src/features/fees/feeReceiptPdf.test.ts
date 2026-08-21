@@ -37,11 +37,11 @@ const receipt: FeeReceiptResponse = {
 };
 
 describe("fee receipt PDF", () => {
-  it("uses Jadhavar on the left and only the configured college logo on the right", () => {
+  it("uses College ERP on the left and only the configured college logo on the right", () => {
     expect(
       feeReceiptLogoUrls({ ...receipt, collegeLogoUrl: "/api/public/colleges/AIMS/logo" }),
     ).toEqual({
-      leftLogoUrl: "/assets/jadhavar-logo.png",
+      leftLogoUrl: "/assets/college-erp-logo.png",
       rightLogoUrl: "/api/public/colleges/AIMS/logo",
     });
     expect(feeReceiptLogoUrls({ ...receipt, collegeLogoUrl: null }).rightLogoUrl).toBeNull();
@@ -50,7 +50,7 @@ describe("fee receipt PDF", () => {
   it("builds the complete two-logo institute header from the reference structure", () => {
     expect(feeReceiptHeader(receipt)).toEqual({
       motto: '"Education for Strength, Intellect & Wisdom"',
-      founder: "- Prin. Dr. Sudhakarrao Jadhavar",
+      founder: "- Prin. Dr. Sudhakarrao College ERP",
       institutionName: "ADITYA INSTITUTE OF MANAGEMENT - AIMS",
       affiliation:
         "Affiliated to Savitribai Phule Pune University, Approved by AICTE, NAAC Accredited",

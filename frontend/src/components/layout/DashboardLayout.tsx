@@ -28,11 +28,11 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const leadershipAccount = isLeadershipAccount(user?.roles);
-  const workspaceStorageKey = user ? `jadhavar:workspace:${user.id}` : null;
+  const workspaceStorageKey = user ? `college-erp:workspace:${user.id}` : null;
   const [workspaceMode, setWorkspaceMode] = useState<LeadershipWorkspaceMode>(() => {
     const pathMode = workspaceModeForPath(window.location.pathname);
     if (pathMode) return pathMode;
-    const saved = user ? window.localStorage.getItem(`jadhavar:workspace:${user.id}`) : null;
+    const saved = user ? window.localStorage.getItem(`college-erp:workspace:${user.id}`) : null;
     return saved === "teaching" ? "teaching" : "leadership";
   });
   const [collapsed, setCollapsed] = useState(false);

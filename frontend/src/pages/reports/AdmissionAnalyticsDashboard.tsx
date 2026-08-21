@@ -217,7 +217,7 @@ export function AdmissionAnalyticsDashboard() {
           ? collegeNames[0]
           : applied.collegeId
             ? colleges.find((c) => String(c.id) === applied.collegeId)?.name || "Selected College"
-            : "All Jadhavar Colleges";
+            : "All College ERP Colleges";
       if (type === "csv") {
         const csv = [
           "Admission Number,Student,Department,Year,Status,Submitted",

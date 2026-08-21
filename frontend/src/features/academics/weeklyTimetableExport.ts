@@ -218,7 +218,7 @@ export async function exportWeeklyTimetableExcel(table: WeeklyTimetable) {
   workbook.Props = {
     Title: `${table.college} Weekly Timetable`,
     Subject: titleFor(table),
-    Author: "Jadhavar ERP",
+    Author: "College ERP",
     CreatedDate: new Date(),
   };
   XLSX.utils.book_append_sheet(workbook, worksheet, "Weekly Timetable");

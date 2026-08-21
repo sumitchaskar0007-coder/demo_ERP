@@ -10,7 +10,7 @@ const authState = vi.hoisted(() => ({
     id: 42,
     collegeId: 1,
     institutionId: 1,
-    collegeName: "Jadhavar College",
+    collegeName: "College ERP College",
     collegeCode: "JDC",
     fullName: "Asha Jadhav",
     email: "asha@example.com",
@@ -48,7 +48,7 @@ describe("ProfilePage", () => {
 
     expect(await screen.findAllByText("Asha Jadhav")).not.toHaveLength(0);
     expect(screen.getByText("Profile Overview")).toBeInTheDocument();
-    expect(screen.getAllByText("Jadhavar College")).not.toHaveLength(0);
+    expect(screen.getAllByText("College ERP College")).not.toHaveLength(0);
 
     expect(screen.queryByText("User ID")).not.toBeInTheDocument();
     expect(screen.queryByText("Primary Role")).not.toBeInTheDocument();

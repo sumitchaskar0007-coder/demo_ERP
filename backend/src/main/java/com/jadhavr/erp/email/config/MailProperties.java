@@ -16,7 +16,7 @@ public class MailProperties {
 
     private boolean enabled;
     private String fromAddress = "noreply@localhost";
-    private String fromName = "Jadhavar Institute";
+    private String fromName = "College ERP Institute";
     private String replyTo = "noreply@localhost";
     private String configurationSet = "";
     private int maxRetries = 3;

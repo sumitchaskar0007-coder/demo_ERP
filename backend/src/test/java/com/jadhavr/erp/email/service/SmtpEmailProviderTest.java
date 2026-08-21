@@ -22,7 +22,7 @@ class SmtpEmailProviderTest {
         MailProperties properties = new MailProperties();
         properties.setFromAddress("noreply@jadhavaredu.com");
         properties.setReplyTo("noreply@jadhavaredu.com");
-        properties.setFromName("Jadhavar ERP");
+        properties.setFromName("College ERP");
         properties.setConfigurationSet("jadhavr-erp-production");
 
         SmtpEmailProvider provider = new SmtpEmailProvider(sender, properties);
